@@ -1,0 +1,7 @@
+{
+  "injectors": {
+    "pilet": {
+      "assetUrl": "http://localhost:1235"
+    }
+  }
+}

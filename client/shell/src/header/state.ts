@@ -1,9 +1,9 @@
 /**
- * The section header's content, held in Piral global state: one header at a time, set by whichever
- * page is showing (a pilet through `setSectionHeader`, the shell's own pages through
- * `useSectionHeaderEffect`). Each set gets an id, and its disposer clears the header only while that id
- * is still current, so a page unmounting after the next page has set its header leaves the new one alone.
- * Unloading a pilet clears a header it owns.
+ * The section header's content, held in Piral global state and set by whichever page is showing (a
+ * pilet through `setSectionHeader`, the shell's own pages through `useSectionHeaderEffect`). Headers
+ * stack: the newest set is the one drawn, and disposing one removes only that entry, so a nested page
+ * or a page unmounting after the next one has set its header restores whatever is still set below it.
+ * Unloading a pilet removes the headers it owns.
  */
 import * as React from 'react';
 import type { Disposable, GlobalStateContext } from 'piral-core';
@@ -20,6 +20,8 @@ export interface SectionHeaderView {
 export interface SectionHeader {
   /** Rendered as the page's h1 */
   title: string;
+  /** The document title's first part when it should differ from the h1; the title otherwise */
+  documentTitle?: string;
   /** A router path; no back button without it */
   backTo?: string;
   /** The back button's accessible name; "Back" when not given */
@@ -27,11 +29,18 @@ export interface SectionHeader {
   views?: Array<SectionHeaderView>;
 }
 
-export interface SectionHeaderState {
-  current: Readonly<SectionHeader> | null;
+export interface SectionHeaderEntry {
+  header: Readonly<SectionHeader>;
   id: number;
-  /** The pilet (or "shell") that set the current header */
-  owner: string | null;
+  /** The pilet (or "shell") that set the header */
+  owner: string;
+}
+
+export interface SectionHeaderState {
+  /** The header drawn: the last entry's */
+  current: Readonly<SectionHeader> | null;
+  /** Oldest first */
+  entries: ReadonlyArray<SectionHeaderEntry>;
 }
 
 declare module 'piral-core/lib/types/custom' {
@@ -40,28 +49,39 @@ declare module 'piral-core/lib/types/custom' {
   }
 }
 
-export const initialSectionHeader: SectionHeaderState = { current: null, id: 0, owner: null };
+export const initialSectionHeader: SectionHeaderState = { current: null, entries: [] };
 
 let lastId = 0;
 
+function withEntries(context: GlobalStateContext, update: (entries: ReadonlyArray<SectionHeaderEntry>) => ReadonlyArray<SectionHeaderEntry>) {
+  context.dispatch((state) => {
+    const entries = update(state.sectionHeader.entries);
+    return { ...state, sectionHeader: { current: entries[entries.length - 1]?.header ?? null, entries } };
+  });
+}
+
+export function currentSectionHeader(state: SectionHeaderState): SectionHeaderEntry | null {
+  return state.entries[state.entries.length - 1] ?? null;
+}
+
 export function setSectionHeader(context: GlobalStateContext, owner: string, header: SectionHeader): Disposable {
   const id = ++lastId;
-  context.dispatch((state) => ({ ...state, sectionHeader: { current: header, id, owner } }));
+  withEntries(context, (entries) => [...entries, { header, id, owner }]);
   return () => {
-    if (context.readState((state) => state.sectionHeader.id) === id) {
-      context.dispatch((state) => ({ ...state, sectionHeader: { ...initialSectionHeader, id } }));
+    if (context.readState((state) => state.sectionHeader.entries.some((entry) => entry.id === id))) {
+      withEntries(context, (entries) => entries.filter((entry) => entry.id !== id));
     }
   };
 }
 
 export function clearSectionHeaderOf(context: GlobalStateContext, owner: string): void {
-  if (context.readState((state) => state.sectionHeader.owner) === owner) {
-    context.dispatch((state) => ({ ...state, sectionHeader: { ...initialSectionHeader, id: ++lastId } }));
+  if (context.readState((state) => state.sectionHeader.entries.some((entry) => entry.owner === owner))) {
+    withEntries(context, (entries) => entries.filter((entry) => entry.owner !== owner));
   }
 }
 
-export function useSectionHeader(): Readonly<SectionHeader> | null {
-  return useGlobalState((state) => state.sectionHeader.current);
+export function useSectionHeader(): SectionHeaderEntry | null {
+  return useGlobalState((state) => currentSectionHeader(state.sectionHeader));
 }
 
 /** Sets the header for as long as the calling component is mounted; a changed header replaces it */

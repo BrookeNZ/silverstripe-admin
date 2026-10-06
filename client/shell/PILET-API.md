@@ -41,7 +41,7 @@ A registered field component receives `FieldComponentProps<V, P>`:
 | Prop | |
 |---|---|
 | `field: FormField<P>` | The schema field merged with its state. Plain props the shared components read (`id`, `name`, `holderId`, `title`, `description`, `readOnly`, `disabled`, `source`, `children`, `maxLength`, `emptyOption`, `headingLevel`, `primary`), the FormSchema keys (`schemaType`, `component`, `componentCandidates`, `data`, `extraClass`, `attributes`, `message`), and the field's own schema-level props typed by `P` (for example `optionUrl`, `lazyLoad`) |
-| `value: V` | Current value; for a react-select field the option objects FormSchema state sends |
+| `value: V` | Current value; for a select field, the option objects FormSchema state sends |
 | `onChange(value)`, `onBlur()` | Report changes; the form library stays inside the shell |
 | `error?: string` | Client or server validation message for this field |
 | `submitting: boolean` | True while the form posts |

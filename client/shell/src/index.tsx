@@ -3,13 +3,13 @@ import '@silverstripe/admin-patterns/styles.css';
 import * as React from 'react';
 import { createRoot } from 'react-dom/client';
 import { createInstance, Piral } from 'piral-core';
-import { createNotificationsApi } from 'piral-notifications';
 import { createSilverstripeApi } from './api/silverstripe';
 import { FileEditPage } from './assets';
 import { registerBuiltInFields } from './forms/fields';
 import { registerGridComponents } from './grid';
 import { initialSectionHeader } from './header/state';
 import { createLayout, createRouter, errors, Home, readMenu, SectionWithoutPilet } from './layout';
+import { createShellNotificationsApi } from './notifications';
 import { createSectionPage } from './sections/SectionPage';
 import { initialUnsavedChanges } from './unsaved';
 import './style.css';
@@ -41,7 +41,7 @@ const instance = createInstance({
     sectionHeader: initialSectionHeader,
     unsavedChanges: initialUnsavedChanges,
   },
-  plugins: [createNotificationsApi({ defaultOptions: { type: 'info', autoClose: 8000 } }), createSilverstripeApi()],
+  plugins: [createShellNotificationsApi(8000), createSilverstripeApi()],
   requestPilets() {
     return fetch(feedUrl, {
       credentials: 'same-origin',

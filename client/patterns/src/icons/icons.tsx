@@ -147,3 +147,17 @@ export const RemoveIcon = (props: IconProps) => (
     />
   </Icon>
 );
+
+/** Figma "Hamburger" 2:1921, the glyph without its square, which the menu toggle draws as its fill */
+export const MenuIcon = (props: IconProps) => (
+  <Icon viewBox="15 15 20 20" {...props}>
+    <path d="M35 32.467H15V30.6h20zm0-6.533H15v-1.868h20zm0-6.535H15v-1.866h20z" />
+  </Icon>
+);
+
+/** Figma top bar "Mobile menu" 2:1916, its close cross 2:1919 */
+export const CloseIcon = (props: IconProps) => (
+  <Icon viewBox="0 0 16 16" {...props}>
+    <path d="M16 1.025 14.975 0 8 6.975 1.025 0 0 1.025 6.975 8 0 14.975 1.025 16 8 9.025 14.975 16 16 14.975 9.025 8z" />
+  </Icon>
+);

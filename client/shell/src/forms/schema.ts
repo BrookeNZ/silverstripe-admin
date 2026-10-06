@@ -244,12 +244,36 @@ export function defaultValues(valueFields: Array<FormField>): FormValues {
   return Object.fromEntries(valueFields.map((field) => [field.key, field.value]));
 }
 
-// Select fields built on react-select hold option objects, the shape FormSchema state sends them in
+function isOption(value: object): value is { value: unknown } {
+  return 'value' in value && !Array.isArray(value);
+}
+
+// An option object posts its value, the shape FormSchema state sends select values in
 function postedValue(value: unknown): string {
-  if (value !== null && typeof value === 'object' && 'value' in value) {
+  if (value !== null && typeof value === 'object' && isOption(value)) {
     return postedValue(value.value);
   }
   return value == null ? '' : String(value);
+}
+
+/**
+ * Appends a value under a PHP POST name the way the legacy admin's qs.stringify did: nested objects as
+ * `Name[Key]`, an empty array as nothing. Scalar lists post as `Name[]`; a list holding objects keeps
+ * indices so each object's keys stay together when PHP parses them
+ */
+function appendValue(body: URLSearchParams, name: string, value: unknown): void {
+  if (Array.isArray(value)) {
+    const indexed = value.some((item) => item !== null && typeof item === 'object' && !isOption(item));
+    value.forEach((item, index) => appendValue(body, indexed ? `${name}[${index}]` : `${name}[]`, item));
+  } else if (value !== null && typeof value === 'object' && !isOption(value)) {
+    for (const [key, item] of Object.entries(value)) {
+      appendValue(body, `${name}[${key}]`, item);
+    }
+  } else if (typeof value === 'boolean') {
+    body.append(name, value ? '1' : '0');
+  } else {
+    body.append(name, postedValue(value));
+  }
 }
 
 export function encodeSubmission(valueFields: Array<FormField>, values: FormValues, action: string): URLSearchParams {
@@ -258,14 +282,10 @@ export function encodeSubmission(valueFields: Array<FormField>, values: FormValu
     const value = values[field.key];
     const isMulti = field.name.endsWith('[]') || field.schemaType === 'MultiSelect';
     if (isMulti) {
-      const name = field.name.endsWith('[]') ? field.name : `${field.name}[]`;
-      for (const item of Array.isArray(value) ? value : value == null ? [] : [value]) {
-        body.append(name, postedValue(item));
-      }
-    } else if (typeof value === 'boolean') {
-      body.append(field.name, value ? '1' : '0');
+      const name = field.name.endsWith('[]') ? field.name.slice(0, -2) : field.name;
+      appendValue(body, name, Array.isArray(value) ? value : value == null ? [] : [value]);
     } else {
-      body.append(field.name, postedValue(value));
+      appendValue(body, field.name, value);
     }
   }
   body.append(action, '1');

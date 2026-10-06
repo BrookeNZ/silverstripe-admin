@@ -4,6 +4,12 @@
  * The legacy admin bundle is not loaded when the shell is. Shared tokens (--admin-*) and component
  * styles come from @silverstripe/admin-patterns, imported before this file; the chrome tokens here
  * cover what only the shell draws: the menu, the content area and notifications.
+ *
+ * Below 1024px the menu collapses behind a toggle in a top bar, after the design's mobile top bar
+ * (Figma "Top bar" Mobile v2 2:1909, Hamburger 2:1921) and opens over the content under it. The design
+ * has mobile (375px) and tablet (769px) frames but no breakpoint value, so 1024px is the shell's own
+ * choice. From 1024px the menu is the fixed sidebar it has always been. --shell-sticky-top is how far
+ * the top bar pushes the sticky section header (header.css) and the scroll padding down
  */
 
 :root {
@@ -16,16 +22,35 @@
   --shell-link-fg-color: var(--admin-nav-fg-color);
   --shell-logo-font-weight: 700;
   --shell-menu-bg-color: var(--admin-sunken-bg-color);
+
+  /* Figma Hamburger 2:1921: Royal Blue square, Bright Blue on hover (2:1926), 20px glyph */
+  --shell-menu-toggle-bg-color: var(--admin-nav-fg-color);
+  --shell-menu-toggle-fg-color: var(--admin-inverse-fg-color);
+  --shell-menu-toggle-hover-bg-color: var(--admin-accent-color);
+  --shell-menu-toggle-icon-size: 2rem;
+  --shell-menu-toggle-size: 5rem;
   --shell-menu-width: 24rem;
   --shell-notification-bg-color: var(--admin-inverse-bg-color);
   --shell-notification-border: none;
   --shell-notification-fg-color: var(--admin-inverse-fg-color);
+  --shell-sidebar-border-width: 0.1rem;
+
+  /* Above the sticky section header */
+  --shell-sidebar-z-index: 3;
+  --shell-skip-link-z-index: 4;
+  --shell-sticky-top: calc(var(--shell-menu-toggle-size) + var(--shell-sidebar-border-width));
 }
 
-/* Keeps a focused or scrolled-to element clear of the sticky section header */
+@media (width >= 1024px) {
+  :root {
+    --shell-sticky-top: 0rem;
+  }
+}
+
+/* Keeps a focused or scrolled-to element clear of the sticky section header and the form's action bar (form.css) */
 html {
   font-size: 62.5%;
-  scroll-padding-block-start: var(--shell-header-height);
+  scroll-padding-block: calc(var(--shell-sticky-top) + var(--shell-header-height)) var(--shell-form-actions-height);
 }
 
 body {
@@ -39,22 +64,134 @@ body {
 
 .shell {
   display: grid;
-  grid-template-columns: var(--shell-menu-width) 1fr;
+  grid-template-columns: 1fr;
   min-height: 100vh;
 }
 
-/* Start alignment stops the grid stretching the menu to the page height, which sticky needs */
-.shell__menu {
+@media (width >= 1024px) {
+  .shell {
+    grid-template-columns: var(--shell-menu-width) 1fr;
+  }
+}
+
+/* Shown only while focused, so the first Tab stop on every page can jump past the menu */
+.shell__skip-link {
+  --shell-skip-link-clip-path: inset(50%);
+
+  background-color: var(--admin-bg-color);
+  clip-path: var(--shell-skip-link-clip-path);
+  color: var(--admin-link-color);
+  inset-block-start: var(--admin-gap-sm);
+  inset-inline-start: var(--admin-gap-sm);
+  padding: var(--admin-gap-sm) var(--admin-gap-md);
+  position: absolute;
+  white-space: nowrap;
+  z-index: var(--shell-skip-link-z-index);
+}
+
+.shell__skip-link:focus {
+  --shell-skip-link-clip-path: none;
+}
+
+.shell__skip-link:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: var(--admin-focus-outline-offset);
+}
+
+/*
+ * A sticky top bar holding the menu toggle until 1024px; from there the full-height sidebar, where start
+ * alignment stops the grid stretching it to the page height, which sticky needs
+ */
+.shell__sidebar {
   align-self: start;
-  background-color: var(--shell-menu-bg-color);
+  background-color: var(--admin-bg-color);
+  border-block-end: var(--shell-sidebar-border-width) solid var(--admin-divider-color);
   color: var(--shell-link-fg-color);
+  inset-block-start: 0;
+  position: sticky;
+  z-index: var(--shell-sidebar-z-index);
+}
+
+@media (width >= 1024px) {
+  .shell__sidebar {
+    background-color: var(--shell-menu-bg-color);
+    border-block-end: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--admin-gap-sm);
+    height: 100vh;
+    padding: var(--admin-gap-md);
+  }
+}
+
+/* Figma mobile top bar: 15px from the toggle to the logo */
+.shell__banner {
+  align-items: center;
   display: flex;
+  gap: var(--admin-gap-md);
+  padding-inline-end: var(--admin-gap-md);
+}
+
+@media (width >= 1024px) {
+  .shell__banner {
+    align-items: stretch;
+    flex-direction: column;
+    gap: var(--admin-gap-sm);
+    padding-inline-end: 0;
+  }
+}
+
+.shell__menu-toggle {
+  --admin-button-bg-color: var(--shell-menu-toggle-bg-color);
+  --admin-button-border-color: var(--shell-menu-toggle-bg-color);
+  --admin-button-border-radius: 0;
+  --admin-button-fg-color: var(--shell-menu-toggle-fg-color);
+  --admin-button-hover-bg-color: var(--shell-menu-toggle-hover-bg-color);
+  --admin-button-padding-block: calc((var(--shell-menu-toggle-size) - var(--shell-menu-toggle-icon-size)) / 2);
+  --admin-button-padding-inline: var(--admin-button-padding-block);
+  --admin-icon-size: var(--shell-menu-toggle-icon-size);
+}
+
+@media (width >= 1024px) {
+  .shell__menu-toggle {
+    display: none;
+  }
+}
+
+/* Under the top bar while open; the full-height sidebar's list from 1024px, where min-height 0 lets the list scroll */
+.shell__menu {
+  --shell-menu-display: none;
+
+  background-color: var(--shell-menu-bg-color);
+  box-shadow: 0 var(--admin-gap-xs) var(--admin-gap-sm) var(--admin-shadow-color);
+  box-sizing: border-box;
+  display: var(--shell-menu-display);
   flex-direction: column;
   gap: var(--admin-gap-sm);
-  height: 100vh;
-  inset-block-start: 0;
+  inset-block-start: 100%;
+  inset-inline: 0;
+  max-height: calc(100dvh - var(--shell-sticky-top));
+  min-height: 0;
+  overflow-y: auto;
   padding: var(--admin-gap-md);
-  position: sticky;
+  position: absolute;
+}
+
+@media (width >= 1024px) {
+  .shell__menu {
+    --shell-menu-display: flex;
+
+    background-color: transparent;
+    box-shadow: none;
+    max-height: none;
+    overflow-y: visible;
+    padding: 0;
+    position: static;
+  }
+}
+
+.shell__menu--open {
+  --shell-menu-display: flex;
 }
 
 .shell__logo {
@@ -70,7 +207,7 @@ body {
 }
 
 .shell__badge {
-  align-self: flex-start;
+  align-self: center;
   background-color: var(--shell-badge-bg-color);
   border: var(--shell-badge-border);
   border-radius: var(--admin-radius);
@@ -81,6 +218,12 @@ body {
   text-transform: uppercase;
 }
 
+@media (width >= 1024px) {
+  .shell__badge {
+    align-self: flex-start;
+  }
+}
+
 /* Forced colours drop the ground, so a border keeps the badge's boundary */
 @media (forced-colors: active) {
   .shell__badge {
@@ -88,7 +231,7 @@ body {
   }
 }
 
-/* The list scrolls inside the fixed-height menu; min-height 0 lets a flex child shrink below its content */
+/* The list scrolls inside the fixed-height sidebar; min-height 0 lets a flex child shrink below its content */
 .shell__list {
   display: flex;
   flex-direction: column;
@@ -131,17 +274,28 @@ body {
   outline-offset: var(--admin-focus-outline-offset);
 }
 
-/* Content, body and page are flex columns so a form can grow to the viewport and pin its action bar */
+/* Content, body and page are flex columns so a form can grow to the viewport and pin its action bar; min-width 0 lets the grid column shrink below wide content */
 .shell__content {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-width: 0;
 }
 
 .shell__body {
   display: flex;
   flex: 1;
   flex-direction: column;
+}
+
+/* Visually hidden; read by assistive technology only */
+.shell__announcer {
+  block-size: 0.1rem;
+  clip-path: inset(50%);
+  inline-size: 0.1rem;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
 }
 
 .shell-page {
@@ -154,8 +308,9 @@ body {
   padding: var(--shell-page-padding);
 }
 
+/* Above the form's action bar, so a toast never covers its controls */
 .piral-notifications-host {
-  bottom: var(--admin-gap-md);
+  bottom: calc(var(--shell-form-actions-height) + var(--admin-gap-md));
   display: flex;
   flex-direction: column;
   gap: var(--admin-gap-sm);

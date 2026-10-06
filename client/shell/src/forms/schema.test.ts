@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   actionBarFields,
   barActions,
+  encodeSubmission,
   errorField,
   mergeFields,
   schemaText,
@@ -290,5 +291,59 @@ describe('barActions on a page just created', () => {
       ['Saved', false, 'tick'],
       ['Publish', true, 'rocket'],
     ]);
+  });
+});
+
+describe('encodeSubmission', () => {
+  const fields = mergeFields(
+    [
+      schemaField('Title', 'Form_Title'),
+      schemaField('ShowInMenus', 'Form_ShowInMenus'),
+      schemaField('ViewerMembers[]', 'Form_ViewerMembers'),
+      schemaField('HeroImage', 'Form_HeroImage'),
+      schemaField('Rows', 'Form_Rows'),
+    ],
+    undefined,
+  );
+  const encode = (values: Record<string, unknown>) =>
+    [...encodeSubmission(fields, Object.fromEntries(fields.map((field) => [field.key, values[field.name]])), 'action_save')];
+
+  it('posts scalars, booleans and missing values as single entries', () => {
+    expect(encode({ Title: 'Home', ShowInMenus: true })).toEqual([
+      ['Title', 'Home'],
+      ['ShowInMenus', '1'],
+      ['HeroImage', ''],
+      ['Rows', ''],
+      ['action_save', '1'],
+    ]);
+  });
+
+  it('posts a multi-value field once per item, unwrapping option objects', () => {
+    expect(encode({ 'ViewerMembers[]': ['3', { value: 4, label: 'Four' }] })).toContainEqual(['ViewerMembers[]', '4']);
+    expect(encode({ 'ViewerMembers[]': ['3'] })).toContainEqual(['ViewerMembers[]', '3']);
+  });
+
+  it('posts the empty marker a multi-value field holds as its one item', () => {
+    expect(encode({ 'ViewerMembers[]': 'unchanged' })).toContainEqual(['ViewerMembers[]', 'unchanged']);
+  });
+
+  it('posts a nested object with PHP keys', () => {
+    expect(encode({ HeroImage: { Files: [12, 13] } })).toEqual(
+      expect.arrayContaining([
+        ['HeroImage[Files][]', '12'],
+        ['HeroImage[Files][]', '13'],
+      ]),
+    );
+    expect(encode({ Rows: [{ Key: 'a', Value: 'b' }] })).toEqual(
+      expect.arrayContaining([
+        ['Rows[0][Key]', 'a'],
+        ['Rows[0][Value]', 'b'],
+      ]),
+    );
+  });
+
+  it('posts nothing for an empty array, so a cleared upload detaches', () => {
+    const entries = encode({ HeroImage: { Files: [] }, 'ViewerMembers[]': [] });
+    expect(entries.some(([name]) => name.startsWith('HeroImage') || name.startsWith('ViewerMembers'))).toBe(false);
   });
 });

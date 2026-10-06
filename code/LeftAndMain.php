@@ -7,6 +7,7 @@ use LogicException;
 use SilverStripe\Admin\Forms\UnsavedChangesIndicator;
 use SilverStripe\Admin\Navigator\SilverStripeNavigator;
 use SilverStripe\Admin\UserInterface\PiletFeedController;
+use SilverStripe\Admin\UserInterface\PiralShellAssets;
 use SilverStripe\Admin\SingleRecordAdmin;
 use SilverStripe\CMS\Controllers\CMSMain;
 use SilverStripe\Control\Controller;
@@ -579,8 +580,7 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
             window.ss = window.ss || {};
             window.ss.config = " . $clientConfig . ";
         ", 'ss-config');
-        Requirements::javascript('silverstripe/admin: client/dist/shell/main.js');
-        Requirements::css('silverstripe/admin: client/dist/shell/main.css');
+        PiralShellAssets::singleton()->includeRequirements();
     }
 
     public function PiletFeedLink(): string

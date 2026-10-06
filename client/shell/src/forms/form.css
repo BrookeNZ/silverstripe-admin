@@ -2,22 +2,55 @@
  * FormSchema form
  *
  * The form element rendered by FormSchemaForm, its alerts and status line, and the action bar. The
- * fields, groups and headings inside it are styled by @silverstripe/admin-patterns.
+ * fields, groups and headings inside it are styled by @silverstripe/admin-patterns. A form message
+ * draws as an error unless it carries --good, for a schema message of type good or success.
  *
  * The action bar is the CMS Refresh "Bottom bar" (Figma node 2:6870, edit mode 2:6871): white, a Grey
  * 400 top line, 15px by 20px padding, the actions on the left and the host's extra controls pushed to
  * the right. In the design it spans the whole content column, so it bleeds out of the column's inset
  * by --shell-form-actions-bleed, which the host that pads the form sets to that padding (`.shell-page`
  * in the shell, `.pages` in the pages pilet). It sits at the bottom of a short form, which grows to the
- * viewport, and stays in view while a long one scrolls
+ * viewport, and stays in view while a long one scrolls.
+ *
+ * Below 576px the host's controls drop to a second row, as the design's mobile bar (2:6939) and its note
+ * "secondary buttons stack at 576px" (2:6960). The bar's tokens sit on :root because the shell reads
+ * --shell-form-actions-height for the page's bottom scroll padding and the notification offset, so a
+ * focused field is scrolled clear of the bar. The height is derived from the design's 35px buttons and
+ * the row count, so a third row (the unsaved indicator wrapping on a very narrow screen) is not counted
  */
 
 :root {
   --shell-form-actions-bleed: 0rem;
+  --shell-form-actions-border-width: 0.1rem;
+
+  /* Figma: the 35px buttons set each row's height */
+  --shell-form-actions-control-height: 3.5rem;
+  --shell-form-actions-end-basis: 100%;
+
+  /* Figma: 15px between the save group, the options button and the utilities, and between stacked rows */
+  --shell-form-actions-gap: 1.5rem;
+
+  /* Figma: 10px between Saved and Publish */
+  --shell-form-actions-group-gap: 1rem;
+  --shell-form-actions-height: calc(var(--shell-form-actions-rows-height) + var(--shell-form-actions-inset));
+  --shell-form-actions-inset: calc(2 * var(--shell-form-actions-padding-block) + var(--shell-form-actions-border-width));
+  --shell-form-actions-padding-block: 1.5rem;
+  --shell-form-actions-padding-inline: 2rem;
+  --shell-form-actions-rows: 2;
+  --shell-form-actions-rows-height: calc(var(--shell-form-actions-rows) * var(--shell-form-actions-control-height) + (var(--shell-form-actions-rows) - 1) * var(--shell-form-actions-gap));
+}
+
+@media (width >= 576px) {
+  :root {
+    --shell-form-actions-end-basis: auto;
+    --shell-form-actions-rows: 1;
+  }
 }
 
 .shell-form {
-  --shell-form-alert-border: 0.4rem solid var(--admin-error-fg-color);
+  --shell-form-alert-bg-color: var(--admin-error-bg-color);
+  --shell-form-alert-border: 0.4rem solid;
+  --shell-form-alert-color: var(--admin-error-fg-color);
   --shell-form-gap: var(--admin-gap-md);
 
   display: flex;
@@ -27,11 +60,16 @@
 }
 
 .shell-form__alert {
-  background-color: var(--admin-error-bg-color);
-  border-inline-start: var(--shell-form-alert-border);
-  color: var(--admin-error-fg-color);
+  background-color: var(--shell-form-alert-bg-color);
+  border-inline-start: var(--shell-form-alert-border) var(--shell-form-alert-color);
+  color: var(--shell-form-alert-color);
   margin: 0;
   padding: var(--admin-gap-sm) var(--admin-gap-md);
+}
+
+.shell-form__alert--good {
+  --shell-form-alert-bg-color: var(--admin-success-bg-color);
+  --shell-form-alert-color: var(--admin-success-fg-color);
 }
 
 .shell-form__status {
@@ -42,17 +80,9 @@
   --admin-group-gap: var(--shell-form-actions-group-gap);
   --admin-group-row-align: center;
 
-  /* Figma: 15px between the save group, the options button and the utilities */
-  --shell-form-actions-gap: 1.5rem;
-
-  /* Figma: 10px between Saved and Publish */
-  --shell-form-actions-group-gap: 1rem;
-  --shell-form-actions-padding-block: 1.5rem;
-  --shell-form-actions-padding-inline: 2rem;
-
   align-items: center;
   background-color: var(--admin-bg-color);
-  border-block-start: 0.1rem solid var(--admin-divider-color);
+  border-block-start: var(--shell-form-actions-border-width) solid var(--admin-divider-color);
   display: flex;
   flex-wrap: wrap;
   gap: var(--shell-form-actions-gap);
@@ -70,6 +100,7 @@
 .shell-form__actions-end {
   align-items: center;
   display: flex;
+  flex-basis: var(--shell-form-actions-end-basis);
   flex-wrap: wrap;
   gap: var(--shell-form-actions-group-gap);
   margin-inline-start: auto;

@@ -6,7 +6,8 @@
  * underlined, a divider below. It sticks to the top of the content area while the page scrolls.
  *
  * The tokens sit on :root because the content below reads the header's height: the shell's scroll
- * padding and the pages pilet's sticky tree pane. The views are the patterns package's tab strip,
+ * padding and the pages pilet's sticky tree pane. It sticks below the shell's narrow-screen top bar
+ * (--shell-sticky-top in style.css). The views are the patterns package's tab strip,
  * which scrolls sideways when a ModelAdmin has more model tabs than fit and rings focus inside each tab
  */
 
@@ -39,7 +40,7 @@
   box-sizing: border-box;
   column-gap: var(--shell-header-column-gap);
   display: flex;
-  inset-block-start: 0;
+  inset-block-start: var(--shell-sticky-top);
   min-height: var(--shell-header-height);
   padding-inline: var(--shell-header-padding-inline-start) var(--shell-header-padding-inline-end);
   position: sticky;
@@ -75,6 +76,12 @@
   font-weight: var(--shell-header-title-font-weight);
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+/* Focus lands here after a route change */
+.shell-header__title:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: var(--admin-focus-outline-offset);
 }
 
 .shell-header__views {

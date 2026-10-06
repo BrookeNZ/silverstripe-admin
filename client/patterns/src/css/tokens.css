@@ -129,6 +129,10 @@
 
   /* 4.57:1 on white, so it meets 3:1 for a control's edge */
   --admin-strong-border-color: var(--admin-palette-grey-800);
+
+  /* The design has no success message; its colour is the save button's green, 4.53:1 on white */
+  --admin-success-bg-color: var(--admin-palette-white);
+  --admin-success-fg-color: var(--admin-palette-button-primary);
   --admin-sunken-bg-color: var(--admin-palette-blue-100);
 
   /* WCAG 2.5.8 target size */

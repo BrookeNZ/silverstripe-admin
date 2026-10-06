@@ -34,13 +34,32 @@ describe('section header state', () => {
     expect(current(context)).toBeNull();
   });
 
+  it('restores the header below when a later one is disposed', () => {
+    const context = fakeContext();
+    setSectionHeader(context, 'shell', { title: 'Security' });
+    const disposeRecord = setSectionHeader(context, 'shell', { title: 'Admin' });
+    expect(current(context)?.title).toBe('Admin');
+    disposeRecord();
+    expect(current(context)?.title).toBe('Security');
+  });
+
+  it('disposes only once', () => {
+    const context = fakeContext();
+    const dispose = setSectionHeader(context, 'shell', { title: 'Security' });
+    setSectionHeader(context, 'shell', { title: 'Groups' });
+    dispose();
+    dispose();
+    expect(context.readState((state) => state.sectionHeader.entries.map((entry) => entry.header.title))).toEqual(['Groups']);
+  });
+
   it('clears the header only for the pilet that owns it', () => {
     const context = fakeContext();
+    setSectionHeader(context, 'shell', { title: 'Pages' });
     setSectionHeader(context, 'silverstripe-cms-pages', { title: 'Home' });
     clearSectionHeaderOf(context, 'hello');
     expect(current(context)?.title).toBe('Home');
     clearSectionHeaderOf(context, 'silverstripe-cms-pages');
-    expect(current(context)).toBeNull();
+    expect(current(context)?.title).toBe('Pages');
   });
 
   it('keeps a disposer from clearing a header set after the owner was unloaded', () => {
