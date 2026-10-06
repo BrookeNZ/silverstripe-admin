@@ -69,7 +69,7 @@ class GridFieldRowsEndpointTest extends FunctionalTest
 
         $addNew = $body['slots']['buttons-before-left'][0];
         $this->assertSame(GridFieldAddNewButtonSchema::COMPONENT, $addNew['component']);
-        $this->assertStringEndsWith('field/Teams/item/new/', $addNew['props']['url']);
+        $this->assertStringEndsWith('field/Teams/item/new/edit/', $addNew['props']['url']);
         $this->assertArrayNotHasKey('header', $body['slots'], 'Sortable header and filter header are carried as data');
     }
 

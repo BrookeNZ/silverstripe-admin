@@ -46,6 +46,10 @@ export interface FormSchemaFormProps {
   trackUnsavedChanges?: boolean;
   /** Controls the host adds to the right-hand end of the action bar, such as the draft and published toggle */
   actionsEnd?: React.ReactNode;
+  /** Called with the loaded response, for a host that shows what the endpoint sends beside the form */
+  onLoad?(response: FormSchemaResponse): void;
+  /** Asked before an action is submitted; false cancels it, as the legacy delete confirmation did */
+  confirmAction?(action: FormField): boolean | Promise<boolean>;
 }
 
 const noop = () => undefined;
@@ -136,6 +140,7 @@ const LoadedForm = ({
   omitFields = noFields,
   trackUnsavedChanges,
   actionsEnd,
+  confirmAction,
 }: LoadedFormProps) => {
   const [schema, setSchema] = React.useState(initialSchema);
   const [state, setState] = React.useState(initialState);
@@ -194,7 +199,11 @@ const LoadedForm = ({
       setState(response.state);
       reset(defaultValues(collectValueFields(mergeFields(schema.fields, response.state))));
     }
-    const refetched = errors.length === 0 ? refetchSchema() : Promise.resolve();
+    if (errors.length === 0 && !response.state) {
+      // A success with no state to load (a deleted record): what was sent is saved, so the form is clean
+      reset(values);
+    }
+    const refetched = errors.length === 0 && !response.deleted ? refetchSchema() : Promise.resolve();
 
     const fieldErrors = errors.flatMap((error) => {
       const field = errorField(valueFields, error.field);
@@ -231,7 +240,13 @@ const LoadedForm = ({
     const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
     const actionName = submitter?.name || 'action_save';
     const focusedId = document.activeElement?.id || submitter?.id;
-    return handleSubmit((values) => submit(values, actionName, focusedId))(event);
+    const submitValues = handleSubmit((values) => submit(values, actionName, focusedId));
+    const action = confirmAction && findAction(actions, actionName);
+    if (!action) {
+      return submitValues(event);
+    }
+    event.preventDefault();
+    return Promise.resolve(confirmAction(action)).then((confirmed) => (confirmed ? submitValues() : undefined));
   };
 
   const shownActions = React.useMemo(() => barActions(actions, formState.isDirty), [actions, formState.isDirty]);
@@ -290,8 +305,12 @@ export const FormSchemaForm = ({
   renderLoadError,
   trackUnsavedChanges,
   actionsEnd,
+  onLoad,
+  confirmAction,
 }: FormSchemaFormProps) => {
   const [load, setLoad] = React.useState<LoadState>({ status: 'loading' });
+  const loadListener = React.useRef(onLoad);
+  loadListener.current = onLoad;
 
   React.useEffect(() => {
     const abort = new AbortController();
@@ -302,6 +321,7 @@ export const FormSchemaForm = ({
           throw new Error('The form endpoint sent no schema or state');
         }
         setLoad({ status: 'ready', schema: response.schema, state: response.state });
+        loadListener.current?.(response);
       })
       .catch((error) => {
         if (!abort.signal.aborted) {
@@ -335,6 +355,7 @@ export const FormSchemaForm = ({
       omitFields={omitFields}
       trackUnsavedChanges={trackUnsavedChanges}
       actionsEnd={actionsEnd}
+      confirmAction={confirmAction}
     />
   );
 };

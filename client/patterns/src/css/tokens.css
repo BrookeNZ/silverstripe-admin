@@ -34,6 +34,10 @@
   --admin-palette-button-primary-tint: rgb(0 138 0 / 0.1);
   --admin-palette-grey-400: #dcdee0;
   --admin-palette-grey-500: #c1c4c8;
+
+  /* Figma Grey/700, from the older Grey folder, which New Grey does not replace */
+  --admin-palette-grey-700: #43536d;
+  --admin-palette-grey-800: #71767f;
   --admin-palette-grey-900: #595d64;
   --admin-palette-line-grey: #dadee1;
   --admin-palette-royal-blue: #003e94;
@@ -87,6 +91,9 @@
   --admin-gap-sm: 0.8rem;
   --admin-gap-md: 1.6rem;
   --admin-hover-bg-color: var(--admin-palette-bright-blue-100);
+
+  /* 7.79:1 on white */
+  --admin-icon-color: var(--admin-palette-grey-700);
   --admin-input-bg-color: var(--admin-palette-white);
   --admin-inverse-bg-color: var(--admin-palette-ink);
   --admin-inverse-fg-color: var(--admin-palette-white);
@@ -94,6 +101,9 @@
   /* Line Grey is 1.35:1 on white, so decorative only */
   --admin-line-color: var(--admin-palette-line-grey);
   --admin-link-color: var(--admin-palette-bright-blue);
+
+  /* Figma text style New/Meta data; 4.57:1 on white */
+  --admin-meta-fg-color: var(--admin-palette-grey-800);
   --admin-modified-bg-color: var(--admin-palette-background-modified);
 
   /* 4.51:1 on the modified ground */
@@ -116,6 +126,9 @@
   --admin-secondary-action-hover-color: var(--admin-palette-button-primary-tint);
   --admin-selected-bg-color: var(--admin-palette-blue-300);
   --admin-shadow-color: rgb(from var(--admin-palette-black) r g b / 0.2);
+
+  /* 4.57:1 on white, so it meets 3:1 for a control's edge */
+  --admin-strong-border-color: var(--admin-palette-grey-800);
   --admin-sunken-bg-color: var(--admin-palette-blue-100);
 
   /* WCAG 2.5.8 target size */

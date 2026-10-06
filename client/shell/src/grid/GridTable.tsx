@@ -9,12 +9,14 @@
  * name and keeps Enter from submitting the form.
  */
 import * as React from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { useGlobalState } from 'piral-core';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useGlobalState, useGlobalStateContext } from 'piral-core';
 import { Button, Dialog, Link, SearchIcon } from '@silverstripe/admin-patterns';
 import { rowPaginationFeature, rowSortingFeature, tableFeatures, useTable } from '@tanstack/react-table';
 import type { ColumnDef, PaginationState, SortingState, Updater } from '@tanstack/react-table';
 import { componentSlotName, silverstripeComponent } from '../api/silverstripe';
+import { routerLink, routerPath } from '../routing';
+import { recordsChangedEvent } from '../events';
 import { GridCellContent, HtmlContent } from './cells';
 import { ariaSort, gridColumnDefs } from './columns';
 import { fromSorting, readGridQuery, rowsParams, toSorting, withParams, writeGridQuery } from './query';
@@ -39,6 +41,12 @@ const slotsAbove = ['before', 'buttons-before-left', 'buttons-before-right', 'to
 
 function absolute(url: string): string {
   return new URL(url, document.baseURI).href;
+}
+
+/** A link to an admin URL routes inside the shell; any other link is a plain anchor */
+function linkTarget(url: string): { href: string; renderLink?: typeof routerLink } {
+  const path = routerPath(url);
+  return path ? { href: path, renderLink: routerLink } : { href: absolute(url) };
 }
 
 function resolve<T>(updater: Updater<T>, previous: T): T {
@@ -68,6 +76,17 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
   const [confirming, setConfirming] = React.useState<{ action: GridPostAction; row: GridRow } | null>(null);
   const region = React.useRef<HTMLDivElement>(null);
   const isRegistered = useRegistry();
+  const [revision, setRevision] = React.useState(0);
+  const context = useGlobalStateContext();
+  const navigateTo = useNavigate();
+
+  React.useEffect(() => {
+    const reload = () => setRevision((current) => current + 1);
+    context.on(recordsChangedEvent, reload);
+    return () => {
+      context.off(recordsChangedEvent, reload);
+    };
+  }, [context]);
 
   React.useEffect(() => {
     const abort = new AbortController();
@@ -88,7 +107,7 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
         }
       });
     return () => abort.abort();
-  }, [rowsUrl, query]);
+  }, [rowsUrl, query, revision]);
 
   const navigate = (next: GridQuery) => setSearchParams(writeGridQuery(searchParams, name, next), { preventScrollReset: true });
 
@@ -135,6 +154,17 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
       setLoading(false);
       region.current?.focus();
     }
+  };
+
+  // A click anywhere in a row opens it, as in the legacy grid; the row's own link stays the keyboard path
+  const openRow = (event: React.MouseEvent<HTMLTableRowElement>, row: GridRow) => {
+    const link = row.actions.find((action) => action.type === 'link' && (action.name === 'edit' || action.name === 'view'));
+    const path = link ? routerPath(link.url) : null;
+    const target = event.target as HTMLElement;
+    if (!path || target.closest('a, button, input, select, textarea, label') || window.getSelection()?.toString()) {
+      return;
+    }
+    navigateTo(path);
   };
 
   const renderSlot = (slot: string) =>
@@ -215,7 +245,7 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
             </tr>
           )}
           {rows.map((row) => (
-            <tr className="admin-grid__row" key={row.id}>
+            <tr className="admin-grid__row" key={row.id} onClick={(event) => openRow(event, row.original)}>
               {row.getAllCells().map((cell) => {
                 const column = columnsByName.get(cell.column.id)!;
                 const content = (
@@ -289,7 +319,7 @@ const RowActions = ({ row, readonly, onAction }: RowActionsProps) => {
     <span className="admin-grid__actions">
       {row.actions.map((action) =>
         action.type === 'link' ? (
-          <Link key={action.name} href={absolute(action.url)}>
+          <Link key={action.name} {...linkTarget(action.url)}>
             {action.title}
             <span className="admin-grid__hidden"> {label}</span>
           </Link>

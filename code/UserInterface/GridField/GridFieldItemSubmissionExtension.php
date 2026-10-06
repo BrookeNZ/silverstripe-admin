@@ -1,0 +1,130 @@
+<?php
+
+namespace SilverStripe\Admin\UserInterface\GridField;
+
+use SilverStripe\Control\HTTPRequest;
+use SilverStripe\Control\HTTPResponse;
+use SilverStripe\Core\Extension;
+use SilverStripe\Forms\Form;
+use SilverStripe\Forms\FormRequestHandler;
+use SilverStripe\Forms\GridField\GridFieldDetailForm_ItemRequest;
+use SilverStripe\Model\ModelData;
+use SilverStripe\ORM\DataObject;
+
+/**
+ * Answers a shell submission of a GridField detail form (see GridFieldItemSchemaExtension) with JSON.
+ *
+ * Before the action runs, the member's permission for it is checked and a refusal is a JSON 403: canEdit
+ * to save a record, canCreate to save a new one, canDelete to delete or archive, canPublish (plus the
+ * save permission) to publish and canUnpublish to unpublish. The stock item requests leave such an action
+ * out of the form, so the framework usually refuses first (a plain 403); this covers item requests that
+ * allow an action the form does not show.
+ *
+ * The item request's actions end by rendering the form as a PJAX fragment or redirecting, and an XHR
+ * without `X-Pjax` makes the fragment render fail, so the action runs with `X-Pjax: ValidationResult`
+ * (the smallest fragment, as doDelete itself sets `X-Pjax` on the request) and its response is replaced
+ * by the success envelope: `record` (GridFieldItemSchemaExtension::recordSummary(), whose `link` is
+ * null once the record is no longer in the grid's list), `deleted`, `message` (the action's `X-Status`
+ * text) and, for a record still in the list, the `state` of a form built afresh for the record. A new record
+ * answers 201 with a `Location` header. The form's session message is cleared, because the shell shows
+ * the message itself.
+ *
+ * @extends Extension<FormRequestHandler>
+ */
+class GridFieldItemSubmissionExtension extends Extension
+{
+    private const PJAX_HEADER = 'X-Pjax';
+
+    private bool $creating = false;
+
+    protected function beforeCallFormHandler(HTTPRequest $request, string $funcName, array $vars, Form $form, $subject): void
+    {
+        if (!$this->handles($request, $subject)) {
+            return;
+        }
+        if (!$this->allows($subject, $subject->getRecord(), $funcName)) {
+            throw GridFieldItemSchemaExtension::jsonError(403, sprintf('You cannot run "%s" on this record', $funcName));
+        }
+        $this->creating = !$subject->getRecord()->ID;
+        $request->addHeader(static::PJAX_HEADER, 'ValidationResult');
+    }
+
+    protected function afterCallFormHandler(HTTPRequest $request, string $funcName, array $vars, Form $form, $subject, &$result): void
+    {
+        if (!$this->handles($request, $subject)) {
+            return;
+        }
+        $request->removeHeader(static::PJAX_HEADER);
+        $result = $this->successResponse($subject, $form);
+    }
+
+    private function handles(?HTTPRequest $request, $subject): bool
+    {
+        return $subject instanceof GridFieldDetailForm_ItemRequest
+            && GridFieldItemSchemaExtension::isShellSubmission($request)
+            && GridFieldItemSchemaExtension::schemaController($subject);
+    }
+
+    private function allows(GridFieldDetailForm_ItemRequest $itemRequest, ModelData $record, string $action): bool
+    {
+        $canSave = $record->ID
+            ? $this->can($record, 'canEdit')
+            : GridFieldItemSchemaExtension::canCreate($itemRequest, $record);
+        return match ($action) {
+            'doSave' => $canSave,
+            'doDelete', 'doArchive' => $this->can($record, 'canDelete'),
+            'doPublish' => $canSave && $this->can($record, 'canPublish'),
+            'doUnpublish' => $this->can($record, 'canUnpublish'),
+            default => true,
+        };
+    }
+
+    private function can(ModelData $record, string $permission): bool
+    {
+        return $record->hasMethod($permission) && $record->$permission();
+    }
+
+    private function successResponse(GridFieldDetailForm_ItemRequest $itemRequest, Form $form): HTTPResponse
+    {
+        $controller = GridFieldItemSchemaExtension::schemaController($itemRequest);
+        $record = $itemRequest->getRecord();
+        $id = (int) ($record->ID ?: $record->OldID);
+        $listed = $id ? $itemRequest->getGridField()->getList()->byID($id) : null;
+        $inList = (bool) $listed;
+        $deleted = !$id || !DataObject::get($record->ClassName)->byID($id);
+        $message = $this->statusMessage($controller->getResponse());
+
+        $form->clearMessage();
+        $form->clearFormState();
+        if ($controller->hasMethod('getEditForm')) {
+            // doDelete leaves its message on the section's form, which the shell would show on its next load
+            $controller->getEditForm()?->clearFormState();
+        }
+
+        $envelope = [
+            'record' => GridFieldItemSchemaExtension::recordSummary($itemRequest, $inList),
+            'deleted' => $deleted,
+            'message' => $message,
+        ];
+        if (!$inList) {
+            $response = HTTPResponse::create(json_encode($envelope))
+                ->addHeader('Content-Type', 'application/json');
+        } else {
+            // Loaded from the stored record, as the schema endpoint does: the saved object keeps the posted values
+            $fresh = $itemRequest->ItemEditForm();
+            $fresh->loadDataFrom($listed);
+            $response = $controller->getSchemaResponse($itemRequest->Link('schema'), $fresh, null, $envelope);
+        }
+        $response->addHeader('Cache-Control', 'no-store');
+        if ($this->creating && $inList) {
+            $response->setStatusCode(201)->addHeader('Location', $itemRequest->Link('edit'));
+        }
+        return $response;
+    }
+
+    private function statusMessage(HTTPResponse $response): string
+    {
+        $status = rawurldecode((string) $response->getHeader('X-Status'));
+        return trim(html_entity_decode(strip_tags($status), ENT_QUOTES | ENT_HTML5));
+    }
+}

@@ -29,7 +29,12 @@ const instance = createInstance({
       ...createLayout(readMenu(root), adminPath),
       Router: createRouter(adminPath),
     },
-    errorComponents: { ...errors, not_found: createSectionPage(readMenu(root), SectionWithoutPilet) },
+    errorComponents: {
+      ...errors,
+      not_found: createSectionPage(readMenu(root), SectionWithoutPilet, (message, type) =>
+        instance.root.showNotification(message, { type }),
+      ),
+    },
     routes: {
       '/': Home,
     },

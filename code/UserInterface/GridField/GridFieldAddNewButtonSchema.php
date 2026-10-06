@@ -45,7 +45,8 @@ class GridFieldAddNewButtonSchema implements GridField_SchemaProvider
                 'component' => static::COMPONENT,
                 'props' => [
                     'label' => (string) $label,
-                    'url' => Controller::join_links($gridField->Link('item'), 'new'),
+                    // The shape GridFieldEditButton gives existing records, so new and saved records share a route
+                    'url' => Controller::join_links($gridField->Link('item'), 'new', 'edit'),
                 ],
             ]],
         ];

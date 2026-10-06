@@ -1,0 +1,13 @@
+SilverStripe\Security\Group:
+  other:
+    Title: Other
+
+SilverStripe\CMS\Model\SiteTree:
+  alpha:
+    Title: Alpha
+    URLSegment: alpha
+  locked:
+    Title: Locked
+    URLSegment: locked
+    CanEditType: OnlyTheseUsers
+    EditorGroups: =>SilverStripe\Security\Group.other

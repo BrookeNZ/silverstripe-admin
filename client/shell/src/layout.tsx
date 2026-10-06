@@ -3,15 +3,13 @@ import { Link, RouterProvider, createBrowserRouter, useLocation } from 'react-ro
 import { ComponentsState, ErrorComponentsState, ExtensionSlot, SwitchErrorInfo } from 'piral-core';
 import { Notifications } from 'piral-notifications';
 import { Link as TextLink } from '@silverstripe/admin-patterns';
-import type { LinkRenderProps } from '@silverstripe/admin-patterns';
 import { extensionSlotName } from './api/silverstripe';
 import { SectionHeaderBar } from './header/SectionHeader';
+import { routerLink } from './routing';
 import type { SilverstripeMenuItem } from './silverstripe';
 import { UnsavedChangesGuard } from './unsaved';
 
 const leftAndMain = 'SilverStripe\\Admin\\LeftAndMain';
-
-const routerLink = ({ href, ...link }: LinkRenderProps) => <Link {...link} to={href} />;
 
 const RouterChildren = React.createContext<React.ReactNode>(null);
 

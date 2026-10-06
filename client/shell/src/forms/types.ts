@@ -79,11 +79,30 @@ export interface FormSchemaState {
   notifyUnsavedChanges?: boolean;
 }
 
+/**
+ * The record a GridField detail form edits, sent beside the form by its schema endpoint and by each
+ * successful submission (`<item link>/schema`, GridFieldItemSchemaExtension)
+ */
+export interface FormSchemaRecord {
+  /** Null for a record not yet saved */
+  id: number | null;
+  className: string;
+  title: string | null;
+  singularName: string | null;
+  /** The record's edit link; null for a new record, or once the record has left the grid's list */
+  link: string | null;
+}
+
 export interface FormSchemaResponse {
   id: string;
   schema?: FormSchemaTree;
   state?: FormSchemaState;
   errors?: Array<SchemaMessage>;
+  record?: FormSchemaRecord;
+  /** A detail form submission that removed the record (delete, archive) */
+  deleted?: boolean;
+  /** A detail form submission's success message, as plain text */
+  message?: string;
 }
 
 /** A schema field merged with its state, keyed for the form library */

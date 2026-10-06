@@ -1,0 +1,12 @@
+---
+Name: adminpiralcms
+Only:
+  moduleexists: silverstripe/cms
+---
+SilverStripe\CMS\Controllers\CMSMain:
+  extensions:
+    - SilverStripe\Admin\UserInterface\CMSMain\EditFormSubmissionExtension
+
+SilverStripe\Forms\FormRequestHandler:
+  extensions:
+    - SilverStripe\Admin\UserInterface\CMSMain\EditFormActionExtension

@@ -1,0 +1,137 @@
+/**
+ * Link field
+ *
+ * The field's links as bordered rows, each opening its edit dialog, and the "Add link" button with its
+ * list of link types. No design exists yet, so this is layout, focus and the visually hidden status only
+ */
+
+.link-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-gap-sm);
+}
+
+.link-field__links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-gap-sm);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.link-field__link {
+  align-items: center;
+  border: var(--admin-border) var(--admin-border-color);
+  border-radius: var(--admin-radius);
+  display: flex;
+  gap: var(--admin-gap-sm);
+  padding: var(--admin-gap-xs) var(--admin-gap-sm);
+}
+
+.link-field__edit {
+  align-items: flex-start;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  font: inherit;
+  gap: var(--admin-gap-xs);
+  min-height: var(--admin-target-min-size);
+  min-width: 0;
+  padding: 0;
+  text-align: start;
+}
+
+.link-field__edit:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: var(--admin-focus-outline-offset);
+}
+
+.link-field__title {
+  color: var(--admin-link-color);
+  overflow-wrap: anywhere;
+}
+
+.link-field__description {
+  color: var(--admin-meta-fg-color);
+  font-size: var(--admin-font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.link-field__badge {
+  background-color: var(--admin-modified-bg-color);
+  border-radius: var(--admin-radius);
+  color: var(--admin-modified-fg-color);
+  font-size: var(--admin-font-size-sm);
+  padding-inline: var(--admin-gap-xs);
+}
+
+.link-field__delete {
+  align-items: center;
+  background: none;
+  border: 0;
+  color: var(--admin-icon-color);
+  cursor: pointer;
+  display: inline-flex;
+  justify-content: center;
+  min-height: var(--admin-target-min-size);
+  min-width: var(--admin-target-min-size);
+  padding: 0;
+}
+
+.link-field__delete:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: var(--admin-focus-outline-offset);
+}
+
+.link-field__add {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-gap-xs);
+}
+
+.link-field__types {
+  background-color: var(--admin-panel-bg-color);
+  border: var(--admin-border) var(--admin-border-color);
+  border-radius: var(--admin-radius);
+  list-style: none;
+  margin: 0;
+  padding: var(--admin-gap-xs) 0;
+}
+
+.link-field__type {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: block;
+  font: inherit;
+  min-height: var(--admin-target-min-size);
+  padding: var(--admin-gap-xs) var(--admin-gap-sm);
+  text-align: start;
+  width: 100%;
+}
+
+.link-field__type:hover {
+  background-color: var(--admin-hover-bg-color);
+}
+
+.link-field__type:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: calc(var(--admin-focus-outline-offset) * -1);
+}
+
+.link-field__status {
+  clip-path: inset(50%);
+  height: 0.1rem;
+  margin: 0;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 0.1rem;
+}

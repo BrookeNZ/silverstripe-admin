@@ -15,3 +15,11 @@ SilverStripe\Forms\GridField\GridFieldConfig:
 SilverStripe\Forms\GridField\GridField:
   default_readonly_components:
     - SilverStripe\Admin\UserInterface\GridField\GridFieldRowsEndpoint
+
+SilverStripe\Forms\GridField\GridFieldDetailForm_ItemRequest:
+  extensions:
+    - SilverStripe\Admin\UserInterface\GridField\GridFieldItemSchemaExtension
+
+SilverStripe\Forms\FormRequestHandler:
+  extensions:
+    - SilverStripe\Admin\UserInterface\GridField\GridFieldItemSubmissionExtension
