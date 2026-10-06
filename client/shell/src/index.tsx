@@ -7,6 +7,7 @@ import { FileEditPage } from './assets';
 import { registerBuiltInFields } from './forms/fields';
 import { createLayout, createRouter, errors, Home, readMenu } from './layout';
 import { initialUnsavedChanges } from './unsaved';
+import '@silverstripe/admin-patterns/styles.css';
 import './style.css';
 
 const root = document.querySelector<HTMLElement>('#ss-admin-shell');

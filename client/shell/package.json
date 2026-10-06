@@ -6,6 +6,7 @@
     "piral"
   ],
   "dependencies": {
+    "@silverstripe/admin-patterns": "file:../patterns",
     "piral-base": "1.12.4",
     "piral-core": "1.12.4",
     "piral-notifications": "^1.12.4",
@@ -17,9 +18,13 @@
   },
   "scripts": {
     "start": "piral debug --public-url /admin/shell/",
+    "prebuild": "npm --prefix ../patterns run build",
     "build": "piral build --type release --public-url /_resources/vendor/silverstripe/admin/client/dist/shell/ && rm -rf ../dist/shell && cp -R dist/release ../dist/shell",
     "postinstall": "piral declaration",
+    "pretypecheck": "npm --prefix ../patterns run build",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prebuild:emulator": "npm --prefix ../patterns run build",
     "build:emulator": "piral build --type emulator"
   },
   "app": "./src/index.html",
@@ -30,7 +35,8 @@
       "react": "react",
       "react-dom": "react-dom",
       "react-router": "react-router",
-      "react-router-dom": "react-router-dom"
+      "react-router-dom": "react-router-dom",
+      "@silverstripe/admin-patterns": "@silverstripe/admin-patterns"
     },
     "inherit": [
       "piral-base"
@@ -42,6 +48,7 @@
     "@types/react-dom": "^18",
     "piral-cli": "1.12.4",
     "piral-cli-webpack5": "1.12.4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3"
   }
 }

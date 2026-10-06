@@ -6,6 +6,7 @@
     "pilet"
   ],
   "devDependencies": {
+    "@silverstripe/admin-patterns": "file:../../patterns",
     "@silverstripe/admin-shell": "file:../../shell/dist/emulator/silverstripe-admin-shell-1.0.0.tgz",
     "@types/debounce-promise": "^3.1.9",
     "@types/node": "^24",

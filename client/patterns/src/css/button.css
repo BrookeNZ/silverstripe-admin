@@ -1,0 +1,38 @@
+/**
+ * Button
+ *
+ * Form actions and dialog buttons. --primary marks the main action
+ */
+
+.admin-button {
+  --admin-button-bg-color: var(--admin-panel-bg-color);
+  --admin-button-border-color: var(--admin-border-color);
+  --admin-button-fg-color: var(--admin-fg-color);
+
+  background-color: var(--admin-button-bg-color);
+  border: 0.1rem solid var(--admin-button-border-color);
+  border-radius: var(--admin-radius);
+  color: var(--admin-button-fg-color);
+  cursor: pointer;
+  font: inherit;
+  font-weight: var(--admin-font-weight-bold);
+  min-height: var(--admin-control-min-height);
+  padding: var(--admin-gap-xs) var(--admin-gap-md);
+  transition: var(--admin-transition);
+}
+
+.admin-button--primary {
+  --admin-button-bg-color: var(--admin-accent-color);
+  --admin-button-border-color: var(--admin-accent-color);
+  --admin-button-fg-color: var(--admin-accent-fg-color);
+}
+
+.admin-button:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.admin-button:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: var(--admin-focus-outline-offset);
+}

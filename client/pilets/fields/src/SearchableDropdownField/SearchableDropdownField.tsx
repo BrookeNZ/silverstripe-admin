@@ -5,7 +5,7 @@ import Config from '../legacy/Config';
 import debounce from 'debounce-promise';
 import EmotionCssCacheProvider from '../legacy/EmotionCssCacheProvider';
 import i18n from '../legacy/i18n';
-import fieldHolder from '../FieldHolder/FieldHolder';
+import fieldHolder from '../legacy/fieldHolder';
 import React, { useState, useEffect, createRef } from 'react';
 import Select from 'react-select';
 import './SearchableDropdownField.css';
@@ -169,4 +169,21 @@ const SearchableDropdownField = ({
 
 export { SearchableDropdownField as Component };
 
-export default fieldHolder(SearchableDropdownField);
+/** The props SearchableDropdownField and SearchableMultiDropdownField send at the top level of their schema */
+export interface SearchableDropdownSchema {
+  clearable: boolean;
+  lazyLoad: boolean;
+  multi: boolean;
+  optionUrl: string;
+  placeholder: string;
+  searchable: boolean;
+}
+
+export default fieldHolder<SearchableDropdownSchema>(SearchableDropdownField, [
+  'clearable',
+  'lazyLoad',
+  'multi',
+  'optionUrl',
+  'placeholder',
+  'searchable',
+]);

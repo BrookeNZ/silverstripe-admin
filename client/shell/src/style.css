@@ -1,48 +1,20 @@
 /**
  * Piral shell: the chrome around pilet content while the legacy admin is switched off.
  *
- * Standalone stylesheet with its own tokens on :root, since the legacy admin bundle is not loaded
- * when the shell is. Pilets style their own content; the shell owns the menu, the content area and
- * notifications.
+ * The legacy admin bundle is not loaded when the shell is. Shared tokens (--admin-*) and component
+ * styles come from @silverstripe/admin-patterns, imported before this file; the chrome tokens here
+ * cover what only the shell draws: the menu, the content area and notifications.
  */
 
 :root {
-  --shell-accent-color: #005a8c;
-  --shell-accent-fg-color: #ffffff;
   --shell-badge-bg-color: #005a8c;
   --shell-badge-fg-color: #ffffff;
-  --shell-bg-color: #f6f7f8;
-  --shell-border: 0.1rem solid var(--shell-border-color);
-  --shell-border-color: #6b7680;
-  --shell-control-min-height: 4rem;
-  --shell-error-fg-color: #b3261e;
-  --shell-fg-color: #1a1f24;
-  --shell-focus-outline: 0.2rem solid;
-  --shell-focus-outline-color: #005a8c;
-  --shell-focus-outline-offset: 0.2rem;
-  --shell-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --shell-font-size-sm: 1.4rem;
-  --shell-font-size-xl: 2.4rem;
-  --shell-gap-md: 1.6rem;
-  --shell-gap-sm: 0.8rem;
-  --shell-gap-xs: 0.4rem;
-  --shell-input-bg-color: #ffffff;
   --shell-link-bg-hover-color: #2b3a46;
   --shell-link-fg-color: #ffffff;
   --shell-menu-bg-color: #1b2a35;
   --shell-menu-width: 24rem;
-  --shell-muted-fg-color: #4f5b66;
   --shell-notification-bg-color: #1a1f24;
   --shell-notification-fg-color: #ffffff;
-  --shell-panel-bg-color: #ffffff;
-  --shell-radius: 0.4rem;
-  --shell-transition: background-color 0.2s ease-in-out;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  :root {
-    --shell-transition: none;
-  }
 }
 
 html {
@@ -50,9 +22,9 @@ html {
 }
 
 body {
-  background-color: var(--shell-bg-color);
-  color: var(--shell-fg-color);
-  font-family: var(--shell-font-family);
+  background-color: var(--admin-bg-color);
+  color: var(--admin-fg-color);
+  font-family: var(--admin-font-family);
   font-size: 1.6rem;
   line-height: 1.5;
   margin: 0;
@@ -69,8 +41,8 @@ body {
   color: var(--shell-link-fg-color);
   display: flex;
   flex-direction: column;
-  gap: var(--shell-gap-sm);
-  padding: var(--shell-gap-md);
+  gap: var(--admin-gap-sm);
+  padding: var(--admin-gap-md);
 }
 
 .shell__logo {
@@ -81,37 +53,37 @@ body {
 }
 
 .shell__logo:focus-visible {
-  outline: var(--shell-focus-outline) var(--shell-link-fg-color);
-  outline-offset: var(--shell-focus-outline-offset);
+  outline: var(--admin-focus-outline) var(--shell-link-fg-color);
+  outline-offset: var(--admin-focus-outline-offset);
 }
 
 .shell__badge {
   align-self: flex-start;
   background-color: var(--shell-badge-bg-color);
-  border-radius: var(--shell-radius);
+  border-radius: var(--admin-radius);
   color: var(--shell-badge-fg-color);
   font-size: 1.2rem;
   letter-spacing: 0.06rem;
-  padding: var(--shell-gap-xs) var(--shell-gap-sm);
+  padding: var(--admin-gap-xs) var(--admin-gap-sm);
   text-transform: uppercase;
 }
 
 .shell__list {
   display: flex;
   flex-direction: column;
-  gap: var(--shell-gap-xs);
+  gap: var(--admin-gap-xs);
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
 .shell__link {
-  border-radius: var(--shell-radius);
+  border-radius: var(--admin-radius);
   color: var(--shell-link-fg-color);
   display: block;
-  padding: var(--shell-gap-sm);
+  padding: var(--admin-gap-sm);
   text-decoration: none;
-  transition: var(--shell-transition);
+  transition: var(--admin-transition);
 }
 
 .shell__link:hover {
@@ -119,31 +91,31 @@ body {
 }
 
 .shell__link:focus-visible {
-  outline: var(--shell-focus-outline) var(--shell-link-fg-color);
-  outline-offset: var(--shell-focus-outline-offset);
+  outline: var(--admin-focus-outline) var(--shell-link-fg-color);
+  outline-offset: var(--admin-focus-outline-offset);
 }
 
 .shell__content {
-  padding: var(--shell-gap-md);
+  padding: var(--admin-gap-md);
 }
 
 .piral-notifications-host {
-  bottom: var(--shell-gap-md);
+  bottom: var(--admin-gap-md);
   display: flex;
   flex-direction: column;
-  gap: var(--shell-gap-sm);
+  gap: var(--admin-gap-sm);
   position: fixed;
-  right: var(--shell-gap-md);
+  right: var(--admin-gap-md);
 }
 
 .piral-notification {
   align-items: center;
   background-color: var(--shell-notification-bg-color);
-  border-radius: var(--shell-radius);
+  border-radius: var(--admin-radius);
   color: var(--shell-notification-fg-color);
   display: flex;
-  gap: var(--shell-gap-sm);
-  padding: var(--shell-gap-sm) var(--shell-gap-md);
+  gap: var(--admin-gap-sm);
+  padding: var(--admin-gap-sm) var(--admin-gap-md);
 }
 
 .piral-notification-close {
@@ -158,54 +130,20 @@ body {
 }
 
 .piral-notification-close:focus-visible {
-  outline: var(--shell-focus-outline) var(--shell-notification-fg-color);
-  outline-offset: var(--shell-focus-outline-offset);
+  outline: var(--admin-focus-outline) var(--shell-notification-fg-color);
+  outline-offset: var(--admin-focus-outline-offset);
 }
 
 .shell-page__title {
   font-size: 2.4rem;
-  margin: 0 0 var(--shell-gap-md);
+  margin: 0 0 var(--admin-gap-md);
 }
 
 .shell-page__link {
-  color: var(--shell-focus-outline-color);
+  color: var(--admin-focus-outline-color);
 }
 
 .shell-page__link:focus-visible {
-  outline: var(--shell-focus-outline) var(--shell-focus-outline-color);
-  outline-offset: var(--shell-focus-outline-offset);
-}
-
-/* Unsaved changes dialog */
-
-.shell-dialog {
-  --shell-dialog-backdrop-color: rgb(from var(--shell-fg-color) r g b / 0.5);
-  --shell-dialog-max-width: 48rem;
-
-  background-color: var(--shell-panel-bg-color);
-  border: var(--shell-border);
-  border-radius: var(--shell-radius);
-  color: var(--shell-fg-color);
-  max-width: var(--shell-dialog-max-width);
-  padding: var(--shell-gap-md);
-}
-
-.shell-dialog::backdrop {
-  background-color: var(--shell-dialog-backdrop-color);
-}
-
-.shell-dialog__title {
-  font-size: var(--shell-font-size-xl);
-  line-height: 1.2;
-  margin: 0 0 var(--shell-gap-sm);
-}
-
-.shell-dialog__body {
-  margin: 0 0 var(--shell-gap-md);
-}
-
-.shell-dialog__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--shell-gap-sm);
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: var(--admin-focus-outline-offset);
 }

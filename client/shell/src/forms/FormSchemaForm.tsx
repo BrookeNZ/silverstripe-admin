@@ -14,16 +14,17 @@ import { useController, useForm } from 'react-hook-form';
 import type { Control } from 'react-hook-form';
 import { useGlobalStateContext } from 'piral-core';
 import { setUnsavedChanges, shellOwner } from '../unsaved';
-import { revealField } from './reveal';
-import { useFormFieldComponent } from './registry';
+import { revealField } from '@silverstripe/admin-patterns';
+import { useFieldComponent } from './useFieldComponent';
 import {
   collectValueFields,
   defaultValues,
   encodeSubmission,
+  errorField,
   fetchFormSchema,
-  fieldKey,
   mergeFields,
   submitFormSchema,
+  uniqueMessages,
 } from './schema';
 import type { FormValues } from './schema';
 import type { FieldComponentProps, FormField, FormSchemaResponse, FormSchemaState, FormSchemaTree, SchemaMessage } from './types';
@@ -74,7 +75,7 @@ const BoundField: React.FC<{ field: FormField; Component: React.ComponentType<Fi
 };
 
 export const FormFieldSlot: React.FC<{ field: FormField }> = ({ field }) => {
-  const { Component } = useFormFieldComponent(field);
+  const Component = useFieldComponent(field);
   const { submitting, renderFields, boundKeys } = useFormRenderContext();
   if (boundKeys.has(field.key)) {
     return <BoundField field={field} Component={Component} />;
@@ -184,12 +185,21 @@ const LoadedForm: React.FC<LoadedFormProps> = ({ schemaUrl, initialSchema, initi
     }
     const refetched = errors.length === 0 ? refetchSchema() : Promise.resolve();
 
-    const fieldErrors = errors.filter((error) => error.field && valueFields.some((field) => field.key === fieldKey(error.field!)));
-    for (const error of fieldErrors) {
-      setError(fieldKey(error.field!), { type: 'server', message: error.value });
+    const fieldErrors = errors.flatMap((error) => {
+      const field = errorField(valueFields, error.field);
+      return field ? [{ error, field }] : [];
+    });
+    for (const { error, field } of fieldErrors) {
+      setError(field.key, { type: 'server', message: error.value });
     }
-    setFormMessages([...errors.filter((error) => !fieldErrors.includes(error)), ...(response.state?.messages ?? [])]);
-    const firstInvalid = valueFields.find((field) => field.key === fieldKey(fieldErrors[0]?.field ?? ''));
+    const inlineErrors = fieldErrors.map(({ error }) => error);
+    setFormMessages(
+      uniqueMessages(
+        [...errors.filter((error) => !inlineErrors.includes(error)), ...(response.state?.messages ?? [])],
+        inlineErrors,
+      ),
+    );
+    const firstInvalid = fieldErrors[0]?.field;
     const invalidElement = firstInvalid ? fieldFocusTarget(firstInvalid) : null;
     if (invalidElement) {
       revealField(invalidElement);

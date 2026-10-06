@@ -1,0 +1,90 @@
+/**
+ * Field holder
+ *
+ * Label, control, description and message for a field. Radio groups reuse the holder for each option;
+ * --inline puts the control before its label
+ */
+
+.admin-field {
+  --admin-field-align: stretch;
+  --admin-field-direction: column;
+
+  align-items: var(--admin-field-align);
+  display: flex;
+  flex-direction: var(--admin-field-direction);
+  gap: var(--admin-gap-xs);
+}
+
+.admin-field--inline {
+  --admin-field-align: center;
+  --admin-field-direction: row;
+}
+
+.admin-field__label {
+  font-weight: var(--admin-font-weight-bold);
+  padding: 0;
+}
+
+.admin-field__option {
+  font-weight: var(--admin-font-weight-normal);
+}
+
+.admin-field__control {
+  background-color: var(--admin-input-bg-color);
+  border: var(--admin-border);
+  border-radius: var(--admin-radius);
+  color: var(--admin-fg-color);
+  font: inherit;
+  min-height: var(--admin-control-min-height);
+  padding: var(--admin-gap-xs) var(--admin-gap-sm);
+}
+
+.admin-field__control:read-only {
+  background-color: var(--admin-bg-color);
+}
+
+.admin-field__control:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: var(--admin-focus-outline-offset);
+}
+
+.admin-field__control[aria-invalid="true"] {
+  border-color: var(--admin-error-fg-color);
+}
+
+.admin-field__check {
+  accent-color: var(--admin-accent-color);
+  height: 1.8rem;
+  margin: 0;
+  width: 1.8rem;
+}
+
+.admin-field__check:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: var(--admin-focus-outline-offset);
+}
+
+.admin-field__choices {
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-gap-xs);
+  margin: 0;
+  padding: 0;
+}
+
+.admin-field__readonly {
+  margin: 0;
+}
+
+.admin-field__description {
+  color: var(--admin-muted-fg-color);
+  font-size: var(--admin-font-size-sm);
+  margin: 0;
+}
+
+.admin-field__message {
+  color: var(--admin-error-fg-color);
+  font-size: var(--admin-font-size-sm);
+  margin: 0;
+}

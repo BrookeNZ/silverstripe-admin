@@ -4,8 +4,8 @@
 import * as React from 'react';
 import { Link } from 'react-router-dom';
 import type { PageComponentProps } from 'piral-core';
+import { fieldTitle } from '@silverstripe/admin-patterns';
 import { FormSchemaForm } from './forms/FormSchemaForm';
-import { fieldTitle } from './forms/fields/FieldHolder';
 
 const assetAdmin = 'SilverStripe\\AssetAdmin\\Controller\\AssetAdmin';
 

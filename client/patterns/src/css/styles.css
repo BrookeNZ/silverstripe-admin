@@ -1,0 +1,12 @@
+/**
+ * Admin components stylesheet
+ *
+ * Every stylesheet the package's components need, tokens first. Loaded once by the shell
+ */
+
+@import "./tokens.css";
+@import "./field.css";
+@import "./group.css";
+@import "./tabs.css";
+@import "./button.css";
+@import "./dialog.css";

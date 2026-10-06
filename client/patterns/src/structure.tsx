@@ -1,44 +1,42 @@
 /**
- * Fields without a value of their own: groups, tabs, headings and CMS-authored HTML
+ * Fields without a value of their own: groups, tabs, headings and server-authored HTML
  */
 import * as React from 'react';
 import { flushSync } from 'react-dom';
-import { revealFieldEvent } from '../reveal';
-import type { FieldComponentProps } from '../types';
 import { fieldTitle } from './FieldHolder';
-import './tabs.css';
+import { revealFieldEvent } from './reveal';
+import type { FieldProps } from './types';
 
-export const CompositeField: React.FC<FieldComponentProps> = ({ field, renderFields }) => (
-  <div className="shell-form__group" id={field.holderId}>
+export const CompositeField = ({ field, renderFields }: FieldProps) => (
+  <div className="admin-group" id={field.holderId}>
     {renderFields(field.children)}
   </div>
 );
 
-export const FieldGroup: React.FC<FieldComponentProps> = ({ field, renderFields }) => (
-  <div className="shell-form__group shell-form__group--row" id={field.holderId}>
+export const FieldGroup = ({ field, renderFields }: FieldProps) => (
+  <div className="admin-group admin-group--row" id={field.holderId}>
     {renderFields(field.children)}
   </div>
 );
 
-export const HeaderField: React.FC<FieldComponentProps> = ({ field }) => {
-  const level = Math.min(Math.max(Number(field.data.headingLevel) || 2, 1), 6);
+export const HeaderField = ({ field }: FieldProps) => {
+  const level = Math.min(Math.max(Number(field.headingLevel) || 2, 1), 6);
   const Heading = `h${level}` as 'h1';
-  const title = typeof field.data.title === 'string' ? field.data.title : fieldTitle(field);
   return (
-    <Heading className="shell-form__heading" id={field.id}>
-      {title}
+    <Heading className="admin-heading" id={field.id}>
+      {fieldTitle(field)}
     </Heading>
   );
 };
 
-export const LiteralField: React.FC<FieldComponentProps> = ({ field, value }) => (
-  // The HTML is authored in PHP by the CMS or a module, as the legacy LiteralField renders it
-  <div className="shell-form__literal" id={field.id} dangerouslySetInnerHTML={{ __html: String(value ?? '') }} />
+export const LiteralField = ({ field, value }: FieldProps) => (
+  // The value is server-authored HTML, rendered the way the legacy LiteralField renders it
+  <div className="admin-literal" id={field.id} dangerouslySetInnerHTML={{ __html: String(value ?? '') }} />
 );
 
-export const TabItem: React.FC<FieldComponentProps> = ({ field, renderFields }) => <>{renderFields(field.children)}</>;
+export const TabItem = ({ field, renderFields }: FieldProps) => <>{renderFields(field.children)}</>;
 
-export const Tabs: React.FC<FieldComponentProps> = ({ field, renderFields }) => {
+export const Tabs = ({ field, renderFields }: FieldProps) => {
   const tabs = field.children;
   const [active, setActive] = React.useState(0);
   const tabRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
@@ -72,15 +70,15 @@ export const Tabs: React.FC<FieldComponentProps> = ({ field, renderFields }) => 
   };
 
   return (
-    <div className="shell-tabs" id={field.id} ref={root}>
-      <div className="shell-tabs__list" role="tablist" aria-label={fieldTitle(field) || undefined} onKeyDown={onKeyDown}>
+    <div className="admin-tabs" id={field.id} ref={root}>
+      <div className="admin-tabs__list" role="tablist" aria-label={fieldTitle(field) || undefined} onKeyDown={onKeyDown}>
         {tabs.map((tab, index) => (
           <button
             key={tab.id}
             ref={(element) => {
               tabRefs.current[index] = element;
             }}
-            className="shell-tabs__tab"
+            className="admin-tabs__tab"
             type="button"
             role="tab"
             id={`${tab.id}_tab`}
@@ -100,7 +98,7 @@ export const Tabs: React.FC<FieldComponentProps> = ({ field, renderFields }) => 
           ref={(element) => {
             panelRefs.current[index] = element;
           }}
-          className="shell-tabs__panel"
+          className="admin-tabs__panel"
           role="tabpanel"
           id={tab.id}
           aria-labelledby={`${tab.id}_tab`}

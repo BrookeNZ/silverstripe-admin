@@ -13,6 +13,7 @@ import type {
   FormSchemaState,
   FormSchemaTree,
   SchemaData,
+  SchemaMessage,
 } from './types';
 
 export type FormValues = Record<string, unknown>;
@@ -30,19 +31,31 @@ function asData(data: SchemaData | [] | undefined): SchemaData {
   return Array.isArray(data) ? {} : (data ?? {});
 }
 
+/** Translates FormSchema conventions into the plain props the shared field components read */
+function sharedFieldProps(schema: FieldSchema, data: SchemaData): Pick<FormField, 'maxLength' | 'emptyOption' | 'headingLevel' | 'primary'> {
+  return {
+    maxLength: typeof data.maxlength === 'number' ? data.maxlength : null,
+    emptyOption: data.hasEmptyDefault ? String(data.emptyString ?? '') : null,
+    headingLevel: typeof data.headingLevel === 'number' ? data.headingLevel : null,
+    primary: /\bbtn--primary\b|\bbtn-primary\b/.test(schema.extraClass ?? ''),
+  };
+}
+
 export function mergeFields(fields: Array<FieldSchema>, state: FormSchemaState | undefined): Array<FormField> {
   const stateById = new Map<string, FieldState>((state?.fields ?? []).map((field) => [field.id, field]));
 
   const merge = (schema: FieldSchema): FormField => {
     const fieldState = stateById.get(schema.id);
+    const data = { ...asData(schema.data), ...asData(fieldState?.data) };
     return {
       ...schema,
       key: fieldKey(schema.name),
       value: fieldState?.value ?? null,
       message: fieldState?.message ?? null,
-      data: { ...asData(schema.data), ...asData(fieldState?.data) },
+      data,
       source: fieldState?.source ?? schema.source ?? [],
       children: (schema.children ?? []).map(merge),
+      ...sharedFieldProps(schema, data),
     };
   };
 
@@ -56,6 +69,26 @@ export function isValueField(field: FormField): boolean {
 
 export function collectValueFields(fields: Array<FormField>): Array<FormField> {
   return fields.flatMap((field) => [...(isValueField(field) ? [field] : []), ...collectValueFields(field.children)]);
+}
+
+/**
+ * The value field a server error names. Errors carry FormField::getName(), which drops the `[]` the
+ * schema's posted name keeps for multi-value fields
+ */
+export function errorField(valueFields: Array<FormField>, name: string | null | undefined): FormField | undefined {
+  return name ? valueFields.find((field) => field.name === name || field.name === `${name}[]`) : undefined;
+}
+
+/** A validation message can arrive both as an error and in the returned state; show each text once */
+export function uniqueMessages(messages: Array<SchemaMessage>, shownInline: Array<SchemaMessage> = []): Array<SchemaMessage> {
+  const seen = new Set(shownInline.map((message) => message.value));
+  return messages.filter((message) => {
+    if (seen.has(message.value)) {
+      return false;
+    }
+    seen.add(message.value);
+    return true;
+  });
 }
 
 export function defaultValues(valueFields: Array<FormField>): FormValues {

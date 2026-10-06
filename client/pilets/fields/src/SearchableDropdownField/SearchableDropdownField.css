@@ -2,16 +2,16 @@
  * Searchable dropdown field
  *
  * react-select styles itself through emotion; these rules only replace its focus treatment with the
- * shell's ring. The control carries `outline: 0 !important` from react-select, so the ring is a
+ * shared focus ring. The control carries `outline: 0 !important` from react-select, so the ring is a
  * box-shadow, which wins on source order because emotion inserts its styles at the document title
  */
 
 :root {
-  /* Matches the width inside the shell's --shell-focus-outline */
+  /* Matches the width inside --admin-focus-outline */
   --ss-searchable-dropdown-field-focus-width: 0.2rem;
 }
 
 .ss-searchable-dropdown-field__control:has(:focus-visible) {
-  border-color: var(--shell-focus-outline-color);
-  box-shadow: 0 0 0 var(--ss-searchable-dropdown-field-focus-width) var(--shell-focus-outline-color);
+  border-color: var(--admin-focus-outline-color);
+  box-shadow: 0 0 0 var(--ss-searchable-dropdown-field-focus-width) var(--admin-focus-outline-color);
 }

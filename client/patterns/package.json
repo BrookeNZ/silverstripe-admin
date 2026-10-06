@@ -1,0 +1,35 @@
+{
+  "name": "@silverstripe/admin-patterns",
+  "version": "1.0.0",
+  "description": "Presentational React components for the Silverstripe CMS admin shell and its pilets",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "sideEffects": [
+    "*.css"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./styles.css": "./dist/css/styles.css"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p . && cp -R src/css dist/css",
+    "typecheck": "tsc -p . --noEmit"
+  },
+  "peerDependencies": {
+    "react": "^18",
+    "react-dom": "^18"
+  },
+  "devDependencies": {
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "typescript": "^5"
+  },
+  "private": true
+}

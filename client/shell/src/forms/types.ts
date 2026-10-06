@@ -1,19 +1,22 @@
 /**
- * The FormSchema payload as LeftAndMain and FormSchema send it today (schema, state and errors parts),
- * plus the props contract between the shell's form renderer and a field component.
+ * Pilet API v1 form types: the FormSchema payload as LeftAndMain and FormSchema send it (schema, state
+ * and errors parts), the field the shell renders from it, and the props a registered field component
+ * receives. Published to pilets through the emulator (`extraTypes` in package.json); PILET-API.md is the
+ * reference.
+ *
+ * The props contract itself (`FieldProps`) belongs to @silverstripe/admin-patterns, which knows
+ * nothing about FormSchema; `FieldComponentProps` narrows it to a FormSchema field.
  */
-import type { ReactNode } from 'react';
+import type { ChoiceOption, FieldDescriptor, FieldProps } from '@silverstripe/admin-patterns';
+
+export type { ChoiceOption, FieldDescriptor, FieldProps };
+
+export type SourceOption = ChoiceOption;
 
 export interface SchemaMessage {
   value: string;
   type: string;
   field?: string;
-}
-
-export interface SourceOption {
-  value: string | number;
-  title: string;
-  disabled?: boolean;
 }
 
 export type SchemaData = Record<string, unknown>;
@@ -24,13 +27,20 @@ export interface FieldSchema {
   type: string | null;
   schemaType: string | null;
   component: string | null;
+  /**
+   * Registry names to try, most specific first: class names up to FormField, each followed by the
+   * component name that class declares. Sent by the admin module only while the shell flag is on
+   */
+  componentCandidates?: Array<string>;
   holderId?: string;
   title: string | number | boolean | null;
   description?: string | null;
   rightTitle?: string | null;
+  leftTitle?: string | null;
   extraClass?: string;
   readOnly: boolean;
   disabled: boolean;
+  autoFocus?: boolean;
   attributes?: SchemaData;
   source?: Array<SourceOption> | null;
   // PHP serialises an empty data map as []
@@ -72,7 +82,9 @@ export interface FormSchemaResponse {
 }
 
 /** A schema field merged with its state, keyed for the form library */
-export interface FormField extends Omit<FieldSchema, 'children' | 'data' | 'source'> {
+export interface FormFieldBase
+  extends Omit<FieldSchema, 'children' | 'data' | 'source'>,
+    Omit<FieldDescriptor, 'children' | 'source' | 'title'> {
   key: string;
   value: unknown;
   message: SchemaMessage | null;
@@ -81,12 +93,11 @@ export interface FormField extends Omit<FieldSchema, 'children' | 'data' | 'sour
   children: Array<FormField>;
 }
 
-export interface FieldComponentProps<V = unknown> {
-  field: FormField;
-  value: V;
-  onChange(value: V): void;
-  onBlur(): void;
-  error?: string;
-  submitting: boolean;
-  renderFields(fields: Array<FormField>): ReactNode;
-}
+/**
+ * A FormSchema field with its schema-level props typed. Fields such as SearchableDropdownField send
+ * their own props at the top level of the schema entry (`optionUrl`, `lazyLoad`); name them in `P`
+ */
+export type FormField<P extends object = {}> = FormFieldBase & Partial<P>;
+
+/** What a field component registered with the Pilet API receives */
+export type FieldComponentProps<V = unknown, P extends object = {}> = FieldProps<V, FormField<P>>;

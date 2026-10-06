@@ -1,12 +1,12 @@
 /**
- * Value fields resolved by schemaType or by name. Each receives its value and change handler from the
- * form renderer, so none of them depends on the form library
+ * Value fields. Each receives its value and change handler as props, so none of them depends on a form
+ * library or on where the field's description came from
  */
 import * as React from 'react';
-import type { FieldComponentProps, FormField } from '../types';
 import { describedBy, FieldHolder, fieldTitle } from './FieldHolder';
+import type { FieldDescriptor, FieldProps } from './types';
 
-function controlProps(field: FormField, error?: string) {
+function controlProps(field: FieldDescriptor, error?: string) {
   return {
     id: field.id,
     name: field.name,
@@ -21,13 +21,13 @@ function textValue(value: unknown): string {
   return value == null ? '' : String(value);
 }
 
-export const TextField: React.FC<FieldComponentProps> = ({ field, value, onChange, onBlur, error }) => (
+export const TextField = ({ field, value, onChange, onBlur, error }: FieldProps) => (
   <FieldHolder field={field} error={error} labelFor={field.id}>
     <input
       {...controlProps(field, error)}
-      className="shell-field__control"
+      className="admin-field__control"
       type="text"
-      maxLength={typeof field.data.maxlength === 'number' ? field.data.maxlength : undefined}
+      maxLength={field.maxLength ?? undefined}
       value={textValue(value)}
       onChange={(event) => onChange(event.target.value)}
       onBlur={onBlur}
@@ -35,15 +35,15 @@ export const TextField: React.FC<FieldComponentProps> = ({ field, value, onChang
   </FieldHolder>
 );
 
-export const HiddenField: React.FC<FieldComponentProps> = ({ field, value }) => (
+export const HiddenField = ({ field, value }: FieldProps) => (
   <input type="hidden" id={field.id} name={field.name} value={textValue(value)} />
 );
 
-export const CheckboxField: React.FC<FieldComponentProps> = ({ field, value, onChange, onBlur, error }) => (
+export const CheckboxField = ({ field, value, onChange, onBlur, error }: FieldProps) => (
   <FieldHolder field={field} error={error} labelFor={field.id} inline>
     <input
       {...controlProps(field, error)}
-      className="shell-field__check"
+      className="admin-field__check"
       type="checkbox"
       checked={value === true || Number(value) === 1}
       onChange={(event) => onChange(event.target.checked ? 1 : 0)}
@@ -52,16 +52,16 @@ export const CheckboxField: React.FC<FieldComponentProps> = ({ field, value, onC
   </FieldHolder>
 );
 
-export const SingleSelectField: React.FC<FieldComponentProps> = ({ field, value, onChange, onBlur, error }) => (
+export const SingleSelectField = ({ field, value, onChange, onBlur, error }: FieldProps) => (
   <FieldHolder field={field} error={error} labelFor={field.id}>
     <select
       {...controlProps(field, error)}
-      className="shell-field__control"
+      className="admin-field__control"
       value={textValue(value)}
       onChange={(event) => onChange(event.target.value)}
       onBlur={onBlur}
     >
-      {Boolean(field.data.hasEmptyDefault) && <option value="">{textValue(field.data.emptyString)}</option>}
+      {field.emptyOption != null && <option value="">{field.emptyOption}</option>}
       {field.source.map((option) => (
         <option key={option.value} value={option.value} disabled={option.disabled}>
           {option.title}
@@ -71,15 +71,15 @@ export const SingleSelectField: React.FC<FieldComponentProps> = ({ field, value,
   </FieldHolder>
 );
 
-export const OptionsetField: React.FC<FieldComponentProps> = ({ field, value, onChange, onBlur, error }) => (
-  <fieldset className="shell-field__choices" id={field.holderId} aria-describedby={describedBy(field, error)}>
-    <legend className="shell-field__label">{fieldTitle(field)}</legend>
+export const OptionsetField = ({ field, value, onChange, onBlur, error }: FieldProps) => (
+  <fieldset className="admin-field__choices" id={field.holderId} aria-describedby={describedBy(field, error)}>
+    <legend className="admin-field__label">{fieldTitle(field)}</legend>
     {field.source.map((option) => {
       const id = `${field.id}_${option.value}`;
       return (
-        <div className="shell-field shell-field--inline" key={option.value}>
+        <div className="admin-field admin-field--inline" key={option.value}>
           <input
-            className="shell-field__check"
+            className="admin-field__check"
             type="radio"
             id={id}
             name={field.id}
@@ -89,25 +89,25 @@ export const OptionsetField: React.FC<FieldComponentProps> = ({ field, value, on
             onChange={() => onChange(option.value)}
             onBlur={onBlur}
           />
-          <label className="shell-field__option" htmlFor={id}>
+          <label className="admin-field__option" htmlFor={id}>
             {option.title}
           </label>
         </div>
       );
     })}
     {error && (
-      <p className="shell-field__message" id={`${field.id}_message`}>
+      <p className="admin-field__message" id={`${field.id}_message`}>
         {error}
       </p>
     )}
   </fieldset>
 );
 
-export const DatetimeField: React.FC<FieldComponentProps> = ({ field, value, onChange, onBlur, error }) => (
+export const DatetimeField = ({ field, value, onChange, onBlur, error }: FieldProps) => (
   <FieldHolder field={field} error={error} labelFor={field.id}>
     <input
       {...controlProps(field, error)}
-      className="shell-field__control"
+      className="admin-field__control"
       type="datetime-local"
       step={1}
       value={textValue(value)}
@@ -117,9 +117,9 @@ export const DatetimeField: React.FC<FieldComponentProps> = ({ field, value, onC
   </FieldHolder>
 );
 
-export const ReadonlyField: React.FC<FieldComponentProps> = ({ field, value }) => (
+export const ReadonlyField = ({ field, value }: FieldProps) => (
   <FieldHolder field={field}>
-    <p className="shell-field__readonly" id={field.id}>
+    <p className="admin-field__readonly" id={field.id}>
       {textValue(value)}
     </p>
   </FieldHolder>

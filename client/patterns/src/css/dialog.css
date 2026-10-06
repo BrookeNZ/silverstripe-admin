@@ -1,0 +1,37 @@
+/**
+ * Dialog
+ *
+ * A native modal dialog with a title, body copy and a row of actions
+ */
+
+.admin-dialog {
+  --admin-dialog-backdrop-color: rgb(from var(--admin-fg-color) r g b / 0.5);
+  --admin-dialog-max-width: 48rem;
+
+  background-color: var(--admin-panel-bg-color);
+  border: var(--admin-border);
+  border-radius: var(--admin-radius);
+  color: var(--admin-fg-color);
+  max-width: var(--admin-dialog-max-width);
+  padding: var(--admin-gap-md);
+}
+
+.admin-dialog::backdrop {
+  background-color: var(--admin-dialog-backdrop-color);
+}
+
+.admin-dialog__title {
+  font-size: var(--admin-font-size-xl);
+  line-height: 1.2;
+  margin: 0 0 var(--admin-gap-sm);
+}
+
+.admin-dialog__body {
+  margin: 0 0 var(--admin-gap-md);
+}
+
+.admin-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--admin-gap-sm);
+}

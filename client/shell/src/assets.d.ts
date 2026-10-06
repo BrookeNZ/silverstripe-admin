@@ -1,7 +1,3 @@
-// Change the declarations in this file if your bundler
-// is configured to handle them differently.
-// Standard behavior is to treat default exports as a
-// link to the imported asset.
 declare module '*.jpg' {
   const link: string;
   export default link;

@@ -1,0 +1,37 @@
+/**
+ * Field groups, headings and literal content
+ *
+ * Structural pieces inside a form or panel: groups stack their fields, or lay them in a row with
+ * --row. Direction tokens sit on the group itself so a stacked group nested in a row stays stacked
+ */
+
+:root {
+  --admin-group-gap: var(--admin-gap-md);
+}
+
+.admin-group {
+  --admin-group-align: stretch;
+  --admin-group-direction: column;
+
+  align-items: var(--admin-group-align);
+  display: flex;
+  flex-direction: var(--admin-group-direction);
+  flex-wrap: wrap;
+  gap: var(--admin-group-gap);
+}
+
+.admin-group--row {
+  --admin-group-align: baseline;
+  --admin-group-direction: row;
+}
+
+.admin-heading {
+  font-size: var(--admin-font-size-xl);
+  line-height: 1.2;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-literal {
+  color: var(--admin-muted-fg-color);
+}

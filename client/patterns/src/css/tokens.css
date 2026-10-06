@@ -1,0 +1,40 @@
+/**
+ * Admin design tokens
+ *
+ * The shared palette, spacing, type and focus tokens every component in this package reads. The shell
+ * loads them once on :root; its own chrome tokens (menu, badge, notifications) stay in the shell. A host
+ * page retints the components by reassigning these.
+ */
+
+:root {
+  --admin-accent-color: #005a8c;
+  --admin-accent-fg-color: #ffffff;
+  --admin-bg-color: #f6f7f8;
+  --admin-border: 0.1rem solid var(--admin-border-color);
+  --admin-border-color: #6b7680;
+  --admin-control-min-height: 4rem;
+  --admin-error-fg-color: #b3261e;
+  --admin-fg-color: #1a1f24;
+  --admin-focus-outline: 0.2rem solid;
+  --admin-focus-outline-color: #005a8c;
+  --admin-focus-outline-offset: 0.2rem;
+  --admin-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --admin-font-size-sm: 1.4rem;
+  --admin-font-size-xl: 2.4rem;
+  --admin-font-weight-normal: 400;
+  --admin-font-weight-bold: 600;
+  --admin-gap-xs: 0.4rem;
+  --admin-gap-sm: 0.8rem;
+  --admin-gap-md: 1.6rem;
+  --admin-input-bg-color: #ffffff;
+  --admin-muted-fg-color: #4f5b66;
+  --admin-panel-bg-color: #ffffff;
+  --admin-radius: 0.4rem;
+  --admin-transition: background-color 0.2s ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --admin-transition: none;
+  }
+}

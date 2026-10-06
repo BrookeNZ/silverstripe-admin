@@ -10,18 +10,18 @@
 
   background-color: var(--shell-unknown-field-bg-color);
   border: 0.1rem dashed var(--shell-unknown-field-border-color);
-  border-radius: var(--shell-radius);
-  padding: var(--shell-gap-sm) var(--shell-gap-md);
+  border-radius: var(--admin-radius);
+  padding: var(--admin-gap-sm) var(--admin-gap-md);
 }
 
 .shell-unknown-field__title {
-  font-weight: 600;
+  font-weight: var(--admin-font-weight-bold);
   margin: 0;
 }
 
 .shell-unknown-field__detail {
-  color: var(--shell-fg-color);
-  font-size: var(--shell-font-size-sm);
+  color: var(--admin-fg-color);
+  font-size: var(--admin-font-size-sm);
   margin: 0;
 }
 
