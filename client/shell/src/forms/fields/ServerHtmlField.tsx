@@ -14,7 +14,7 @@ const warned = new Set<string>();
 
 type ValueControl = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
 
-export const ServerHtmlField: React.FC<FieldComponentProps> = ({ field, value, onChange, onBlur, error }) => {
+export const ServerHtmlField = ({ field, value, onChange, onBlur, error }: FieldComponentProps) => {
   const html = field.fallback?.html ?? '';
   const binding = bindServerHtml(field.name, html);
   const prepared = React.useMemo(() => prepareServerHtml(html), [html]);

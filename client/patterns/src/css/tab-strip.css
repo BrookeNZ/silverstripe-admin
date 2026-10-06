@@ -1,0 +1,55 @@
+/**
+ * Tab strip
+ *
+ * The CMS Refresh "Tabs" component (Figma node 2:1773 in the page edit tab bar, 2:1788 in the section
+ * header): labels 25px apart at the inherited text size in Figma New/Black, the current one semibold
+ * over a 3px underline in the same colour, 20px between label and underline. Shared by the section
+ * header's views and the form Tabs, which supply the semantics. The strip scrolls sideways when its
+ * tabs outgrow it, so each tab rings its focus inside its own box
+ */
+
+.admin-tab-strip {
+  --admin-tab-strip-gap: 2.5rem;
+  --admin-tab-strip-indicator-width: 0.3rem;
+  --admin-tab-strip-tab-font-weight: var(--admin-font-weight-normal);
+  --admin-tab-strip-tab-indicator-color: transparent;
+  --admin-tab-strip-tab-padding-block-end: 2rem;
+
+  display: flex;
+  gap: var(--admin-tab-strip-gap);
+  list-style: none;
+  margin: 0;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 0;
+}
+
+.admin-tab-strip__item {
+  display: flex;
+}
+
+.admin-tab-strip__tab {
+  align-items: flex-end;
+  background: none;
+  border: 0;
+  border-block-end: var(--admin-tab-strip-indicator-width) solid var(--admin-tab-strip-tab-indicator-color);
+  color: var(--admin-fg-color);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-weight: var(--admin-tab-strip-tab-font-weight);
+  line-height: normal;
+  padding: 0 0 var(--admin-tab-strip-tab-padding-block-end);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.admin-tab-strip__tab:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: calc(var(--admin-focus-outline-offset) * -1);
+}
+
+.admin-tab-strip__tab--current {
+  --admin-tab-strip-tab-font-weight: var(--admin-font-weight-bold);
+  --admin-tab-strip-tab-indicator-color: var(--admin-fg-color);
+}

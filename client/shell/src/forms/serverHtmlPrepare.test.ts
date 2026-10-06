@@ -21,4 +21,29 @@ describe('prepareServerHtml', () => {
     expect(prepared.html).toContain('src="x.png"');
     expect(prepared.links).toBe(0);
   });
+
+  it('drops srcdoc from frames', () => {
+    const prepared = prepareServerHtml('<iframe srcdoc="<script>parent.x()</script>" title="Preview"></iframe>');
+    expect(prepared.html).not.toContain('srcdoc');
+    expect(prepared.html).toContain('title="Preview"');
+  });
+
+  it.each([
+    ['img src', '<img src="javascript:x()" alt="">', 'src'],
+    ['embed src with a mixed-case scheme', '<embed src=" JaVa\tScRiPt:x()">', 'src'],
+    ['svg xlink:href', '<svg><a xlink:href="javascript:x()"><text>t</text></a></svg>', 'xlink:href'],
+    ['button formaction', '<button formaction="javascript:x()">Go</button>', 'formaction'],
+    ['form action', '<form action="javascript:x()"></form>', 'action'],
+    ['object data', '<object data="data:text/html;base64,PHNjcmlwdD54KCk8L3NjcmlwdD4="></object>', 'data'],
+    ['embed data:text/html', '<embed src="data:text/html,<script>x()</script>">', 'src'],
+  ])('drops a script or HTML URL in %s', (_, html, attribute) => {
+    const body = new DOMParser().parseFromString(prepareServerHtml(html).html, 'text/html').body;
+    expect(Array.from(body.querySelectorAll('*')).some((element) => element.hasAttribute(attribute))).toBe(false);
+  });
+
+  it('keeps ordinary URLs and image data URLs', () => {
+    const prepared = prepareServerHtml('<img src="/assets/a.png" alt=""><img src="data:image/png;base64,AA==" alt="">');
+    expect(prepared.html).toContain('src="/assets/a.png"');
+    expect(prepared.html).toContain('src="data:image/png;base64,AA=="');
+  });
 });

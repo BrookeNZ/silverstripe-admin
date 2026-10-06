@@ -49,10 +49,10 @@ const noop = () => undefined;
 
 const noFields: ReadonlyArray<string> = [];
 
-const BoundField: React.FC<{ field: FormField; Component: React.ComponentType<FieldComponentProps<any>> }> = ({
+const BoundField = ({
   field,
   Component,
-}) => {
+}: { field: FormField; Component: React.ComponentType<FieldComponentProps<any>> }) => {
   const { control, submitting, renderFields, autofill } = useFormRenderContext();
   const { field: binding, fieldState } = useController({ name: field.key, control });
   return (
@@ -69,7 +69,7 @@ const BoundField: React.FC<{ field: FormField; Component: React.ComponentType<Fi
   );
 };
 
-export const FormFieldSlot: React.FC<{ field: FormField }> = ({ field }) => {
+export const FormFieldSlot = ({ field }: { field: FormField }) => {
   const Component = useFieldComponent(field);
   const { submitting, renderFields, boundKeys, autofill } = useFormRenderContext();
   if (boundKeys.has(field.key)) {
@@ -124,7 +124,7 @@ function fieldFocusTarget(field: FormField): HTMLElement | null {
   return element.querySelector<HTMLElement>('input:checked') ?? element.querySelector<HTMLElement>(focusable) ?? element;
 }
 
-const LoadedForm: React.FC<LoadedFormProps> = ({
+const LoadedForm = ({
   schemaUrl,
   initialSchema,
   initialState,
@@ -132,7 +132,7 @@ const LoadedForm: React.FC<LoadedFormProps> = ({
   onStateChange,
   omitFields = noFields,
   trackUnsavedChanges,
-}) => {
+}: LoadedFormProps) => {
   const [schema, setSchema] = React.useState(initialSchema);
   const [state, setState] = React.useState(initialState);
   const stateListener = React.useRef(onStateChange);
@@ -273,14 +273,14 @@ type LoadState =
   | { status: 'failed'; error: unknown; message: string }
   | { status: 'ready'; schema: FormSchemaTree; state: FormSchemaState };
 
-export const FormSchemaForm: React.FC<FormSchemaFormProps> = ({
+export const FormSchemaForm = ({
   schemaUrl,
   onSubmitted,
   onStateChange,
   omitFields,
   renderLoadError,
   trackUnsavedChanges,
-}) => {
+}: FormSchemaFormProps) => {
   const [load, setLoad] = React.useState<LoadState>({ status: 'loading' });
 
   React.useEffect(() => {

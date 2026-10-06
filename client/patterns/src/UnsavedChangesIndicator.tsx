@@ -34,7 +34,7 @@ export interface UnsavedChangesIndicatorProps {
  * minutes once the notice and warning thresholds pass. The live region stays mounted so screen
  * readers announce each change of level
  */
-export const UnsavedChangesIndicator: React.FC<UnsavedChangesIndicatorProps> = ({ id, dirty, minutes }) => {
+export const UnsavedChangesIndicator = ({ id, dirty, minutes }: UnsavedChangesIndicatorProps) => {
   const [since, setSince] = React.useState<number | null>(null);
   const [now, setNow] = React.useState(() => Date.now());
 

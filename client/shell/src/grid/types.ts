@@ -67,7 +67,7 @@ export interface GridFilter {
 export interface GridPagination {
   page: number;
   pageSize: number;
-  totalItems: number;
+  totalCount: number;
   totalPages: number;
 }
 

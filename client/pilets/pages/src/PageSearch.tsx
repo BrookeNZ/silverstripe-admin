@@ -27,7 +27,7 @@ type SearchState =
   | { status: 'done'; response: SearchResponse }
   | { status: 'failed'; error: ApiError };
 
-export const PageSearch: React.FC<PageSearchProps> = ({ api, editPath, query, onQueryChange, minLength = 2 }) => {
+export const PageSearch = ({ api, editPath, query, onQueryChange, minLength = 2 }: PageSearchProps) => {
   const [state, setState] = React.useState<SearchState>({ status: 'idle' });
   const term = query.trim();
 
@@ -63,7 +63,7 @@ export const PageSearch: React.FC<PageSearchProps> = ({ api, editPath, query, on
   } else if (state.status === 'searching') {
     status = 'Searching…';
   } else if (state.status === 'done') {
-    const { total } = state.response.pageInfo;
+    const { totalCount: total } = state.response.pageInfo;
     const shown = state.response.items.length;
     status = total === 0 ? 'No pages found' : `${total} ${total === 1 ? 'page' : 'pages'} found${shown < total ? `, showing ${shown}` : ''}`;
   }

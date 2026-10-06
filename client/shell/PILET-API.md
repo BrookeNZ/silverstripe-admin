@@ -93,10 +93,13 @@ and sends `data.rowsUrl` in the field's schema instead of its server HTML; a gri
 `GridFieldConfig` still arrives with `fallback.html` and renders as a server HTML field.
 
 **Endpoint.** `GET <field link>/rows` returns `{grid, columns, rows, sort, filter, pagination,
-bulkActions, slots, emptyText}` (types in `src/grid/types.ts`, exported with the form types). Query
+bulkActions, slots, emptyText}` (types in `src/grid/types.ts`, exported with the form types);
+`pagination` is `{page, pageSize, totalCount, totalPages}`, the count and size named as in the admin
+JSON API's `pageInfo`. Query
 parameters: `sort=Title` or `sort=-Title` (one column), `filter[<name>]=<value>` (search context names,
 `q` for the general search, a `Search__` prefix accepted), `page[number]`, `page[size]` (at most 100).
-An unknown column, filter or parameter is a 400 in the CMS JSON error envelope. `POST <field
+An unknown column, filter or parameter is a 400 in the CMS JSON error envelope, and GridState sent
+the legacy way (`<name>[GridState]` or `gridState-<name>-<n>`) is ignored. `POST <field
 link>/actions/<name>` runs a row action (only `deleterecord` and `unlinkrelation` today) with the
 action's `args` as a JSON body and the CSRF token in `X-SecurityID`, and answers with the refreshed
 envelope for the query string it was sent with.

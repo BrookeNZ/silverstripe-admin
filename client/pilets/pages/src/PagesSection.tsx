@@ -66,13 +66,13 @@ function useStoreVersion(store: TreeStore): number {
   return React.useSyncExternalStore(store.subscribe, store.getVersion);
 }
 
-const SessionExpired: React.FC<{ loginUrl: string }> = ({ loginUrl }) => (
+const SessionExpired = ({ loginUrl }: { loginUrl: string }) => (
   <p className="pages__alert" role="alert">
     Your CMS session has expired: <a href={loginUrl}>log in again</a>.
   </p>
 );
 
-const Breadcrumbs: React.FC<{ store: TreeStore; id: number; editPath(id: number): string }> = ({ store, id, editPath }) => {
+const Breadcrumbs = ({ store, id, editPath }: { store: TreeStore; id: number; editPath(id: number): string }) => {
   const trail = [];
   for (let node = store.node(id); node; node = node.parentId ? store.node(node.parentId) : undefined) {
     trail.unshift(node);
@@ -97,10 +97,10 @@ const Breadcrumbs: React.FC<{ store: TreeStore; id: number; editPath(id: number)
   );
 };
 
-export function createPagesSection(options: PagesSectionOptions): React.FC<PageComponentProps> {
+export function createPagesSection(options: PagesSectionOptions): React.ComponentType<PageComponentProps> {
   const editPath = (id: number) => `${options.routePrefix}/edit/show/${id}`;
 
-  const PagesSection: React.FC<PageComponentProps> = ({ piral }) => {
+  const PagesSection = ({ piral }: PageComponentProps) => {
     const api = React.useMemo(() => createTreeApi(options.treeUrl), []);
     const store = React.useMemo(() => new TreeStore(api), [api]);
     useStoreVersion(store);

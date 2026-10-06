@@ -11,7 +11,7 @@ const leftAndMain = 'SilverStripe\\Admin\\LeftAndMain';
 
 const RouterChildren = React.createContext<React.ReactNode>(null);
 
-const Splat: React.FC = () => <>{React.useContext(RouterChildren)}</>;
+const Splat = () => <>{React.useContext(RouterChildren)}</>;
 
 /**
  * A data router (createBrowserRouter) rather than <BrowserRouter>, so useBlocker and other data APIs
@@ -37,7 +37,7 @@ export function readMenu(root: HTMLElement | null): Array<SilverstripeMenuItem> 
   }
 }
 
-export const SectionWithoutPilet: React.FC = () => {
+export const SectionWithoutPilet = () => {
   const section = useLocation().pathname.split('/').filter(Boolean)[0] ?? '';
   return (
     <div className="shell-page">
@@ -72,7 +72,7 @@ export const errors: Partial<ErrorComponentsState> = {
   ),
 };
 
-export const Home: React.FC = () => (
+export const Home = () => (
   <div className="shell-page">
     <h1 className="shell-page__title">Piral shell</h1>
     <p>
@@ -91,7 +91,7 @@ function routerPath(link: string, adminPath: string): string | null {
   return url.pathname.slice(adminPath.length) || '/';
 }
 
-const MenuLink: React.FC<{ item: SilverstripeMenuItem; adminPath: string }> = ({ item, adminPath }) => {
+const MenuLink = ({ item, adminPath }: { item: SilverstripeMenuItem; adminPath: string }) => {
   const { pathname } = useLocation();
   const to = routerPath(item.link, adminPath);
   if (to === null) {

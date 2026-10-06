@@ -55,15 +55,25 @@ export function serverHtmlBinding(name: string, controls: ReadonlyArray<HtmlCont
 
 export const unavailableLinkTitle = 'Not available in the shell yet';
 
+const urlAttributes = new Set(['href', 'src', 'xlink:href', 'formaction', 'action', 'data']);
+
+// Browsers ignore whitespace and control characters inside a URL scheme, so `java\tscript:` still runs
+function isScriptUrl(value: string): boolean {
+  const url = value.replace(/[\u0000-\u0020]/g, '').toLowerCase();
+  return url.startsWith('javascript:') || url.startsWith('vbscript:') || url.startsWith('data:text/html');
+}
+
 /**
- * Makes server HTML safe to inject: inline event handler attributes are dropped, and links lose their
- * href because they lead to legacy admin URLs outside the shell (a disabled fieldset does not disable them)
+ * Makes server HTML safe to inject: inline event handler attributes, `srcdoc` and script or HTML
+ * `data:` URLs are dropped, and links lose their href because they lead to legacy admin URLs outside the
+ * shell (a disabled fieldset does not disable them)
  */
 export function prepareServerHtml(html: string): { html: string; links: number } {
   const body = new DOMParser().parseFromString(html, 'text/html').body;
   for (const element of Array.from(body.querySelectorAll('*'))) {
     for (const attribute of Array.from(element.attributes)) {
-      if (attribute.name.toLowerCase().startsWith('on')) {
+      const name = attribute.name.toLowerCase();
+      if (name.startsWith('on') || name === 'srcdoc' || (urlAttributes.has(name) && isScriptUrl(attribute.value))) {
         element.removeAttribute(attribute.name);
       }
     }

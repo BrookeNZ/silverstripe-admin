@@ -21,10 +21,11 @@ use Throwable;
 /**
  * Read-only JSON for the page tree at admin/pages/tree: paged children of a node, the path to a node, and search.
  *
- * Every record passes canView() before it is listed or counted in `total`; `childCount` and `hasChildren` are the
- * rows in the stage before that check, as the legacy tree's counts are, so a node can report children the member
- * then cannot see. Unlike the legacy tree, which shows nodes the member cannot view as disabled, this one leaves
- * them out.
+ * Every record passes canView() before it is listed or counted in `pageInfo.totalCount`; `childCount` and
+ * `hasChildren` are the rows in the stage before that check, as the legacy tree's counts are, so a node can report
+ * children the member then cannot see. Unlike the legacy tree, which shows nodes the member cannot view as
+ * disabled, this one leaves them out. Search also leaves out a match below a page the member cannot view, since
+ * the tree cannot reach it.
  *
  * Errors use jsonError()'s envelope plus `reason` and, for a bad parameter, `field`, uncaught exceptions included
  * (500, `serverError`). They are built here because jsonError() reads an undefined $request, which dev mode prints
@@ -138,9 +139,9 @@ class PageTreeController extends AdminController
             $data = [
                 'items' => $this->serialiseNodes($slice),
                 'pageInfo' => [
-                    'total' => count($children),
+                    'totalCount' => count($children),
+                    'pageSize' => $limit,
                     'page' => $page,
-                    'limit' => $limit,
                     'hasMore' => $page * $limit < count($children),
                 ],
             ];
@@ -242,8 +243,13 @@ class PageTreeController extends AdminController
                     }
                 }
             }
-            $slice = $this->pageSlice($viewable, $page, $limit);
-            $ancestorIds = $this->ancestorIdsOf($slice);
+            $ancestorIds = $this->ancestorIdsOf($viewable);
+            $hiddenAncestors = $this->unviewableIds(array_unique(array_merge([], ...array_values($ancestorIds))));
+            $reachable = array_values(array_filter(
+                $viewable,
+                fn (DataObject $match) => !array_intersect($ancestorIds[(int) $match->ID], $hiddenAncestors)
+            ));
+            $slice = $this->pageSlice($reachable, $page, $limit);
             $items = $this->serialiseNodes($slice);
             foreach ($slice as $index => $match) {
                 $items[$index]['ancestorIds'] = $ancestorIds[$match->ID];
@@ -251,10 +257,10 @@ class PageTreeController extends AdminController
             $data = [
                 'items' => $items,
                 'pageInfo' => [
-                    'total' => count($viewable),
+                    'totalCount' => count($reachable),
+                    'pageSize' => $limit,
                     'page' => $page,
-                    'limit' => $limit,
-                    'hasMore' => $page * $limit < count($viewable),
+                    'hasMore' => $page * $limit < count($reachable),
                 ],
             ];
             $this->extend('updateApiSearch', $data, $query);
@@ -338,6 +344,25 @@ class PageTreeController extends AdminController
             $this->throwError(403, 'forbidden', 'This page cannot be viewed');
         }
         return $record;
+    }
+
+    /**
+     * @param array<int> $ids
+     * @return array<int>
+     */
+    private function unviewableIds(array $ids): array
+    {
+        $unviewable = [];
+        foreach (array_chunk($ids, 500) as $chunk) {
+            $records = DataObject::get($this->modelClass())->filter('ID', $chunk)->toArray();
+            $this->prepopulateVersionCache($records);
+            foreach ($records as $record) {
+                if (!$record->canView()) {
+                    $unviewable[] = (int) $record->ID;
+                }
+            }
+        }
+        return $unviewable;
     }
 
     private function pageOf(DataObject $record, int $limit): ?int

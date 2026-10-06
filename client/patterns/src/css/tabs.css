@@ -1,45 +1,12 @@
 /**
  * Tabs
  *
- * Tab strip and panels. The active tab is the one with aria-selected="true",
- * which the Tabs component sets
+ * The form's tab panels. The tablist above them is the shared tab strip (tab-strip.css)
  */
 
 .admin-tabs {
-  --admin-tabs-indicator: 0.3rem solid;
-  --admin-tabs-indicator-color: transparent;
-
   display: flex;
   flex-direction: column;
-}
-
-.admin-tabs__list {
-  border-block-end: var(--admin-border);
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--admin-gap-xs);
-}
-
-.admin-tabs__tab {
-  background: none;
-  border: 0;
-  border-block-end: var(--admin-tabs-indicator) var(--admin-tabs-indicator-color);
-  color: var(--admin-fg-color);
-  cursor: pointer;
-  font: inherit;
-  min-height: var(--admin-control-min-height);
-  padding: var(--admin-gap-sm) var(--admin-gap-md);
-}
-
-.admin-tabs__tab[aria-selected="true"] {
-  --admin-tabs-indicator-color: var(--admin-accent-color);
-
-  font-weight: var(--admin-font-weight-bold);
-}
-
-.admin-tabs__tab:focus-visible {
-  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
-  outline-offset: calc(var(--admin-focus-outline-offset) * -1);
 }
 
 .admin-tabs__panel {

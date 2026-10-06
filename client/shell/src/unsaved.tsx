@@ -63,7 +63,7 @@ export function useHasUnsavedChanges(): boolean {
   return useGlobalState((state) => Object.keys(state.unsavedChanges.dirty).length > 0);
 }
 
-export const UnsavedChangesGuard: React.FC = () => {
+export const UnsavedChangesGuard = () => {
   const dirty = useHasUnsavedChanges();
   const blocker = useBlocker(
     React.useCallback(

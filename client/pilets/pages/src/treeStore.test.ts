@@ -46,7 +46,7 @@ function fakeApi() {
     children: vi.fn(async (parentId: number, page: number, limit: number): Promise<ChildrenResponse> => {
       const all = childIds(parentId);
       const items = all.slice((page - 1) * limit, page * limit).map(node);
-      return { items, pageInfo: { total: all.length, page, limit, hasMore: page * limit < all.length } };
+      return { items, pageInfo: { totalCount: all.length, pageSize: limit, page, hasMore: page * limit < all.length } };
     }),
     ancestors: vi.fn(async (id: number, limit: number): Promise<AncestorsResponse> => {
       const path: Array<number> = [];

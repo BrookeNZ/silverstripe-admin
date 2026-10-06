@@ -179,9 +179,9 @@ export class TreeStore {
     let ids = [...this.children(parentId).ids];
     let total = this.children(parentId).total;
     for (const { items, pageInfo } of responses) {
-      const offset = (pageInfo.page - 1) * pageInfo.limit;
+      const offset = (pageInfo.page - 1) * pageInfo.pageSize;
       ids = [...ids.slice(0, offset), ...items.map((item) => item.id), ...ids.slice(offset + items.length)];
-      total = pageInfo.total;
+      total = pageInfo.totalCount;
       for (const item of items) {
         this.nodes.set(item.id, item);
       }

@@ -39,7 +39,7 @@ export function resolveCell(
   return { kind: 'text', text: cellText(cell.value) };
 }
 
-export const TextCell: React.FC<GridCellProps> = ({ value }) => <>{cellText(value)}</>;
+export const TextCell = ({ value }: GridCellProps) => <>{cellText(value)}</>;
 
 /**
  * Server HTML for a cell or slot: prepared like a server HTML field, and its controls disabled, because
@@ -56,7 +56,7 @@ export function prepareGridHtml(html: string): string {
   return body.innerHTML;
 }
 
-export const HtmlContent: React.FC<{ html: string; className?: string }> = ({ html, className }) => {
+export const HtmlContent = ({ html, className }: { html: string; className?: string }) => {
   const prepared = React.useMemo(() => prepareGridHtml(html), [html]);
   return <span className={className} dangerouslySetInnerHTML={{ __html: prepared }} />;
 };
@@ -69,7 +69,7 @@ export interface GridCellContentProps {
   component(name: string): ComponentType<GridCellProps>;
 }
 
-export const GridCellContent: React.FC<GridCellContentProps> = ({ cell, row, column, isRegistered, component }) => {
+export const GridCellContent = ({ cell, row, column, isRegistered, component }: GridCellContentProps) => {
   const rendering = resolveCell(cell, column, isRegistered);
   switch (rendering.kind) {
     case 'html':

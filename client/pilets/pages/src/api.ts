@@ -27,9 +27,9 @@ export interface PageNode {
 }
 
 export interface PageInfo {
-  total: number;
+  totalCount: number;
+  pageSize: number;
   page: number;
-  limit: number;
   hasMore: boolean;
 }
 

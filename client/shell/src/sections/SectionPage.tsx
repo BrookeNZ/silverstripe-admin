@@ -19,7 +19,7 @@ import type { SilverstripeMenuItem } from '../silverstripe';
 import { editFormSchemaUrl, menuSections, piletOwnsSection, resolveSectionRoute, sectionHeader } from './resolve';
 import type { SectionRoute, ShellSection } from './resolve';
 
-const SectionLoadError: React.FC<{ error: unknown; section: ShellSection }> = ({ error, section }) => {
+const SectionLoadError = ({ error, section }: { error: unknown; section: ShellSection }) => {
   const adminUrl = window.ss?.config?.adminUrl ?? '/admin/';
   if (error instanceof FormSchemaRequestError && error.sessionEnded) {
     return (
@@ -61,7 +61,7 @@ const SectionLoadError: React.FC<{ error: unknown; section: ShellSection }> = ({
   );
 };
 
-const SectionView: React.FC<{ route: SectionRoute }> = ({ route }) => {
+const SectionView = ({ route }: { route: SectionRoute }) => {
   const { section, unhandled } = route;
   const schemaUrl = editFormSchemaUrl(route);
   useSectionHeaderEffect(sectionHeader(route), shellOwner);
@@ -84,9 +84,9 @@ const SectionView: React.FC<{ route: SectionRoute }> = ({ route }) => {
 };
 
 /** Builds the not_found view for the shell's menu; paths it does not render go to the fallback */
-export function createSectionPage(menu: Array<SilverstripeMenuItem>, Fallback: React.ComponentType): React.FC {
+export function createSectionPage(menu: Array<SilverstripeMenuItem>, Fallback: React.ComponentType) {
   let sections: Array<ShellSection> | null = null;
-  const SectionPage: React.FC = () => {
+  const SectionPage = () => {
     sections ??= menuSections(menu, window.ss?.config?.sections ?? []);
     const { pathname } = useLocation();
     const pages = useGlobalState((state) => state.registry.pages);

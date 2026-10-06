@@ -2,12 +2,13 @@
  * The section header from the CMS Refresh design: a back button, the page title as the page's h1, and
  * the page's views (Content, Settings, History; a ModelAdmin's model tabs) as route links. The views
  * are navigation between routes, so they are a nav of links with aria-current rather than the
- * patterns package's Tabs, which switch panels inside one page.
+ * patterns package's Tabs, which switch panels inside one page; both draw the package's TabStrip.
  *
  * The layout renders it above every route; it draws nothing until the showing page sets a header.
  */
 import * as React from 'react';
 import { Link } from 'react-router-dom';
+import { TabStrip } from '@silverstripe/admin-patterns';
 import { useSectionHeader } from './state';
 import type { SectionHeader as SectionHeaderContent } from './state';
 import './header.css';
@@ -32,19 +33,10 @@ export const SectionHeader = ({ title, backTo, backLabel = 'Back', views = [] }:
     </div>
     {views.length > 0 && (
       <nav className="shell-header__views" aria-label={`${title} views`}>
-        <ul className="shell-header__view-list">
-          {views.map((view) => (
-            <li className="shell-header__view" key={view.key}>
-              <Link
-                className={view.current ? 'shell-header__view-link shell-header__view-link--current' : 'shell-header__view-link'}
-                to={view.to}
-                aria-current={view.current ? 'page' : undefined}
-              >
-                {view.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <TabStrip
+          items={views.map((view) => ({ key: view.key, label: view.label, current: view.current, href: view.to }))}
+          renderLink={({ href, ...link }) => <Link {...link} to={href} />}
+        />
       </nav>
     )}
   </div>

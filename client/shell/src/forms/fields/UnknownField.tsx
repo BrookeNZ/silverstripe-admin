@@ -5,7 +5,7 @@ import type { FieldComponentProps } from '../types';
 import './unknown-field.css';
 
 /** The end of the resolution chain: names what is missing instead of failing the form */
-export const UnknownField: React.FC<FieldComponentProps> = ({ field }) => (
+export const UnknownField = ({ field }: FieldComponentProps) => (
   <div className="shell-unknown-field" id={field.holderId} role="note">
     <p className="shell-unknown-field__title">{fieldTitle(field) || field.name}</p>
     <p className="shell-unknown-field__detail">

@@ -34,7 +34,7 @@ class PageTreeControllerTest extends FunctionalTest
         $body = $this->getJson('admin/pages/tree/children/0');
 
         $this->assertSame(['Alpha', 'Bravo', 'Wide'], array_column($body['items'], 'title'));
-        $this->assertSame(['total' => 3, 'page' => 1, 'limit' => 50, 'hasMore' => false], $body['pageInfo']);
+        $this->assertSame(['totalCount' => 3, 'pageSize' => 50, 'page' => 1, 'hasMore' => false], $body['pageInfo']);
     }
 
     public function testNodeShape(): void
@@ -64,7 +64,7 @@ class PageTreeControllerTest extends FunctionalTest
         $last = $this->getJson($url . '?limit=2&page=3');
 
         $this->assertSame(['Wide one', 'Wide two'], array_column($first['items'], 'title'));
-        $this->assertSame(['total' => 5, 'page' => 1, 'limit' => 2, 'hasMore' => true], $first['pageInfo']);
+        $this->assertSame(['totalCount' => 5, 'pageSize' => 2, 'page' => 1, 'hasMore' => true], $first['pageInfo']);
         $this->assertSame(['Wide five'], array_column($last['items'], 'title'));
         $this->assertFalse($last['pageInfo']['hasMore']);
     }
@@ -80,7 +80,7 @@ class PageTreeControllerTest extends FunctionalTest
         $draft = $this->getJson($url . '?stage=draft');
 
         $this->assertSame(['Wide two', 'Wide four'], array_column($live['items'], 'title'));
-        $this->assertSame(5, $draft['pageInfo']['total']);
+        $this->assertSame(5, $draft['pageInfo']['totalCount']);
         $this->assertSame(
             ['Wide'],
             array_column($this->getJson('admin/pages/tree/children/0?stage=live')['items'], 'title')
@@ -127,6 +127,7 @@ class PageTreeControllerTest extends FunctionalTest
         $this->assertError($this->get($url . '?limit=251', null, self::AJAX), 400, 'outOfRange', 'limit');
         $this->assertError($this->get($url . '?page=x', null, self::AJAX), 400, 'invalid', 'page');
         $this->assertError($this->get($url . '?stage=archive', null, self::AJAX), 400, 'invalid', 'stage');
+        $this->assertError($this->get($url . '?stage[]=live', null, self::AJAX), 400, 'invalid', 'stage');
     }
 
     public function testPageBeyondTheLastIsEmpty(): void
@@ -184,7 +185,7 @@ class PageTreeControllerTest extends FunctionalTest
             array_map(fn ($name) => $this->idFor($name), ['bravo', 'deep1', 'deep2', 'deep3', 'deep4', 'deep5']),
             $body['items'][0]['ancestorIds']
         );
-        $this->assertSame(1, $body['pageInfo']['total']);
+        $this->assertSame(1, $body['pageInfo']['totalCount']);
     }
 
     public function testSearchMatchesMenuTitleAndLeavesOutPagesTheMemberCannotView(): void
@@ -193,12 +194,23 @@ class PageTreeControllerTest extends FunctionalTest
         $this->assertSame([], $this->getJson('admin/pages/tree/search?q=restricted')['items']);
     }
 
+    public function testSearchLeavesOutMatchesBelowAPageTheMemberCannotView(): void
+    {
+        $this->assertSame([], $this->getJson('admin/pages/tree/search?q=opened')['items']);
+        $this->assertSame(0, $this->getJson('admin/pages/tree/search?q=opened')['pageInfo']['totalCount']);
+
+        $this->logInWithPermission('ADMIN');
+        $body = $this->getJson('admin/pages/tree/search?q=opened');
+        $this->assertSame(['Opened child'], array_column($body['items'], 'title'));
+        $this->assertSame([$this->idFor('restricted')], $body['items'][0]['ancestorIds']);
+    }
+
     public function testSearchIsPaged(): void
     {
         $body = $this->getJson('admin/pages/tree/search?q=wide&limit=4');
 
         $this->assertCount(4, $body['items']);
-        $this->assertSame(['total' => 6, 'page' => 1, 'limit' => 4, 'hasMore' => true], $body['pageInfo']);
+        $this->assertSame(['totalCount' => 6, 'pageSize' => 4, 'page' => 1, 'hasMore' => true], $body['pageInfo']);
         $this->assertSame([], $body['items'][0]['ancestorIds']);
     }
 

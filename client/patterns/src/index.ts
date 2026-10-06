@@ -12,6 +12,8 @@ export { describedBy, FieldHolder, fieldTitle } from './FieldHolder';
 export type { FieldHolderProps } from './FieldHolder';
 export { CheckboxField, DatetimeField, HiddenField, OptionsetField, ReadonlyField, SingleSelectField, TextField } from './inputs';
 export { CompositeField, FieldGroup, HeaderField, LiteralField, TabItem, Tabs } from './structure';
+export { TabStrip } from './TabStrip';
+export type { TabStripItem, TabStripLinkProps, TabStripProps } from './TabStrip';
 export { Button } from './Button';
 export type { ButtonProps, ButtonVariant } from './Button';
 export * from './icons';

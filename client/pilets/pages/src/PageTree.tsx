@@ -67,7 +67,7 @@ function activate(store: TreeStore, entry: TreeEntry, onSelect: (id: number) => 
   }
 }
 
-const TreeRowContent: React.FC<{ item: ItemInstance<TreeEntry> }> = ({ item }) => {
+const TreeRowContent = ({ item }: { item: ItemInstance<TreeEntry> }) => {
   const entry = item.getItemData();
   if (entry.kind !== 'page') {
     return <span className="pages-tree__note">{entryName(entry)}</span>;
@@ -96,7 +96,7 @@ const TreeRowContent: React.FC<{ item: ItemInstance<TreeEntry> }> = ({ item }) =
   );
 };
 
-export const PageTree: React.FC<PageTreeProps> = ({ store, currentId, onSelect, onRevealError, hidden }) => {
+export const PageTree = ({ store, currentId, onSelect, onRevealError, hidden }: PageTreeProps) => {
   const [expandedItems, setExpandedItems] = React.useState<Array<string>>([]);
   const [focusedItem, setFocusedItem] = React.useState<string | null>(null);
   const [, rerender] = React.useReducer((count: number) => count + 1, 0);

@@ -10,7 +10,7 @@ export interface UnsavedChangesIndicatorSchema {
 }
 
 /** Feeds the surrounding form's dirty state to the shared indicator */
-export const UnsavedChangesIndicatorField: React.FC<FieldComponentProps<unknown, UnsavedChangesIndicatorSchema>> = ({ field }) => {
+export const UnsavedChangesIndicatorField = ({ field }: FieldComponentProps<unknown, UnsavedChangesIndicatorSchema>) => {
   const { dirty } = useFormRenderContext();
   return <UnsavedChangesIndicator id={field.id} dirty={dirty} minutes={field.minutes} />;
 };

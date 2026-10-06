@@ -106,8 +106,8 @@ function bindActions(dispatch: React.Dispatch<Action>) {
 }
 
 export function connectTreeDropdownField(mapStateToProps: (field: TreeFieldState, ownProps: any) => object) {
-  return (Field: React.ComponentType<any>): React.FC<any> => {
-    const Connected: React.FC<any> = (ownProps) => {
+  return (Field: React.ComponentType<any>): React.ComponentType<any> => {
+    const Connected = (ownProps: any) => {
       const [field, dispatch] = React.useReducer(treeDropdownFieldReducer, initialFieldState);
       const actions = React.useMemo(() => ({ treeDropdownField: bindActions(dispatch) }), []);
       return <Field {...ownProps} {...mapStateToProps(field, ownProps)} actions={actions} />;

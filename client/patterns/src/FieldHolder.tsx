@@ -26,7 +26,7 @@ export interface FieldHolderProps {
 }
 
 /** Label, control, description and error message around one field */
-export const FieldHolder: React.FC<FieldHolderProps> = ({ field, error, inline, label, labelFor, labelId, children }) => {
+export const FieldHolder = ({ field, error, inline, label, labelFor, labelId, children }: FieldHolderProps) => {
   const title = label ?? fieldTitle(field);
   return (
     <div className={inline ? 'admin-field admin-field--inline' : 'admin-field'} id={field.holderId}>

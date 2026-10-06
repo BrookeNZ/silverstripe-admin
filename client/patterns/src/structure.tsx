@@ -5,6 +5,7 @@ import * as React from 'react';
 import { flushSync } from 'react-dom';
 import { fieldTitle } from './FieldHolder';
 import { revealFieldEvent } from './reveal';
+import { TabStrip } from './TabStrip';
 import type { FieldProps } from './types';
 
 export const CompositeField = ({ field, renderFields }: FieldProps) => (
@@ -71,26 +72,27 @@ export const Tabs = ({ field, renderFields }: FieldProps) => {
 
   return (
     <div className="admin-tabs" id={field.id} ref={root}>
-      <div className="admin-tabs__list" role="tablist" aria-label={fieldTitle(field) || undefined} onKeyDown={onKeyDown}>
-        {tabs.map((tab, index) => (
-          <button
-            key={tab.id}
-            ref={(element) => {
+      <TabStrip
+        role="tablist"
+        aria-label={fieldTitle(field) || undefined}
+        onKeyDown={onKeyDown}
+        items={tabs.map((tab, index) => ({
+          key: tab.id,
+          label: fieldTitle(tab),
+          current: index === active,
+          buttonProps: {
+            ref: (element: HTMLButtonElement | null) => {
               tabRefs.current[index] = element;
-            }}
-            className="admin-tabs__tab"
-            type="button"
-            role="tab"
-            id={`${tab.id}_tab`}
-            aria-controls={tab.id}
-            aria-selected={index === active}
-            tabIndex={index === active ? 0 : -1}
-            onClick={() => setActive(index)}
-          >
-            {fieldTitle(tab)}
-          </button>
-        ))}
-      </div>
+            },
+            role: 'tab',
+            id: `${tab.id}_tab`,
+            'aria-controls': tab.id,
+            'aria-selected': index === active,
+            tabIndex: index === active ? 0 : -1,
+            onClick: () => setActive(index),
+          },
+        }))}
+      />
       {tabs.map((tab, index) => (
         // Inactive panels stay mounted so their fields keep their values and registrations
         <div

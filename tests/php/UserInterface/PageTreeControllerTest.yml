@@ -87,3 +87,9 @@ SilverStripe\CMS\Model\SiteTree:
     URLSegment: deep-6
     Parent: =>SilverStripe\CMS\Model\SiteTree.deep5
     Sort: 1
+  openedchild:
+    Title: Opened child
+    URLSegment: opened-child
+    Parent: =>SilverStripe\CMS\Model\SiteTree.restricted
+    CanViewType: Anyone
+    Sort: 2

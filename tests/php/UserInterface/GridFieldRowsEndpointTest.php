@@ -61,7 +61,7 @@ class GridFieldRowsEndpointTest extends FunctionalTest
         $this->assertSame(['RecordID' => $this->idFromFixture(Team::class, 'alpha')], $delete['args']);
         $this->assertNotEmpty($delete['confirm']);
 
-        $this->assertSame(['page' => 1, 'pageSize' => 2, 'totalItems' => 4, 'totalPages' => 2], $body['pagination']);
+        $this->assertSame(['page' => 1, 'pageSize' => 2, 'totalCount' => 4, 'totalPages' => 2], $body['pagination']);
         $this->assertSame([], $body['sort']);
         $this->assertSame('q', $body['filter']['searchField']);
         $this->assertFalse($body['filter']['active']);
@@ -114,6 +114,20 @@ class GridFieldRowsEndpointTest extends FunctionalTest
         $this->assertSame(2, $secondPage['pagination']['page']);
     }
 
+    public function testGridStateFromTheQueryStringIsIgnored(): void
+    {
+        $state = json_encode([
+            'GridFieldSortableHeader' => ['SortColumn' => 'City', 'SortDirection' => 'desc'],
+            'GridFieldPaginator' => ['itemsPerPage' => 100],
+        ]);
+        foreach (['Teams[GridState]', 'gridState-Teams-0'] as $key) {
+            $body = $this->getJson('rows?' . http_build_query([$key => $state]));
+            $this->assertSame(['Alpha', 'Bravo'], $this->names($body), $key);
+            $this->assertSame([], $body['sort'], $key);
+            $this->assertSame(2, $body['pagination']['pageSize'], $key);
+        }
+    }
+
     public function testInvalidParametersAreJsonBadRequests(): void
     {
         foreach (['sort=Nope', 'sort=Name,City', 'filter[Nope]=x', 'page[size]=1000', 'page[number]=0', 'page[bogus]=1'] as $query) {
@@ -129,7 +143,7 @@ class GridFieldRowsEndpointTest extends FunctionalTest
         foreach ([1, 2] as $page) {
             $body = $this->getJson('rows?page[number]=' . $page);
             $names = array_merge($names, $this->names($body));
-            $this->assertSame(4, $body['pagination']['totalItems']);
+            $this->assertSame(4, $body['pagination']['totalCount']);
         }
         $this->assertSame(['Alpha', 'Bravo', 'Charlie'], $names);
     }

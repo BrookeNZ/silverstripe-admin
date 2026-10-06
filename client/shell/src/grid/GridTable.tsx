@@ -25,12 +25,15 @@ import './grid.css';
 
 const features = tableFeatures({ rowSortingFeature, rowPaginationFeature });
 
-const SortArrow: React.FC<{ direction: 'asc' | 'desc' }> = ({ direction }) => (
+interface SortArrowProps {
+  direction: 'asc' | 'desc';
+}
+
+const SortArrow = ({ direction }: SortArrowProps) => (
   <svg width="6" height="6" viewBox="0 0 6 6" fill="currentColor">
     <path d={direction === 'asc' ? 'M3 .65 5.5 4.98H.5z' : 'M3 5.33.5 1h5z'} />
   </svg>
 );
-
 
 const slotsAbove = ['before', 'buttons-before-left', 'buttons-before-right', 'toolbar-header-left', 'toolbar-header-right', 'header'];
 
@@ -54,7 +57,7 @@ export interface GridTableProps {
   rowsUrl: string;
 }
 
-export const GridTable: React.FC<GridTableProps> = ({ id, name, title, rowsUrl }) => {
+export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryKey = rowsParams(readGridQuery(searchParams, name)).toString();
   const query = React.useMemo(() => readGridQuery(searchParams, name), [queryKey]);
@@ -111,7 +114,7 @@ export const GridTable: React.FC<GridTableProps> = ({ id, name, title, rowsUrl }
     enableMultiSort: false,
     enableSortingRemoval: false,
     sortDescFirst: false,
-    rowCount: payload?.pagination?.totalItems ?? payload?.rows.length ?? 0,
+    rowCount: payload?.pagination?.totalCount ?? payload?.rows.length ?? 0,
     onSortingChange: (updater) => navigate({ ...query, sort: fromSorting(resolve(updater, sorting)), page: null }),
     onPaginationChange: (updater) => navigate({ ...query, page: resolve(updater, pagination).pageIndex + 1 }),
   });
@@ -172,9 +175,9 @@ export const GridTable: React.FC<GridTableProps> = ({ id, name, title, rowsUrl }
       <table className="admin-grid__table">
         <caption className="admin-grid__caption" id={captionId}>
           <span className="admin-grid__hidden">{caption}</span>
-          {page && page.totalItems > 0 && (
+          {page && page.totalCount > 0 && (
             <span className="admin-grid__count">
-              View {(page.page - 1) * page.pageSize + 1}–{Math.min(page.page * page.pageSize, page.totalItems)} of {page.totalItems}
+              View {(page.page - 1) * page.pageSize + 1}–{Math.min(page.page * page.pageSize, page.totalCount)} of {page.totalCount}
             </span>
           )}
         </caption>
@@ -274,7 +277,13 @@ export const GridTable: React.FC<GridTableProps> = ({ id, name, title, rowsUrl }
   );
 };
 
-const RowActions: React.FC<{ row: GridRow; readonly: boolean; onAction(action: GridPostAction): void }> = ({ row, readonly, onAction }) => {
+interface RowActionsProps {
+  row: GridRow;
+  readonly: boolean;
+  onAction(action: GridPostAction): void;
+}
+
+const RowActions = ({ row, readonly, onAction }: RowActionsProps) => {
   const label = row.title ?? `#${row.id}`;
   return (
     <span className="admin-grid__actions">
@@ -338,14 +347,15 @@ const GridSearch = ({ id, label, value, active, onSearch, onClear }: GridSearchP
   );
 };
 
-const confirmTitleId = 'admin-grid-confirm-title';
-
-const ConfirmDialog: React.FC<{
+export interface ConfirmDialogProps {
   confirming: { action: GridPostAction; row: GridRow } | null;
   onCancel(): void;
   onConfirm(): void;
-}> = ({ confirming, onCancel, onConfirm }) => {
+}
+
+export const ConfirmDialog = ({ confirming, onCancel, onConfirm }: ConfirmDialogProps) => {
   const dialog = React.useRef<HTMLDialogElement>(null);
+  const titleId = React.useId();
   React.useEffect(() => {
     const element = dialog.current;
     if (confirming && element && !element.open) {
@@ -358,13 +368,13 @@ const ConfirmDialog: React.FC<{
     <dialog
       ref={dialog}
       className="admin-dialog"
-      aria-labelledby={confirmTitleId}
+      aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault();
         onCancel();
       }}
     >
-      <h2 className="admin-dialog__title" id={confirmTitleId}>
+      <h2 className="admin-dialog__title" id={titleId}>
         {confirming ? `${confirming.action.title} ${confirming.row.title ?? `#${confirming.row.id}`}?` : ''}
       </h2>
       <p className="admin-dialog__body">{confirming?.action.confirm}</p>

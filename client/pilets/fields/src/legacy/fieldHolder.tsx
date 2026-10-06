@@ -10,8 +10,8 @@ import type { FieldComponentProps } from '@silverstripe/admin-shell';
 export default function fieldHolder<P extends object>(
   Field: React.ComponentType<any>,
   schemaPropNames: ReadonlyArray<keyof P & string>,
-): React.FC<FieldComponentProps<any, P>> {
-  const Held: React.FC<FieldComponentProps<any, P>> = ({ field, value, onChange, error }) => {
+): React.ComponentType<FieldComponentProps<any, P>> {
+  const Held = ({ field, value, onChange, error }: FieldComponentProps<any, P>) => {
     const labelId = `${field.id}_label`;
     const schemaProps = Object.fromEntries(schemaPropNames.map((name) => [name, field[name]]));
     return (

@@ -21,6 +21,7 @@ use SilverStripe\Forms\GridField\GridField_ActionMenu;
 use SilverStripe\Forms\GridField\GridField_ActionMenuLink;
 use SilverStripe\Forms\GridField\GridField_ColumnProvider;
 use SilverStripe\Forms\GridField\GridField_HTMLProvider;
+use SilverStripe\Forms\GridField\GridField_StateProvider;
 use SilverStripe\Forms\GridField\GridField_URLHandler;
 use SilverStripe\Forms\GridField\GridFieldAddNewButton;
 use SilverStripe\Forms\GridField\GridFieldButtonRow;
@@ -57,6 +58,8 @@ use Throwable;
  * sets GridFieldFilterHeader's columns (names as the search context knows them, `q` for the general
  * search; a `Search__` prefix is accepted), `page[number]` and `page[size]` set GridFieldPaginator.
  * A parameter the grid has no component for, a column that cannot be sorted or an unknown filter is a 400.
+ * GridState sent the legacy way (`<name>[GridState]`, `gridState-<name>-<n>`) is discarded, so these
+ * parameters are the only way in.
  *
  * The body is a plain envelope: `grid`, `columns`, `rows`, `sort`, `filter`, `pagination`,
  * `bulkActions`, `slots`, `emptyText`. A cell is `{value}` when its column provider implements
@@ -66,7 +69,7 @@ use Throwable;
  * carries what they render as data. Row actions are typed: GridField_ActionMenuLink components give
  * links, GridFieldDeleteAction gives a POST action. Only those actions can be posted, because their
  * arguments come from the client rather than the session state store GridField_FormAction uses.
- * `pagination.totalItems` is the paginator's count, taken before canView() drops rows, as GridField does.
+ * `pagination.totalCount` is the paginator's count, taken before canView() drops rows, as GridField does.
  *
  * Errors use the CMS JSON error envelope. A POST needs the form's CSRF token in `X-SecurityID` and
  * answers with the refreshed envelope for the query string it was sent with.
@@ -135,6 +138,7 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
             if ($request->httpMethod() !== 'GET') {
                 throw $this->error(405, 'Use GET to read the rows');
             }
+            $this->resetState($gridField);
             $this->applyQuery($gridField, $request);
             return $this->getPayload($gridField);
         });
@@ -146,6 +150,7 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
             if ($request->httpMethod() !== 'POST') {
                 throw $this->error(405, 'Use POST to run a row action');
             }
+            $this->resetState($gridField);
             $form = $gridField->getForm();
             $token = $form ? $form->getSecurityToken() : SecurityToken::inst();
             if (!$token->check($request->getHeader(static::CSRF_HEADER))) {
@@ -183,6 +188,22 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
         $this->applyPage($gridField, $request->getVar('page'));
     }
 
+    /**
+     * Back to the components' defaults, dropping whatever GridField::handleRequest() read from the request
+     */
+    public function resetState(GridField $gridField): void
+    {
+        $data = $gridField->getState();
+        foreach (array_keys($data->toArray()) as $key) {
+            unset($data->$key);
+        }
+        foreach ($gridField->getComponents() as $component) {
+            if ($component instanceof GridField_StateProvider) {
+                $component->initDefaultState($data);
+            }
+        }
+    }
+
     public function getPayload(GridField $gridField): array
     {
         $readonly = $gridField->isReadonly() || $this->sudoModeBlocks($gridField);
@@ -192,7 +213,7 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
 
         $list = $gridField->getManipulatedList();
         $paginator = $gridField->getConfig()->getComponentByType(GridFieldPaginator::class);
-        $totalItems = $paginator ? $paginator->getTotalItems() : $list->count();
+        $totalCount = $paginator ? $paginator->getTotalItems() : $list->count();
         if ($list instanceof DataList) {
             $list->prepopulateCaches();
         }
@@ -211,7 +232,7 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
             'rows' => $rows,
             'sort' => $this->sortState($gridField, $sortFields),
             'filter' => $this->filterState($gridField),
-            'pagination' => $paginator ? $this->pagination($gridField, $paginator, $totalItems) : null,
+            'pagination' => $paginator ? $this->pagination($gridField, $paginator, $totalCount) : null,
             'bulkActions' => [],
             'slots' => $this->slots($gridField, $readonly) ?: new stdClass(),
             'emptyText' => _t('SilverStripe\\Forms\\GridField\\GridField.NoItemsFound', 'No items found'),
@@ -604,14 +625,14 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
         return $fields;
     }
 
-    private function pagination(GridField $gridField, GridFieldPaginator $paginator, int $totalItems): array
+    private function pagination(GridField $gridField, GridFieldPaginator $paginator, int $totalCount): array
     {
         $pageSize = (int) $paginator->getItemsPerPage();
         return [
             'page' => (int) $gridField->getState()->GridFieldPaginator->currentPage,
             'pageSize' => $pageSize,
-            'totalItems' => $totalItems,
-            'totalPages' => max(1, (int) ceil($totalItems / max(1, $pageSize))),
+            'totalCount' => $totalCount,
+            'totalPages' => max(1, (int) ceil($totalCount / max(1, $pageSize))),
         ];
     }
 

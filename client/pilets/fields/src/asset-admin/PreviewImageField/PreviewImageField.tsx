@@ -30,7 +30,7 @@ export function cacheBustUrl(url: string, version: number | undefined, base: str
   return busted.href;
 }
 
-const PreviewImageField: React.FC<FieldComponentProps<unknown, PreviewImageState>> = ({ field }) => {
+const PreviewImageField = ({ field }: FieldComponentProps<unknown, PreviewImageState>) => {
   const data = field.data as PreviewImageState['data'];
   const filename = data.initialValues?.FileFilename ?? '';
   const previewUrl = data.preview || data.url;

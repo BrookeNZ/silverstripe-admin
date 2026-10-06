@@ -11,7 +11,7 @@ import type { FieldComponentProps } from '../forms/types';
 
 const GridTable = React.lazy(() => import(/* webpackChunkName: "grid" */ './GridTable').then((module) => ({ default: module.GridTable })));
 
-export const GridField: React.FC<FieldComponentProps> = (props) => {
+export const GridField = (props: FieldComponentProps) => {
   const rowsUrl = props.field.data.rowsUrl;
   if (typeof rowsUrl !== 'string') {
     return <ServerHtmlField {...props} />;
