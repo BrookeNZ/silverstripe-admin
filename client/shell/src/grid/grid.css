@@ -1,18 +1,31 @@
 /**
  * Grid
  *
- * Only what the GridField grid needs to work and be accessible: separated, padded cells so rows read
- * as rows, header sort buttons that keep the header's look but show focus, visible focus on row
- * actions, and visually hidden text that names a row's actions. Styling belongs to the pattern library
+ * The GridField grid, styled to the CMS Refresh list view: a toolbar row (add button, server-rendered
+ * buttons, search on the right), a borderless header row of medium-weight titles with stacked sort
+ * arrows, body rows divided by hairlines with a pale hover ground, and small muted text for the page
+ * count and pager. Colours come from the --admin-* palette; the --admin-grid-* tokens hold the list
+ * view's own measures and the two colours no global token covers (the row hairline and the hover ground)
  */
 
 .admin-grid {
-  --admin-grid-cell-padding: var(--admin-gap-xs) var(--admin-gap-sm);
-  --admin-grid-rule: var(--admin-border);
+  --admin-grid-button-padding: 0.8rem 1rem;
+  --admin-grid-cell-padding: 2rem 1.5rem;
+  --admin-grid-divider-color: #dcdee0;
+  --admin-grid-divider-width: 0.1rem;
+  --admin-grid-header-font-weight: 500;
+  --admin-grid-header-line-height: 1.57;
+  --admin-grid-header-padding: 0 1.5rem 1.5rem;
+  --admin-grid-line-height: 1.3;
+  --admin-grid-row-hover-bg-color: #f8fafc;
+  --admin-grid-sort-gap: 0.5rem;
+  --admin-grid-toolbar-gap: 2rem;
+  --admin-grid-toolbar-padding: 2rem 0 3rem;
 
+  color: var(--admin-fg-color);
   display: flex;
   flex-direction: column;
-  gap: var(--admin-gap-sm);
+  font-size: var(--admin-font-size-sm);
   min-width: 0;
   overflow-x: auto;
 }
@@ -23,17 +36,33 @@
 }
 
 .admin-grid__toolbar {
-  align-items: end;
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--admin-gap-sm);
+  gap: var(--admin-grid-toolbar-gap);
+  padding: var(--admin-grid-toolbar-padding);
 }
 
 .admin-grid__search {
-  align-items: end;
+  align-items: center;
   display: flex;
-  flex-wrap: wrap;
   gap: var(--admin-gap-xs);
+  margin-inline-start: auto;
+}
+
+.admin-grid__search-input {
+  background-color: var(--admin-input-bg-color);
+  border: var(--admin-grid-divider-width) solid var(--admin-muted-fg-color);
+  border-radius: var(--admin-radius);
+  color: var(--admin-fg-color);
+  font: inherit;
+  min-height: var(--admin-target-min-size);
+  padding: var(--admin-grid-button-padding);
+}
+
+.admin-grid__search-input:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: var(--admin-focus-outline-offset);
 }
 
 .admin-grid__table {
@@ -42,29 +71,34 @@
 }
 
 .admin-grid__caption {
+  caption-side: top;
+  padding: var(--admin-grid-header-padding);
+  text-align: end;
+}
+
+.admin-grid__count {
+  color: var(--admin-muted-fg-color);
+  font-size: var(--admin-font-size-xs);
   font-weight: var(--admin-font-weight-bold);
-  text-align: start;
 }
 
 .admin-grid__header {
-  border-bottom: var(--admin-grid-rule);
-  padding: var(--admin-grid-cell-padding);
+  font-weight: var(--admin-grid-header-font-weight);
+  line-height: var(--admin-grid-header-line-height);
+  padding: var(--admin-grid-header-padding);
   text-align: start;
-}
-
-.admin-grid__cell {
-  border-bottom: var(--admin-grid-rule);
-  font-weight: var(--admin-font-weight-normal);
-  padding: var(--admin-grid-cell-padding);
-  text-align: start;
+  white-space: nowrap;
 }
 
 .admin-grid__sort {
+  align-items: center;
   background: none;
   border: 0;
   color: inherit;
   cursor: pointer;
+  display: inline-flex;
   font: inherit;
+  gap: var(--admin-grid-sort-gap);
   min-height: var(--admin-target-min-size);
   padding: 0;
 }
@@ -74,17 +108,50 @@
   outline-offset: var(--admin-focus-outline-offset);
 }
 
+.admin-grid__sort-icon {
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.admin-grid__row {
+  border-top: var(--admin-grid-divider-width) solid var(--admin-grid-divider-color);
+}
+
+.admin-grid__row:last-child {
+  border-bottom: var(--admin-grid-divider-width) solid var(--admin-grid-divider-color);
+}
+
+.admin-grid__row:hover {
+  background-color: var(--admin-grid-row-hover-bg-color);
+}
+
+.admin-grid__cell {
+  font-weight: var(--admin-font-weight-normal);
+  line-height: var(--admin-grid-line-height);
+  padding: var(--admin-grid-cell-padding);
+  text-align: start;
+  vertical-align: middle;
+}
+
+.admin-grid__empty {
+  border-top: var(--admin-grid-divider-width) solid var(--admin-grid-divider-color);
+  color: var(--admin-muted-fg-color);
+  padding: var(--admin-grid-cell-padding);
+}
+
 .admin-grid__actions {
   display: inline-flex;
-  flex-wrap: wrap;
-  gap: var(--admin-gap-sm);
+  white-space: nowrap;
+  gap: var(--admin-gap-md);
 }
 
 .admin-grid__action {
+  align-items: center;
   background: none;
   border: 0;
   color: var(--admin-accent-color);
   cursor: pointer;
+  display: inline-flex;
   font: inherit;
   min-height: var(--admin-target-min-size);
   padding: 0;
@@ -98,12 +165,13 @@
 
 .admin-grid__pages {
   align-items: center;
+  color: var(--admin-muted-fg-color);
   display: flex;
+  font-size: var(--admin-font-size-xs);
+  font-weight: var(--admin-font-weight-bold);
   gap: var(--admin-gap-sm);
-}
-
-.admin-grid__count {
-  margin: 0;
+  justify-content: flex-end;
+  padding: var(--admin-gap-md) 0;
 }
 
 .admin-grid__status {

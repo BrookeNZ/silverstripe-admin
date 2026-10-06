@@ -9,6 +9,8 @@ import type { ComponentType } from 'react';
 import type { Disposable, PiralPlugin } from 'piral-core';
 import { ExtensionSlot } from 'piral-core';
 import type { SilverstripeClientConfig } from '../silverstripe';
+import { clearSectionHeaderOf, setSectionHeader } from '../header/state';
+import type { SectionHeader } from '../header/state';
 import { clearUnsavedChangesOf, hasUnsavedChanges, setUnsavedChanges } from '../unsaved';
 
 export interface SilverstripeApi {
@@ -22,6 +24,11 @@ export interface SilverstripeApi {
    */
   setUnsavedChanges(key: string, dirty: boolean): Disposable;
   hasUnsavedChanges(): boolean;
+  /**
+   * Shows the section header (back button, title as the page h1, views) above the content until the
+   * disposer runs; call it from the page and dispose on unmount. A later call replaces the header
+   */
+  setSectionHeader(header: SectionHeader): Disposable;
 }
 
 declare module 'piral-core/lib/types/custom' {
@@ -73,7 +80,10 @@ let frozenConfig: Readonly<SilverstripeClientConfig> | undefined;
 
 export function createSilverstripeApi(): PiralPlugin<SilverstripeApi> {
   return (context) => {
-    context.on('unload-pilet', ({ name }) => clearUnsavedChangesOf(context, name));
+    context.on('unload-pilet', ({ name }) => {
+      clearUnsavedChangesOf(context, name);
+      clearSectionHeaderOf(context, name);
+    });
 
     return (api, meta) => ({
       registerSilverstripeComponent(name, Component) {
@@ -101,6 +111,9 @@ export function createSilverstripeApi(): PiralPlugin<SilverstripeApi> {
       },
       hasUnsavedChanges() {
         return hasUnsavedChanges(context);
+      },
+      setSectionHeader(header) {
+        return setSectionHeader(context, meta.name, header);
       },
     });
   };

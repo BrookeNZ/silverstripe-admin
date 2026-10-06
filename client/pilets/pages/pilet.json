@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.piral.io/schemas/pilet-v0.json",
+  "schemaVersion": "v2",
+  "importmapVersions": "match-major",
+  "remoteTypesTarget": "./src/remote.d.ts",
+  "piralInstances": {
+    "@silverstripe/admin-shell": {
+      "selected": true
+    }
+  }
+}

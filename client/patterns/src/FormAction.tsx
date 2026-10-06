@@ -1,11 +1,12 @@
 import * as React from 'react';
+import { Button } from './Button';
 import { fieldTitle } from './FieldHolder';
 import type { FieldProps } from './types';
 
 /** A submit button carrying the action's name, so the form can tell which one was pressed */
 export const FormAction = ({ field, submitting }: FieldProps) => (
-  <button
-    className={field.primary ? 'admin-button admin-button--primary' : 'admin-button'}
+  <Button
+    variant={field.primary ? 'primary' : 'secondary'}
     type="submit"
     id={field.id}
     name={field.name}
@@ -13,5 +14,5 @@ export const FormAction = ({ field, submitting }: FieldProps) => (
     disabled={field.disabled || submitting}
   >
     {fieldTitle(field)}
-  </button>
+  </Button>
 );

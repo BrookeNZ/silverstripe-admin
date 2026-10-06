@@ -15,3 +15,4 @@ composer.lock
 /client/pilets/*/node_modules/
 /client/pilets/*/dist/
 /client/dist/pilet/index.d.ts
+/client/dist/pilets/*/index.d.ts

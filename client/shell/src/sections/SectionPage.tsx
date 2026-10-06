@@ -1,6 +1,7 @@
 /**
  * The shell's view of a CMS section no pilet owns: the section's server-defined EditForm, rendered by
- * FormSchemaForm, under the section title, a breadcrumb and, for a ModelAdmin, the model tabs as links.
+ * FormSchemaForm, under the section header with the section title and, for a ModelAdmin, the model tabs
+ * as its views.
  *
  * It is the router's not_found view, so any page a pilet registers wins over it, including a page that
  * registers after the first render (Piral re-evaluates its routes when the page registry changes). A
@@ -8,20 +9,15 @@
  * outside every menu section.
  */
 import * as React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useGlobalState } from 'piral-core';
 import { FormSchemaForm } from '../forms/FormSchemaForm';
 import { FormSchemaRequestError } from '../forms/schema';
+import { useSectionHeaderEffect } from '../header/state';
+import { shellOwner } from '../unsaved';
 import type { SilverstripeMenuItem } from '../silverstripe';
-import {
-  editFormSchemaUrl,
-  menuSections,
-  modelTabPath,
-  piletOwnsSection,
-  resolveSectionRoute,
-} from './resolve';
+import { editFormSchemaUrl, menuSections, piletOwnsSection, resolveSectionRoute, sectionHeader } from './resolve';
 import type { SectionRoute, ShellSection } from './resolve';
-import './section.css';
 
 const SectionLoadError: React.FC<{ error: unknown; section: ShellSection }> = ({ error, section }) => {
   const adminUrl = window.ss?.config?.adminUrl ?? '/admin/';
@@ -65,50 +61,12 @@ const SectionLoadError: React.FC<{ error: unknown; section: ShellSection }> = ({
   );
 };
 
-const ModelTabs: React.FC<{ route: SectionRoute }> = ({ route: { section, tab } }) => (
-  <nav aria-label={`${section.title} models`}>
-    <ul className="shell-section__list">
-      {section.modelTabs.map((item) => (
-        <li key={item.tab}>
-          <Link
-            className="shell-section__tab-link"
-            to={modelTabPath(section, item)}
-            aria-current={item.tab === tab?.tab ? 'page' : undefined}
-          >
-            {item.title}
-          </Link>
-        </li>
-      ))}
-    </ul>
-  </nav>
-);
-
 const SectionView: React.FC<{ route: SectionRoute }> = ({ route }) => {
-  const { section, tab, unhandled } = route;
+  const { section, unhandled } = route;
   const schemaUrl = editFormSchemaUrl(route);
+  useSectionHeaderEffect(sectionHeader(route), shellOwner);
   return (
-    <div className="shell-page shell-section">
-      <nav aria-label="Breadcrumb">
-        <ol className="shell-section__list">
-          <li>
-            {tab ? (
-              <Link className="shell-page__link" to={`/${section.route}/`}>
-                {section.title}
-              </Link>
-            ) : (
-              <span aria-current="page">{section.title}</span>
-            )}
-          </li>
-          {tab && (
-            <li>
-              <span aria-hidden="true">/ </span>
-              <span aria-current="page">{tab.title}</span>
-            </li>
-          )}
-        </ol>
-      </nav>
-      <h1 className="shell-page__title">{section.title}</h1>
-      {section.modelTabs.length > 1 && <ModelTabs route={route} />}
+    <div className="shell-page">
       {unhandled.length > 0 && (
         <p role="note">
           The shell has no view for “{unhandled.join('/')}” in {section.title} yet, so this is the section’s

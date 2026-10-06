@@ -86,6 +86,16 @@ export function mergeFields(fields: Array<FieldSchema>, state: FormSchemaState |
   return fields.map(merge);
 }
 
+/** The fields without those named, at any depth */
+export function withoutFields(fields: Array<FormField>, names: ReadonlyArray<string>): Array<FormField> {
+  if (names.length === 0) {
+    return fields;
+  }
+  return fields
+    .filter((field) => !names.includes(field.name))
+    .map((field) => ({ ...field, children: withoutFields(field.children, names) }));
+}
+
 /**
  * Fields whose value is posted back: everything but structure, read-only fields and actions. A field
  * rendered from server HTML posts only when that HTML is a single plain control carrying its name

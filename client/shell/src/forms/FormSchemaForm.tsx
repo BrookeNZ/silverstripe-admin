@@ -24,6 +24,7 @@ import {
   fetchFormSchema,
   fieldKey,
   mergeFields,
+  withoutFields,
   submitFormSchema,
   uniqueMessages,
 } from './schema';
@@ -34,6 +35,10 @@ import './form.css';
 export interface FormSchemaFormProps {
   schemaUrl: string;
   onSubmitted?(response: FormSchemaResponse, action: FormField): void;
+  /** Called with the loaded state and again whenever a save replaces it, so a host can show record values such as the title */
+  onStateChange?(state: FormSchemaState): void;
+  /** Field names left out of the form, for a host that shows them itself; an omitted field posts nothing */
+  omitFields?: ReadonlyArray<string>;
   /** Replaces the default notice when the schema cannot be loaded; the error is a FormSchemaRequestError for an HTTP failure */
   renderLoadError?(error: unknown): React.ReactNode;
   /** Reports unsaved changes even when the form state does not ask to, as legacy change tracking did for every CMS edit form */
@@ -41,6 +46,8 @@ export interface FormSchemaFormProps {
 }
 
 const noop = () => undefined;
+
+const noFields: ReadonlyArray<string> = [];
 
 const BoundField: React.FC<{ field: FormField; Component: React.ComponentType<FieldComponentProps<any>> }> = ({
   field,
@@ -117,11 +124,22 @@ function fieldFocusTarget(field: FormField): HTMLElement | null {
   return element.querySelector<HTMLElement>('input:checked') ?? element.querySelector<HTMLElement>(focusable) ?? element;
 }
 
-const LoadedForm: React.FC<LoadedFormProps> = ({ schemaUrl, initialSchema, initialState, onSubmitted, trackUnsavedChanges }) => {
+const LoadedForm: React.FC<LoadedFormProps> = ({
+  schemaUrl,
+  initialSchema,
+  initialState,
+  onSubmitted,
+  onStateChange,
+  omitFields = noFields,
+  trackUnsavedChanges,
+}) => {
   const [schema, setSchema] = React.useState(initialSchema);
   const [state, setState] = React.useState(initialState);
+  const stateListener = React.useRef(onStateChange);
+  stateListener.current = onStateChange;
+  React.useEffect(() => stateListener.current?.(state), [state]);
   const [formMessages, setFormMessages] = React.useState<Array<SchemaMessage>>(initialState.messages ?? []);
-  const fields = React.useMemo(() => mergeFields(schema.fields, state), [schema, state]);
+  const fields = React.useMemo(() => withoutFields(mergeFields(schema.fields, state), omitFields), [schema, state, omitFields]);
   const actions = React.useMemo(() => mergeFields(schema.actions, state), [schema, state]);
   const valueFields = React.useMemo(() => collectValueFields(fields), [fields]);
   const { control, handleSubmit, reset, setError, setValue, formState } = useForm<FormValues>({
@@ -255,7 +273,14 @@ type LoadState =
   | { status: 'failed'; error: unknown; message: string }
   | { status: 'ready'; schema: FormSchemaTree; state: FormSchemaState };
 
-export const FormSchemaForm: React.FC<FormSchemaFormProps> = ({ schemaUrl, onSubmitted, renderLoadError, trackUnsavedChanges }) => {
+export const FormSchemaForm: React.FC<FormSchemaFormProps> = ({
+  schemaUrl,
+  onSubmitted,
+  onStateChange,
+  omitFields,
+  renderLoadError,
+  trackUnsavedChanges,
+}) => {
   const [load, setLoad] = React.useState<LoadState>({ status: 'loading' });
 
   React.useEffect(() => {
@@ -296,6 +321,8 @@ export const FormSchemaForm: React.FC<FormSchemaFormProps> = ({ schemaUrl, onSub
       initialSchema={load.schema}
       initialState={load.state}
       onSubmitted={onSubmitted}
+      onStateChange={onStateChange}
+      omitFields={omitFields}
       trackUnsavedChanges={trackUnsavedChanges}
     />
   );

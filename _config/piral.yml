@@ -5,6 +5,8 @@ SilverStripe\Admin\UserInterface\PiletFeed:
   pilets:
     silverstripe-admin-fields:
       link: 'silverstripe/admin:client/dist/pilet/index.js'
+    silverstripe-cms-pages:
+      link: 'silverstripe/admin:client/dist/pilets/pages/index.js'
 
 SilverStripe\Forms\GridField\GridFieldConfig:
   extensions:

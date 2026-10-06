@@ -40,3 +40,7 @@
   padding-block: var(--shell-form-gap);
   position: sticky;
 }
+
+.shell-form__actions:empty {
+  display: none;
+}

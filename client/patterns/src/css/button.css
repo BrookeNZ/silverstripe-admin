@@ -1,30 +1,43 @@
 /**
  * Button
  *
- * Form actions and dialog buttons. --primary marks the main action
+ * The CMS Refresh buttons (Figma "Primary button" and "White buttons", 12px semibold labels). The
+ * block is the outlined secondary; --primary fills it green, --tertiary drops the fill and border for
+ * the grey toolbar buttons, and --icon-only squares the padding round a lone icon. Variants reassign
+ * the --admin-button-* tokens. The padding tokens are the design's, measured outside the border
  */
 
 .admin-button {
   --admin-button-bg-color: var(--admin-panel-bg-color);
-  --admin-button-border-color: var(--admin-border-color);
-  --admin-button-fg-color: var(--admin-fg-color);
+  --admin-button-border-color: var(--admin-primary-action-color);
+  --admin-button-border-radius: var(--admin-radius);
+  --admin-button-border-width: 0.1rem;
+  --admin-button-fg-color: var(--admin-primary-action-color);
+  --admin-button-font-size: var(--admin-font-size-xs);
+  --admin-button-gap: var(--admin-gap-sm);
+  --admin-button-line-height: 1;
+  --admin-button-padding-block: 1rem;
+  --admin-button-padding-inline: 1.2rem;
 
+  align-items: center;
   background-color: var(--admin-button-bg-color);
-  border: 0.1rem solid var(--admin-button-border-color);
-  border-radius: var(--admin-radius);
+  border: var(--admin-button-border-width) solid var(--admin-button-border-color);
+  border-radius: var(--admin-button-border-radius);
   color: var(--admin-button-fg-color);
   cursor: pointer;
+  display: inline-flex;
   font: inherit;
+  font-size: var(--admin-button-font-size);
   font-weight: var(--admin-font-weight-bold);
-  min-height: var(--admin-control-min-height);
-  padding: var(--admin-gap-xs) var(--admin-gap-md);
+  gap: var(--admin-button-gap);
+  justify-content: center;
+  line-height: var(--admin-button-line-height);
+  min-height: var(--admin-target-min-size);
+  min-width: var(--admin-target-min-size);
+  padding: calc(var(--admin-button-padding-block) - var(--admin-button-border-width))
+    calc(var(--admin-button-padding-inline) - var(--admin-button-border-width));
+  text-decoration: none;
   transition: var(--admin-transition);
-}
-
-.admin-button--primary {
-  --admin-button-bg-color: var(--admin-accent-color);
-  --admin-button-border-color: var(--admin-accent-color);
-  --admin-button-fg-color: var(--admin-accent-fg-color);
 }
 
 .admin-button:disabled {
@@ -35,4 +48,33 @@
 .admin-button:focus-visible {
   outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
   outline-offset: var(--admin-focus-outline-offset);
+}
+
+.admin-button--primary {
+  --admin-button-bg-color: var(--admin-primary-action-color);
+  --admin-button-fg-color: var(--admin-primary-action-fg-color);
+}
+
+.admin-button--tertiary {
+  --admin-button-bg-color: transparent;
+  --admin-button-border-color: transparent;
+  --admin-button-fg-color: var(--admin-muted-fg-color);
+  --admin-button-padding-block: 0.8rem;
+  --admin-button-padding-inline: 1rem;
+}
+
+.admin-button--icon-only {
+  --admin-button-padding-inline: var(--admin-button-padding-block);
+}
+
+.admin-button__label--hidden {
+  border: 0;
+  clip-path: inset(50%);
+  height: 0.1rem;
+  margin: -0.1rem;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 0.1rem;
 }

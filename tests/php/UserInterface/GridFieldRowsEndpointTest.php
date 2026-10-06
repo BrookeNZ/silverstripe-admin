@@ -210,6 +210,24 @@ class GridFieldRowsEndpointTest extends FunctionalTest
         $this->assertNotNull($grid->getConfig()->getComponentByType(GridFieldRowsEndpoint::class));
     }
 
+    public function testOnlyGridsDrawingTheStockHolderGetARowsUrl(): void
+    {
+        $controller = TestController::create();
+        $request = new HTTPRequest('GET', '/');
+        $request->setSession(new Session([]));
+        $controller->setRequest($request);
+        $grid = $controller->Form()->Fields()->dataFieldByName('Teams');
+        $this->assertStringEndsWith('field/Teams/rows/', GridFieldRowsEndpoint::rowsUrl($grid));
+
+        $ownHolder = new class ('Teams', 'Teams', Team::get()) extends GridField {
+            public function FieldHolder($properties = [])
+            {
+                return 'custom';
+            }
+        };
+        $this->assertNull(GridFieldRowsEndpoint::rowsUrl($ownHolder));
+    }
+
     private function getJson(string $path): array
     {
         $response = $this->get(GridFieldRowsEndpointTest::GRID . $path, null, GridFieldRowsEndpointTest::JSON);

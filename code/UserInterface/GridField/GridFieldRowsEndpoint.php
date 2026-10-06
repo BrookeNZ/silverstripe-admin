@@ -4,6 +4,7 @@ namespace SilverStripe\Admin\UserInterface\GridField;
 
 use LogicException;
 use Psr\Log\LoggerInterface;
+use ReflectionMethod;
 use SilverStripe\Control\Controller;
 use SilverStripe\Control\Director;
 use SilverStripe\Control\HTTPRequest;
@@ -107,11 +108,17 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
         $this->adapters = new SplObjectStorage();
     }
 
+    /**
+     * The rows link the shell's grid reads, or null for a grid without the endpoint or one whose class
+     * draws its own holder (ElementalAreaField), which keeps its server HTML until its module ports it
+     */
     public static function rowsUrl(GridField $gridField): ?string
     {
-        return $gridField->getConfig()->getComponentByType(GridFieldRowsEndpoint::class)
-            ? $gridField->Link('rows')
-            : null;
+        $holderClass = (new ReflectionMethod($gridField, 'FieldHolder'))->getDeclaringClass()->getName();
+        if ($holderClass !== GridField::class || !$gridField->getConfig()->getComponentByType(GridFieldRowsEndpoint::class)) {
+            return null;
+        }
+        return $gridField->Link('rows');
     }
 
     public function getURLHandlers($gridField)

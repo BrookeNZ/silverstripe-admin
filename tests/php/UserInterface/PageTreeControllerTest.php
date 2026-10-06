@@ -2,6 +2,7 @@
 
 namespace SilverStripe\Admin\Tests\UserInterface;
 
+use SilverStripe\Admin\Tests\UserInterface\PageTreeControllerTest\FailingExtension;
 use SilverStripe\Admin\UserInterface\PageTreeController;
 use SilverStripe\CMS\Model\SiteTree;
 use SilverStripe\Control\HTTPResponse;
@@ -128,6 +129,28 @@ class PageTreeControllerTest extends FunctionalTest
         $this->assertError($this->get($url . '?stage=archive', null, self::AJAX), 400, 'invalid', 'stage');
     }
 
+    public function testPageBeyondTheLastIsEmpty(): void
+    {
+        $body = $this->getJson('admin/pages/tree/children/0?page=' . PHP_INT_MAX);
+
+        $this->assertSame([], $body['items']);
+        $this->assertFalse($body['pageInfo']['hasMore']);
+        $this->assertSame([], $this->getJson('admin/pages/tree/search?q=wide&page=' . PHP_INT_MAX)['items']);
+    }
+
+    public function testUncaughtExceptionsAnswerJson(): void
+    {
+        PageTreeController::add_extension(FailingExtension::class);
+        try {
+            $response = $this->get('admin/pages/tree/children/0', null, self::AJAX);
+        } finally {
+            PageTreeController::remove_extension(FailingExtension::class);
+        }
+
+        $this->assertError($response, 500, 'serverError');
+        $this->assertSame('application/json', $response->getHeader('Content-Type'));
+    }
+
     public function testAncestorsOfADeepNodeCarryTheirPage(): void
     {
         $body = $this->getJson('admin/pages/tree/ancestors/' . $this->idFor('deep6') . '?limit=1');
@@ -183,6 +206,7 @@ class PageTreeControllerTest extends FunctionalTest
     {
         $this->assertError($this->get('admin/pages/tree/search', null, self::AJAX), 400, 'required', 'q');
         $this->assertError($this->get('admin/pages/tree/search?q=d', null, self::AJAX), 400, 'tooShort', 'q');
+        $this->assertError($this->get('admin/pages/tree/search?q[]=wide', null, self::AJAX), 400, 'invalid', 'q');
     }
 
     public function testOnlyGetIsAllowed(): void

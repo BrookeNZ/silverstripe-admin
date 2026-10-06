@@ -6,6 +6,7 @@
  * ModelAdmin's form is per model tab, so its schema URL is `<section url>/<tab>/schema/EditForm`; the
  * landing tab is the first one, as in ModelAdmin::init().
  */
+import type { SectionHeader } from '../header/state';
 import type { SilverstripeMenuItem, SilverstripeSection } from '../silverstripe';
 
 export interface ModelTab {
@@ -26,6 +27,8 @@ export interface SectionRoute {
   section: ShellSection;
   /** The active model tab, for a ModelAdmin */
   tab: ModelTab | null;
+  /** Whether the path names the tab, rather than landing on the first one */
+  tabInPath: boolean;
   /** Path segments under the section (and tab) that the shell has no view for */
   unhandled: Array<string>;
 }
@@ -75,12 +78,12 @@ export function resolveSectionRoute(pathname: string, sections: ReadonlyArray<Sh
 
   const rest = segments.slice(segmentsOf(best.route).length);
   if (best.modelTabs.length === 0) {
-    return { section: best, tab: null, unhandled: rest };
+    return { section: best, tab: null, tabInPath: false, unhandled: rest };
   }
   const named = best.modelTabs.find((tab) => tab.tab === rest[0]);
   return named
-    ? { section: best, tab: named, unhandled: rest.slice(1) }
-    : { section: best, tab: best.modelTabs[0], unhandled: rest };
+    ? { section: best, tab: named, tabInPath: true, unhandled: rest.slice(1) }
+    : { section: best, tab: best.modelTabs[0], tabInPath: false, unhandled: rest };
 }
 
 export function editFormSchemaUrl({ section, tab }: Pick<SectionRoute, 'section' | 'tab'>): string {
@@ -89,6 +92,31 @@ export function editFormSchemaUrl({ section, tab }: Pick<SectionRoute, 'section'
 
 export function modelTabPath(section: ShellSection, tab: ModelTab): string {
   return `/${section.route}/${tab.tab}/`;
+}
+
+/**
+ * The section header for a route: the section title, the model tabs as views when there is more than
+ * one, and a back button only below the section's landing view: to the tab from a path under it, or
+ * to the section from a named tab
+ */
+export function sectionHeader({ section, tab, tabInPath, unhandled }: SectionRoute): SectionHeader {
+  const sectionPath = `/${section.route}/`;
+  let back: Pick<SectionHeader, 'backTo' | 'backLabel'> = {};
+  if (unhandled.length > 0 && tab && tabInPath) {
+    back = { backTo: modelTabPath(section, tab), backLabel: `Back to ${tab.title}` };
+  } else if (unhandled.length > 0 || tabInPath) {
+    back = { backTo: sectionPath, backLabel: `Back to ${section.title}` };
+  }
+  const views =
+    section.modelTabs.length > 1
+      ? section.modelTabs.map((item) => ({
+          key: item.tab,
+          label: item.title,
+          to: modelTabPath(section, item),
+          current: item.tab === tab?.tab,
+        }))
+      : undefined;
+  return { title: section.title, ...back, ...(views ? { views } : {}) };
 }
 
 /** Whether a page a pilet registered sits in the section, which leaves the section to that pilet */

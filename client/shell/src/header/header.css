@@ -1,0 +1,114 @@
+/**
+ * Section header
+ *
+ * The bar at the top of the content area in the CMS Refresh design ("Section header", Figma node
+ * 2:17570): back button and title on the left, the page's views on the right with the current one
+ * underlined, a divider below. It sticks to the top of the content area while the page scrolls.
+ *
+ * The tokens sit on :root because the content below reads the header's height: the shell's scroll
+ * padding and the pages pilet's sticky tree pane. The view list scrolls sideways when a ModelAdmin has
+ * more model tabs than fit, so the view links ring their focus inside their own box
+ */
+
+:root {
+  /* Figma back button: Bright Blue 100 circle, Bright Blue chevron */
+  --shell-header-back-bg-color: #e5f0ff;
+  --shell-header-back-fg-color: var(--admin-accent-color);
+  --shell-header-back-gap: 1.1rem;
+  /* Figma Grey 400 divider, decorative */
+  --shell-header-border: 0.1rem solid #dcdee0;
+  --shell-header-column-gap: 5rem;
+  --shell-header-height: 6.1rem;
+  --shell-header-padding-inline-end: 3rem;
+  --shell-header-padding-inline-start: 2rem;
+  /* Figma: Inter Medium 15px */
+  --shell-header-title-font-size: 1.5rem;
+  --shell-header-title-font-weight: 500;
+  --shell-header-view-font-weight: var(--admin-font-weight-normal);
+  --shell-header-view-gap: 2.5rem;
+  --shell-header-view-indicator-color: transparent;
+  --shell-header-view-indicator-width: 0.3rem;
+  /* Above the patterns package's popover, which is z-index 1 */
+  --shell-header-z-index: 2;
+}
+
+.shell-header {
+  background-color: var(--admin-bg-color);
+  border-block-end: var(--shell-header-border);
+  box-sizing: border-box;
+  column-gap: var(--shell-header-column-gap);
+  display: flex;
+  inset-block-start: 0;
+  min-height: var(--shell-header-height);
+  padding-inline: var(--shell-header-padding-inline-start) var(--shell-header-padding-inline-end);
+  position: sticky;
+  z-index: var(--shell-header-z-index);
+}
+
+.shell-header__current {
+  align-items: center;
+  display: flex;
+  flex: 1 1 auto;
+  gap: var(--shell-header-back-gap);
+  min-width: 0;
+}
+
+.shell-header__back {
+  background-color: var(--shell-header-back-bg-color);
+  border-radius: 50%;
+  color: var(--shell-header-back-fg-color);
+  display: flex;
+  flex-shrink: 0;
+}
+
+.shell-header__back:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: var(--admin-focus-outline-offset);
+}
+
+.shell-header__title {
+  font-size: var(--shell-header-title-font-size);
+  font-weight: var(--shell-header-title-font-weight);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.shell-header__views {
+  display: flex;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.shell-header__view-list {
+  display: flex;
+  gap: var(--shell-header-view-gap);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.shell-header__view {
+  display: flex;
+}
+
+.shell-header__view-link {
+  align-items: center;
+  border-block-end: var(--shell-header-view-indicator-width) solid var(--shell-header-view-indicator-color);
+  color: var(--admin-fg-color);
+  display: flex;
+  font-size: var(--admin-font-size-sm);
+  font-weight: var(--shell-header-view-font-weight);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.shell-header__view-link:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: calc(var(--admin-focus-outline-offset) * -1);
+}
+
+.shell-header__view-link--current {
+  --shell-header-view-font-weight: var(--admin-font-weight-bold);
+  --shell-header-view-indicator-color: var(--admin-fg-color);
+}

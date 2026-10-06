@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { editFormSchemaUrl, menuSections, modelTabPath, piletOwnsSection, resolveSectionRoute } from './resolve';
+import { editFormSchemaUrl, menuSections, modelTabPath, piletOwnsSection, resolveSectionRoute, sectionHeader } from './resolve';
 import type { SilverstripeMenuItem, SilverstripeSection } from '../silverstripe';
 
 const menuItem = (title: string, link: string): SilverstripeMenuItem => ({
@@ -90,6 +90,43 @@ describe('resolveSectionRoute', () => {
     expect(resolveSectionRoute('/securityx/', sections)).toBeNull();
     expect(resolveSectionRoute('/hello/', sections)).toBeNull();
     expect(resolveSectionRoute('/', sections)).toBeNull();
+  });
+});
+
+describe('sectionHeader', () => {
+  const headerFor = (path: string) => {
+    const route = resolveSectionRoute(path, sections);
+    if (!route) {
+      throw new Error(`No section for ${path}`);
+    }
+    return sectionHeader(route);
+  };
+
+  it('titles a plain section with no back button and no views', () => {
+    expect(headerFor('/settings/')).toEqual({ title: 'Settings' });
+  });
+
+  it('lists the model tabs as views on the landing tab, without a back button', () => {
+    const header = headerFor('/security/');
+    expect(header.title).toBe('Security');
+    expect(header.backTo).toBeUndefined();
+    expect(header.views?.map((view) => [view.label, view.to, view.current])).toEqual([
+      ['Users', '/security/users/', true],
+      ['Groups', '/security/groups/', false],
+      ['Roles', '/security/roles/', false],
+    ]);
+  });
+
+  it('goes back to the section from a named tab, and marks that tab current', () => {
+    const header = headerFor('/security/groups/');
+    expect([header.backTo, header.backLabel]).toEqual(['/security/', 'Back to Security']);
+    expect(header.views?.find((view) => view.current)?.key).toBe('groups');
+  });
+
+  it('goes back to the tab, or the section, from a path below it', () => {
+    expect(headerFor('/security/users/EditForm/field/users/item/3/edit').backTo).toBe('/security/users/');
+    expect(headerFor('/security/EditForm/field/Members/item/3/edit').backTo).toBe('/security/');
+    expect(headerFor('/settings/EditForm').backLabel).toBe('Back to Settings');
   });
 });
 

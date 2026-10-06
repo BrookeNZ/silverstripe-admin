@@ -11,6 +11,7 @@
 import * as React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useGlobalState } from 'piral-core';
+import { Button, SearchIcon } from '@silverstripe/admin-patterns';
 import { rowPaginationFeature, rowSortingFeature, tableFeatures, useTable } from '@tanstack/react-table';
 import type { ColumnDef, PaginationState, SortingState, Updater } from '@tanstack/react-table';
 import { componentSlotName, silverstripeComponent } from '../api/silverstripe';
@@ -23,6 +24,13 @@ import type { GridColumn, GridPayload, GridPostAction, GridRow, GridSlotEntry } 
 import './grid.css';
 
 const features = tableFeatures({ rowSortingFeature, rowPaginationFeature });
+
+const SortArrow: React.FC<{ direction: 'asc' | 'desc' }> = ({ direction }) => (
+  <svg width="6" height="6" viewBox="0 0 6 6" fill="currentColor">
+    <path d={direction === 'asc' ? 'M3 .65 5.5 4.98H.5z' : 'M3 5.33.5 1h5z'} />
+  </svg>
+);
+
 
 const slotsAbove = ['before', 'buttons-before-left', 'buttons-before-right', 'toolbar-header-left', 'toolbar-header-right', 'header'];
 
@@ -163,7 +171,12 @@ export const GridTable: React.FC<GridTableProps> = ({ id, name, title, rowsUrl }
       </div>
       <table className="admin-grid__table">
         <caption className="admin-grid__caption" id={captionId}>
-          {caption}
+          <span className="admin-grid__hidden">{caption}</span>
+          {page && page.totalItems > 0 && (
+            <span className="admin-grid__count">
+              View {(page.page - 1) * page.pageSize + 1}–{Math.min(page.page * page.pageSize, page.totalItems)} of {page.totalItems}
+            </span>
+          )}
         </caption>
         <thead>
           <tr>
@@ -175,7 +188,10 @@ export const GridTable: React.FC<GridTableProps> = ({ id, name, title, rowsUrl }
                   {column.sortable ? (
                     <button className="admin-grid__sort" type="button" onClick={header.column.getToggleSortingHandler()}>
                       {column.title}
-                      <span aria-hidden="true">{sorted === 'asc' ? ' ▲' : sorted === 'desc' ? ' ▼' : ''}</span>
+                      <span className="admin-grid__sort-icon" aria-hidden="true">
+                        {sorted !== 'desc' && <SortArrow direction="asc" />}
+                        {sorted !== 'asc' && <SortArrow direction="desc" />}
+                      </span>
                     </button>
                   ) : column.title ? (
                     column.title
@@ -190,13 +206,13 @@ export const GridTable: React.FC<GridTableProps> = ({ id, name, title, rowsUrl }
         <tbody>
           {rows.length === 0 && (
             <tr>
-              <td className="admin-grid__cell" colSpan={Math.max(1, headers.length)}>
+              <td className="admin-grid__empty" colSpan={Math.max(1, headers.length)}>
                 {payload ? payload.emptyText : loading ? 'Loading…' : ''}
               </td>
             </tr>
           )}
           {rows.map((row) => (
-            <tr key={row.id}>
+            <tr className="admin-grid__row" key={row.id}>
               {row.getAllCells().map((cell) => {
                 const column = columnsByName.get(cell.column.id)!;
                 const content = (
@@ -229,21 +245,16 @@ export const GridTable: React.FC<GridTableProps> = ({ id, name, title, rowsUrl }
       </table>
       {page && page.totalPages > 1 && (
         <nav className="admin-grid__pages" aria-label={`${caption} pages`}>
-          <button className="admin-button" type="button" disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}>
+          <Button variant="tertiary" disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}>
             Previous<span className="admin-grid__hidden"> page</span>
-          </button>
+          </Button>
           <span>
             Page {page.page} of {page.totalPages}
           </span>
-          <button className="admin-button" type="button" disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}>
+          <Button variant="tertiary" disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}>
             Next<span className="admin-grid__hidden"> page</span>
-          </button>
+          </Button>
         </nav>
-      )}
-      {page && page.totalItems > 0 && (
-        <p className="admin-grid__count">
-          {(page.page - 1) * page.pageSize + 1}–{Math.min(page.page * page.pageSize, page.totalItems)} of {page.totalItems}
-        </p>
       )}
       {otherSlots.map(renderSlot)}
       <p className="admin-grid__status" role="status">
@@ -293,18 +304,19 @@ interface GridSearchProps {
   onClear(): void;
 }
 
-const GridSearch: React.FC<GridSearchProps> = ({ id, label, value, active, onSearch, onClear }) => {
+const GridSearch = ({ id, label, value, active, onSearch, onClear }: GridSearchProps) => {
   const [draft, setDraft] = React.useState(value);
   React.useEffect(() => setDraft(value), [value]);
   return (
     <div className="admin-grid__search" role="search">
-      <label className="admin-field__label" htmlFor={id}>
+      <label className="admin-grid__hidden" htmlFor={id}>
         {label}
       </label>
       <input
-        className="admin-field__control"
+        className="admin-grid__search-input"
         id={id}
         type="search"
+        placeholder={label}
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
         onKeyDown={(event) => {
@@ -314,13 +326,13 @@ const GridSearch: React.FC<GridSearchProps> = ({ id, label, value, active, onSea
           }
         }}
       />
-      <button className="admin-button" type="button" onClick={() => onSearch(draft.trim())}>
+      <Button variant="tertiary" iconOnly icon={<SearchIcon />} onClick={() => onSearch(draft.trim())}>
         Search
-      </button>
+      </Button>
       {active && (
-        <button className="admin-button" type="button" onClick={onClear}>
+        <Button variant="tertiary" onClick={onClear}>
           Clear search
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -357,12 +369,12 @@ const ConfirmDialog: React.FC<{
       </h2>
       <p className="admin-dialog__body">{confirming?.action.confirm}</p>
       <div className="admin-dialog__actions">
-        <button className="admin-button" type="button" autoFocus onClick={onCancel}>
+        <Button autoFocus onClick={onCancel}>
           Cancel
-        </button>
-        <button className="admin-button admin-button--primary" type="button" onClick={onConfirm}>
+        </Button>
+        <Button variant="primary" onClick={onConfirm}>
           {confirming?.action.title}
-        </button>
+        </Button>
       </div>
     </dialog>
   );

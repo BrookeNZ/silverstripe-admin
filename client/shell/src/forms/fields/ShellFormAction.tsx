@@ -4,12 +4,12 @@
  * post the form here, so until a pilet implements them they render inert, saying so, and post nothing.
  */
 import * as React from 'react';
-import { FormAction, fieldTitle } from '@silverstripe/admin-patterns';
+import { Button, FormAction, fieldTitle } from '@silverstripe/admin-patterns';
 import type { FieldComponentProps } from '../types';
 
 export const clientOnlyActions: ReadonlySet<string> = new Set(['action_replacefile', 'action_downloadfile']);
 
-export const ShellFormAction: React.FC<FieldComponentProps> = (props) => {
+export const ShellFormAction = (props: FieldComponentProps) => {
   const { field } = props;
   if (!clientOnlyActions.has(field.name)) {
     return <FormAction {...props} />;
@@ -17,9 +17,9 @@ export const ShellFormAction: React.FC<FieldComponentProps> = (props) => {
   const noteId = `${field.id}_unavailable`;
   return (
     <span>
-      <button className="admin-button" type="button" id={field.id} aria-disabled="true" aria-describedby={noteId}>
+      <Button variant={field.primary ? 'primary' : 'secondary'} id={field.id} aria-disabled="true" aria-describedby={noteId}>
         {fieldTitle(field)}
-      </button>{' '}
+      </Button>{' '}
       <span id={noteId}>(not available in the shell yet)</span>
     </span>
   );

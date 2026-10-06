@@ -8,6 +8,7 @@ import { createSilverstripeApi } from './api/silverstripe';
 import { FileEditPage } from './assets';
 import { registerBuiltInFields } from './forms/fields';
 import { registerGridComponents } from './grid';
+import { initialSectionHeader } from './header/state';
 import { createLayout, createRouter, errors, Home, readMenu, SectionWithoutPilet } from './layout';
 import { createSectionPage } from './sections/SectionPage';
 import { initialUnsavedChanges } from './unsaved';
@@ -32,6 +33,7 @@ const instance = createInstance({
     routes: {
       '/': Home,
     },
+    sectionHeader: initialSectionHeader,
     unsavedChanges: initialUnsavedChanges,
   },
   plugins: [createNotificationsApi({ defaultOptions: { type: 'info', autoClose: 8000 } }), createSilverstripeApi()],

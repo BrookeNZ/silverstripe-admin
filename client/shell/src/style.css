@@ -22,8 +22,10 @@
   --shell-notification-fg-color: #ffffff;
 }
 
+/* Keeps a focused or scrolled-to element clear of the sticky section header */
 html {
   font-size: 62.5%;
+  scroll-padding-block-start: var(--shell-header-height);
 }
 
 body {
@@ -108,11 +110,17 @@ body {
   outline-offset: var(--admin-focus-outline-offset);
 }
 
-/* Content and page are flex columns so a form can grow to the viewport and pin its action bar */
+/* Content, body and page are flex columns so a form can grow to the viewport and pin its action bar */
 .shell__content {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+}
+
+.shell__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   padding: var(--admin-gap-md);
 }
 

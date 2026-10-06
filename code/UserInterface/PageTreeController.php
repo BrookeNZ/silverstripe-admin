@@ -2,10 +2,13 @@
 
 namespace SilverStripe\Admin\UserInterface;
 
+use Psr\Log\LoggerInterface;
 use SilverStripe\Admin\AdminController;
+use SilverStripe\Control\Director;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Control\HTTPResponse;
 use SilverStripe\Control\HTTPResponse_Exception;
+use SilverStripe\Core\Injector\Injector;
 use SilverStripe\ORM\DataList;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\Hierarchy\Hierarchy;
@@ -13,6 +16,7 @@ use SilverStripe\Security\InheritedPermissions;
 use SilverStripe\Security\PermissionChecker;
 use SilverStripe\Security\Security;
 use SilverStripe\Versioned\Versioned;
+use Throwable;
 
 /**
  * Read-only JSON for the page tree at admin/pages/tree: paged children of a node, the path to a node, and search.
@@ -22,8 +26,9 @@ use SilverStripe\Versioned\Versioned;
  * then cannot see. Unlike the legacy tree, which shows nodes the member cannot view as disabled, this one leaves
  * them out.
  *
- * Errors use jsonError()'s envelope plus `reason` and, for a bad parameter, `field`. They are built here because
- * jsonError() reads an undefined $request, which dev mode prints into the body, and has no room for the two keys.
+ * Errors use jsonError()'s envelope plus `reason` and, for a bad parameter, `field`, uncaught exceptions included
+ * (500, `serverError`). They are built here because jsonError() reads an undefined $request, which dev mode prints
+ * into the body, and has no room for the two keys.
  *
  * The model class is config so the admin module keeps no hard dependency on silverstripe/cms; without it every
  * action answers 404.
@@ -94,6 +99,13 @@ class PageTreeController extends AdminController
             return parent::handleAction($request, $action);
         } catch (HTTPResponse_Exception $exception) {
             return $exception->getResponse();
+        } catch (Throwable $exception) {
+            Injector::inst()->get(LoggerInterface::class)->error($exception->getMessage(), ['exception' => $exception]);
+            return $this->errorResponse(
+                500,
+                'serverError',
+                Director::isDev() ? $exception->getMessage() : 'The page tree could not be loaded'
+            );
         }
     }
 
@@ -122,7 +134,7 @@ class PageTreeController extends AdminController
                 $this->viewableRecord($id);
             }
             $children = $this->viewableChildrenOf($id);
-            $slice = array_slice($children, ($page - 1) * $limit, $limit);
+            $slice = $this->pageSlice($children, $page, $limit);
             $data = [
                 'items' => $this->serialiseNodes($slice),
                 'pageInfo' => [
@@ -194,7 +206,11 @@ class PageTreeController extends AdminController
      */
     public function search(HTTPRequest $request): HTTPResponse
     {
-        $query = trim((string) $request->getVar('q'));
+        $query = $request->getVar('q') ?? '';
+        if (!is_string($query)) {
+            $this->throwError(400, 'invalid', 'q must be a string', 'q');
+        }
+        $query = trim($query);
         $minLength = static::config()->get('search_min_length');
         if (mb_strlen($query) < $minLength) {
             $this->throwError(
@@ -226,7 +242,7 @@ class PageTreeController extends AdminController
                     }
                 }
             }
-            $slice = array_slice($viewable, ($page - 1) * $limit, $limit);
+            $slice = $this->pageSlice($viewable, $page, $limit);
             $ancestorIds = $this->ancestorIdsOf($slice);
             $items = $this->serialiseNodes($slice);
             foreach ($slice as $index => $match) {
@@ -244,6 +260,14 @@ class PageTreeController extends AdminController
             $this->extend('updateApiSearch', $data, $query);
             return $this->jsonSuccess(200, $data);
         });
+    }
+
+    private function pageSlice(array $items, int $page, int $limit): array
+    {
+        if ($page - 1 > intdiv(count($items), $limit)) {
+            return [];
+        }
+        return array_slice($items, ($page - 1) * $limit, $limit);
     }
 
     private function modelClass(): ?string

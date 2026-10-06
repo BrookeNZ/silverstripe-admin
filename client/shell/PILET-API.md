@@ -27,6 +27,7 @@ piral-notifications, ...):
 | `showNotification(content, options?)` | From piral-notifications |
 | `setUnsavedChanges(key, dirty): Disposable` | Report unsaved changes this pilet owns; the shell confirms before navigating away. The disposer clears the key |
 | `hasUnsavedChanges(): boolean` | Whether anything in the shell is dirty |
+| `setSectionHeader(header): Disposable` | Show the section header above the content; see **Section header** |
 
 No `registerFormField`: binding a field to the form is decided by the schema (`schemaType`, read-only
 state, the posted set), not by the registration; holders are a component (`FieldHolder` in
@@ -129,6 +130,47 @@ framework class gets them through an adapter in `GridFieldRowsEndpoint.schema_ad
 **URL state.** The grid keeps its state in the page URL under its field name:
 `?grid[<name>][sort]=-Title&grid[<name>][filter][q]=about&grid[<name>][page]=2`. A change is a
 client navigation, so the unsaved changes guard confirms it when the form is dirty.
+
+## Shared state and events
+
+Pilets share state through Piral's own data store and event bus, which every `PiletApi` already has
+(`setData`/`getData`, `emit`/`on`/`off`); the shell adds no verb for them. Names in use:
+
+| Name | Kind | Value |
+|---|---|---|
+| `silverstripe:records-changed` | event | `{recordClass: string, ids: number[]}`, emitted after a save, publish or other change to those records; a view listing them (the page tree) re-reads them |
+| `silverstripe:pages:current-page-id` | data | The page the Pages section is editing, or `null`; owned by the pages pilet (`setData` keeps the first writer as owner) |
+
+A section pilet renders a record edit form with the shell's renderer, registered as `FormSchemaForm`
+(`getSilverstripeComponent('FormSchemaForm')`): props `schemaUrl`, `onSubmitted(response, action)`,
+`onStateChange(state)` (the loaded state, and each state a save brings back, for a host showing a record
+value such as the title in the section header), `omitFields` (names left out, for a host that shows
+them itself), `renderLoadError(error)` and `trackUnsavedChanges`. The renderer does not emit the records-changed
+event itself; the pilet that knows the record class emits it from `onSubmitted`.
+
+## Section header
+
+The shell draws one header at the top of the content area for every route (the "Section header" of
+the CMS Refresh design): a back button, the page title, and the page's views on the right with the
+current one underlined. It sticks to the top while the page scrolls. A page sets it with
+`setSectionHeader(header)` from an effect and returns the disposer as the cleanup, so it clears on
+unmount:
+
+```ts
+React.useEffect(() => piral.setSectionHeader({ title, backTo: '/pages/', backLabel: 'Back to Pages', views }), [piral, title]);
+```
+
+| Field | |
+|---|---|
+| `title: string` | Rendered as the page's `h1`, so a page that sets a header renders no `h1` of its own |
+| `backTo?: string` | A router path; no back button without it |
+| `backLabel?: string` | The back button's accessible name, "Back" when omitted |
+| `views?: {key, label, to, current?}[]` | Route links in a `nav` named "<title> views", `aria-current="page"` on the current one. Views are routes; for panels inside one page use the patterns package's `Tabs` |
+
+One header shows at a time and the latest call wins. A disposer clears the header only while its own
+call is still the current one, so the outgoing page's cleanup never clears the incoming page's header.
+Unloading a pilet clears a header it set. The header's height is `--shell-header-height` on `:root`; a
+pilet with its own sticky content offsets it by that token.
 
 ## Patterns package
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { errorField, mergeFields, schemaText, serverMessage, uniqueMessages } from './schema';
+import { errorField, mergeFields, schemaText, serverMessage, uniqueMessages, withoutFields } from './schema';
 import type { FieldSchema } from './types';
 
 const schemaField = (name: string, id: string): FieldSchema => ({
@@ -51,6 +51,22 @@ describe('mergeFields', () => {
       undefined,
     );
     expect(select).toMatchObject({ emptyOption: '(none)', maxLength: 20, primary: false, headingLevel: null });
+  });
+});
+
+describe('withoutFields', () => {
+  it('leaves out the named fields at any depth', () => {
+    const fields = mergeFields(
+      [
+        schemaField('TitleHeader', 'Form_TitleHeader'),
+        { ...schemaField('Root', 'Form_Root'), children: [schemaField('Title', 'Form_Title'), schemaField('TitleHeader', 'Form_Nested')] },
+      ],
+      undefined,
+    );
+    const kept = withoutFields(fields, ['TitleHeader']);
+    expect(kept.map((field) => field.name)).toEqual(['Root']);
+    expect(kept[0].children.map((field) => field.name)).toEqual(['Title']);
+    expect(withoutFields(fields, [])).toBe(fields);
   });
 });
 

@@ -41,6 +41,9 @@
   /* Figma New/New Grey/Grey 900 */
   --admin-muted-fg-color: #595d64;
   --admin-panel-bg-color: #ffffff;
+  /* Figma Button/Primary and White, 4.53:1 */
+  --admin-primary-action-color: #008a00;
+  --admin-primary-action-fg-color: #ffffff;
   --admin-radius: 0.4rem;
   /* WCAG 2.5.8 target size */
   --admin-target-min-size: 2.4rem;

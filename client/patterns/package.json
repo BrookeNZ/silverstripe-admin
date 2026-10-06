@@ -20,7 +20,8 @@
   },
   "scripts": {
     "build": "rm -rf dist && tsc -p . && cp -R src/css dist/css",
-    "typecheck": "tsc -p . --noEmit"
+    "typecheck": "tsc -p . --noEmit",
+    "test": "vitest run"
   },
   "peerDependencies": {
     "react": "^18",
@@ -29,7 +30,11 @@
   "devDependencies": {
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "typescript": "^5"
+    "happy-dom": "^20.14.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5",
+    "vitest": "^3.2.7"
   },
   "private": true
 }

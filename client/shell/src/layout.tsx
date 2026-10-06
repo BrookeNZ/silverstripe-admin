@@ -3,6 +3,7 @@ import { Link, RouterProvider, createBrowserRouter, useLocation } from 'react-ro
 import { ComponentsState, ErrorComponentsState, ExtensionSlot, SwitchErrorInfo } from 'piral-core';
 import { Notifications } from 'piral-notifications';
 import { extensionSlotName } from './api/silverstripe';
+import { SectionHeaderBar } from './header/SectionHeader';
 import type { SilverstripeMenuItem } from './silverstripe';
 import { UnsavedChangesGuard } from './unsaved';
 
@@ -130,7 +131,10 @@ export function createLayout(menu: Array<SilverstripeMenuItem>, adminPath: strin
         </ul>
         <ExtensionSlot name={extensionSlotName(leftAndMain, 'menu.bottom')} />
       </nav>
-      <main className="shell__content">{children}</main>
+      <main className="shell__content">
+        <SectionHeaderBar />
+        <div className="shell__body">{children}</div>
+      </main>
       <Notifications />
       <UnsavedChangesGuard />
     </div>
