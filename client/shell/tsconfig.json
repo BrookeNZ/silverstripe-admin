@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "sourceMap": true,
+    "skipLibCheck": true,
+    "lib": ["dom", "es2018"],
+    "moduleResolution": "Bundler",
+    "module": "esnext",
+    "jsx": "react",
+    "rootDir": ".",
+    "importHelpers": true
+  },
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

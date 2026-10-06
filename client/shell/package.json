@@ -1,0 +1,45 @@
+{
+  "name": "@silverstripe/admin-shell",
+  "version": "1.0.0",
+  "description": "Piral app shell for the Silverstripe CMS admin",
+  "keywords": [
+    "piral"
+  ],
+  "dependencies": {
+    "piral-base": "1.12.4",
+    "piral-core": "1.12.4",
+    "piral-notifications": "^1.12.4",
+    "react": "^18",
+    "react-dom": "^18",
+    "react-router": "^6",
+    "react-router-dom": "^6"
+  },
+  "scripts": {
+    "start": "piral debug --public-url /admin/shell/",
+    "build": "piral build --type release --public-url /_resources/vendor/silverstripe/admin/client/dist/shell/ && rm -rf ../dist/shell && cp -R dist/release ../dist/shell",
+    "postinstall": "piral declaration",
+    "typecheck": "tsc --noEmit",
+    "build:emulator": "piral build --type emulator"
+  },
+  "app": "./src/index.html",
+  "types": "dist/index.d.ts",
+  "importmap": {
+    "imports": {
+      "react": "react",
+      "react-dom": "react-dom",
+      "react-router": "react-router",
+      "react-router-dom": "react-router-dom"
+    },
+    "inherit": [
+      "piral-base"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "piral-cli": "1.12.4",
+    "piral-cli-webpack5": "1.12.4",
+    "typescript": "^5"
+  }
+}

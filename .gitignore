@@ -10,3 +10,5 @@ coverage/
 /storybook-static/
 /.storybook/.stories.js
 composer.lock
+/client/shell/node_modules/
+/client/shell/dist/

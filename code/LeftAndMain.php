@@ -6,6 +6,7 @@ use InvalidArgumentException;
 use LogicException;
 use SilverStripe\Admin\Forms\UnsavedChangesIndicator;
 use SilverStripe\Admin\Navigator\SilverStripeNavigator;
+use SilverStripe\Admin\UserInterface\PiletFeedController;
 use SilverStripe\Admin\SingleRecordAdmin;
 use SilverStripe\CMS\Controllers\CMSMain;
 use SilverStripe\Control\Controller;
@@ -217,6 +218,12 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
     private static $session_keepalive_ping = true;
 
     /**
+     * Serve the Piral app shell (client/shell, built to client/dist/shell) instead of the legacy UI.
+     * Spike for the micro-frontend admin proposed in RFC silverstripe/.github#346
+     */
+    private static bool $piral_shell = false;
+
+    /**
      * Value of X-Frame-Options header
      *
      * @config
@@ -349,6 +356,11 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
                 window.ss = window.ss || {};
                 window.ss.config = " . $this->getCombinedClientConfig() . ";
             ");
+
+            // The shell's own requirements are added in index(), after the legacy ones are cleared
+            if ($this->config()->get('piral_shell')) {
+                return;
+            }
 
             Requirements::javascript('silverstripe/admin: client/dist/js/vendor.js');
             Requirements::javascript('silverstripe/admin: client/dist/js/bundle.js');
@@ -501,7 +513,99 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
 
     public function index(HTTPRequest $request): HTTPResponse
     {
+        if ($this->config()->get('piral_shell')) {
+            return $this->renderPiralShell();
+        }
         return $this->getResponseNegotiator()->respond($request);
+    }
+
+    /**
+     * Under the shell every page navigation into a section renders the shell, whatever the action in the
+     * URL, so client routes survive a reload. Data requests (XHR, form schema, form posts) keep their actions
+     */
+    protected function handleAction($request, $action)
+    {
+        if ($this->config()->get('piral_shell') && $this->isPiralNavigation($request)) {
+            $request->shiftAllParams();
+            return $this->renderPiralShell();
+        }
+        return parent::handleAction($request, $action);
+    }
+
+    public function hasAction($action)
+    {
+        return $this->shellOwnsRequest() || parent::hasAction($action);
+    }
+
+    public function checkAccessAction($action)
+    {
+        return $this->shellOwnsRequest() || parent::checkAccessAction($action);
+    }
+
+    protected function shellOwnsRequest(): bool
+    {
+        $request = $this->getRequest();
+        return $request && $this->config()->get('piral_shell') && $this->isPiralNavigation($request);
+    }
+
+    protected function isPiralNavigation(HTTPRequest $request): bool
+    {
+        return $request->httpMethod() === 'GET'
+            && !$request->isAjax()
+            && !$request->getHeader('X-Formschema-Request')
+            && str_contains((string) $request->getHeader('Accept'), 'text/html');
+    }
+
+    protected function renderPiralShell(): HTTPResponse
+    {
+        $this->requirePiralShell();
+        return HTTPResponse::create((string) $this->renderWith('SilverStripe/Admin/PiralShell'));
+    }
+
+    /**
+     * Loads only the shell and its config. Module JS registered through extension hooks is dropped here
+     * because it binds to the legacy globals; under the shell it arrives as pilets instead
+     */
+    protected function requirePiralShell(): void
+    {
+        // Building the client config instantiates section forms, which require their own JS
+        $clientConfig = $this->getCombinedClientConfig();
+        Requirements::clear();
+        Requirements::customScript("
+            window.ss = window.ss || {};
+            window.ss.config = " . $clientConfig . ";
+        ", 'ss-config');
+        Requirements::javascript('silverstripe/admin: client/dist/shell/main.js');
+        Requirements::css('silverstripe/admin: client/dist/shell/main.css');
+    }
+
+    public function PiletFeedLink(): string
+    {
+        $segment = PiletFeedController::config()->get('url_segment');
+        return Controller::join_links(AdminRootController::admin_url(), $segment, '/');
+    }
+
+    public function AdminURL(): string
+    {
+        return AdminRootController::admin_url();
+    }
+
+    /**
+     * The main menu as JSON for the Piral shell: the same items the legacy menu template renders
+     */
+    public function PiralMenu(): string
+    {
+        $items = [];
+        foreach ($this->MainMenu() as $item) {
+            $items[] = [
+                'code' => $item->Code,
+                'title' => (string) $item->Title,
+                'link' => (string) $item->Link,
+                'iconClass' => (string) $item->IconClass,
+                'current' => $item->LinkingMode === 'current',
+            ];
+        }
+        return json_encode($items, JSON_THROW_ON_ERROR);
     }
 
     /**
