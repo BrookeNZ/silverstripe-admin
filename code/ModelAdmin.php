@@ -156,6 +156,9 @@ abstract class ModelAdmin extends LeftAndMain
             if ($this->redirectedTo()) {
                 // reset so we use the "landing page"
                 $this->modelTab = null;
+            } elseif ($this->shellOwnsRequest()) {
+                // The shell renders whatever the path, and names a segment it cannot resolve itself
+                $this->modelTab = null;
             } else {
                 // if it fails to match the string exactly, try reverse-engineering a classname
                 $this->modelTab = $this->unsanitiseClassName($this->modelTab);
@@ -189,6 +192,36 @@ abstract class ModelAdmin extends LeftAndMain
             $action = $this->sanitiseClassName($this->modelTab);
         }
         return parent::Link($action);
+    }
+
+    /**
+     * Every ModelAdmin URL starts with the model tab, so a form schema request (`<tab>/schema/EditForm`)
+     * arrives as the `$Action` of `$ModelClass/$Action`, with the form name not yet parsed
+     */
+    protected function handleAction($request, $action)
+    {
+        if ($action === 'schema' && !$request->param('FormName')) {
+            $request->match('$FormName/$ItemID/$OtherItemID', true);
+        }
+        return parent::handleAction($request, $action);
+    }
+
+    /**
+     * Adds `modelTabs`, a list of `['tab' => URL segment, 'title' => tab title]` in managed_models order, so a
+     * client can name the landing tab and link every tab before it requests a form
+     */
+    public function getClientConfig(): array
+    {
+        $this->beforeExtending('updateClientConfig', function (array &$clientConfig): void {
+            $clientConfig['modelTabs'] = [];
+            foreach ($this->getManagedModels() as $tab => $options) {
+                $clientConfig['modelTabs'][] = [
+                    'tab' => $this->sanitiseClassName($tab),
+                    'title' => $options['title'],
+                ];
+            }
+        });
+        return parent::getClientConfig();
     }
 
     /**

@@ -9,13 +9,12 @@
   --shell-form-alert-border: 0.4rem solid var(--admin-error-fg-color);
   --shell-form-gap: var(--admin-gap-md);
   --shell-form-max-width: 72rem;
-  --shell-form-min-height: calc(100vh - 2 * var(--admin-gap-md));
 
   display: flex;
   flex-direction: column;
   gap: var(--shell-form-gap);
+  flex: 1;
   max-width: var(--shell-form-max-width);
-  min-height: var(--shell-form-min-height);
 }
 
 .shell-form__alert {
@@ -29,8 +28,7 @@
   color: var(--admin-muted-fg-color);
 }
 
-/* Sits at the bottom of a short form and stays in view while a long one scrolls; the min height
-   above subtracts the .shell__content padding */
+/* Sits at the bottom of a short form, which grows to the viewport, and stays in view while a long one scrolls */
 .shell-form__actions {
   background-color: var(--admin-bg-color);
   border-block-start: var(--admin-border);

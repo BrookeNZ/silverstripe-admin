@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { errorField, mergeFields, uniqueMessages } from './schema';
+import { errorField, mergeFields, schemaText, serverMessage, uniqueMessages } from './schema';
 import type { FieldSchema } from './types';
 
 const schemaField = (name: string, id: string): FieldSchema => ({
@@ -51,5 +51,30 @@ describe('mergeFields', () => {
       undefined,
     );
     expect(select).toMatchObject({ emptyOption: '(none)', maxLength: 20, primary: false, headingLevel: null });
+  });
+});
+
+describe('serverMessage', () => {
+  it('joins the texts of a JSON error', () => {
+    expect(
+      serverMessage('{"status":"error","errors":[{"type":"error","code":400,"value":"Missing request params"}]}', 'application/json'),
+    ).toBe('Missing request params');
+  });
+
+  it('takes the first line of a plain-text dev error and ignores HTML pages', () => {
+    expect(serverMessage('ERROR [Emergency]: Uncaught LogicException: No component for SocialLinks\nIN GET /admin', 'text/html')).toBe(
+      'ERROR [Emergency]: Uncaught LogicException: No component for SocialLinks',
+    );
+    expect(serverMessage('<!DOCTYPE html><html>', 'text/html')).toBeNull();
+    expect(serverMessage('', null)).toBeNull();
+  });
+});
+
+describe('schemaText', () => {
+  it('reduces an { html } title or description to its text and passes anything else through', () => {
+    expect(schemaText({ html: 'MFA <a href="/help">Learn more</a>' })).toBe('MFA Learn more');
+    expect(schemaText('Plain')).toBe('Plain');
+    expect(schemaText(null)).toBeNull();
+    expect(schemaText(false)).toBe(false);
   });
 });

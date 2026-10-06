@@ -7,7 +7,9 @@ import { createNotificationsApi } from 'piral-notifications';
 import { createSilverstripeApi } from './api/silverstripe';
 import { FileEditPage } from './assets';
 import { registerBuiltInFields } from './forms/fields';
-import { createLayout, createRouter, errors, Home, readMenu } from './layout';
+import { registerGridComponents } from './grid';
+import { createLayout, createRouter, errors, Home, readMenu, SectionWithoutPilet } from './layout';
+import { createSectionPage } from './sections/SectionPage';
 import { initialUnsavedChanges } from './unsaved';
 import './style.css';
 
@@ -26,7 +28,7 @@ const instance = createInstance({
       ...createLayout(readMenu(root), adminPath),
       Router: createRouter(adminPath),
     },
-    errorComponents: errors,
+    errorComponents: { ...errors, not_found: createSectionPage(readMenu(root), SectionWithoutPilet) },
     routes: {
       '/': Home,
     },
@@ -47,6 +49,7 @@ const instance = createInstance({
 });
 
 registerBuiltInFields(instance.root);
+registerGridComponents(instance.root);
 instance.root.registerPage('/assets/edit/:id', FileEditPage);
 
 createRoot(root).render(<Piral instance={instance} />);

@@ -527,6 +527,10 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
     {
         if ($this->config()->get('piral_shell') && $this->isPiralNavigation($request)) {
             $request->shiftAllParams();
+            // Deeper than the url_rule parses, such as a GridField item edit URL under a ModelAdmin
+            while (!$request->allParsed()) {
+                $request->shift();
+            }
             return $this->renderPiralShell();
         }
         return parent::handleAction($request, $action);

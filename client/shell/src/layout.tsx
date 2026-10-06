@@ -36,7 +36,7 @@ export function readMenu(root: HTMLElement | null): Array<SilverstripeMenuItem> 
   }
 }
 
-const SectionWithoutPilet: React.FC = () => {
+export const SectionWithoutPilet: React.FC = () => {
   const section = useLocation().pathname.split('/').filter(Boolean)[0] ?? '';
   return (
     <div className="shell-page">

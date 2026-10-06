@@ -83,6 +83,53 @@ focus point picker writing its X and Y fields).
 Known limit: schemas served by the framework's `FormRequestHandler::getSchema()` and userforms'
 own `getMultipartSchema()` call bypass the admin's decorator, so they carry no candidates or fallback.
 
+## GridField
+
+The shell registers `SilverStripe\Forms\GridField\GridField`, so every GridField in a FormSchema form
+resolves to the shell's grid. While the shell flag is on, the admin module adds a rows endpoint to the
+framework's stock configs (`GridFieldConfig_Base`, `_RecordEditor`, `_RecordViewer`, `_RelationEditor`)
+and sends `data.rowsUrl` in the field's schema instead of its server HTML; a grid built from a bare
+`GridFieldConfig` still arrives with `fallback.html` and renders as a server HTML field.
+
+**Endpoint.** `GET <field link>/rows` returns `{grid, columns, rows, sort, filter, pagination,
+bulkActions, slots, emptyText}` (types in `src/grid/types.ts`, exported with the form types). Query
+parameters: `sort=Title` or `sort=-Title` (one column), `filter[<name>]=<value>` (search context names,
+`q` for the general search, a `Search__` prefix accepted), `page[number]`, `page[size]` (at most 100).
+An unknown column, filter or parameter is a 400 in the CMS JSON error envelope. `POST <field
+link>/actions/<name>` runs a row action (only `deleterecord` and `unlinkrelation` today) with the
+action's `args` as a JSON body and the CSRF token in `X-SecurityID`, and answers with the refreshed
+envelope for the query string it was sent with.
+
+**Cells.** A cell is `{value}` or `{html}`. `html` always renders as server HTML (handlers and links
+removed, controls disabled). A `value` cell renders the component its column declares in
+`cell.component`, looked up with `getSilverstripeComponent`; with nothing registered it renders the
+value as text. The admin module declares `GridField.cell.Text` for `GridFieldDataColumns`. A pilet
+adds a cell renderer by registering a name and having its PHP column provider declare it, or replaces
+the default for every data column by registering `GridField.cell.Text` itself:
+
+```tsx
+api.registerSilverstripeComponent('GridField.cell.Text', ({ value }: GridCellProps) => <>{String(value ?? '')}</>);
+```
+
+A cell component receives `GridCellProps`: `value`, `row` (the whole row, with `id`, `title`, `cells`,
+`actions`), `column`, and `props` from the column's declaration. Cell components do not need TanStack
+Table; the grid owns the table.
+
+**Slots.** `slots` maps a GridField fragment name (`before`, `buttons-before-left`, `header`,
+`after`, ...) to entries that are `{component, props}` or `{html}`. A component entry renders the
+registered component with its props plus `grid`; an unregistered one renders nothing. The admin
+module declares `GridField.AddNewButton` (`label`, `url`) for `GridFieldAddNewButton`.
+
+**PHP side.** A column provider declares cells by implementing
+`SilverStripe\Admin\UserInterface\GridField\GridField_ColumnSchemaProvider`
+(`getColumnCellSchema()`, `getColumnCell()`); an HTML provider declares slot components with
+`GridField_SchemaProvider` (`getSlotSchema()`). Both live in admin until framework carries them; a
+framework class gets them through an adapter in `GridFieldRowsEndpoint.schema_adapters`.
+
+**URL state.** The grid keeps its state in the page URL under its field name:
+`?grid[<name>][sort]=-Title&grid[<name>][filter][q]=about&grid[<name>][page]=2`. A change is a
+client navigation, so the unsaved changes guard confirms it when the form is dirty.
+
 ## Patterns package
 
 `@silverstripe/admin-patterns` (source in `client/patterns`) holds FieldHolder, the built-in field

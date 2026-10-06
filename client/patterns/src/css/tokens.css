@@ -3,21 +3,27 @@
  *
  * The shared palette, spacing, type and focus tokens every component in this package reads. The shell
  * loads them once on :root; its own chrome tokens (menu, badge, notifications) stay in the shell. A host
- * page retints the components by reassigning these.
+ * page retints the components by reassigning these. Colours come from the CMS Refresh Figma file
+ *, named per token below.
  */
 
 :root {
-  --admin-accent-color: #005a8c;
+  /* Figma Primary/Bright Blue and White */
+  --admin-accent-color: #005ae1;
   --admin-accent-fg-color: #ffffff;
-  --admin-bg-color: #f6f7f8;
+  --admin-bg-color: #ffffff;
   --admin-border: 0.1rem solid var(--admin-border-color);
-  --admin-border-color: #6b7680;
+  /* Figma New/New Grey/Grey 500, below 3:1 on white; kept to match the design pending a decision */
+  --admin-border-color: #c1c4c8;
   --admin-check-size: 1.8rem;
   --admin-control-min-height: 4rem;
+  /* The design has no error colour; this predates it */
   --admin-error-fg-color: #b3261e;
-  --admin-fg-color: #1a1f24;
+  /* Figma New/Black */
+  --admin-fg-color: #292b2e;
   --admin-focus-outline: 0.2rem solid;
-  --admin-focus-outline-color: #005a8c;
+  /* The design has no focus ring; it follows the accent */
+  --admin-focus-outline-color: #005ae1;
   --admin-focus-outline-offset: 0.2rem;
   --admin-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --admin-font-family-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -32,7 +38,8 @@
   --admin-gap-sm: 0.8rem;
   --admin-gap-md: 1.6rem;
   --admin-input-bg-color: #ffffff;
-  --admin-muted-fg-color: #4f5b66;
+  /* Figma New/New Grey/Grey 900 */
+  --admin-muted-fg-color: #595d64;
   --admin-panel-bg-color: #ffffff;
   --admin-radius: 0.4rem;
   /* WCAG 2.5.8 target size */

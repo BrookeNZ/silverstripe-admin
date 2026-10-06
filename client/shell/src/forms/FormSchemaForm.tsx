@@ -34,6 +34,10 @@ import './form.css';
 export interface FormSchemaFormProps {
   schemaUrl: string;
   onSubmitted?(response: FormSchemaResponse, action: FormField): void;
+  /** Replaces the default notice when the schema cannot be loaded; the error is a FormSchemaRequestError for an HTTP failure */
+  renderLoadError?(error: unknown): React.ReactNode;
+  /** Reports unsaved changes even when the form state does not ask to, as legacy change tracking did for every CMS edit form */
+  trackUnsavedChanges?: boolean;
 }
 
 const noop = () => undefined;
@@ -113,7 +117,7 @@ function fieldFocusTarget(field: FormField): HTMLElement | null {
   return element.querySelector<HTMLElement>('input:checked') ?? element.querySelector<HTMLElement>(focusable) ?? element;
 }
 
-const LoadedForm: React.FC<LoadedFormProps> = ({ schemaUrl, initialSchema, initialState, onSubmitted }) => {
+const LoadedForm: React.FC<LoadedFormProps> = ({ schemaUrl, initialSchema, initialState, onSubmitted, trackUnsavedChanges }) => {
   const [schema, setSchema] = React.useState(initialSchema);
   const [state, setState] = React.useState(initialState);
   const [formMessages, setFormMessages] = React.useState<Array<SchemaMessage>>(initialState.messages ?? []);
@@ -127,7 +131,7 @@ const LoadedForm: React.FC<LoadedFormProps> = ({ schemaUrl, initialSchema, initi
   isDirty.current = formState.isDirty;
 
   const globalState = useGlobalStateContext();
-  const notifyUnsavedChanges = Boolean(state.notifyUnsavedChanges ?? initialState.notifyUnsavedChanges);
+  const notifyUnsavedChanges = Boolean(trackUnsavedChanges || (state.notifyUnsavedChanges ?? initialState.notifyUnsavedChanges));
   React.useEffect(() => {
     if (!notifyUnsavedChanges) {
       return undefined;
@@ -248,10 +252,10 @@ const LoadedForm: React.FC<LoadedFormProps> = ({ schemaUrl, initialSchema, initi
 
 type LoadState =
   | { status: 'loading' }
-  | { status: 'failed'; message: string }
+  | { status: 'failed'; error: unknown; message: string }
   | { status: 'ready'; schema: FormSchemaTree; state: FormSchemaState };
 
-export const FormSchemaForm: React.FC<FormSchemaFormProps> = ({ schemaUrl, onSubmitted }) => {
+export const FormSchemaForm: React.FC<FormSchemaFormProps> = ({ schemaUrl, onSubmitted, renderLoadError, trackUnsavedChanges }) => {
   const [load, setLoad] = React.useState<LoadState>({ status: 'loading' });
 
   React.useEffect(() => {
@@ -266,7 +270,7 @@ export const FormSchemaForm: React.FC<FormSchemaFormProps> = ({ schemaUrl, onSub
       })
       .catch((error) => {
         if (!abort.signal.aborted) {
-          setLoad({ status: 'failed', message: error instanceof Error ? error.message : String(error) });
+          setLoad({ status: 'failed', error, message: error instanceof Error ? error.message : String(error) });
         }
       });
     return () => abort.abort();
@@ -276,6 +280,9 @@ export const FormSchemaForm: React.FC<FormSchemaFormProps> = ({ schemaUrl, onSub
     return <p className="shell-form__status" role="status">Loading form…</p>;
   }
   if (load.status === 'failed') {
+    if (renderLoadError) {
+      return <>{renderLoadError(load.error)}</>;
+    }
     return (
       <p className="shell-form__alert" role="alert">
         The form could not be loaded: {load.message}
@@ -289,6 +296,7 @@ export const FormSchemaForm: React.FC<FormSchemaFormProps> = ({ schemaUrl, onSub
       initialSchema={load.schema}
       initialState={load.state}
       onSubmitted={onSubmitted}
+      trackUnsavedChanges={trackUnsavedChanges}
     />
   );
 };

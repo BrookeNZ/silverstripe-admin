@@ -48,6 +48,21 @@ function sharedFieldProps(
   };
 }
 
+/**
+ * FormSchema sends a title or description built from HTML as `{ html }`, which the legacy FormBuilder
+ * rendered as markup. The shared components take text, so the markup is reduced to its text, links included
+ */
+export function schemaText<T>(value: T | { html: string }): T | string {
+  if (value === null || typeof value !== 'object' || typeof (value as { html?: unknown }).html !== 'string') {
+    return value as T;
+  }
+  const { html } = value as { html: string };
+  if (typeof DOMParser === 'undefined') {
+    return html.replace(/<[^>]*>/g, '');
+  }
+  return new DOMParser().parseFromString(html, 'text/html').body.textContent ?? '';
+}
+
 export function mergeFields(fields: Array<FieldSchema>, state: FormSchemaState | undefined): Array<FormField> {
   const stateById = new Map<string, FieldState>((state?.fields ?? []).map((field) => [field.id, field]));
 
@@ -56,6 +71,8 @@ export function mergeFields(fields: Array<FieldSchema>, state: FormSchemaState |
     const data = { ...asData(schema.data), ...asData(fieldState?.data) };
     return {
       ...schema,
+      title: schemaText(schema.title),
+      description: schemaText(schema.description),
       key: fieldKey(schema.name),
       value: fieldState?.value ?? null,
       message: fieldState?.message ?? null,
@@ -136,9 +153,50 @@ export function encodeSubmission(valueFields: Array<FormField>, values: FormValu
   return body;
 }
 
+/** A form endpoint answer that is not a usable schema, with what the server said about it */
+export class FormSchemaRequestError extends Error {
+  constructor(
+    readonly status: number,
+    readonly serverMessage: string | null,
+    /** The CMS session has ended: LeftAndMain answers an XHR with 403 and `X-Reauthenticate` */
+    readonly sessionEnded: boolean,
+  ) {
+    super(`The form endpoint answered ${status}`);
+    this.name = 'FormSchemaRequestError';
+  }
+}
+
+/**
+ * The message in an error body: a JSON error's texts, or the first line of the plain-text error a
+ * dev-mode site sends to XHR. HTML error pages carry nothing worth showing
+ */
+export function serverMessage(body: string, contentType: string | null): string | null {
+  if (contentType?.includes('application/json')) {
+    try {
+      const data = JSON.parse(body);
+      const texts = (Array.isArray(data?.errors) ? data.errors : [])
+        .map((error: { value?: unknown }) => error?.value)
+        .filter((value: unknown): value is string => typeof value === 'string' && value !== '');
+      return texts.length > 0 ? texts.join(' ') : null;
+    } catch {
+      return null;
+    }
+  }
+  const firstLine = body.trimStart().split('\n', 1)[0]?.trim() ?? '';
+  return firstLine && !firstLine.startsWith('<') ? firstLine.slice(0, 300) : null;
+}
+
 async function readResponse(response: Response): Promise<FormSchemaResponse> {
-  if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) {
-    throw new Error(`The form endpoint answered ${response.status}`);
+  const contentType = response.headers.get('content-type');
+  if (!response.ok || !contentType?.includes('application/json')) {
+    const body = await response.text().catch(() => '');
+    // A section the member cannot view redirects an XHR by header (AdminController::redirect) with a 200
+    const status = response.headers.get('x-controllerurl') ? 403 : response.status;
+    throw new FormSchemaRequestError(
+      status,
+      serverMessage(body, contentType),
+      response.status === 401 || response.headers.get('x-reauthenticate') === '1',
+    );
   }
   return response.json();
 }

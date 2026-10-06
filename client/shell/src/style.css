@@ -7,13 +7,16 @@
  */
 
 :root {
-  --shell-badge-bg-color: #005a8c;
-  --shell-badge-fg-color: #ffffff;
+  /* Figma site tree tag: Background/Modified and Text/Draft & Modified */
+  --shell-badge-bg-color: #fdf2eb;
+  --shell-badge-fg-color: #cb3e00;
   --shell-badge-letter-spacing: 0.06rem;
-  --shell-link-bg-hover-color: #2b3a46;
-  --shell-link-fg-color: #ffffff;
+  /* Figma sidebar item: New/New Blue/Blue 300 current background, Brand/Royal Blue icons */
+  --shell-link-bg-hover-color: #e6edf4;
+  --shell-link-fg-color: #003e94;
   --shell-logo-font-weight: 700;
-  --shell-menu-bg-color: #1b2a35;
+  /* Figma New/New Blue/Blue 100 */
+  --shell-menu-bg-color: #f8fafc;
   --shell-menu-width: 24rem;
   --shell-notification-bg-color: #1a1f24;
   --shell-notification-fg-color: #ffffff;
@@ -46,10 +49,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--admin-gap-sm);
+  height: 100vh;
   inset-block-start: 0;
-  max-height: 100vh;
-  min-height: 100vh;
-  overflow-y: auto;
   padding: var(--admin-gap-md);
   position: sticky;
 }
@@ -77,12 +78,15 @@ body {
   text-transform: uppercase;
 }
 
+/* The list scrolls inside the fixed-height menu; min-height 0 lets a flex child shrink below its content */
 .shell__list {
   display: flex;
   flex-direction: column;
   gap: var(--admin-gap-xs);
   list-style: none;
   margin: 0;
+  min-height: 0;
+  overflow-y: auto;
   padding: 0;
 }
 
@@ -104,8 +108,18 @@ body {
   outline-offset: var(--admin-focus-outline-offset);
 }
 
+/* Content and page are flex columns so a form can grow to the viewport and pin its action bar */
 .shell__content {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
   padding: var(--admin-gap-md);
+}
+
+.shell-page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
 }
 
 .piral-notifications-host {

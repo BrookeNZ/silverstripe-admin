@@ -17,7 +17,16 @@ class PiralShellNavigationTest extends FunctionalTest
 
     public function testPageNavigationsRenderTheShellWhateverTheAction(): void
     {
-        foreach (['admin/shell/', 'admin/shell/hello/', 'admin/security/', 'admin/nothing-here/'] as $url) {
+        $urls = [
+            'admin/shell/',
+            'admin/shell/hello/',
+            'admin/security/',
+            'admin/security/users/EditForm/field/users/item/1/edit/',
+            'admin/security/EditForm/field/Members/item/1/edit/',
+            'admin/settings/EditForm/field/SocialLinks/item/1/edit/',
+            'admin/nothing-here/',
+        ];
+        foreach ($urls as $url) {
             $response = $this->get($url, null, ['Accept' => 'text/html']);
 
             $this->assertSame(200, $response->getStatusCode(), $url);

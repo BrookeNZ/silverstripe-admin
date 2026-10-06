@@ -5,3 +5,11 @@ SilverStripe\Admin\UserInterface\PiletFeed:
   pilets:
     silverstripe-admin-fields:
       link: 'silverstripe/admin:client/dist/pilet/index.js'
+
+SilverStripe\Forms\GridField\GridFieldConfig:
+  extensions:
+    - SilverStripe\Admin\UserInterface\GridField\GridFieldConfigRowsExtension
+
+SilverStripe\Forms\GridField\GridField:
+  default_readonly_components:
+    - SilverStripe\Admin\UserInterface\GridField\GridFieldRowsEndpoint

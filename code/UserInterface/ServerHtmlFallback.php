@@ -2,9 +2,11 @@
 
 namespace SilverStripe\Admin\UserInterface;
 
+use SilverStripe\Admin\UserInterface\GridField\GridFieldRowsEndpoint;
 use SilverStripe\Core\Injector\Injectable;
 use SilverStripe\Forms\Form;
 use SilverStripe\Forms\FormField;
+use SilverStripe\Forms\GridField\GridField;
 
 /**
  * Lets the Piral shell render a field that has no React component from its server HTML, instead of
@@ -19,6 +21,10 @@ use SilverStripe\Forms\FormField;
  * framework would reject get the fallback: a field naming a component the shell lacks still shows the
  * shell's missing-field notice, because rendering every field's template for every schema request
  * would cost a template render per field to cover a gap that porting closes.
+ *
+ * A GridField whose config has GridFieldRowsEndpoint gets `data.rowsUrl` instead of its HTML, because
+ * the shell's grid component reads its rows from that endpoint; rendering FieldHolder() for it would
+ * cost a full grid render per schema request.
  */
 class ServerHtmlFallback
 {
@@ -74,7 +80,12 @@ class ServerHtmlFallback
             $field = $marked[$entry['id'] ?? ''] ?? null;
             if ($field) {
                 $entries[$index]['component'] = null;
-                $entries[$index]['fallback'] = ['html' => (string) $field->FieldHolder()];
+                $rowsUrl = $field instanceof GridField ? GridFieldRowsEndpoint::rowsUrl($field) : null;
+                if ($rowsUrl) {
+                    $entries[$index]['data']['rowsUrl'] = $rowsUrl;
+                } else {
+                    $entries[$index]['fallback'] = ['html' => (string) $field->FieldHolder()];
+                }
             }
             if (isset($entry['children']) && is_array($entry['children'])) {
                 $entries[$index]['children'] = $this->decorate($entry['children'], $marked);

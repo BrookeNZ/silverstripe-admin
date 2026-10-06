@@ -1,0 +1,13 @@
+SilverStripe\Admin\Tests\UserInterface\GridFieldRowsEndpointTest\Team:
+  alpha:
+    Name: Alpha
+    City: Wellington
+  bravo:
+    Name: Bravo
+    City: Auckland
+  charlie:
+    Name: Charlie
+    City: Wellington
+  hidden:
+    Name: Hidden
+    City: Wellington

@@ -115,3 +115,5 @@ export interface FormFieldActions {
 
 /** What a field component registered with the Pilet API receives */
 export type FieldComponentProps<V = unknown, P extends object = {}> = FieldProps<V, FormField<P>> & FormFieldActions;
+
+export type * from '../grid/types';

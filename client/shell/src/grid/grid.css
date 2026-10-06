@@ -1,0 +1,128 @@
+/**
+ * Grid
+ *
+ * Only what the GridField grid needs to work and be accessible: separated, padded cells so rows read
+ * as rows, header sort buttons that keep the header's look but show focus, visible focus on row
+ * actions, and visually hidden text that names a row's actions. Styling belongs to the pattern library
+ */
+
+.admin-grid {
+  --admin-grid-cell-padding: var(--admin-gap-xs) var(--admin-gap-sm);
+  --admin-grid-rule: var(--admin-border);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-gap-sm);
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.admin-grid:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: var(--admin-focus-outline-offset);
+}
+
+.admin-grid__toolbar {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--admin-gap-sm);
+}
+
+.admin-grid__search {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--admin-gap-xs);
+}
+
+.admin-grid__table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.admin-grid__caption {
+  font-weight: var(--admin-font-weight-bold);
+  text-align: start;
+}
+
+.admin-grid__header {
+  border-bottom: var(--admin-grid-rule);
+  padding: var(--admin-grid-cell-padding);
+  text-align: start;
+}
+
+.admin-grid__cell {
+  border-bottom: var(--admin-grid-rule);
+  font-weight: var(--admin-font-weight-normal);
+  padding: var(--admin-grid-cell-padding);
+  text-align: start;
+}
+
+.admin-grid__sort {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  min-height: var(--admin-target-min-size);
+  padding: 0;
+}
+
+.admin-grid__sort:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: var(--admin-focus-outline-offset);
+}
+
+.admin-grid__actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--admin-gap-sm);
+}
+
+.admin-grid__action {
+  background: none;
+  border: 0;
+  color: var(--admin-accent-color);
+  cursor: pointer;
+  font: inherit;
+  min-height: var(--admin-target-min-size);
+  padding: 0;
+  text-decoration: underline;
+}
+
+.admin-grid__action:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: var(--admin-focus-outline-offset);
+}
+
+.admin-grid__pages {
+  align-items: center;
+  display: flex;
+  gap: var(--admin-gap-sm);
+}
+
+.admin-grid__count {
+  margin: 0;
+}
+
+.admin-grid__status {
+  margin: 0;
+}
+
+.admin-grid__error {
+  color: var(--admin-error-fg-color);
+  margin: 0;
+}
+
+.admin-grid__hidden {
+  border: 0;
+  clip-path: inset(50%);
+  height: 0.1rem;
+  margin: -0.1rem;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 0.1rem;
+}
