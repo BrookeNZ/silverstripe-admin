@@ -1,0 +1,117 @@
+/**
+ * Loading, merging and submitting a FormSchema form.
+ *
+ * Field names are PHP POST names (`ViewerMembers[]`), which the form library would read as paths, so
+ * every field gets a safe key for the library and the PHP name is only used again when posting. State
+ * is matched to schema by id because state drops the `[]` suffix from multi-value names.
+ */
+import type {
+  FieldSchema,
+  FieldState,
+  FormField,
+  FormSchemaResponse,
+  FormSchemaState,
+  FormSchemaTree,
+  SchemaData,
+} from './types';
+
+export type FormValues = Record<string, unknown>;
+
+const jsonHeaders = {
+  Accept: 'application/json',
+  'X-Requested-With': 'XMLHttpRequest',
+};
+
+export function fieldKey(name: string): string {
+  return name.replace(/[.[\]]/g, (char) => `_x${char.charCodeAt(0).toString(16)}_`);
+}
+
+function asData(data: SchemaData | [] | undefined): SchemaData {
+  return Array.isArray(data) ? {} : (data ?? {});
+}
+
+export function mergeFields(fields: Array<FieldSchema>, state: FormSchemaState | undefined): Array<FormField> {
+  const stateById = new Map<string, FieldState>((state?.fields ?? []).map((field) => [field.id, field]));
+
+  const merge = (schema: FieldSchema): FormField => {
+    const fieldState = stateById.get(schema.id);
+    return {
+      ...schema,
+      key: fieldKey(schema.name),
+      value: fieldState?.value ?? null,
+      message: fieldState?.message ?? null,
+      data: { ...asData(schema.data), ...asData(fieldState?.data) },
+      source: fieldState?.source ?? schema.source ?? [],
+      children: (schema.children ?? []).map(merge),
+    };
+  };
+
+  return fields.map(merge);
+}
+
+/** Fields whose value is posted back: everything but structure, read-only fields and actions */
+export function isValueField(field: FormField): boolean {
+  return field.schemaType !== 'Structural' && field.type !== 'submit' && !field.readOnly;
+}
+
+export function collectValueFields(fields: Array<FormField>): Array<FormField> {
+  return fields.flatMap((field) => [...(isValueField(field) ? [field] : []), ...collectValueFields(field.children)]);
+}
+
+export function defaultValues(valueFields: Array<FormField>): FormValues {
+  return Object.fromEntries(valueFields.map((field) => [field.key, field.value]));
+}
+
+// Select fields built on react-select hold option objects, the shape FormSchema state sends them in
+function postedValue(value: unknown): string {
+  if (value !== null && typeof value === 'object' && 'value' in value) {
+    return postedValue(value.value);
+  }
+  return value == null ? '' : String(value);
+}
+
+export function encodeSubmission(valueFields: Array<FormField>, values: FormValues, action: string): URLSearchParams {
+  const body = new URLSearchParams();
+  for (const field of valueFields) {
+    const value = values[field.key];
+    const isMulti = field.name.endsWith('[]') || field.schemaType === 'MultiSelect';
+    if (isMulti) {
+      const name = field.name.endsWith('[]') ? field.name : `${field.name}[]`;
+      for (const item of Array.isArray(value) ? value : value == null ? [] : [value]) {
+        body.append(name, postedValue(item));
+      }
+    } else if (typeof value === 'boolean') {
+      body.append(field.name, value ? '1' : '0');
+    } else {
+      body.append(field.name, postedValue(value));
+    }
+  }
+  body.append(action, '1');
+  return body;
+}
+
+async function readResponse(response: Response): Promise<FormSchemaResponse> {
+  if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) {
+    throw new Error(`The form endpoint answered ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchFormSchema(schemaUrl: string, signal?: AbortSignal): Promise<FormSchemaResponse> {
+  const response = await fetch(new URL(schemaUrl, document.baseURI), {
+    credentials: 'same-origin',
+    headers: { ...jsonHeaders, 'X-Formschema-Request': 'schema,state,errors' },
+    signal,
+  });
+  return readResponse(response);
+}
+
+export async function submitFormSchema(schema: FormSchemaTree, body: URLSearchParams): Promise<FormSchemaResponse> {
+  const response = await fetch(new URL(schema.action, document.baseURI), {
+    method: schema.method || 'POST',
+    credentials: 'same-origin',
+    headers: { ...jsonHeaders, 'X-Formschema-Request': 'state,errors' },
+    body,
+  });
+  return readResponse(response);
+}

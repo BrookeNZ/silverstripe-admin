@@ -7,23 +7,34 @@
  */
 
 :root {
-  --shell-bg-color: #f6f7f8;
+  --shell-accent-color: #005a8c;
+  --shell-accent-fg-color: #ffffff;
   --shell-badge-bg-color: #005a8c;
   --shell-badge-fg-color: #ffffff;
+  --shell-bg-color: #f6f7f8;
+  --shell-border: 0.1rem solid var(--shell-border-color);
+  --shell-border-color: #6b7680;
+  --shell-control-min-height: 4rem;
+  --shell-error-fg-color: #b3261e;
   --shell-fg-color: #1a1f24;
   --shell-focus-outline: 0.2rem solid;
   --shell-focus-outline-color: #005a8c;
   --shell-focus-outline-offset: 0.2rem;
   --shell-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --shell-font-size-sm: 1.4rem;
+  --shell-font-size-xl: 2.4rem;
   --shell-gap-md: 1.6rem;
   --shell-gap-sm: 0.8rem;
   --shell-gap-xs: 0.4rem;
+  --shell-input-bg-color: #ffffff;
   --shell-link-bg-hover-color: #2b3a46;
   --shell-link-fg-color: #ffffff;
   --shell-menu-bg-color: #1b2a35;
   --shell-menu-width: 24rem;
+  --shell-muted-fg-color: #4f5b66;
   --shell-notification-bg-color: #1a1f24;
   --shell-notification-fg-color: #ffffff;
+  --shell-panel-bg-color: #ffffff;
   --shell-radius: 0.4rem;
   --shell-transition: background-color 0.2s ease-in-out;
 }
@@ -163,4 +174,38 @@ body {
 .shell-page__link:focus-visible {
   outline: var(--shell-focus-outline) var(--shell-focus-outline-color);
   outline-offset: var(--shell-focus-outline-offset);
+}
+
+/* Unsaved changes dialog */
+
+.shell-dialog {
+  --shell-dialog-backdrop-color: rgb(from var(--shell-fg-color) r g b / 0.5);
+  --shell-dialog-max-width: 48rem;
+
+  background-color: var(--shell-panel-bg-color);
+  border: var(--shell-border);
+  border-radius: var(--shell-radius);
+  color: var(--shell-fg-color);
+  max-width: var(--shell-dialog-max-width);
+  padding: var(--shell-gap-md);
+}
+
+.shell-dialog::backdrop {
+  background-color: var(--shell-dialog-backdrop-color);
+}
+
+.shell-dialog__title {
+  font-size: var(--shell-font-size-xl);
+  line-height: 1.2;
+  margin: 0 0 var(--shell-gap-sm);
+}
+
+.shell-dialog__body {
+  margin: 0 0 var(--shell-gap-md);
+}
+
+.shell-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--shell-gap-sm);
 }

@@ -1,0 +1,90 @@
+/**
+ * Form field holder
+ *
+ * Label, control, description and message for the built-in value fields. Radio groups reuse the
+ * holder for each option; --inline puts the control before its label
+ */
+
+.shell-field {
+  --shell-field-align: stretch;
+  --shell-field-direction: column;
+
+  align-items: var(--shell-field-align);
+  display: flex;
+  flex-direction: var(--shell-field-direction);
+  gap: var(--shell-gap-xs);
+}
+
+.shell-field--inline {
+  --shell-field-align: center;
+  --shell-field-direction: row;
+}
+
+.shell-field__label {
+  font-weight: 600;
+  padding: 0;
+}
+
+.shell-field__option {
+  font-weight: 400;
+}
+
+.shell-field__control {
+  background-color: var(--shell-input-bg-color);
+  border: var(--shell-border);
+  border-radius: var(--shell-radius);
+  color: var(--shell-fg-color);
+  font: inherit;
+  min-height: var(--shell-control-min-height);
+  padding: var(--shell-gap-xs) var(--shell-gap-sm);
+}
+
+.shell-field__control:read-only {
+  background-color: var(--shell-bg-color);
+}
+
+.shell-field__control:focus-visible {
+  outline: var(--shell-focus-outline) var(--shell-focus-outline-color);
+  outline-offset: var(--shell-focus-outline-offset);
+}
+
+.shell-field__control[aria-invalid="true"] {
+  border-color: var(--shell-error-fg-color);
+}
+
+.shell-field__check {
+  accent-color: var(--shell-accent-color);
+  height: 1.8rem;
+  margin: 0;
+  width: 1.8rem;
+}
+
+.shell-field__check:focus-visible {
+  outline: var(--shell-focus-outline) var(--shell-focus-outline-color);
+  outline-offset: var(--shell-focus-outline-offset);
+}
+
+.shell-field__choices {
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-gap-xs);
+  margin: 0;
+  padding: 0;
+}
+
+.shell-field__readonly {
+  margin: 0;
+}
+
+.shell-field__description {
+  color: var(--shell-muted-fg-color);
+  font-size: var(--shell-font-size-sm);
+  margin: 0;
+}
+
+.shell-field__message {
+  color: var(--shell-error-fg-color);
+  font-size: var(--shell-font-size-sm);
+  margin: 0;
+}

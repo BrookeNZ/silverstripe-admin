@@ -4,6 +4,7 @@ import { ComponentsState, ErrorComponentsState, ExtensionSlot, SwitchErrorInfo }
 import { Notifications } from 'piral-notifications';
 import { extensionSlotName } from './api/silverstripe';
 import type { SilverstripeMenuItem } from './silverstripe';
+import { UnsavedChangesGuard } from './unsaved';
 
 const leftAndMain = 'SilverStripe\\Admin\\LeftAndMain';
 
@@ -44,6 +45,12 @@ const SectionWithoutPilet: React.FC = () => {
         This section still belongs to the legacy admin. Turn the shell flag off to use it, or ship a pilet
         that registers pages under /{section}.
       </p>
+      {section === 'assets' && (
+        <p>
+          The file edit form already renders in the shell:{' '}
+          <Link className="shell-page__link" to="/assets/edit/2">edit file 2</Link>.
+        </p>
+      )}
       <p>
         <Link className="shell-page__link" to="/">Shell home</Link>
       </p>
@@ -74,20 +81,50 @@ export const Home: React.FC = () => (
   </div>
 );
 
-export function createLayout(menu: Array<SilverstripeMenuItem>): Partial<ComponentsState> {
+/** The menu link's path inside the router, or null when it points outside the admin */
+function routerPath(link: string, adminPath: string): string | null {
+  const url = new URL(link, document.baseURI);
+  if (url.origin !== window.location.origin || !`${url.pathname}/`.startsWith(`${adminPath}/`)) {
+    return null;
+  }
+  return url.pathname.slice(adminPath.length) || '/';
+}
+
+const MenuLink: React.FC<{ item: SilverstripeMenuItem; adminPath: string }> = ({ item, adminPath }) => {
+  const { pathname } = useLocation();
+  const to = routerPath(item.link, adminPath);
+  if (to === null) {
+    return (
+      <a className="shell__link" href={item.link}>
+        {item.title}
+      </a>
+    );
+  }
+  const section = to.replace(/\/$/, '');
+  const current = section ? pathname === section || pathname.startsWith(`${section}/`) : pathname === '/';
+  return (
+    <Link className="shell__link" to={to} aria-current={current ? 'page' : undefined}>
+      {item.title}
+    </Link>
+  );
+};
+
+/**
+ * Menu links are client navigations: the shell serves every admin section while the flag is on, so a
+ * full load would only rebuild the shell, and the unsaved-changes guard can ask in its own dialog
+ */
+export function createLayout(menu: Array<SilverstripeMenuItem>, adminPath: string): Partial<ComponentsState> {
   const Layout: ComponentsState['Layout'] = ({ children }) => (
     <div className="shell">
       <nav className="shell__menu" aria-label="CMS sections">
-        <a className="shell__logo" href={window.ss?.config?.adminUrl ?? '/admin/'}>
+        <Link className="shell__logo" to="/">
           Silverstripe
-        </a>
+        </Link>
         <span className="shell__badge">Piral shell</span>
         <ul className="shell__list">
           {menu.map((item) => (
             <li className="shell__item" key={item.code}>
-              <a className="shell__link" href={item.link} aria-current={item.current ? 'page' : undefined}>
-                {item.title}
-              </a>
+              <MenuLink item={item} adminPath={adminPath} />
             </li>
           ))}
         </ul>
@@ -95,6 +132,7 @@ export function createLayout(menu: Array<SilverstripeMenuItem>): Partial<Compone
       </nav>
       <main className="shell__content">{children}</main>
       <Notifications />
+      <UnsavedChangesGuard />
     </div>
   );
   Layout.displayName = 'ShellLayout';

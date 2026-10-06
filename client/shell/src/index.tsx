@@ -3,7 +3,10 @@ import { createRoot } from 'react-dom/client';
 import { createInstance, Piral } from 'piral-core';
 import { createNotificationsApi } from 'piral-notifications';
 import { createSilverstripeApi } from './api/silverstripe';
+import { FileEditPage } from './assets';
+import { registerBuiltInFields } from './forms/fields';
 import { createLayout, createRouter, errors, Home, readMenu } from './layout';
+import { initialUnsavedChanges } from './unsaved';
 import './style.css';
 
 const root = document.querySelector<HTMLElement>('#ss-admin-shell');
@@ -18,13 +21,14 @@ const adminPath = new URL(root.dataset.adminUrl ?? 'admin/', document.baseURI).p
 const instance = createInstance({
   state: {
     components: {
-      ...createLayout(readMenu(root)),
+      ...createLayout(readMenu(root), adminPath),
       Router: createRouter(adminPath),
     },
     errorComponents: errors,
     routes: {
       '/': Home,
     },
+    unsavedChanges: initialUnsavedChanges,
   },
   plugins: [createNotificationsApi({ defaultOptions: { type: 'info', autoClose: 8000 } }), createSilverstripeApi()],
   requestPilets() {
@@ -36,5 +40,8 @@ const instance = createInstance({
     });
   },
 });
+
+registerBuiltInFields(instance.root);
+instance.root.registerPage('/assets/edit/:id', FileEditPage);
 
 createRoot(root).render(<Piral instance={instance} />);

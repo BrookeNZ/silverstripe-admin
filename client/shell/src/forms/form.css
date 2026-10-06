@@ -1,0 +1,64 @@
+/**
+ * FormSchema form
+ *
+ * The form element rendered by FormSchemaForm, and the structural pieces it renders from the schema:
+ * composite fields (stacked), field groups (in a row), headings, CMS-authored literal HTML and the
+ * action bar. Group tokens sit on the group itself so a stacked group nested in a row stays stacked
+ */
+
+.shell-form {
+  --shell-form-alert-border: 0.4rem solid var(--shell-error-fg-color);
+  --shell-form-gap: var(--shell-gap-md);
+  --shell-form-max-width: 72rem;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-form-gap);
+  max-width: var(--shell-form-max-width);
+}
+
+.shell-form__alert {
+  border-inline-start: var(--shell-form-alert-border);
+  color: var(--shell-error-fg-color);
+  margin: 0;
+  padding: var(--shell-gap-sm) var(--shell-gap-md);
+}
+
+.shell-form__status {
+  color: var(--shell-muted-fg-color);
+}
+
+.shell-form__group {
+  --shell-form-group-align: stretch;
+  --shell-form-group-direction: column;
+
+  align-items: var(--shell-form-group-align);
+  display: flex;
+  flex-direction: var(--shell-form-group-direction);
+  flex-wrap: wrap;
+  gap: var(--shell-form-gap);
+}
+
+.shell-form__group--row {
+  --shell-form-group-align: baseline;
+  --shell-form-group-direction: row;
+}
+
+.shell-form__heading {
+  font-size: var(--shell-font-size-xl);
+  line-height: 1.2;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.shell-form__literal {
+  color: var(--shell-muted-fg-color);
+}
+
+.shell-form__actions {
+  border-block-start: var(--shell-border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--shell-gap-sm);
+  padding-block-start: var(--shell-form-gap);
+}

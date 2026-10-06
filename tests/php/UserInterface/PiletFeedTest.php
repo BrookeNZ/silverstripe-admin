@@ -13,6 +13,22 @@ class PiletFeedTest extends SapphireTest
 
     private const FIXTURE = 'silverstripe/admin:tests/php/UserInterface/PiletFeedTest/hello.js';
 
+    public function testTheModuleRegistersItsFieldsPilet(): void
+    {
+        $definition = Config::inst()->get(PiletFeed::class, 'pilets')['silverstripe-admin-fields'] ?? null;
+        $this->assertSame('silverstripe/admin:client/dist/pilet/index.js', $definition['link'] ?? null);
+
+        $package = json_decode((string) file_get_contents(__DIR__ . '/../../../client/pilets/fields/package.json'), true);
+        $this->assertSame($package['version'], $definition['version']);
+
+        $items = array_column(PiletFeed::singleton()->getItems(), null, 'name');
+        $this->assertArrayHasKey('silverstripe-admin-fields', $items);
+        $item = $items['silverstripe-admin-fields'];
+        $this->assertSame('v2', $item['spec']);
+        $this->assertSame('webpackChunkpr_silverstripeadminfields', $item['requireRef']);
+        $this->assertMatchesRegularExpression('#^https?://.+/client/dist/pilet/index\.js(\?|$)#', $item['link']);
+    }
+
     public function testItemsAreBuiltFromTheBuildHeader(): void
     {
         Config::modify()->set(PiletFeed::class, 'pilets', [

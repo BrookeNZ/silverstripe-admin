@@ -1,0 +1,31 @@
+/**
+ * Unknown field notice
+ *
+ * Stands in for a field whose component no pilet has registered
+ */
+
+.shell-unknown-field {
+  --shell-unknown-field-bg-color: #fff4d6;
+  --shell-unknown-field-border-color: #8a6d00;
+
+  background-color: var(--shell-unknown-field-bg-color);
+  border: 0.1rem dashed var(--shell-unknown-field-border-color);
+  border-radius: var(--shell-radius);
+  padding: var(--shell-gap-sm) var(--shell-gap-md);
+}
+
+.shell-unknown-field__title {
+  font-weight: 600;
+  margin: 0;
+}
+
+.shell-unknown-field__detail {
+  color: var(--shell-fg-color);
+  font-size: var(--shell-font-size-sm);
+  margin: 0;
+}
+
+.shell-unknown-field__code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow-wrap: anywhere;
+}

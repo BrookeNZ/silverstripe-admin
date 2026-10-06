@@ -2,6 +2,7 @@ export interface SilverstripeSection {
   name: string;
   url: string;
   reactRoutePath?: string;
+  form?: Record<string, { schemaUrl: string }>;
   [key: string]: unknown;
 }
 

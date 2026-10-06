@@ -12,3 +12,6 @@ coverage/
 composer.lock
 /client/shell/node_modules/
 /client/shell/dist/
+/client/pilets/*/node_modules/
+/client/pilets/*/dist/
+/client/dist/pilet/index.d.ts
