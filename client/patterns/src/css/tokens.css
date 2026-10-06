@@ -2,33 +2,78 @@
  * Admin design tokens
  *
  * The shared palette, spacing, type and focus tokens every component in this package reads. The shell
- * loads them once on :root; its own chrome tokens (menu, badge, notifications) stay in the shell. A host
- * page retints the components by reassigning these. Colours come from the CMS Refresh Figma file
- *, named per token below.
+ * loads them once on :root; its own chrome tokens (menu, badge, notifications) stay in the shell and
+ * point at the roles here. A host page retints the components by reassigning these.
+ *
+ * Colour has two tiers, and this is the only file with colour literals:
+ * - Palette (--admin-palette-*): raw values named after the CMS Refresh Figma variables, folder path dropped. Values with no design source say so.
+ * - Roles (every other --admin-*-color): what components read. Each points at a palette token.
+ *
+ * A theme redefines the roles only, in one block after the :root block below, using the house pattern:
+ * `:root[data-theme="dark"] { color-scheme: dark; ... }` plus the same declarations inside
+ * `@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { ... } }`. New palette steps a
+ * theme needs go in the palette block. Theming is document-level only: component tokens declared on
+ * :root that alias a role resolve there, so a subtree with its own scheme is not supported.
+ *
+ * Forced colours are handled per component, in the component's own file. prefers-contrast: more moves
+ * the border, divider, line and muted text roles to the darker greys already in the palette.
  */
 
 :root {
-  /* Figma Primary/Bright Blue and White */
-  --admin-accent-color: #005ae1;
-  --admin-accent-fg-color: #ffffff;
-  --admin-bg-color: #ffffff;
-  --admin-border: 0.1rem solid var(--admin-border-color);
-  /* Figma New/New Grey/Grey 500, below 3:1 on white; kept to match the design pending a decision */
-  --admin-border-color: #c1c4c8;
+  /* Palette */
+  --admin-palette-background-modified: #fdf2eb;
+  --admin-palette-black: #292b2e;
+  --admin-palette-blue-100: #f8fafc;
+  --admin-palette-blue-300: #e6edf4;
+  --admin-palette-bright-blue: #005ae1;
+  --admin-palette-bright-blue-100: #e5f0ff;
+  --admin-palette-button-primary: #008a00;
+  --admin-palette-button-primary-hover: #006400;
+
+  /* Figma node 2:6244 Save outline hover fill; no variable */
+  --admin-palette-button-primary-tint: rgb(0 138 0 / 0.1);
+  --admin-palette-grey-400: #dcdee0;
+  --admin-palette-grey-500: #c1c4c8;
+  --admin-palette-grey-900: #595d64;
+  --admin-palette-line-grey: #dadee1;
+  --admin-palette-royal-blue: #003e94;
+  --admin-palette-text-draft-modified: #cb3e00;
+  --admin-palette-white: #fff;
+
+  /* No design source */
+  --admin-palette-ink: #1a1f24;
+  --admin-palette-red-700: #b3261e;
+  --admin-palette-yellow-100: #fff4d6;
+  --admin-palette-yellow-800: #8a6d00;
+
+  /* Roles */
+  --admin-accent-color: var(--admin-palette-bright-blue);
+  --admin-accent-fg-color: var(--admin-palette-white);
+  --admin-backdrop-color: rgb(from var(--admin-palette-black) r g b / 0.5);
+  --admin-bg-color: var(--admin-palette-white);
+  --admin-border: 0.1rem solid;
+
+  /* Grey 500 is 1.75:1 on white, under 3:1; kept as designed */
+  --admin-border-color: var(--admin-palette-grey-500);
   --admin-check-size: 1.8rem;
   --admin-control-min-height: 4rem;
-  /* Figma New/New Grey/Grey 400, 1.35:1 on white, so decorative only */
-  --admin-divider-color: #dcdee0;
-  /* The design has no error colour; this predates it */
-  --admin-error-fg-color: #b3261e;
-  /* Figma New/Black */
-  --admin-fg-color: #292b2e;
+  --admin-disabled-opacity: 0.6;
+
+  /* Grey 400 is 1.35:1 on white, so decorative only */
+  --admin-divider-color: var(--admin-palette-grey-400);
+
+  /* No design source for error; its ground is the page until one exists */
+  --admin-error-bg-color: var(--admin-palette-white);
+  --admin-error-fg-color: var(--admin-palette-red-700);
+  --admin-fg-color: var(--admin-palette-black);
   --admin-focus-outline: 0.2rem solid;
-  /* The design has no focus ring; it follows the accent */
-  --admin-focus-outline-color: #005ae1;
+
+  /* The design has no focus ring; it takes the accent's value but can move apart from it */
+  --admin-focus-outline-color: var(--admin-palette-bright-blue);
   --admin-focus-outline-offset: 0.2rem;
   --admin-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --admin-font-family-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
   /* md is the body size, Figma New/Body 14px, on the 10px html base */
   --admin-font-size-xs: 1rem;
   --admin-font-size-sm: 1.2rem;
@@ -41,22 +86,60 @@
   --admin-gap-xs: 0.4rem;
   --admin-gap-sm: 0.8rem;
   --admin-gap-md: 1.6rem;
-  --admin-input-bg-color: #ffffff;
+  --admin-hover-bg-color: var(--admin-palette-bright-blue-100);
+  --admin-input-bg-color: var(--admin-palette-white);
+  --admin-inverse-bg-color: var(--admin-palette-ink);
+  --admin-inverse-fg-color: var(--admin-palette-white);
 
-  /* Figma New/Line Grey, 1.35:1 on white, so decorative only */
-  --admin-line-color: #dadee1;
-  /* Figma New/New Grey/Grey 900 */
-  --admin-muted-fg-color: #595d64;
-  --admin-panel-bg-color: #ffffff;
-  /* Figma Button/Primary and White, 4.53:1 */
-  --admin-primary-action-color: #008a00;
-  --admin-primary-action-fg-color: #ffffff;
-  /* Figma Button/Primary Hover, 7.44:1 with the white label */
-  --admin-primary-action-hover-color: #006400;
+  /* Line Grey is 1.35:1 on white, so decorative only */
+  --admin-line-color: var(--admin-palette-line-grey);
+  --admin-link-color: var(--admin-palette-bright-blue);
+  --admin-modified-bg-color: var(--admin-palette-background-modified);
+
+  /* 4.51:1 on the modified ground */
+  --admin-modified-fg-color: var(--admin-palette-text-draft-modified);
+  --admin-muted-fg-color: var(--admin-palette-grey-900);
+  --admin-nav-fg-color: var(--admin-palette-royal-blue);
+
+  /* The focus point marker sits on an image, so these stay fixed in every theme */
+  --admin-on-image-fg-color: var(--admin-palette-white);
+  --admin-on-image-ring-color: var(--admin-palette-black);
+  --admin-panel-bg-color: var(--admin-palette-white);
+
+  /* White label 4.53:1 on the fill, 7.44:1 on hover */
+  --admin-primary-action-color: var(--admin-palette-button-primary);
+  --admin-primary-action-fg-color: var(--admin-palette-white);
+  --admin-primary-action-hover-color: var(--admin-palette-button-primary-hover);
   --admin-radius: 0.4rem;
+
+  /* The green label is 3.95:1 on this tint over white; kept as designed */
+  --admin-secondary-action-hover-color: var(--admin-palette-button-primary-tint);
+  --admin-selected-bg-color: var(--admin-palette-blue-300);
+  --admin-shadow-color: rgb(from var(--admin-palette-black) r g b / 0.2);
+  --admin-sunken-bg-color: var(--admin-palette-blue-100);
+
   /* WCAG 2.5.8 target size */
   --admin-target-min-size: 2.4rem;
-  --admin-transition: background-color 0.2s ease-in-out;
+  --admin-transition: background-color var(--admin-transition-duration) var(--admin-transition-easing),
+    border-color var(--admin-transition-duration) var(--admin-transition-easing),
+    color var(--admin-transition-duration) var(--admin-transition-easing);
+  --admin-transition-duration: 0.2s;
+  --admin-transition-easing: ease-in-out;
+  --admin-warning-bg-color: var(--admin-palette-yellow-100);
+
+  /* 4.49:1 on the warning ground */
+  --admin-warning-border-color: var(--admin-palette-yellow-800);
+
+  color-scheme: light;
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --admin-border-color: var(--admin-palette-grey-900);
+    --admin-divider-color: var(--admin-palette-grey-900);
+    --admin-line-color: var(--admin-palette-grey-900);
+    --admin-muted-fg-color: var(--admin-palette-black);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

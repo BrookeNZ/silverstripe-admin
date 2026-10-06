@@ -61,3 +61,16 @@
   --admin-tab-strip-tab-font-weight: var(--admin-font-weight-bold);
   --admin-tab-strip-tab-indicator-color: var(--admin-fg-color);
 }
+
+/* Forced colours draw a transparent border, so the idle indicator takes the ground colour */
+@media (forced-colors: active) {
+  .admin-tab-strip__tab {
+    --admin-tab-strip-tab-indicator-color: Canvas;
+  }
+}
+
+@media (forced-colors: active) {
+  .admin-tab-strip__tab--current {
+    --admin-tab-strip-tab-indicator-color: Highlight;
+  }
+}

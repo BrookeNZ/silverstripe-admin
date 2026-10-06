@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Button } from './Button';
 import { fieldTitle } from './FieldHolder';
-import { MoreHorizontalIcon } from './icons';
+import { MoreOptionsIcon } from './icons';
 import type { FieldProps } from './types';
 
 /**
@@ -66,7 +66,7 @@ export const PopoverField = ({ field, renderFields }: FieldProps) => {
         disabled={field.disabled}
         onClick={() => setOpen(!open)}
         iconOnly={!title}
-        icon={!title && <MoreHorizontalIcon />}
+        icon={!title && <MoreOptionsIcon />}
       >
         {label}
       </Button>

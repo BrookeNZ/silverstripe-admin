@@ -8,7 +8,7 @@ describe('pageSectionHeader', () => {
 
   it('titles a page, goes back to the index and marks the open view current', () => {
     const header = pageSectionHeader('/pages', { id: 1, title: 'Home', view: 'edit' });
-    expect([header.title, header.backTo, header.backLabel]).toEqual(['Home', '/pages/', 'Back to Pages']);
+    expect([header.title, header.backTo, header.backLabel]).toEqual(['Home', '/pages/', 'Back to pages']);
     expect(header.views?.map((view) => [view.label, view.to, view.current])).toEqual([
       ['Content', '/pages/edit/show/1', true],
       ['Settings', '/pages/settings/show/1', false],

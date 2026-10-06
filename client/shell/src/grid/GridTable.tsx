@@ -11,7 +11,7 @@
 import * as React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useGlobalState } from 'piral-core';
-import { Button, SearchIcon } from '@silverstripe/admin-patterns';
+import { Button, Dialog, Link, SearchIcon } from '@silverstripe/admin-patterns';
 import { rowPaginationFeature, rowSortingFeature, tableFeatures, useTable } from '@tanstack/react-table';
 import type { ColumnDef, PaginationState, SortingState, Updater } from '@tanstack/react-table';
 import { componentSlotName, silverstripeComponent } from '../api/silverstripe';
@@ -289,10 +289,10 @@ const RowActions = ({ row, readonly, onAction }: RowActionsProps) => {
     <span className="admin-grid__actions">
       {row.actions.map((action) =>
         action.type === 'link' ? (
-          <a className="admin-grid__action" key={action.name} href={absolute(action.url)}>
+          <Link key={action.name} href={absolute(action.url)}>
             {action.title}
             <span className="admin-grid__hidden"> {label}</span>
-          </a>
+          </Link>
         ) : readonly ? null : (
           <button className="admin-grid__action" key={action.name} type="button" onClick={() => onAction(action)}>
             {action.title}
@@ -353,39 +353,21 @@ export interface ConfirmDialogProps {
   onConfirm(): void;
 }
 
-export const ConfirmDialog = ({ confirming, onCancel, onConfirm }: ConfirmDialogProps) => {
-  const dialog = React.useRef<HTMLDialogElement>(null);
-  const titleId = React.useId();
-  React.useEffect(() => {
-    const element = dialog.current;
-    if (confirming && element && !element.open) {
-      element.showModal();
-    } else if (!confirming && element?.open) {
-      element.close();
-    }
-  }, [confirming]);
-  return (
-    <dialog
-      ref={dialog}
-      className="admin-dialog"
-      aria-labelledby={titleId}
-      onCancel={(event) => {
-        event.preventDefault();
-        onCancel();
-      }}
-    >
-      <h2 className="admin-dialog__title" id={titleId}>
-        {confirming ? `${confirming.action.title} ${confirming.row.title ?? `#${confirming.row.id}`}?` : ''}
-      </h2>
-      <p className="admin-dialog__body">{confirming?.action.confirm}</p>
-      <div className="admin-dialog__actions">
+export const ConfirmDialog = ({ confirming, onCancel, onConfirm }: ConfirmDialogProps) => (
+  <Dialog
+    open={confirming !== null}
+    onClose={onCancel}
+    header={confirming ? `${confirming.action.title} ${confirming.row.title ?? `#${confirming.row.id}`}?` : ''}
+    body={confirming?.action.confirm}
+    footer={
+      <>
         <Button autoFocus onClick={onCancel}>
           Cancel
         </Button>
         <Button variant="primary" onClick={onConfirm}>
           {confirming?.action.title}
         </Button>
-      </div>
-    </dialog>
-  );
-};
+      </>
+    }
+  />
+);

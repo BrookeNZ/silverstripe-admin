@@ -90,6 +90,11 @@ export function editFormSchemaUrl({ section, tab }: Pick<SectionRoute, 'section'
   return [section.url, tab?.tab, 'schema/EditForm'].filter(Boolean).join('/');
 }
 
+/** A title as it reads mid-sentence in sentence case: `Back to site banners`, but `Back to SEO reports` */
+export function midSentence(title: string): string {
+  return /^\p{Lu}{2}/u.test(title) ? title : title.charAt(0).toLocaleLowerCase() + title.slice(1);
+}
+
 export function modelTabPath(section: ShellSection, tab: ModelTab): string {
   return `/${section.route}/${tab.tab}/`;
 }
@@ -103,9 +108,9 @@ export function sectionHeader({ section, tab, tabInPath, unhandled }: SectionRou
   const sectionPath = `/${section.route}/`;
   let back: Pick<SectionHeader, 'backTo' | 'backLabel'> = {};
   if (unhandled.length > 0 && tab && tabInPath) {
-    back = { backTo: modelTabPath(section, tab), backLabel: `Back to ${tab.title}` };
+    back = { backTo: modelTabPath(section, tab), backLabel: `Back to ${midSentence(tab.title)}` };
   } else if (unhandled.length > 0 || tabInPath) {
-    back = { backTo: sectionPath, backLabel: `Back to ${section.title}` };
+    back = { backTo: sectionPath, backLabel: `Back to ${midSentence(section.title)}` };
   }
   const views =
     section.modelTabs.length > 1

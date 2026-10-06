@@ -12,25 +12,30 @@
 
 :root {
   /* Figma back button: Bright Blue 100 circle, Bright Blue chevron */
-  --shell-header-back-bg-color: #e5f0ff;
+  --shell-header-back-bg-color: var(--admin-hover-bg-color);
   --shell-header-back-fg-color: var(--admin-accent-color);
   --shell-header-back-gap: 1.1rem;
-  /* Figma Grey 400 divider, decorative */
-  --shell-header-border: 0.1rem solid #dcdee0;
+  --shell-header-back-icon-size: 1.3rem;
+
+  /* Figma back button 2:1736: a 25px circle round the 13px chevron */
+  --shell-header-back-size: 2.5rem;
+  --shell-header-border: 0.1rem solid;
   --shell-header-column-gap: 5rem;
   --shell-header-height: 6.1rem;
   --shell-header-padding-inline-end: 3rem;
   --shell-header-padding-inline-start: 2rem;
+
   /* Figma: Inter Medium 15px */
   --shell-header-title-font-size: 1.5rem;
   --shell-header-title-font-weight: 500;
+
   /* Above the patterns package's popover, which is z-index 1 */
   --shell-header-z-index: 2;
 }
 
 .shell-header {
   background-color: var(--admin-bg-color);
-  border-block-end: var(--shell-header-border);
+  border-block-end: var(--shell-header-border) var(--admin-divider-color);
   box-sizing: border-box;
   column-gap: var(--shell-header-column-gap);
   display: flex;
@@ -50,11 +55,14 @@
 }
 
 .shell-header__back {
+  --admin-icon-size: var(--shell-header-back-icon-size);
+
   background-color: var(--shell-header-back-bg-color);
   border-radius: 50%;
   color: var(--shell-header-back-fg-color);
   display: flex;
   flex-shrink: 0;
+  padding: calc((var(--shell-header-back-size) - var(--shell-header-back-icon-size)) / 2);
 }
 
 .shell-header__back:focus-visible {

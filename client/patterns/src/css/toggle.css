@@ -13,8 +13,7 @@
   --admin-toggle-bg-color: var(--admin-bg-color);
   --admin-toggle-border-width: 0.1rem;
   --admin-toggle-color: var(--admin-accent-color);
-  /* Figma New/Bright Blue tints/Bright Blue 100 */
-  --admin-toggle-hover-bg-color: #e5f0ff;
+  --admin-toggle-hover-bg-color: var(--admin-hover-bg-color);
   --admin-toggle-option-min-width: 8rem;
   --admin-toggle-selected-fg-color: var(--admin-accent-fg-color);
 
@@ -60,9 +59,18 @@
   --admin-toggle-option-fg-color: var(--admin-toggle-selected-fg-color);
 }
 
+@media (forced-colors: active) {
+  .admin-toggle__option--selected {
+    --admin-toggle-option-bg-color: Highlight;
+    --admin-toggle-option-fg-color: HighlightText;
+
+    forced-color-adjust: none;
+  }
+}
+
 .admin-toggle__option--disabled {
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: var(--admin-disabled-opacity);
 }
 
 .admin-toggle__option--disabled:hover {

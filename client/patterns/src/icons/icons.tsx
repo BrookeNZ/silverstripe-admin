@@ -7,25 +7,25 @@ import * as React from 'react';
 import { Icon } from './Icon';
 import type { IconProps } from './Icon';
 
-export const CaretDownIcon = (props: IconProps) => (
+export const ExpandedIcon = (props: IconProps) => (
   <Icon viewBox="0 0 12 12" {...props}>
     <path d="M6 10.66 1 2h10z" />
   </Icon>
 );
 
-export const CaretRightIcon = (props: IconProps) => (
+export const CollapsedIcon = (props: IconProps) => (
   <Icon viewBox="0 0 12 12" {...props}>
     <path d="M10.66 6 2 11V1z" />
   </Icon>
 );
 
-export const CheckSquareIcon = (props: IconProps) => (
+export const BatchActionsIcon = (props: IconProps) => (
   <Icon viewBox="0 0 18 18" {...props}>
     <path d="M15.254 9.975v3.17c0 .765-.284 1.462-.885 2.02a2.8 2.8 0 0 1-2.051.835H3.936c-.814 0-1.486-.279-2.087-.836A2.77 2.77 0 0 1 1 13.144V4.856c0-.801.283-1.463.849-2.02C2.45 2.279 3.122 2 3.936 2h8.382c.424 0 .813.07 1.202.244.107.035.142.104.177.209 0 .139 0 .209-.106.313l-.495.488a.5.5 0 0 1-.212.07h-.106a2 2 0 0 0-.46-.07H3.936c-.46 0-.85.174-1.168.487-.318.314-.46.662-.46 1.115v8.288c0 .418.142.801.46 1.115s.708.452 1.168.452h8.382c.46 0 .849-.139 1.167-.452.318-.314.46-.697.46-1.115v-2.542c0-.07.035-.174.106-.209l.637-.662a.5.5 0 0 1 .212-.07h.141q.213.105.213.314M17.588 5.1l-8.241 8.114a.88.88 0 0 1-.566.209.9.9 0 0 1-.601-.21L3.865 8.93a.76.76 0 0 1-.248-.592c0-.209.071-.383.248-.557l1.096-1.08a.76.76 0 0 1 .566-.243c.248 0 .425.07.601.243l2.653 2.612 6.543-6.442c.142-.174.354-.244.566-.244s.424.07.566.244l1.132 1.08a.87.87 0 0 1 .212.591c0 .21-.07.383-.212.558" />
   </Icon>
 );
 
-export const ChevronLeftIcon = (props: IconProps) => (
+export const BackIcon = (props: IconProps) => (
   <Icon viewBox="6 6 13 13" {...props}>
     <path fillRule="evenodd" d="m11.199 12.5 3.9-3.9L13.5 7 8 12.5l5.5 5.5 1.6-1.6z" />
     <path d="M9 11.5h2v2H9z" />
@@ -33,14 +33,14 @@ export const ChevronLeftIcon = (props: IconProps) => (
 );
 
 /** The back button's chevron mirrored; the design draws no right chevron of its own */
-export const ChevronRightIcon = (props: IconProps) => (
+export const ForwardIcon = (props: IconProps) => (
   <Icon viewBox="6 6 13 13" {...props}>
     <path fillRule="evenodd" d="m13.801 12.5-3.9-3.9L11.5 7 17 12.5l-5.5 5.5-1.6-1.6z" />
     <path d="M14 11.5h2v2h-2z" />
   </Icon>
 );
 
-export const DragHandleIcon = (props: IconProps) => (
+export const ReorderIcon = (props: IconProps) => (
   <Icon viewBox="0 0 5 14" {...props}>
     <path fillRule="evenodd" d="M0 0h2v2H0zm3 0h2v2H3zM0 3h2v2H0zm3 0h2v2H3zM0 6h2v2H0zm3 0h2v2H3zM0 9h2v2H0zm3 0h2v2H3zm-3 3h2v2H0zm3 0h2v2H3z" />
   </Icon>
@@ -70,25 +70,25 @@ export const ImportIcon = (props: IconProps) => (
   </Icon>
 );
 
-export const ListIcon = (props: IconProps) => (
+export const ListViewIcon = (props: IconProps) => (
   <Icon viewBox="0 0 14 14" {...props}>
     <path d="M3.008 10.851c0 .429-.164.75-.438 1.045a1.46 1.46 0 0 1-1.066.429 1.46 1.46 0 0 1-1.066-.429A1.36 1.36 0 0 1 0 10.851c0-.402.137-.75.438-1.044.3-.268.656-.429 1.066-.429s.766.16 1.066.429c.274.294.438.643.438 1.044m0-3.91c0 .401-.164.75-.438 1.044a1.46 1.46 0 0 1-1.066.429 1.46 1.46 0 0 1-1.066-.429A1.4 1.4 0 0 1 0 6.94c0-.402.137-.75.438-1.045a1.46 1.46 0 0 1 1.066-.428c.41 0 .766.134 1.066.428.274.295.438.643.438 1.045M14 10.127V11.6q0 .081-.082.161-.083.08-.164.08H4.238q-.082 0-.164-.08t-.082-.16v-1.474a.24.24 0 0 1 .082-.187.4.4 0 0 1 .164-.054h9.516c.055 0 .11.027.164.054a.24.24 0 0 1 .082.187M3.008 3.03c0 .402-.164.75-.438 1.045-.3.268-.656.428-1.066.428s-.766-.16-1.066-.428A1.4 1.4 0 0 1 0 3.029c0-.429.137-.75.438-1.045a1.46 1.46 0 0 1 1.066-.428c.41 0 .766.133 1.066.428.274.295.438.616.438 1.045M14 6.217v1.446a.24.24 0 0 1-.082.188q-.083.08-.164.08H4.238q-.082 0-.164-.08a.24.24 0 0 1-.082-.188V6.217a.24.24 0 0 1 .082-.188q.083-.08.164-.08h9.516q.083 0 .164.08a.24.24 0 0 1 .082.188m0-3.938v1.473a.24.24 0 0 1-.082.188.4.4 0 0 1-.164.053H4.238a.4.4 0 0 1-.164-.053.24.24 0 0 1-.082-.188V2.28q0-.08.082-.16.083-.081.164-.081h9.516q.083 0 .164.08.082.08.082.16" />
   </Icon>
 );
 
-export const MoreHorizontalIcon = (props: IconProps) => (
+export const MoreOptionsIcon = (props: IconProps) => (
   <Icon viewBox="0 0 18 18" {...props}>
     <path d="M2.778 7.25A1.78 1.78 0 0 1 4.55 8.882l.006.146A1.778 1.778 0 1 1 2.778 7.25M9 7.25c.932 0 1.698.719 1.772 1.632l.006.146A1.778 1.778 0 1 1 9 7.25m6.222 0c.932 0 1.698.719 1.772 1.632l.006.146a1.778 1.778 0 1 1-1.778-1.778" />
   </Icon>
 );
 
-export const PageIcon = (props: IconProps) => (
+export const PageTypeIcon = (props: IconProps) => (
   <Icon viewBox="0 0 15 18" {...props}>
     <path d="M9.78 1.001a.5.5 0 0 1 .384.15l3.692 3.75a.5.5 0 0 1 .144.378v10.222a1.5 1.5 0 0 1-1.5 1.5h-10a1.5 1.5 0 0 1-1.5-1.5v-13a1.5 1.5 0 0 1 1.5-1.5zM13 5.751h-2.192a1.5 1.5 0 0 1-1.5-1.5v-2.25H2.5a.5.5 0 0 0-.5.5v13a.5.5 0 0 0 .5.5h10a.5.5 0 0 0 .5-.5zm-2.692-3.03v1.53a.5.5 0 0 0 .5.5h1.498z" />
   </Icon>
 );
 
-export const PlusCircleIcon = (props: IconProps) => (
+export const AddIcon = (props: IconProps) => (
   <Icon viewBox="0 0 18 18" {...props}>
     <path d="M9 1c2.137 0 4.146.832 5.656 2.343A7.95 7.95 0 0 1 17 9a7.95 7.95 0 0 1-2.344 5.657A7.94 7.94 0 0 1 9 17a7.95 7.95 0 0 1-5.657-2.343A7.95 7.95 0 0 1 1 9c0-2.137.832-4.146 2.343-5.657A7.95 7.95 0 0 1 9 1m0 1.778A6.18 6.18 0 0 0 4.6 4.6 6.18 6.18 0 0 0 2.778 9a6.18 6.18 0 0 0 1.824 4.4A6.18 6.18 0 0 0 9 15.223a6.18 6.18 0 0 0 4.4-1.823A6.18 6.18 0 0 0 15.222 9a6.18 6.18 0 0 0-1.824-4.4A6.18 6.18 0 0 0 9 2.778M10 8h3v2h-3v3H8v-3H5V8h3V5h2z" />
   </Icon>
@@ -100,7 +100,7 @@ export const PrintIcon = (props: IconProps) => (
   </Icon>
 );
 
-export const RocketIcon = (props: IconProps) => (
+export const PublishIcon = (props: IconProps) => (
   <Icon viewBox="0 0 15 15" {...props}>
     <path d="m1.073 7.407 2.021.839q-.264.696-.439 1.421a.43.43 0 0 0 .113.406l2.157 2.16a.43.43 0 0 0 .406.113q.725-.176 1.422-.44l.838 2.02a.326.326 0 0 0 .533.107l1.122-1.122a2.2 2.2 0 0 0 .635-1.66l-.054-1.062c2.346-1.782 4.518-4.802 5.168-9.77a.365.365 0 0 0-.414-.415C9.613.651 6.593 2.816 4.803 5.167L3.75 5.118a2.2 2.2 0 0 0-1.659.635L.967 6.877a.326.326 0 0 0 .106.53m8.3-3.7a1.354 1.354 0 1 1-.006.006l.005-.007M0 14.61c.116-2.128 1.148-3.3 1.74-3.802a.183.183 0 0 1 .255.031.18.18 0 0 1 .036.138q-.087.482-.029.97c.066.545.497.976 1.042 1.041.325.043.655.035.978-.02a.18.18 0 0 1 .169.297C3.688 13.85 2.516 14.883.389 15A.37.37 0 0 1 0 14.653z" />
   </Icon>
@@ -118,15 +118,32 @@ export const ShareIcon = (props: IconProps) => (
   </Icon>
 );
 
-export const SplitModeIcon = (props: IconProps) => (
+export const SplitViewIcon = (props: IconProps) => (
   <Icon viewBox="0 0 19.125 18" {...props}>
     <path d="M16.875 0a2.25 2.25 0 0 1 2.25 2.25v13.5a2.25 2.25 0 0 1-2.25 2.25H2.25A2.25 2.25 0 0 1 0 15.75V2.25q0-.25.052-.484A2.25 2.25 0 0 1 2.25 0zm-6.75 16.875h6.75c.621 0 1.125-.504 1.125-1.125V3.375h-7.875zm-9-1.125c0 .621.504 1.125 1.125 1.125H9v-13.5H1.125z" />
   </Icon>
 );
 
 /** Stroked, unlike the rest of the set */
-export const TickIcon = (props: IconProps) => (
+export const SavedIcon = (props: IconProps) => (
   <Icon viewBox="0 0 15 15" fill="none" {...props}>
     <path stroke="currentColor" strokeWidth="2" d="m2.25 7.75 4 3.5 6.5-7.5" />
+  </Icon>
+);
+
+/** Figma "Caret", node 2:6060 in the dropdown text field */
+export const ShowOptionsIcon = (props: IconProps) => (
+  <Icon viewBox="0 0 14 14" {...props}>
+    <path d="M10.5 5.862a.48.48 0 0 1-.12.302L7.312 9.136A.5.5 0 0 1 7 9.252a.5.5 0 0 1-.312-.116L3.62 6.164a.48.48 0 0 1-.12-.302.48.48 0 0 1 .12-.301.4.4 0 0 1 .312-.117h6.137c.12 0 .215.024.311.117a.48.48 0 0 1 .12.301" />
+  </Icon>
+);
+
+/** Figma "Global icons" Type=X, node 2:194, the dropdown's clear control */
+export const RemoveIcon = (props: IconProps) => (
+  <Icon viewBox="0 0 14 14" {...props}>
+    <path
+      fillRule="evenodd"
+      d="m8.45 7 5.209-5.208c.186-.186.298-.483.334-.744a.96.96 0 0 0-.262-.78.96.96 0 0 0-.78-.261c-.298 0-.558.148-.743.334L7 5.55 1.792.341C1.606.155 1.308.045 1.05.007a.96.96 0 0 0-.781.26.96.96 0 0 0-.26.781c0 .297.148.558.334.744L5.55 7C2.872 9.678.416 12.132.342 12.208c-.186.186-.298.483-.335.743a.96.96 0 0 0 .26.781.97.97 0 0 0 .782.26c.298 0 .557-.148.743-.334.076-.074 2.53-2.53 5.208-5.208l5.208 5.208c.185.186.483.298.744.335a.96.96 0 0 0 .78-.26.96.96 0 0 0 .261-.782c0-.298-.148-.557-.334-.743z"
+    />
   </Icon>
 );

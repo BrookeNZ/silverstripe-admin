@@ -256,7 +256,7 @@ $.entwine('ss', function($){
       if (!this.getValidationErrorShown() && this.hasClass('validationerror')) {
         const toastNotificationMessage = ss.i18n._t(
           'Admin.VALIDATIONERROR',
-          'Validation Error'
+          'Validation error'
         );
 
         errorMessage(toastNotificationMessage);

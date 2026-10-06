@@ -2,12 +2,16 @@ import * as React from 'react';
 import { Link, RouterProvider, createBrowserRouter, useLocation } from 'react-router-dom';
 import { ComponentsState, ErrorComponentsState, ExtensionSlot, SwitchErrorInfo } from 'piral-core';
 import { Notifications } from 'piral-notifications';
+import { Link as TextLink } from '@silverstripe/admin-patterns';
+import type { LinkRenderProps } from '@silverstripe/admin-patterns';
 import { extensionSlotName } from './api/silverstripe';
 import { SectionHeaderBar } from './header/SectionHeader';
 import type { SilverstripeMenuItem } from './silverstripe';
 import { UnsavedChangesGuard } from './unsaved';
 
 const leftAndMain = 'SilverStripe\\Admin\\LeftAndMain';
+
+const routerLink = ({ href, ...link }: LinkRenderProps) => <Link {...link} to={href} />;
 
 const RouterChildren = React.createContext<React.ReactNode>(null);
 
@@ -49,11 +53,11 @@ export const SectionWithoutPilet = () => {
       {section === 'assets' && (
         <p>
           The file edit form already renders in the shell:{' '}
-          <Link className="shell-page__link" to="/assets/edit/2">edit file 2</Link>.
+          <TextLink href="/assets/edit/2" renderLink={routerLink}>edit file 2</TextLink>.
         </p>
       )}
       <p>
-        <Link className="shell-page__link" to="/">Shell home</Link>
+        <TextLink href="/" renderLink={routerLink}>Shell home</TextLink>
       </p>
     </div>
   );
@@ -66,7 +70,7 @@ export const errors: Partial<ErrorComponentsState> = {
       <h1 className="shell-page__title">The shell could not load its modules</h1>
       <p>
         The pilet feed did not answer. Your CMS session may have expired:{' '}
-        <a className="shell-page__link" href={window.ss?.config?.adminUrl ?? '/admin/'}>log in again</a>.
+        <TextLink href={window.ss?.config?.adminUrl ?? '/admin/'}>log in again</TextLink>.
       </p>
     </div>
   ),

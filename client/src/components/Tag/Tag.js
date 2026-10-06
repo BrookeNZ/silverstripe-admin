@@ -103,8 +103,8 @@ const focusOnParent = (e) => {
 const DeleteButton = ({ dataKey, onDelete }) => (
   <Button
     onClick={(e) => { e.stopPropagation(); e.preventDefault(); onDelete(dataKey); }}
-    aria-label={i18n._t('Admin.REMOVE_TAG', 'Remove Tag')}
-    title={i18n._t('Admin.REMOVE_TAG', 'Remove Tag')}
+    aria-label={i18n._t('Admin.REMOVE_TAG', 'Remove tag')}
+    title={i18n._t('Admin.REMOVE_TAG', 'Remove tag')}
     onFocus={focusOnParent}
     tabIndex={-1}
     className="tag-component__delete btn--no-text btn--icon-sm"

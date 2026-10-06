@@ -35,7 +35,7 @@ Feature: Show toast messages
     And I wait for 5 seconds
     And I press the "More options" button
     And I press the "Archive" button, confirming the dialog
-    And I should not see "Validation Error"
+    And I should not see "Validation error"
     And I should see a "Archived Company "Company B"" success toast
 
   Scenario: I can see toast message when I successfully delete a record
@@ -72,7 +72,7 @@ Feature: Show toast messages
     And I click "Main" in the ".ui-tabs-nav" element
     And I fill in "Name" with ""
     And I press the "Save" button
-    Then I should see "Validation Error"
+    Then I should see "Validation error"
     And I fill in "Name" with "New Company C"
     And I press the "Save" button
     Then I should see a "Saved Company "New Company C" successfully" success toast
@@ -84,4 +84,4 @@ Feature: Show toast messages
     And I click "Employee B" in the "#Form_ItemEditForm_Employees" element
     And I fill in "Name" with ""
     And I press the "Save" button
-    Then I should see "Validation Error"
+    Then I should see "Validation error"

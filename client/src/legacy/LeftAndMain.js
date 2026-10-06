@@ -513,7 +513,7 @@ $.entwine('ss', function($) {
           }
           if (invalid) {
             jQuery.noticeAdd({
-              text: window.ss.i18n._t('Admin.VALIDATIONERROR', 'Validation Error'),
+              text: window.ss.i18n._t('Admin.VALIDATIONERROR', 'Validation error'),
               type: 'error',
               stayTime: 5000,
               inEffect: {

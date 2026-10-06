@@ -27,6 +27,7 @@
 }
 
 .shell-form__alert {
+  background-color: var(--admin-error-bg-color);
   border-inline-start: var(--shell-form-alert-border);
   color: var(--admin-error-fg-color);
   margin: 0;
@@ -40,8 +41,10 @@
 .shell-form__actions {
   --admin-group-gap: var(--shell-form-actions-group-gap);
   --admin-group-row-align: center;
+
   /* Figma: 15px between the save group, the options button and the utilities */
   --shell-form-actions-gap: 1.5rem;
+
   /* Figma: 10px between Saved and Publish */
   --shell-form-actions-group-gap: 1rem;
   --shell-form-actions-padding-block: 1.5rem;

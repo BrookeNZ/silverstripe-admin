@@ -5,11 +5,11 @@
  */
 
 .admin-dialog {
-  --admin-dialog-backdrop-color: rgb(from var(--admin-fg-color) r g b / 0.5);
+  --admin-dialog-backdrop-color: var(--admin-backdrop-color);
   --admin-dialog-max-width: 48rem;
 
   background-color: var(--admin-panel-bg-color);
-  border: var(--admin-border);
+  border: var(--admin-border) var(--admin-border-color);
   border-radius: var(--admin-radius);
   color: var(--admin-fg-color);
   max-width: var(--admin-dialog-max-width);

@@ -30,9 +30,9 @@
   --focuspoint-picker-left: 50%;
   --focuspoint-picker-top: 50%;
 
-  border: 0.2rem solid var(--admin-accent-fg-color);
+  border: 0.2rem solid var(--admin-on-image-fg-color);
   border-radius: 50%;
-  box-shadow: 0 0 0 0.1rem var(--admin-fg-color);
+  box-shadow: 0 0 0 0.1rem var(--admin-on-image-ring-color);
   height: var(--focuspoint-picker-crosshair-size);
   left: var(--focuspoint-picker-left);
   pointer-events: none;

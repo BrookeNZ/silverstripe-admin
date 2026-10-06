@@ -5,19 +5,19 @@
  * buttons, search on the right), a borderless header row of medium-weight titles with stacked sort
  * arrows, body rows divided by hairlines with a pale hover ground, and small muted text for the page
  * count and pager. Colours come from the --admin-* palette; the --admin-grid-* tokens hold the list
- * view's own measures and the two colours no global token covers (the row hairline and the hover ground)
+ * view's own measures and its own names for the row hairline and hover ground
  */
 
 .admin-grid {
   --admin-grid-button-padding: 0.8rem 1rem;
   --admin-grid-cell-padding: 2rem 1.5rem;
-  --admin-grid-divider-color: #dcdee0;
+  --admin-grid-divider-color: var(--admin-divider-color);
   --admin-grid-divider-width: 0.1rem;
   --admin-grid-header-font-weight: 500;
   --admin-grid-header-line-height: 1.57;
   --admin-grid-header-padding: 0 1.5rem 1.5rem;
   --admin-grid-line-height: 1.3;
-  --admin-grid-row-hover-bg-color: #f8fafc;
+  --admin-grid-row-hover-bg-color: var(--admin-sunken-bg-color);
   --admin-grid-sort-gap: 0.5rem;
   --admin-grid-toolbar-gap: 2rem;
   --admin-grid-toolbar-padding: 2rem 0 3rem;
@@ -139,6 +139,7 @@
 }
 
 .admin-grid__actions {
+  align-items: center;
   display: inline-flex;
   white-space: nowrap;
   gap: var(--admin-gap-md);
@@ -148,7 +149,7 @@
   align-items: center;
   background: none;
   border: 0;
-  color: var(--admin-accent-color);
+  color: var(--admin-link-color);
   cursor: pointer;
   display: inline-flex;
   font: inherit;

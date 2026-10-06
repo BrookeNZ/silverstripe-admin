@@ -54,7 +54,7 @@ export function pageSectionHeader(
   return {
     title: page.title ?? `Page ${page.id}`,
     backTo: `${routePrefix}/`,
-    backLabel: 'Back to Pages',
+    backLabel: 'Back to pages',
     views: pageViews.map(({ view, label }) => ({
       key: view,
       label,

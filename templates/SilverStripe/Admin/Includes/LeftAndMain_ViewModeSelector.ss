@@ -6,7 +6,7 @@
 		<option data-icon="font-icon-edit-write" class="font-icon-edit-write icon-view last" value="content"><%t SilverStripe\\Admin\\LeftAndMain_ViewModeSelector.EditView 'Edit mode' %></option>
 		<!-- Dual window not implemented yet -->
 		<!--
-			<option data-icon="icon-window" class="icon-window icon-view last" value="window"><%t SilverStripe\\Admin\\LeftAndMain_ViewModeSelector.DualWindowView 'Dual Window' %></option>
+			<option data-icon="icon-window" class="icon-window icon-view last" value="window"><%t SilverStripe\\Admin\\LeftAndMain_ViewModeSelector.DualWindowView 'Dual window' %></option>
 		-->
 	</select>
 </span>

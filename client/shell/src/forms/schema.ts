@@ -100,6 +100,40 @@ export function withChangedActions(actions: Array<FormField>): Array<FormField> 
 }
 
 /**
+ * The actions as the asset admin's file form draws them. An action whose state data carries the
+ * `pristine*` and `dirty*` keys takes its title, icon and class from whichever set applies, as the legacy
+ * `togglePristineState` transform did; publish stays dirty while the file is unpublished or modified
+ */
+export function withPristineState(actions: Array<FormField>, dirty: boolean): Array<FormField> {
+  return actions.map((action) => {
+    const children = withPristineState(action.children, dirty);
+    const { data } = action;
+    if (!['pristineTitle', 'dirtyTitle', 'pristineClass', 'dirtyClass'].some((key) => key in data)) {
+      return { ...action, children };
+    }
+    const pristine = !dirty && (!('isPublished' in data) || (Boolean(data.isPublished) && !data.isModified));
+    const classes = classList(action.extraClass).filter((name) => name !== data.pristineClass && name !== data.dirtyClass);
+    const stateClass = pristine ? data.pristineClass : data.dirtyClass;
+    const extraClass = [...classes, ...classList(stateClass)].join(' ');
+    const title = pristine ? data.pristineTitle : data.dirtyTitle;
+    const icon = pristine ? data.pristineIcon : data.dirtyIcon;
+    return {
+      ...action,
+      children,
+      title: typeof title === 'string' && title ? title : action.title,
+      icon: typeof icon === 'string' && icon ? icon : action.icon,
+      extraClass,
+      primary: isPrimaryAction(action.name, extraClass, data),
+    };
+  });
+}
+
+/** The actions for the bar in their clean or changed form, from either legacy convention */
+export function barActions(actions: Array<FormField>, dirty: boolean): Array<FormField> {
+  return actionBarFields(withPristineState(dirty ? withChangedActions(actions) : actions, dirty));
+}
+
+/**
  * The actions laid out for the action bar: a top-level group becomes a row (the legacy MajorActions
  * button group), and each tab of a top-level tab set (the page form's "More options") becomes a
  * popover opened by an icon button, the design's options menu

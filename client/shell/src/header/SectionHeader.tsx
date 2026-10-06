@@ -8,16 +8,10 @@
  */
 import * as React from 'react';
 import { Link } from 'react-router-dom';
-import { TabStrip } from '@silverstripe/admin-patterns';
+import { BackIcon, TabStrip } from '@silverstripe/admin-patterns';
 import { useSectionHeader } from './state';
 import type { SectionHeader as SectionHeaderContent } from './state';
 import './header.css';
-
-const BackChevron = () => (
-  <svg width="25" height="25" viewBox="0 0 25 25" fill="currentColor" aria-hidden="true" focusable="false">
-    <path d="M11.2 12.5 15.1 8.6 13.5 7 8 12.5l5.5 5.5 1.6-1.6zM9 11.5h2v2H9z" />
-  </svg>
-);
 
 export type SectionHeaderProps = SectionHeaderContent;
 
@@ -26,7 +20,7 @@ export const SectionHeader = ({ title, backTo, backLabel = 'Back', views = [] }:
     <div className="shell-header__current">
       {backTo && (
         <Link className="shell-header__back" to={backTo} aria-label={backLabel}>
-          <BackChevron />
+          <BackIcon />
         </Link>
       )}
       <h1 className="shell-header__title">{title}</h1>

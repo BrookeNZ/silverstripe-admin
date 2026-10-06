@@ -1,8 +1,8 @@
 import React, { Component } from 'react';
-import EmotionCssCacheProvider from '../legacy/EmotionCssCacheProvider';
+import { BackIcon, CollapsedIcon, Combobox } from '@silverstripe/admin-patterns';
+import type { ComboboxOptionState } from '@silverstripe/admin-patterns';
 import i18n from '../legacy/i18n';
 import fieldHolder from '../legacy/fieldHolder';
-import Select, { components as selectComponents } from 'react-select';
 import { connectTreeDropdownField } from '../legacy/treeDropdownFieldState';
 import { mapHighlight } from '../legacy/castStringToElement';
 import { findTreeByPath, findTreeByID, findTreePath, treeFetchUrl } from './treeUtils';
@@ -25,17 +25,14 @@ class TreeDropdownField extends Component<any, any> {
 
   searchTimer: ReturnType<typeof setTimeout> | null;
 
-  selectField: any;
-
   constructor(props) {
     super(props);
 
     // Renderers and custom component constructors
     this.render = this.render.bind(this);
-    this.renderInput = this.renderInput.bind(this);
-    this.renderMenuList = this.renderMenuList.bind(this);
     this.renderOption = this.renderOption.bind(this);
     this.formatOptionLabel = this.formatOptionLabel.bind(this);
+    this.getOptionLabel = this.getOptionLabel.bind(this);
 
     // Getters
     this.getBreadcrumbs = this.getBreadcrumbs.bind(this);
@@ -51,6 +48,7 @@ class TreeDropdownField extends Component<any, any> {
     this.handleSearchReset = this.handleSearchReset.bind(this);
     this.handleOpen = this.handleOpen.bind(this);
     this.handleClose = this.handleClose.bind(this);
+    this.handleOpenChange = this.handleOpenChange.bind(this);
 
     // Helpers
     this.callFetch = this.callFetch.bind(this);
@@ -180,8 +178,7 @@ class TreeDropdownField extends Component<any, any> {
       ];
     }
 
-    // require an empty option in some instances
-    // value is an empty string by react-select cannot find the options
+    // The empty choice, which filterOption hides unless the field has an empty default
     options.unshift({
       id: this.props.data.multiple ? '' : SINGLE_EMPTY_VALUE,
       title: (this.props.data.hasEmptyDefault) ? this.props.data.emptyString : null,
@@ -319,12 +316,12 @@ class TreeDropdownField extends Component<any, any> {
    */
   filterOption(option, input = '') {
     const parent = this.getVisibleTree();
-    if ((option.value === SINGLE_EMPTY_VALUE || option.value === '') &&
+    if ((option.id === SINGLE_EMPTY_VALUE || option.id === '') &&
       (!this.props.data.hasEmptyDefault || this.props.visible.length || this.hasSearch())
     ) {
       return false;
     }
-    const title = option.label && option.label.toLocaleLowerCase();
+    const title = option.title && option.title.toLocaleLowerCase();
     // using this.props.search so that we do not get flash of filtered current content
     // const search = this.props.search.toLocaleLowerCase();
     const search = input.toLocaleLowerCase();
@@ -336,8 +333,8 @@ class TreeDropdownField extends Component<any, any> {
       // only show option if it belongs in the current visible tree
       : (
         !parent ||
-        !option.value ||
-        parent.children.find((child) => child.id === option.value)
+        !option.id ||
+        parent.children.find((child) => child.id === option.id)
       );
   }
 
@@ -349,6 +346,14 @@ class TreeDropdownField extends Component<any, any> {
 
   handleClose() {
     this.setState({ opened: false });
+  }
+
+  handleOpenChange(open) {
+    if (open) {
+      this.handleOpen();
+    } else {
+      this.handleClose();
+    }
   }
 
   /**
@@ -427,7 +432,6 @@ class TreeDropdownField extends Component<any, any> {
     }
 
     event.stopPropagation();
-    event.nativeEvent.stopImmediatePropagation();
     event.preventDefault();
 
     // Find parent path
@@ -445,26 +449,18 @@ class TreeDropdownField extends Component<any, any> {
   }
 
   /**
-   * Extra keyboard accessibility.
-   * Falls back on handling provided by react-select
-   *
-   * @param {Event} event
+   * Left and right arrows step up and down the tree from the active option; every other key is the
+   * combobox's own
    */
-  handleKeyDown(event) {
-    // ignore handling keys if searching
+  handleKeyDown(event, focused) {
     if (this.hasSearch()) {
-      // if escape is pressed, clear the search term
       if (event.key === 'Escape') {
         this.handleSearchReset();
       }
-      // let react-select handle it
       return;
     }
 
-    // Only handle keys when an item is focused
-    const focused = this.selectField.state.focusedOption;
     if (!focused) {
-      // let react-select handle it
       return;
     }
 
@@ -478,7 +474,6 @@ class TreeDropdownField extends Component<any, any> {
         }
         break;
       default:
-        // let react-select handle it
         break;
     }
   }
@@ -509,95 +504,34 @@ class TreeDropdownField extends Component<any, any> {
   }
 
   /**
-   * Render the input field.
-   * This essentially just sets the specific ID we want to use into the default input component.
+   * The breadcrumb row above the options in a nested level, which steps back up one level. Keyboard
+   * users step back with the left arrow, so the row stays out of the tab order
    */
-  renderInput({ children, ...props }: any) {
-    props.id = this.props.id;
-    return <selectComponents.Input {...props}>{children}</selectComponents.Input>;
-  }
-
-  /**
-   * Render the breadcrumbs.
-   * This sits above the options in nested trees, as a way to navigate back
-   */
-  renderBreadcrumbs(breadcrumbs, { cx, getClassNames }: any) {
+  renderBreadcrumbs() {
+    const breadcrumbs = this.getBreadcrumbs();
     if (breadcrumbs.length === 0) {
       return null;
     }
 
-    // Join titles with ' / '
-    breadcrumbs = breadcrumbs.map((item) => item.title).join(' / ');
-    const icon = (this.hasSearch()) ? 'font-icon-search' : 'font-icon-left-open-big';
+    const crumbs = breadcrumbs.map((item) => item.title).join(' / ');
 
-    const className = cx(
-      {
-        option: true,
-        breadcrumbs: true,
-      },
-      getClassNames('option', {})
-    );
-
-    return (
-      <div
-        className={className}
-        onClick={this.handleBack}
-        role="button"
-        tabIndex={0}
-      >
-        <button type="button" className="treedropdownfield__breadcrumbs-button">
-          <span className={`icon ${icon}`} aria-hidden="true" />
-        </button>
-        <span className="treedropdownfield__breadcrumbs-crumbs flexbox-area-grow">
-          {breadcrumbs}
-        </span>
-      </div>
-    );
-  }
-
-  /**
-   * Render menulist.
-   * Replaces the default MenuList component
-   *
-   * @param {Object} renderMenuOptions - Options passed from Select.js
-   */
-  renderMenuList({ children, ...props }: any) {
-    const breadcrumbs = this.getBreadcrumbs();
-
-    return (
-      <selectComponents.MenuList {...props}>
-        {this.renderBreadcrumbs(breadcrumbs, props)}
-        {children}
-      </selectComponents.MenuList>
-    );
-  }
-
-  /**
-   * Renders an option in a menu level.
-   * Replaces the default Option component
-   */
-  renderOption({ children, ...props }: any) {
-    let button = null;
-    const tree = props.data;
-
-    // button for dropping into nested trees
-    if (tree.count && !this.hasSearch()) {
-      const handleNavigate = (event) => this.handleNavigate(event, tree.id);
-      button = (
-        <button
-          type="button"
-          className="treedropdownfield__option-button fill-width"
-          aria-label={`Show the children of ${tree.title}`}
-          onClick={handleNavigate}
-          onKeyDown={(event) => this.handleKeyDown(event)}
-          onTouchStart={handleNavigate}
-        >
-          <span className="treedropdownfield__option-count-icon font-icon-right-open-big" aria-hidden="true" />
-        </button>
-      );
+    if (this.hasSearch()) {
+      return <div className="treedropdownfield__breadcrumbs">{crumbs}</div>;
     }
 
-    // search breadcrumbs for each nested search result
+    return (
+      <button type="button" className="treedropdownfield__breadcrumbs" tabIndex={-1} onClick={this.handleBack}>
+        <BackIcon size="sm" label={i18n._t('Admin.TREEDROPDOWN_BACK', 'Back')} />
+        {crumbs}
+      </button>
+    );
+  }
+
+  /**
+   * An option's title, its place in the tree when searching, and a pointer target that opens a node
+   * with children; keyboard users open it with the right arrow, and the hidden hint says it has children
+   */
+  renderOption(tree, { inputValue }: ComboboxOptionState) {
     let subtitle = null;
     if (this.hasSearch()) {
       subtitle = tree.contextString;
@@ -607,19 +541,28 @@ class TreeDropdownField extends Component<any, any> {
       }
     }
 
+    const hasChildren = Boolean(tree.count) && !this.hasSearch();
+
     return (
-      <selectComponents.Option {...props}>
-        <span className="treedropdownfield__option-title-box flexbox-area-grow fill-height">
-          <span className="treedropdownfield__option-title">{children}</span>
-          { subtitle && <span className="treedropdownfield__option-context">{subtitle}</span> }
+      <>
+        <span className="treedropdownfield__option-title-box">
+          <span className="treedropdownfield__option-title">{this.formatOptionLabel(tree, inputValue)}</span>
+          {subtitle && <span className="treedropdownfield__option-context">{subtitle}</span>}
         </span>
-        {button}
-      </selectComponents.Option>
+        {hasChildren && (
+          <span className="treedropdownfield__option-children" onClick={(event) => this.handleNavigate(event, tree.id)}>
+            <CollapsedIcon />
+            <span className="treedropdownfield__option-hint">
+              {i18n._t('Admin.TREEDROPDOWN_HAS_CHILDREN', 'has children')}
+            </span>
+          </span>
+        )}
+      </>
     );
   }
 
   /**
-   * Fallback to a textbox for readonly and disabled status react-select isn't ideal for display
+   * Fallback to a textbox for readonly and disabled status
    *
    * @return {React}
    */
@@ -671,15 +614,26 @@ class TreeDropdownField extends Component<any, any> {
     );
   }
 
-  formatOptionLabel(option) {
-    const { title } = option;
+  formatOptionLabel(option, inputValue = '') {
+    const title = this.getOptionLabel(option);
+    const search = this.props.search || inputValue;
 
-    return this.props.search.length
-      ? mapHighlight(title || '', this.props.search, Highlight)
+    return search.length
+      ? mapHighlight(title, search, Highlight)
       : title;
   }
 
-  noOptionsMessage({ inputValue }) {
+  /**
+   * A closed field with showSelectedPath shows the selected node's full path
+   */
+  getOptionLabel(option) {
+    if (!this.state.opened && this.props.data.showSelectedPath && option.titlePath) {
+      return option.titlePath;
+    }
+    return option.title || '';
+  }
+
+  noOptionsMessage(inputValue) {
     const visibleTree = this.getVisibleTree() || {};
 
     // Only show failed message for the currently visible tree or root
@@ -704,8 +658,7 @@ class TreeDropdownField extends Component<any, any> {
       : 'treedropdownfield';
     const options = this.getDropdownOptions();
 
-    // The value passed in is an array of all selected option objects
-    // i.e. an id and title key must be present for each selected option
+    // The value is the selected option objects; each must carry an id and a title
     const rawValue = Array.isArray(this.props.value) ? this.props.value : [this.props.value];
     let value = this.props.selectedValues.filter(item => rawValue.includes(item.id));
 
@@ -717,57 +670,47 @@ class TreeDropdownField extends Component<any, any> {
 
     // Fall back to the empty default value if there is one
     if (!value.length && this.props.data.hasEmptyDefault) {
-      value = options[0];
+      value = [options[0]];
     }
 
     const showSearch = (typeof this.props.data.showSearch !== 'undefined')
       ? this.props.data.showSearch
       : false;
 
-    const components = {
-      Input: this.renderInput,
-      MenuList: this.renderMenuList,
-      Option: this.renderOption,
-    };
-
     const visibleTree = this.getVisibleTree() || {};
     // Only show loading message for the currently visible tree or root
     const isLoading = this.props.loading.indexOf(visibleTree.id || 0) >= 0;
 
     return (
-      <EmotionCssCacheProvider>
-        <Select
-          isSearchable={showSearch}
-          isMulti={this.props.data.multiple}
-          isClearable
-          className={className}
-          name={this.props.name}
-          options={options}
-          delimiter=","
-          components={components}
-          formatOptionLabel={this.formatOptionLabel}
-          filterOption={this.filterOption}
-          onChange={this.handleChange}
-          onMenuOpen={this.handleOpen}
-          onMenuClose={this.handleClose}
-          onKeyDown={this.handleKeyDown}
-          onInputChange={this.handleSearchChange}
-          isLoading={isLoading}
-          loadingMessage={() => i18n._t('Admin.TREEDROPDOWN_LOADING', 'Loading...')}
-          noOptionsMessage={this.noOptionsMessage}
-          value={value}
-          ref={(select) => { this.selectField = select; }}
-          placeholder={this.props.data.emptyString}
-          aria-labelledby={this.props['aria-labelledby']}
-          getOptionLabel={({ title }) => title}
-          getOptionValue={({ id }) => id}
-          classNamePrefix="treedropdownfield"
-          classNames={{
-            option: () => 'fill-width',
-          }}
-          isOptionDisabled={(option) => option.disabled}
-        />
-      </EmotionCssCacheProvider>
+      <Combobox
+        id={this.props.id}
+        name={this.props.name}
+        className={className}
+        searchable={showSearch}
+        multiple={this.props.data.multiple}
+        clearable
+        options={options}
+        value={this.props.data.multiple ? value : value[0] ?? null}
+        header={this.renderBreadcrumbs()}
+        renderOption={this.renderOption}
+        filterOption={this.filterOption}
+        onChange={this.handleChange}
+        onOpenChange={this.handleOpenChange}
+        onKeyDown={this.handleKeyDown}
+        onInputChange={this.handleSearchChange}
+        loading={isLoading}
+        loadingMessage={i18n._t('Admin.TREEDROPDOWN_LOADING', 'Loading...')}
+        noOptionsMessage={this.noOptionsMessage}
+        clearLabel={i18n._t('Admin.CLEAR', 'Clear')}
+        removeLabel={(label) => i18n.inject(i18n._t('Admin.TREEDROPDOWN_REMOVE', 'Remove {label}'), { label })}
+        placeholder={this.props.data.emptyString}
+        aria-labelledby={this.props['aria-labelledby']}
+        aria-invalid={this.props['aria-invalid']}
+        aria-errormessage={this.props['aria-errormessage']}
+        getOptionLabel={this.getOptionLabel}
+        getOptionValue={({ id }) => id}
+        isOptionDisabled={(option) => Boolean(option.disabled)}
+      />
     );
   }
 }

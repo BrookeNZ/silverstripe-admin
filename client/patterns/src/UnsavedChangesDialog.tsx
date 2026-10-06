@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Button } from './Button';
+import { Dialog } from './Dialog';
 
 export interface UnsavedChangesDialogProps {
   open: boolean;
@@ -7,44 +8,23 @@ export interface UnsavedChangesDialogProps {
   onLeave(): void;
 }
 
-const titleId = 'admin-unsaved-changes-title';
-
 /**
- * Asks whether to leave with unsaved changes. A native modal dialog, so focus is trapped and Escape
- * means stay; staying is primary and focused first, matching the legacy confirm where Cancel stays
+ * Asks whether to leave with unsaved changes. Escape means stay; staying is primary and focused first,
+ * matching the legacy confirm where Cancel stays
  */
-export const UnsavedChangesDialog = ({ open, onStay, onLeave }: UnsavedChangesDialogProps) => {
-  const dialog = React.useRef<HTMLDialogElement>(null);
-
-  React.useEffect(() => {
-    const element = dialog.current;
-    if (open && element && !element.open) {
-      element.showModal();
-    } else if (!open && element?.open) {
-      element.close();
-    }
-  }, [open]);
-
-  return (
-    <dialog
-      ref={dialog}
-      className="admin-dialog"
-      aria-labelledby={titleId}
-      onCancel={(event) => {
-        event.preventDefault();
-        onStay();
-      }}
-    >
-      <h2 className="admin-dialog__title" id={titleId}>
-        You have unsaved changes
-      </h2>
-      <p className="admin-dialog__body">Your changes have not been saved. If you leave this page now, they will be lost.</p>
-      <div className="admin-dialog__actions">
+export const UnsavedChangesDialog = ({ open, onStay, onLeave }: UnsavedChangesDialogProps) => (
+  <Dialog
+    open={open}
+    onClose={onStay}
+    header="You have unsaved changes"
+    body="Your changes have not been saved. If you leave this page now, they will be lost."
+    footer={
+      <>
         <Button variant="primary" autoFocus onClick={onStay}>
           Stay on this page
         </Button>
         <Button onClick={onLeave}>Leave without saving</Button>
-      </div>
-    </dialog>
-  );
-};
+      </>
+    }
+  />
+);

@@ -113,8 +113,8 @@ $.entwine('ss', function($) {
       // Create default controls unless they already exist.
       // This is here for backwards compatibility reasons and should be removed in a future major release
       if(!this.find('.cms-panel-toggle').length) {
-        const expandedTitle = i18n._t('Admin.COLLAPSEPANEL', 'Collapse Panel');
-        const collapsedTitle = i18n._t('Admin.EXPANDPANEL', 'Expand Panel');
+        const expandedTitle = i18n._t('Admin.COLLAPSEPANEL', 'Collapse panel');
+        const collapsedTitle = i18n._t('Admin.EXPANDPANEL', 'Expand panel');
         const expandedLabel = '&laquo;'
         const collapsedLabel = '&raquo;'
         const panelToggle = $(`<div class='toolbar toolbar--south cms-panel-toggle'>

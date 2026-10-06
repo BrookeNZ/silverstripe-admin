@@ -11,6 +11,8 @@
  * drops its `href`, leaves the tab order, says so with `aria-disabled` and swallows clicks.
  */
 import * as React from 'react';
+import { IconLabel } from './IconLabel';
+import type { IconPosition } from './IconLabel';
 
 // The bundler replaces this, as it does for React's own development checks
 declare const process: { env: { NODE_ENV?: string } };
@@ -20,7 +22,7 @@ export type ButtonVariant = 'primary' | 'secondary' | 'tertiary';
 interface ButtonBaseProps {
   variant?: ButtonVariant;
   icon?: React.ReactNode;
-  iconPosition?: 'start' | 'end';
+  iconPosition?: IconPosition;
   loading?: boolean;
 }
 
@@ -60,11 +62,9 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
       console.warn('An icon-only Button needs an aria-label or text children to name it');
     }
     const content = (
-      <>
-        {iconPosition === 'start' && icon}
+      <IconLabel icon={icon} iconPosition={iconPosition}>
         {hasText(children) && <span className={iconOnly ? 'admin-button__label--hidden' : undefined}>{children}</span>}
-        {iconPosition === 'end' && icon}
-      </>
+      </IconLabel>
     );
 
     if (rest.href !== undefined) {

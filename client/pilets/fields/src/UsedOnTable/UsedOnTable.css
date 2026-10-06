@@ -13,20 +13,20 @@
 }
 
 .used-on__col--index {
-  border-block-end: var(--admin-border);
+  border-block-end: var(--admin-border) var(--admin-border-color);
   padding: var(--used-on-cell-padding);
   text-align: start;
   width: 1%;
 }
 
 .used-on__col--title {
-  border-block-end: var(--admin-border);
+  border-block-end: var(--admin-border) var(--admin-border-color);
   padding: var(--used-on-cell-padding);
   text-align: start;
 }
 
 .used-on__cell-link {
-  color: var(--admin-accent-color);
+  color: var(--admin-link-color);
   display: block;
 }
 

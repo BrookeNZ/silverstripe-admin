@@ -166,3 +166,12 @@ focus point overlay is a slider: arrow keys nudge the point by 0.1 (Shift 0.01) 
 Tab with a react-select menu open selects the focused option, as in the legacy admin, which leaves
 `tabSelectsValue` at its default. The usage table fetches when it first has a rendered box, so a
 hidden tab costs no request.
+
+## Headless combobox (work item 29)
+
+SearchableDropdownField and TreeDropdownField render the patterns package's `Combobox` instead of
+react-select, so react-select, emotion and `EmotionCssCacheProvider` left the pilet bundle (117,789 to
+28,529 bytes, 39,092 to 9,377 gzip). Both keep their value shapes and posted values. Tab with the list
+open now closes it without choosing, unlike react-select. TreeDropdownField's tree steps are the left
+and right arrows on the active option and, for a pointer, the breadcrumb row and the arrow beside a
+node with children; neither is a button inside an option any more.

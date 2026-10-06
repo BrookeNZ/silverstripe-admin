@@ -7,19 +7,19 @@
  */
 
 :root {
-  /* Figma site tree tag: Background/Modified and Text/Draft & Modified */
-  --shell-badge-bg-color: #fdf2eb;
-  --shell-badge-fg-color: #cb3e00;
+  --shell-badge-bg-color: var(--admin-modified-bg-color);
+  --shell-badge-border: none;
+  --shell-badge-fg-color: var(--admin-modified-fg-color);
   --shell-badge-letter-spacing: 0.06rem;
-  /* Figma sidebar item: New/New Blue/Blue 300 current background, Brand/Royal Blue icons */
-  --shell-link-bg-hover-color: #e6edf4;
-  --shell-link-fg-color: #003e94;
+  --shell-link-bg-hover-color: var(--admin-selected-bg-color);
+  --shell-link-current-bg-color: var(--admin-selected-bg-color);
+  --shell-link-fg-color: var(--admin-nav-fg-color);
   --shell-logo-font-weight: 700;
-  /* Figma New/New Blue/Blue 100 */
-  --shell-menu-bg-color: #f8fafc;
+  --shell-menu-bg-color: var(--admin-sunken-bg-color);
   --shell-menu-width: 24rem;
-  --shell-notification-bg-color: #1a1f24;
-  --shell-notification-fg-color: #ffffff;
+  --shell-notification-bg-color: var(--admin-inverse-bg-color);
+  --shell-notification-border: none;
+  --shell-notification-fg-color: var(--admin-inverse-fg-color);
 }
 
 /* Keeps a focused or scrolled-to element clear of the sticky section header */
@@ -72,12 +72,20 @@ body {
 .shell__badge {
   align-self: flex-start;
   background-color: var(--shell-badge-bg-color);
+  border: var(--shell-badge-border);
   border-radius: var(--admin-radius);
   color: var(--shell-badge-fg-color);
   font-size: var(--admin-font-size-sm);
   letter-spacing: var(--shell-badge-letter-spacing);
   padding: var(--admin-gap-xs) var(--admin-gap-sm);
   text-transform: uppercase;
+}
+
+/* Forced colours drop the ground, so a border keeps the badge's boundary */
+@media (forced-colors: active) {
+  .shell__badge {
+    --shell-badge-border: 0.1rem solid transparent;
+  }
 }
 
 /* The list scrolls inside the fixed-height menu; min-height 0 lets a flex child shrink below its content */
@@ -103,6 +111,19 @@ body {
 
 .shell__link:hover {
   background-color: var(--shell-link-bg-hover-color);
+}
+
+.shell__link[aria-current="page"] {
+  background-color: var(--shell-link-current-bg-color);
+}
+
+@media (forced-colors: active) {
+  .shell__link[aria-current="page"] {
+    --shell-link-current-bg-color: Highlight;
+    --shell-link-fg-color: HighlightText;
+
+    forced-color-adjust: none;
+  }
 }
 
 .shell__link:focus-visible {
@@ -145,11 +166,18 @@ body {
 .piral-notification {
   align-items: center;
   background-color: var(--shell-notification-bg-color);
+  border: var(--shell-notification-border);
   border-radius: var(--admin-radius);
   color: var(--shell-notification-fg-color);
   display: flex;
   gap: var(--admin-gap-sm);
   padding: var(--admin-gap-sm) var(--admin-gap-md);
+}
+
+@media (forced-colors: active) {
+  .piral-notification {
+    --shell-notification-border: 0.1rem solid transparent;
+  }
 }
 
 .piral-notification-close {
@@ -174,7 +202,7 @@ body {
 }
 
 .shell-page__link {
-  color: var(--admin-focus-outline-color);
+  color: var(--admin-link-color);
 }
 
 .shell-page__link:focus-visible {

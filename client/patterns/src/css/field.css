@@ -31,7 +31,7 @@
 
 .admin-field__control {
   background-color: var(--admin-input-bg-color);
-  border: var(--admin-border);
+  border: var(--admin-border) var(--admin-border-color);
   border-radius: var(--admin-radius);
   color: var(--admin-fg-color);
   font: inherit;

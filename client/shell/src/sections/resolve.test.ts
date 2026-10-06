@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { editFormSchemaUrl, menuSections, modelTabPath, piletOwnsSection, resolveSectionRoute, sectionHeader } from './resolve';
+import { editFormSchemaUrl, menuSections, midSentence, modelTabPath, piletOwnsSection, resolveSectionRoute, sectionHeader } from './resolve';
 import type { SilverstripeMenuItem, SilverstripeSection } from '../silverstripe';
 
 const menuItem = (title: string, link: string): SilverstripeMenuItem => ({
@@ -119,14 +119,22 @@ describe('sectionHeader', () => {
 
   it('goes back to the section from a named tab, and marks that tab current', () => {
     const header = headerFor('/security/groups/');
-    expect([header.backTo, header.backLabel]).toEqual(['/security/', 'Back to Security']);
+    expect([header.backTo, header.backLabel]).toEqual(['/security/', 'Back to security']);
     expect(header.views?.find((view) => view.current)?.key).toBe('groups');
   });
 
   it('goes back to the tab, or the section, from a path below it', () => {
     expect(headerFor('/security/users/EditForm/field/users/item/3/edit').backTo).toBe('/security/users/');
+    expect(headerFor('/security/users/EditForm/field/users/item/3/edit').backLabel).toBe('Back to users');
     expect(headerFor('/security/EditForm/field/Members/item/3/edit').backTo).toBe('/security/');
-    expect(headerFor('/settings/EditForm').backLabel).toBe('Back to Settings');
+    expect(headerFor('/settings/EditForm').backLabel).toBe('Back to settings');
+  });
+});
+
+describe('midSentence', () => {
+  it('lowers the first letter of a sentence-case title, but not of a leading acronym', () => {
+    expect(midSentence('Site banners')).toBe('site banners');
+    expect(midSentence('SEO reports')).toBe('SEO reports');
   });
 });
 

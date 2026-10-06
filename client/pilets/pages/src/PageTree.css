@@ -16,7 +16,7 @@
   --pages-tree-item-outline-color: var(--admin-focus-outline-color);
 
   background-color: var(--admin-panel-bg-color);
-  border: var(--admin-border);
+  border: var(--admin-border) var(--admin-border-color);
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
@@ -53,6 +53,16 @@
   --pages-tree-item-bg-color: var(--admin-accent-color);
   --pages-tree-item-fg-color: var(--admin-accent-fg-color);
   --pages-tree-item-outline-color: var(--admin-accent-fg-color);
+}
+
+@media (forced-colors: active) {
+  .pages-tree__item--current {
+    --pages-tree-item-bg-color: Highlight;
+    --pages-tree-item-fg-color: HighlightText;
+    --pages-tree-item-outline-color: HighlightText;
+
+    forced-color-adjust: none;
+  }
 }
 
 .pages-tree__toggle {

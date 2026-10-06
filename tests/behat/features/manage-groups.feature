@@ -20,20 +20,20 @@ Feature: Manage groups
     And I press the "Add new Group" button
     And I fill in "Group name" with "MyGroup"
     And I press the "Create" button
-    Then I should not see "Validation Error"
+    Then I should not see "Validation error"
 
     # Assign various permissions to the group
     And I click the "Permissions" CMS tab
     And I check "View draft content"
     And I press the "Save" button
-    Then I should not see "Validation Error"
+    Then I should not see "Validation error"
 
   Scenario: Group cannot have a blank name
     When I click the "Groups" CMS tab
     And I press the "Add new Group" button
     And I fill in "Group name" with ""
     And I press the "Create" button
-    Then I should see "Validation Error"
+    Then I should see "Validation error"
 
   Scenario: Members of a group with permissions can edit Group data
     Given I go to "/Security/login"

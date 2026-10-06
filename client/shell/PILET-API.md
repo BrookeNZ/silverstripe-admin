@@ -130,6 +130,15 @@ module declares `GridField.AddNewButton` (`label`, `url`) for `GridFieldAddNewBu
 `GridField_SchemaProvider` (`getSlotSchema()`). Both live in admin until framework carries them; a
 framework class gets them through an adapter in `GridFieldRowsEndpoint.schema_adapters`.
 
+**Record edit form.** A GridField item URL keeps its legacy shape,
+`<section>[/<model tab>]/EditForm/field/<grid>/item/<id|new>[/edit|/view]`, so `CMSEditLink()` and stored
+links open in the shell; the shell renders it under the section with the record's title in the header and
+a back button to the grid. Row links, a click on a row and the "Add new" button navigate there inside the
+router. The form comes from `GET <item link>/schema` (the FormSchema envelope plus `record`: `id`,
+`className`, `title`, `singularName`, `link`), and a submission is the usual POST to the form's action with
+`X-Formschema-Request`, answered with the state and errors on a validation failure or with `record`,
+`deleted`, `message` and the reloaded `state` on success (201 and `Location` for a new record).
+
 **URL state.** The grid keeps its state in the page URL under its field name:
 `?grid[<name>][sort]=-Title&grid[<name>][filter][q]=about&grid[<name>][page]=2`. A change is a
 client navigation, so the unsaved changes guard confirms it when the form is dirty.
@@ -148,8 +157,11 @@ A section pilet renders a record edit form with the shell's renderer, registered
 (`getSilverstripeComponent('FormSchemaForm')`): props `schemaUrl`, `onSubmitted(response, action)`,
 `onStateChange(state)` (the loaded state, and each state a save brings back, for a host showing a record
 value such as the title in the section header), `omitFields` (names left out, for a host that shows
-them itself), `renderLoadError(error)` and `trackUnsavedChanges`. The renderer does not emit the records-changed
-event itself; the pilet that knows the record class emits it from `onSubmitted`.
+them itself), `renderLoadError(error)`, `trackUnsavedChanges`, `onLoad(response)` (the loaded response, for a
+host reading what the endpoint sends beside the form) and `confirmAction(action)` (asked before an action is
+submitted; `false`, or a promise of it, cancels). The renderer does not emit the records-changed
+event itself; the pilet that knows the record class emits it from `onSubmitted`. The shell's grid re-reads
+its rows on every records-changed event.
 
 ## Section header
 
@@ -160,7 +172,7 @@ current one underlined. It sticks to the top while the page scrolls. A page sets
 unmount:
 
 ```ts
-React.useEffect(() => piral.setSectionHeader({ title, backTo: '/pages/', backLabel: 'Back to Pages', views }), [piral, title]);
+React.useEffect(() => piral.setSectionHeader({ title, backTo: '/pages/', backLabel: 'Back to pages', views }), [piral, title]);
 ```
 
 | Field | |

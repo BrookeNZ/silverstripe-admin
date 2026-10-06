@@ -19,7 +19,7 @@ Feature: Manage Roles
     And I fill in "Title" with "MyRole"
     And I check "View draft content"
     And I press the "Create" button
-    Then I should not see "Validation Error"
+    Then I should not see "Validation error"
     And the "View draft content" checkbox should be checked
 
   Scenario: Manage roles link works correctly
@@ -36,7 +36,7 @@ Feature: Manage Roles
     And I click the "Roles" CMS tab
     And I select "View draft content" from "Roles[]"
     And I press the "Save" button
-    Then I should not see "Validation Error"
+    Then I should not see "Validation error"
     Given I go to "/Security/login"
     And I press the "Log in as someone else" button
     And I am logged in as a member of "Jane" group

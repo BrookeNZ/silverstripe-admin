@@ -8,7 +8,7 @@
 .admin-popover {
   --admin-popover-panel-inset-block: 100% auto;
   --admin-popover-panel-min-width: 24rem;
-  --admin-popover-panel-shadow: 0 0.4rem 1.6rem rgb(from var(--admin-fg-color) r g b / 0.2);
+  --admin-popover-panel-shadow: 0 0.4rem 1.6rem var(--admin-shadow-color);
 
   display: inline-flex;
   position: relative;
@@ -16,7 +16,7 @@
 
 .admin-popover__panel {
   background-color: var(--admin-panel-bg-color);
-  border: var(--admin-border);
+  border: var(--admin-border) var(--admin-border-color);
   border-radius: var(--admin-radius);
   box-shadow: var(--admin-popover-panel-shadow);
   display: flex;

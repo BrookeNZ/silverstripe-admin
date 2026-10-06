@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   actionBarFields,
+  barActions,
   errorField,
   mergeFields,
   schemaText,
@@ -9,7 +10,7 @@ import {
   withChangedActions,
   withoutFields,
 } from './schema';
-import type { FieldSchema } from './types';
+import type { FieldSchema, FormField } from './types';
 
 const schemaField = (name: string, id: string): FieldSchema => ({
   name,
@@ -214,5 +215,80 @@ describe('actionBarFields', () => {
       placement: 'top',
     });
     expect(menu.children.map((field) => field.name)).toEqual(['action_unpublish']);
+  });
+});
+
+// The asset admin file form's Save and Publish as FileFormFactory sends them: the pristine and dirty sets
+// arrive in the field state, not the schema
+const fileActions = (publish: { isPublished: boolean; isModified: boolean }) =>
+  mergeFields(
+    [action('action_save', '', { data: { icon: 'save' } }), action('action_publish', '', { data: { icon: 'rocket' } })],
+    {
+      id: 'Form_fileEditForm',
+      fields: [
+        {
+          id: 'Form_EditForm_action_save',
+          name: 'action_save',
+          value: null,
+          message: null,
+          data: { pristineTitle: 'Saved', pristineIcon: 'tick', dirtyTitle: 'Save', dirtyIcon: 'save', pristineClass: 'btn-outline-primary', dirtyClass: '' },
+        },
+        {
+          id: 'Form_EditForm_action_publish',
+          name: 'action_publish',
+          value: null,
+          message: null,
+          data: {
+            ...publish,
+            pristineTitle: 'Published',
+            pristineIcon: 'tick',
+            dirtyTitle: 'Publish',
+            dirtyIcon: 'rocket',
+            pristineClass: 'btn-outline-primary',
+            dirtyClass: 'btn-primary',
+          },
+        },
+      ],
+      messages: [],
+    },
+  );
+
+const shown = (fields: Array<FormField>) => fields.map((field) => [field.title, field.primary, field.icon]);
+
+describe('barActions on the file form', () => {
+  it('draws an unpublished file as the design does: outlined Saved, filled Publish', () => {
+    expect(shown(barActions(fileActions({ isPublished: false, isModified: false }), false))).toEqual([
+      ['Saved', false, 'tick'],
+      ['Publish', true, 'rocket'],
+    ]);
+  });
+
+  it('outlines and ticks Published only while the published file is unchanged', () => {
+    expect(shown(barActions(fileActions({ isPublished: true, isModified: true }), false))[1]).toEqual(['Publish', true, 'rocket']);
+    expect(shown(barActions(fileActions({ isPublished: true, isModified: false }), false))).toEqual([
+      ['Saved', false, 'tick'],
+      ['Published', false, 'tick'],
+    ]);
+  });
+
+  it('fills both once the form has changes', () => {
+    expect(shown(barActions(fileActions({ isPublished: true, isModified: false }), true))).toEqual([
+      ['Save', true, 'save'],
+      ['Publish', true, 'rocket'],
+    ]);
+  });
+});
+
+describe('barActions on a page just created', () => {
+  it('lands clean: outlined Saved, filled Publish, as SiteTree sends a draft-only page', () => {
+    const [save, publish] = pageActions()[0].children!;
+    const draftOnly = mergeFields(
+      [{ ...pageActions()[0], children: [save, { ...publish, title: 'Publish', extraClass: 'action btn btn--primary btn-primary', data: { icon: 'rocket' } }] }],
+      undefined,
+    );
+    expect(shown(barActions(draftOnly, false)[0].children)).toEqual([
+      ['Saved', false, 'tick'],
+      ['Publish', true, 'rocket'],
+    ]);
   });
 });

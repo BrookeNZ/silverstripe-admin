@@ -12,7 +12,7 @@ class CMSProfileController extends SingleRecordAdmin
 {
     private static $url_segment = 'myprofile';
 
-    private static $menu_title = 'My Profile';
+    private static $menu_title = 'My profile';
 
     private static $required_permission_codes = 'CMS_ACCESS';
 

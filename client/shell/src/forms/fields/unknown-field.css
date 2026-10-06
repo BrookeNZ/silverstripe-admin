@@ -5,9 +5,9 @@
  */
 
 .shell-unknown-field {
-  --shell-unknown-field-bg-color: #fff4d6;
+  --shell-unknown-field-bg-color: var(--admin-warning-bg-color);
   --shell-unknown-field-border: 0.1rem dashed var(--shell-unknown-field-border-color);
-  --shell-unknown-field-border-color: #8a6d00;
+  --shell-unknown-field-border-color: var(--admin-warning-border-color);
 
   background-color: var(--shell-unknown-field-bg-color);
   border: var(--shell-unknown-field-border);

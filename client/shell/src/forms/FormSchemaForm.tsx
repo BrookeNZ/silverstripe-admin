@@ -17,7 +17,7 @@ import { revealField } from '@silverstripe/admin-patterns';
 import { FormRenderContext, useFormRenderContext } from './context';
 import { useFieldComponent } from './useFieldComponent';
 import {
-  actionBarFields,
+  barActions,
   collectValueFields,
   defaultValues,
   encodeSubmission,
@@ -25,7 +25,6 @@ import {
   fetchFormSchema,
   fieldKey,
   mergeFields,
-  withChangedActions,
   withoutFields,
   submitFormSchema,
   uniqueMessages,
@@ -235,10 +234,7 @@ const LoadedForm = ({
     return handleSubmit((values) => submit(values, actionName, focusedId))(event);
   };
 
-  const barActions = React.useMemo(
-    () => actionBarFields(formState.isDirty ? withChangedActions(actions) : actions),
-    [actions, formState.isDirty],
-  );
+  const shownActions = React.useMemo(() => barActions(actions, formState.isDirty), [actions, formState.isDirty]);
 
   const context = React.useMemo(() => {
     const boundKeys = new Set(valueFields.map((field) => field.key));
@@ -273,7 +269,7 @@ const LoadedForm = ({
         ))}
         {renderFields(fields)}
         <div className="shell-form__actions">
-          {renderFields(barActions)}
+          {renderFields(shownActions)}
           {actionsEnd && <div className="shell-form__actions-end">{actionsEnd}</div>}
         </div>
       </form>

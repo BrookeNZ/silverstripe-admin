@@ -25,7 +25,7 @@
 }
 
 .preview-image-field__image {
-  border: var(--admin-border);
+  border: var(--admin-border) var(--admin-border-color);
   border-radius: var(--admin-radius);
   display: block;
   height: auto;

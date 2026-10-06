@@ -17,8 +17,14 @@ export type { TabStripItem, TabStripLinkProps, TabStripProps } from './TabStrip'
 export { Button } from './Button';
 export type { ButtonProps, ButtonVariant } from './Button';
 export * from './icons';
+export { Link } from './Link';
+export type { LinkProps, LinkRenderProps } from './Link';
+export { Dialog } from './Dialog';
+export type { DialogProps } from './Dialog';
 export { FormAction } from './FormAction';
 export { PopoverField } from './PopoverField';
+export { Combobox } from './Combobox';
+export type { ComboboxOptionState, ComboboxProps } from './Combobox';
 export { Toggle } from './Toggle';
 export type { ToggleOption, ToggleProps } from './Toggle';
 export { UnsavedChangesIndicator, unsavedChangesLevel } from './UnsavedChangesIndicator';

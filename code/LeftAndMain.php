@@ -1563,7 +1563,7 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
         $perms = [
             "CMS_ACCESS_LeftAndMain" => [
                 'name' => _t(__CLASS__ . '.ACCESSALLINTERFACES', 'Access to all CMS sections'),
-                'category' => _t(__CLASS__ . '.CMS_ACCESS_CATEGORY', 'CMS Access'),
+                'category' => _t(__CLASS__ . '.CMS_ACCESS_CATEGORY', 'CMS access'),
                 'help' => _t(__CLASS__ . '.ACCESSALLINTERFACESHELP', 'Overrules more specific access settings.'),
                 'sort' => -100
             ]
@@ -1599,7 +1599,7 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
                     "Access to '{title}' section",
                     ['title' => $title]
                 ),
-                'category' => _t(__CLASS__ . '.CMS_ACCESS_CATEGORY', 'CMS Access')
+                'category' => _t(__CLASS__ . '.CMS_ACCESS_CATEGORY', 'CMS access')
             ];
         }
         return $perms;

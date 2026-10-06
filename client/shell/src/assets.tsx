@@ -29,7 +29,7 @@ export function fileTitle(state: FormSchemaState): string | null {
 export const FileEditPage = ({ match, piral }: PageComponentProps<{ id: string }>) => {
   const schemaUrl = piral.getConfig().sections.find((section) => section.name === assetAdmin)?.form?.fileEditForm?.schemaUrl;
   const [title, setTitle] = React.useState<string | null>(null);
-  useSectionHeaderEffect({ title: title ?? `File ${match.params.id}`, backTo: '/assets/', backLabel: 'Back to Files' }, shellOwner);
+  useSectionHeaderEffect({ title: title ?? `File ${match.params.id}`, backTo: '/assets/', backLabel: 'Back to files' }, shellOwner);
   return (
     <div className="shell-page">
       {schemaUrl ? (

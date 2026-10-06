@@ -17,8 +17,7 @@
 
   align-items: var(--admin-group-align);
   display: flex;
-  flex-direction: var(--admin-group-direction);
-  flex-wrap: wrap;
+  flex-flow: var(--admin-group-direction) wrap;
   gap: var(--admin-group-gap);
 }
 
