@@ -30,6 +30,10 @@ export interface FieldDescriptor {
   headingLevel?: number | null;
   /** Marks the main action among several buttons */
   primary?: boolean;
+  /** Accessible name for a button that has no visible title, such as a popover's toggle */
+  buttonLabel?: string | null;
+  panelTitle?: string | null;
+  placement?: 'top' | 'bottom' | null;
 }
 
 export interface FieldProps<V = unknown, F extends FieldDescriptor = FieldDescriptor> {

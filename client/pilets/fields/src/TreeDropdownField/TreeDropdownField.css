@@ -1,0 +1,88 @@
+/**
+ * Tree dropdown field
+ *
+ * react-select styles the control, menu and options through emotion under the `treedropdownfield`
+ * class prefix; these rules add the tree's own pieces (the breadcrumb row that steps back up a level,
+ * the button that opens a node, search highlights) and replace react-select's focus treatment with the
+ * shared focus ring as a box-shadow, because react-select sets `outline: 0 !important` on the control
+ */
+
+:root {
+  /* Matches the width inside --admin-focus-outline */
+  --treedropdownfield-focus-width: 0.2rem;
+  --treedropdownfield-breadcrumbs-bg-color: var(--admin-muted-fg-color);
+  --treedropdownfield-breadcrumbs-fg-color: var(--admin-accent-fg-color);
+}
+
+.treedropdownfield__control:has(:focus-visible) {
+  border-color: var(--admin-focus-outline-color);
+  box-shadow: 0 0 0 var(--treedropdownfield-focus-width) var(--admin-focus-outline-color);
+}
+
+.treedropdownfield__breadcrumbs {
+  align-items: center;
+  background-color: var(--treedropdownfield-breadcrumbs-bg-color);
+  color: var(--treedropdownfield-breadcrumbs-fg-color);
+  cursor: pointer;
+  display: flex;
+  font-weight: var(--admin-font-weight-bold);
+  gap: var(--admin-gap-sm);
+  padding: var(--admin-gap-sm);
+}
+
+.treedropdownfield__breadcrumbs:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: calc(var(--admin-focus-outline-offset) * -1);
+}
+
+.treedropdownfield__breadcrumbs-button {
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+}
+
+/* The legacy icon font is not loaded in the shell, so the arrows are text */
+.treedropdownfield__breadcrumbs-button::before {
+  content: "\2190";
+}
+
+.treedropdownfield__option {
+  align-items: center;
+  display: flex;
+  gap: var(--admin-gap-sm);
+}
+
+.treedropdownfield__option-title-box {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.treedropdownfield__option-context {
+  font-size: var(--admin-font-size-sm);
+}
+
+.treedropdownfield__option-button {
+  background-color: var(--admin-panel-bg-color);
+  border: var(--admin-border);
+  border-radius: var(--admin-radius);
+  color: var(--admin-fg-color);
+  cursor: pointer;
+  min-height: var(--admin-target-min-size);
+  min-width: var(--admin-target-min-size);
+}
+
+.treedropdownfield__option-button::before {
+  content: "\2192";
+}
+
+.treedropdownfield__option-button:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: var(--admin-focus-outline-offset);
+}
+
+.treedropdownfield__option-title--highlighted {
+  font-weight: var(--admin-font-weight-bold);
+}

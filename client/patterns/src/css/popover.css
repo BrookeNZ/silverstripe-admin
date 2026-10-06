@@ -1,0 +1,45 @@
+/**
+ * Popover
+ *
+ * A disclosure button with a panel of secondary fields or actions anchored to it. --top opens the
+ * panel above the button
+ */
+
+.admin-popover {
+  --admin-popover-panel-inset-block: 100% auto;
+  --admin-popover-panel-min-width: 24rem;
+  --admin-popover-panel-shadow: 0 0.4rem 1.6rem rgb(from var(--admin-fg-color) r g b / 0.2);
+
+  display: inline-flex;
+  position: relative;
+}
+
+.admin-popover__panel {
+  background-color: var(--admin-panel-bg-color);
+  border: var(--admin-border);
+  border-radius: var(--admin-radius);
+  box-shadow: var(--admin-popover-panel-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-gap-sm);
+  inset-block: var(--admin-popover-panel-inset-block);
+  inset-inline-start: 0;
+  margin-block: var(--admin-gap-xs);
+  min-width: var(--admin-popover-panel-min-width);
+  padding: var(--admin-gap-sm);
+  position: absolute;
+  z-index: 1;
+}
+
+.admin-popover__panel--top {
+  --admin-popover-panel-inset-block: auto 100%;
+}
+
+.admin-popover__panel[hidden] {
+  display: none;
+}
+
+.admin-popover__title {
+  font-weight: var(--admin-font-weight-bold);
+  margin: 0;
+}

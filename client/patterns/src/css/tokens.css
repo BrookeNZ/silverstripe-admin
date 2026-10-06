@@ -12,6 +12,7 @@
   --admin-bg-color: #f6f7f8;
   --admin-border: 0.1rem solid var(--admin-border-color);
   --admin-border-color: #6b7680;
+  --admin-check-size: 1.8rem;
   --admin-control-min-height: 4rem;
   --admin-error-fg-color: #b3261e;
   --admin-fg-color: #1a1f24;
@@ -19,7 +20,11 @@
   --admin-focus-outline-color: #005a8c;
   --admin-focus-outline-offset: 0.2rem;
   --admin-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --admin-font-family-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --admin-font-size-xs: 1.2rem;
   --admin-font-size-sm: 1.4rem;
+  --admin-font-size-md: 1.6rem;
+  --admin-font-size-lg: 2rem;
   --admin-font-size-xl: 2.4rem;
   --admin-font-weight-normal: 400;
   --admin-font-weight-bold: 600;
@@ -30,6 +35,8 @@
   --admin-muted-fg-color: #4f5b66;
   --admin-panel-bg-color: #ffffff;
   --admin-radius: 0.4rem;
+  /* WCAG 2.5.8 target size */
+  --admin-target-min-size: 2.4rem;
   --admin-transition: background-color 0.2s ease-in-out;
 }
 

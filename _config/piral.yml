@@ -4,6 +4,4 @@ Name: adminpiral
 SilverStripe\Admin\UserInterface\PiletFeed:
   pilets:
     silverstripe-admin-fields:
-      # Keep in step with the version in client/pilets/fields/package.json
-      version: '3.3.0'
       link: 'silverstripe/admin:client/dist/pilet/index.js'

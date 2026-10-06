@@ -6,10 +6,11 @@
 
 .shell-unknown-field {
   --shell-unknown-field-bg-color: #fff4d6;
+  --shell-unknown-field-border: 0.1rem dashed var(--shell-unknown-field-border-color);
   --shell-unknown-field-border-color: #8a6d00;
 
   background-color: var(--shell-unknown-field-bg-color);
-  border: 0.1rem dashed var(--shell-unknown-field-border-color);
+  border: var(--shell-unknown-field-border);
   border-radius: var(--admin-radius);
   padding: var(--admin-gap-sm) var(--admin-gap-md);
 }
@@ -26,6 +27,6 @@
 }
 
 .shell-unknown-field__code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--admin-font-family-mono);
   overflow-wrap: anywhere;
 }

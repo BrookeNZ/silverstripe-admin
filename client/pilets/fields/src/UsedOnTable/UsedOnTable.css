@@ -1,0 +1,66 @@
+/**
+ * Used on table
+ *
+ * Lists the records a file is used on: a running number and the record's title path with its type
+ * underneath, each row linking to the record
+ */
+
+.used-on__table {
+  --used-on-cell-padding: var(--admin-gap-sm);
+
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.used-on__col--index {
+  border-block-end: var(--admin-border);
+  padding: var(--used-on-cell-padding);
+  text-align: start;
+  width: 1%;
+}
+
+.used-on__col--title {
+  border-block-end: var(--admin-border);
+  padding: var(--used-on-cell-padding);
+  text-align: start;
+}
+
+.used-on__cell-link {
+  color: var(--admin-accent-color);
+  display: block;
+}
+
+.used-on__cell-link:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: var(--admin-focus-outline-offset);
+}
+
+.used-on__title-items {
+  display: inline;
+  margin: 0;
+  padding: 0;
+}
+
+.used-on__title-item {
+  display: inline;
+  list-style-type: none;
+}
+
+.used-on__title-item::after {
+  content: " / ";
+}
+
+.used-on__title-item:last-of-type::after {
+  content: none;
+}
+
+.used-on__type {
+  color: var(--admin-muted-fg-color);
+  display: block;
+  font-size: var(--admin-font-size-sm);
+}
+
+.used-on__message {
+  padding: var(--used-on-cell-padding);
+  text-align: center;
+}

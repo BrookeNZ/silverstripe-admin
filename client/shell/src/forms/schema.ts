@@ -15,6 +15,7 @@ import type {
   SchemaData,
   SchemaMessage,
 } from './types';
+import { serverHtmlPosts } from './serverHtml';
 
 export type FormValues = Record<string, unknown>;
 
@@ -32,8 +33,14 @@ function asData(data: SchemaData | [] | undefined): SchemaData {
 }
 
 /** Translates FormSchema conventions into the plain props the shared field components read */
-function sharedFieldProps(schema: FieldSchema, data: SchemaData): Pick<FormField, 'maxLength' | 'emptyOption' | 'headingLevel' | 'primary'> {
+function sharedFieldProps(
+  schema: FieldSchema,
+  data: SchemaData,
+): Pick<FormField, 'maxLength' | 'emptyOption' | 'headingLevel' | 'primary' | 'buttonLabel' | 'panelTitle' | 'placement'> {
   return {
+    buttonLabel: typeof data.buttonTooltip === 'string' ? data.buttonTooltip : null,
+    panelTitle: typeof data.popoverTitle === 'string' ? data.popoverTitle : null,
+    placement: data.placement === 'top' || data.placement === 'bottom' ? data.placement : null,
     maxLength: typeof data.maxlength === 'number' ? data.maxlength : null,
     emptyOption: data.hasEmptyDefault ? String(data.emptyString ?? '') : null,
     headingLevel: typeof data.headingLevel === 'number' ? data.headingLevel : null,
@@ -62,9 +69,15 @@ export function mergeFields(fields: Array<FieldSchema>, state: FormSchemaState |
   return fields.map(merge);
 }
 
-/** Fields whose value is posted back: everything but structure, read-only fields and actions */
+/**
+ * Fields whose value is posted back: everything but structure, read-only fields and actions. A field
+ * rendered from server HTML posts only when that HTML is a single plain control carrying its name
+ */
 export function isValueField(field: FormField): boolean {
-  return field.schemaType !== 'Structural' && field.type !== 'submit' && !field.readOnly;
+  if (field.schemaType === 'Structural' || field.type === 'submit' || field.readOnly) {
+    return false;
+  }
+  return field.fallback ? serverHtmlPosts(field.name, field.fallback.html) : true;
 }
 
 export function collectValueFields(fields: Array<FormField>): Array<FormField> {

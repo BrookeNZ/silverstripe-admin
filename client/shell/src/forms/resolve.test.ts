@@ -16,13 +16,19 @@ describe('resolveFieldComponent', () => {
     ).toEqual({ name: 'SilverStripe\\Forms\\SearchableMultiDropdownField' });
   });
 
-  it('lets a class registration reach subclasses that name no component', () => {
+  it('tries a componentless field\'s own class, then its type default, then its parent classes', () => {
     const field = {
       component: null,
-      schemaType: 'Text',
-      componentCandidates: ['App\\Forms\\SlugField', 'SilverStripe\\Forms\\TextField', 'SilverStripe\\Forms\\FormField'],
+      schemaType: 'Datetime',
+      componentCandidates: ['SilverStripe\\Forms\\DatetimeField', 'SilverStripe\\Forms\\TextField', 'SilverStripe\\Forms\\FormField'],
     };
-    expect(resolveFieldComponent(field, registry('TextField', 'SilverStripe\\Forms\\TextField'))).toEqual({
+    expect(resolveFieldComponent(field, registry('DatetimeField', 'SilverStripe\\Forms\\TextField'))).toEqual({
+      name: 'DatetimeField',
+    });
+    expect(resolveFieldComponent(field, registry('DatetimeField', 'SilverStripe\\Forms\\DatetimeField'))).toEqual({
+      name: 'SilverStripe\\Forms\\DatetimeField',
+    });
+    expect(resolveFieldComponent(field, registry('SilverStripe\\Forms\\TextField'))).toEqual({
       name: 'SilverStripe\\Forms\\TextField',
     });
   });
@@ -60,5 +66,29 @@ describe('resolveFieldComponent', () => {
 
   it('reports a field with neither component nor known type as missing', () => {
     expect(resolveFieldComponent({ component: null, schemaType: null }, registry('TextField'))).toEqual({ name: null, tried: [] });
+  });
+
+  it('renders a field with server HTML through the transitional field when nothing else resolves', () => {
+    const field = {
+      component: null,
+      schemaType: null,
+      componentCandidates: ['SilverStripe\\Forms\\GridField\\GridField', 'SilverStripe\\Forms\\FormField'],
+      fallback: { html: '<div></div>' },
+    };
+    expect(resolveFieldComponent(field, registry('ServerHtmlField'))).toEqual({ name: 'ServerHtmlField' });
+    expect(resolveFieldComponent(field, registry('ServerHtmlField', 'SilverStripe\\Forms\\GridField\\GridField'))).toEqual({
+      name: 'SilverStripe\\Forms\\GridField\\GridField',
+    });
+  });
+
+  it('shows the notice when the transitional field is unregistered or there is no HTML', () => {
+    expect(resolveFieldComponent({ component: null, schemaType: null, fallback: { html: '<p></p>' } }, registry())).toEqual({
+      name: null,
+      tried: ['ServerHtmlField'],
+    });
+    expect(resolveFieldComponent({ component: null, schemaType: null, fallback: { html: '' } }, registry('ServerHtmlField'))).toEqual({
+      name: null,
+      tried: [],
+    });
   });
 });

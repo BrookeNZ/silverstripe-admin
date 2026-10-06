@@ -5,9 +5,19 @@ namespace SilverStripe\Admin\UserInterface;
 use SilverStripe\Admin\AdminController;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Control\HTTPResponse;
+use SilverStripe\Security\Security;
 
 /**
- * Serves the pilet feed at admin/pilets for the Piral app shell
+ * Serves the pilet feed at admin/pilets for the Piral app shell.
+ *
+ * The body stays the Piral feed service shape, `{"items": [...]}`. The response carries an ETag of the body
+ * and answers a matching If-None-Match with 304. It is sent `private, no-cache` rather than `no-store`: the
+ * list depends on the member's permissions, so no shared cache may keep it, and the browser must revalidate
+ * on every load, but it may keep a copy so the revalidation can come back as an empty 304.
+ *
+ * A request sent with `X-Requested-With: XMLHttpRequest` that fails the access check gets the CMS JSON error
+ * envelope (401 when nobody is logged in, 403 otherwise) instead of the framework's plain-text 403 or the
+ * redirect to the login form that a plain request still gets.
  */
 class PiletFeedController extends AdminController
 {
@@ -21,12 +31,69 @@ class PiletFeedController extends AdminController
 
     private static string|array $required_permission_codes = 'CMS_ACCESS';
 
+    protected function init()
+    {
+        parent::init();
+
+        $response = $this->getResponse();
+        if ($response->isError() && $this->getRequest()->isAjax()) {
+            $loggedIn = (bool) Security::getCurrentUser();
+            $this->setResponse($this->jsonErrorResponse(
+                $loggedIn ? 403 : 401,
+                $loggedIn ? 'Permission denied' : 'Not logged in',
+                $response->getHeader('X-Reauthenticate')
+            ));
+        }
+    }
+
     public function index(HTTPRequest $request): HTTPResponse
     {
-        $body = json_encode(['items' => PiletFeed::singleton()->getItems()], JSON_THROW_ON_ERROR);
+        $response = $this->jsonSuccess(200, ['items' => PiletFeed::singleton()->getItems()]);
+        $etag = sprintf('"%s"', md5($response->getBody()));
+        $response
+            ->addHeader('ETag', $etag)
+            ->addHeader('Cache-Control', 'private, no-cache');
 
-        return HTTPResponse::create($body)
+        if ($this->etagMatches($request->getHeader('If-None-Match'), $etag)) {
+            $response->setStatusCode(304)->setBody('');
+            $response->removeHeader('Content-Type');
+        }
+        return $response;
+    }
+
+    /**
+     * If-None-Match uses the weak comparison, and a proxy that compresses the body may have weakened the tag
+     */
+    private function etagMatches(?string $ifNoneMatch, string $etag): bool
+    {
+        if (!$ifNoneMatch) {
+            return false;
+        }
+        foreach (explode(',', $ifNoneMatch) as $candidate) {
+            $candidate = trim($candidate);
+            if ($candidate === '*' || preg_replace('#^W/#', '', $candidate) === $etag) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Same envelope as jsonError(), built without throwing because jsonError() reads an undefined $request,
+     * which raises a warning that dev mode would print into the JSON body
+     */
+    private function jsonErrorResponse(int $code, string $message, ?string $reauthenticate): HTTPResponse
+    {
+        $body = json_encode([
+            'status' => 'error',
+            'errors' => [['type' => 'error', 'code' => $code, 'value' => $message]],
+        ], JSON_THROW_ON_ERROR);
+        $response = HTTPResponse::create($body, $code)
             ->addHeader('Content-Type', 'application/json')
             ->addHeader('Cache-Control', 'no-store');
+        if ($reauthenticate) {
+            $response->addHeader('X-Reauthenticate', $reauthenticate);
+        }
+        return $response;
     }
 }

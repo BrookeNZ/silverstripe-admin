@@ -1,0 +1,21 @@
+/**
+ * Unsaved changes indicator
+ *
+ * A status line beside a form's actions. Empty while nothing is unsaved; --notice and --warning
+ * mark changes left unsaved for longer
+ */
+
+.admin-unsaved {
+  --admin-unsaved-fg-color: var(--admin-muted-fg-color);
+
+  align-self: center;
+  color: var(--admin-unsaved-fg-color);
+  font-size: var(--admin-font-size-sm);
+  margin: 0;
+}
+
+.admin-unsaved--warning {
+  --admin-unsaved-fg-color: var(--admin-error-fg-color);
+
+  font-weight: var(--admin-font-weight-bold);
+}

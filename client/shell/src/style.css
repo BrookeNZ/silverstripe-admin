@@ -9,8 +9,10 @@
 :root {
   --shell-badge-bg-color: #005a8c;
   --shell-badge-fg-color: #ffffff;
+  --shell-badge-letter-spacing: 0.06rem;
   --shell-link-bg-hover-color: #2b3a46;
   --shell-link-fg-color: #ffffff;
+  --shell-logo-font-weight: 700;
   --shell-menu-bg-color: #1b2a35;
   --shell-menu-width: 24rem;
   --shell-notification-bg-color: #1a1f24;
@@ -25,7 +27,7 @@ body {
   background-color: var(--admin-bg-color);
   color: var(--admin-fg-color);
   font-family: var(--admin-font-family);
-  font-size: 1.6rem;
+  font-size: var(--admin-font-size-md);
   line-height: 1.5;
   margin: 0;
 }
@@ -36,19 +38,26 @@ body {
   min-height: 100vh;
 }
 
+/* Start alignment stops the grid stretching the menu to the page height, which sticky needs */
 .shell__menu {
+  align-self: start;
   background-color: var(--shell-menu-bg-color);
   color: var(--shell-link-fg-color);
   display: flex;
   flex-direction: column;
   gap: var(--admin-gap-sm);
+  inset-block-start: 0;
+  max-height: 100vh;
+  min-height: 100vh;
+  overflow-y: auto;
   padding: var(--admin-gap-md);
+  position: sticky;
 }
 
 .shell__logo {
   color: var(--shell-link-fg-color);
-  font-size: 2rem;
-  font-weight: 700;
+  font-size: var(--admin-font-size-lg);
+  font-weight: var(--shell-logo-font-weight);
   text-decoration: none;
 }
 
@@ -62,8 +71,8 @@ body {
   background-color: var(--shell-badge-bg-color);
   border-radius: var(--admin-radius);
   color: var(--shell-badge-fg-color);
-  font-size: 1.2rem;
-  letter-spacing: 0.06rem;
+  font-size: var(--admin-font-size-xs);
+  letter-spacing: var(--shell-badge-letter-spacing);
   padding: var(--admin-gap-xs) var(--admin-gap-sm);
   text-transform: uppercase;
 }
@@ -123,10 +132,10 @@ body {
   border: 0;
   color: var(--shell-notification-fg-color);
   cursor: pointer;
-  font-size: 2rem;
+  font-size: var(--admin-font-size-lg);
   line-height: 1;
-  min-height: 2.4rem;
-  min-width: 2.4rem;
+  min-height: var(--admin-target-min-size);
+  min-width: var(--admin-target-min-size);
 }
 
 .piral-notification-close:focus-visible {
@@ -135,7 +144,7 @@ body {
 }
 
 .shell-page__title {
-  font-size: 2.4rem;
+  font-size: var(--admin-font-size-xl);
   margin: 0 0 var(--admin-gap-md);
 }
 

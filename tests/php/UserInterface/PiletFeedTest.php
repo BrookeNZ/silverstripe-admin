@@ -2,6 +2,7 @@
 
 namespace SilverStripe\Admin\Tests\UserInterface;
 
+use Composer\InstalledVersions;
 use SilverStripe\Admin\UserInterface\PiletFeed;
 use SilverStripe\Core\Config\Config;
 use SilverStripe\Dev\SapphireTest;
@@ -17,16 +18,81 @@ class PiletFeedTest extends SapphireTest
     {
         $definition = Config::inst()->get(PiletFeed::class, 'pilets')['silverstripe-admin-fields'] ?? null;
         $this->assertSame('silverstripe/admin:client/dist/pilet/index.js', $definition['link'] ?? null);
-
-        $package = json_decode((string) file_get_contents(__DIR__ . '/../../../client/pilets/fields/package.json'), true);
-        $this->assertSame($package['version'], $definition['version']);
+        // The version comes from Composer, which installed the code; the pilet's package.json is never published
+        $this->assertArrayNotHasKey('version', $definition);
 
         $items = array_column(PiletFeed::singleton()->getItems(), null, 'name');
         $this->assertArrayHasKey('silverstripe-admin-fields', $items);
         $item = $items['silverstripe-admin-fields'];
+        $this->assertSame($this->adminVersion(), $item['version']);
         $this->assertSame('v2', $item['spec']);
         $this->assertSame('webpackChunkpr_silverstripeadminfields', $item['requireRef']);
         $this->assertMatchesRegularExpression('#^https?://.+/client/dist/pilet/index\.js(\?|$)#', $item['link']);
+    }
+
+    public function testVersionIsDerivedWhenTheConfigOmitsIt(): void
+    {
+        Config::modify()->set(PiletFeed::class, 'pilets', [
+            'module' => ['link' => PiletFeedTest::FIXTURE],
+            'project' => ['link' => 'vendor/silverstripe/admin/tests/php/UserInterface/PiletFeedTest/hello.js'],
+            'remote' => ['link' => 'https://cdn.example.test/remote/index.js'],
+        ]);
+
+        $items = array_column(PiletFeed::singleton()->getItems(), 'version', 'name');
+
+        $this->assertSame($this->adminVersion(), $items['module']);
+        $hash = substr(hash_file('sha384', __DIR__ . '/PiletFeedTest/hello.js'), 0, 8);
+        $this->assertSame('0.0.0+' . $hash, $items['project']);
+        $this->assertSame('0.0.0', $items['remote']);
+    }
+
+    public function testComposerVersionsBecomeSemver(): void
+    {
+        Config::modify()->set(PiletFeed::class, 'pilets', ['module' => ['link' => PiletFeedTest::FIXTURE]]);
+
+        $this->assertMatchesRegularExpression(
+            '#^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$#',
+            PiletFeed::singleton()->getItems()[0]['version']
+        );
+    }
+
+    public function testIntegrityIsComputedForFilesOnly(): void
+    {
+        Config::modify()->set(PiletFeed::class, 'pilets', [
+            'hello' => ['link' => PiletFeedTest::FIXTURE],
+            'remote' => ['link' => 'https://cdn.example.test/remote/index.js'],
+            'pinned' => ['link' => 'https://cdn.example.test/pinned/index.js', 'integrity' => 'sha384-abc'],
+        ]);
+
+        $items = array_column(PiletFeed::singleton()->getItems(), null, 'name');
+
+        $expected = 'sha384-' . base64_encode(hash_file('sha384', __DIR__ . '/PiletFeedTest/hello.js', true));
+        $this->assertSame($expected, $items['hello']['integrity']);
+        $this->assertArrayNotHasKey('integrity', $items['remote']);
+        $this->assertSame('sha384-abc', $items['pinned']['integrity']);
+    }
+
+    public function testDisabledEntriesAreDropped(): void
+    {
+        Config::modify()->set(PiletFeed::class, 'pilets', [
+            'off' => ['link' => PiletFeedTest::FIXTURE, 'enabled' => false],
+            'on' => ['link' => PiletFeedTest::FIXTURE, 'enabled' => true],
+            'default' => ['link' => PiletFeedTest::FIXTURE],
+        ]);
+
+        $names = array_column(PiletFeed::singleton()->getItems(), 'name');
+
+        $this->assertSame(['on', 'default'], $names);
+    }
+
+    private function adminVersion(): string
+    {
+        $pretty = (string) InstalledVersions::getPrettyVersion('silverstripe/admin');
+        if (preg_match('#^v?(\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?)$#', $pretty, $matches)) {
+            return $matches[1];
+        }
+        $slug = trim(preg_replace('#[^0-9A-Za-z-]+#', '-', $pretty), '-');
+        return '0.0.0-' . $slug . '+' . substr((string) InstalledVersions::getReference('silverstripe/admin'), 0, 7);
     }
 
     public function testItemsAreBuiltFromTheBuildHeader(): void

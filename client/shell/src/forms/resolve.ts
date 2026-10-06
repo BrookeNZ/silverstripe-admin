@@ -1,11 +1,13 @@
 /**
  * Field component resolution, as a pure function so the order can be tested without a shell.
  *
- * Order: the field's explicit candidates (`componentCandidates`, else its `component`) in order; then,
- * only when the field names no component, the default for its `schemaType`; then nothing, which the
- * renderer shows as a visible missing-field notice. A named but unregistered component never falls to
- * the type default: that would render a tree picker as an empty dropdown, and the legacy FormBuilder
- * never substitutes one either.
+ * A field that names a component tries its explicit candidates (`componentCandidates`, else its
+ * `component`) in order and nothing else: a named but unregistered component never falls to the type
+ * default, which would render a tree picker as an empty dropdown (the legacy FormBuilder never
+ * substitutes one either). A field that names no component tries its own class, then the default for
+ * its `schemaType`, then its parent classes, so a parent class registration never outranks the type
+ * default. Either way, when the admin sent the field's server HTML, the transitional ServerHtmlField
+ * comes last; after that the renderer shows a visible missing-field notice.
  */
 import type { FieldSchema } from './types';
 
@@ -26,7 +28,9 @@ export const schemaTypeComponents: Readonly<Record<string, string>> = {
   MultiSelect: 'CheckboxSetField',
 };
 
-export type ResolvableField = Pick<FieldSchema, 'component' | 'componentCandidates' | 'schemaType'>;
+export type ResolvableField = Pick<FieldSchema, 'component' | 'componentCandidates' | 'schemaType' | 'fallback'>;
+
+export const serverHtmlComponent = 'ServerHtmlField';
 
 export type FieldResolution = { name: string } | { name: null; tried: Array<string> };
 
@@ -42,7 +46,10 @@ export function resolveFieldComponent(field: ResolvableField, isRegistered: (nam
   const tried = explicitCandidates(field);
   const typeDefault = !field.component && field.schemaType ? schemaTypeComponents[field.schemaType] : undefined;
   if (typeDefault) {
-    tried.push(typeDefault);
+    tried.splice(Math.min(tried.length, 1), 0, typeDefault);
+  }
+  if (field.fallback?.html) {
+    tried.push(serverHtmlComponent);
   }
   const name = tried.find(isRegistered);
   return name ? { name } : { name: null, tried };

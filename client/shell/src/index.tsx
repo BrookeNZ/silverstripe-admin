@@ -1,3 +1,5 @@
+// First, so the package tokens precede every stylesheet that reads them
+import '@silverstripe/admin-patterns/styles.css';
 import * as React from 'react';
 import { createRoot } from 'react-dom/client';
 import { createInstance, Piral } from 'piral-core';
@@ -7,7 +9,6 @@ import { FileEditPage } from './assets';
 import { registerBuiltInFields } from './forms/fields';
 import { createLayout, createRouter, errors, Home, readMenu } from './layout';
 import { initialUnsavedChanges } from './unsaved';
-import '@silverstripe/admin-patterns/styles.css';
 import './style.css';
 
 const root = document.querySelector<HTMLElement>('#ss-admin-shell');
@@ -33,7 +34,10 @@ const instance = createInstance({
   },
   plugins: [createNotificationsApi({ defaultOptions: { type: 'info', autoClose: 8000 } }), createSilverstripeApi()],
   requestPilets() {
-    return fetch(feedUrl, { credentials: 'same-origin' }).then((res) => {
+    return fetch(feedUrl, {
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    }).then((res) => {
       if (res.redirected || !res.ok) {
         throw new Error(`The pilet feed answered ${res.status} from ${res.url}`);
       }

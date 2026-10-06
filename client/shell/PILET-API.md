@@ -63,15 +63,25 @@ on the instance with `setSchemaComponent()` is the only candidate.
 
 The shell tries, in order:
 
-1. Each candidate (or `component` when there are none), first registered wins
-2. Only when the field names no component: the `schemaType` default (FormBuilder's
-   `getComponentForDataType` map, for example `Text` to `TextField`)
-3. A visible missing-field notice naming the component; the field's value is still posted
+1. A field that names a component: each candidate (or `component` when there are none), first
+   registered wins, and nothing else
+2. A field that names no component: its own class, then the `schemaType` default (FormBuilder's
+   `getComponentForDataType` map, for example `Text` to `TextField`), then its parent classes, so a
+   parent class registration never outranks the type default
+3. When the schema carries `fallback.html` (sent only for a field with neither component nor
+   `schemaType`, which FormSchema would otherwise reject): the transitional `ServerHtmlField`
+4. A visible missing-field notice naming the component; the field's value is still posted
 
 A named but unregistered component never falls to the type default or to a parent class's component.
 Examples: `SearchableMultiDropdownField` tries `SilverStripe\Forms\SearchableMultiDropdownField`, then
 `SearchableDropdownField`; a project `SlugField extends TextField` tries `App\Forms\SlugField`,
-`SilverStripe\Forms\TextField`, `SilverStripe\Forms\FormField`, then `TextField`.
+`TextField`, `SilverStripe\Forms\TextField`, then `SilverStripe\Forms\FormField`.
+
+Field components also receive `autofill(name, value)`, which sets another posted field by name (a
+focus point picker writing its X and Y fields).
+
+Known limit: schemas served by the framework's `FormRequestHandler::getSchema()` and userforms'
+own `getMultipartSchema()` call bypass the admin's decorator, so they carry no candidates or fallback.
 
 ## Patterns package
 
@@ -84,8 +94,13 @@ used at runtime and its stylesheet is loaded by the shell, so pilets ship neithe
 
 - The shell and pilet builds read the `browserslist` in the fork root `package.json`; building a copy
   outside the fork tree produces different output.
+- `npm install`/`npm ci` in `client/shell` installs and builds `client/patterns` first (preinstall),
+  because the `piral declaration` postinstall needs its built types.
 - `npm run build`, `build:emulator` and `typecheck` build `client/patterns` first. The emulator lists the
   package as a `file:` dependency with an absolute local path, so outside this checkout a pilet needs
   the package published or linked.
 - The fields pilet's lock file pins the emulator tarball, which is gitignored: a fresh clone runs
-  `npm run build:emulator` in `client/shell` before `npm install` in `client/pilets/fields`.
+  `npm run build:emulator` in `client/shell` before `npm install` in `client/pilets/fields`. The
+  tarball embeds an absolute path, so its integrity differs per checkout; `npm ci` accepts the
+  pinned hash anyway, and a rebuilt emulator needs `npm install -D @silverstripe/admin-shell@file:...`
+  to refresh the pin.

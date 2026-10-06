@@ -5,11 +5,11 @@ import {
   CompositeField,
   DatetimeField,
   FieldGroup,
-  FormAction,
   HeaderField,
   HiddenField,
   LiteralField,
   OptionsetField,
+  PopoverField,
   ReadonlyField,
   SingleSelectField,
   TabItem,
@@ -17,6 +17,10 @@ import {
   TextField,
 } from '@silverstripe/admin-patterns';
 import type { FieldComponentProps } from '../types';
+import { serverHtmlComponent } from '../resolve';
+import { ServerHtmlField } from './ServerHtmlField';
+import { ShellFormAction } from './ShellFormAction';
+import { UnsavedChangesIndicatorField } from './UnsavedChangesIndicatorField';
 
 export const builtInFields: Readonly<Record<string, ComponentType<FieldComponentProps<any>>>> = {
   TextField,
@@ -32,7 +36,10 @@ export const builtInFields: Readonly<Record<string, ComponentType<FieldComponent
   FieldGroup,
   Tabs,
   TabItem,
-  FormAction,
+  FormAction: ShellFormAction,
+  PopoverField,
+  UnsavedChangesIndicator: UnsavedChangesIndicatorField,
+  [serverHtmlComponent]: ServerHtmlField,
 };
 
 export function registerBuiltInFields(api: PiletApi): void {

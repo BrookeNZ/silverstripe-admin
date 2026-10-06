@@ -46,6 +46,11 @@ export interface FieldSchema {
   // PHP serialises an empty data map as []
   data: SchemaData | [];
   children?: Array<FieldSchema>;
+  /**
+   * The field's server-rendered holder HTML, sent by the admin module (while the shell flag is on) for
+   * a field that names neither a component nor a schemaType. Transitional
+   */
+  fallback?: { html: string };
 }
 
 export interface FieldState {
@@ -99,5 +104,14 @@ export interface FormFieldBase
  */
 export type FormField<P extends object = {}> = FormFieldBase & Partial<P>;
 
+export interface FormFieldActions {
+  /**
+   * Sets another field's value by its posted name, as FormBuilder's `onAutofill` did; for a field
+   * that drives hidden companions, such as a focus point picker writing its X and Y fields. Names
+   * that are not posted are ignored
+   */
+  autofill(name: string, value: unknown): void;
+}
+
 /** What a field component registered with the Pilet API receives */
-export type FieldComponentProps<V = unknown, P extends object = {}> = FieldProps<V, FormField<P>>;
+export type FieldComponentProps<V = unknown, P extends object = {}> = FieldProps<V, FormField<P>> & FormFieldActions;

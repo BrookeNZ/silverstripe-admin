@@ -11,10 +11,10 @@
  */
 import * as React from 'react';
 import { useController, useForm } from 'react-hook-form';
-import type { Control } from 'react-hook-form';
 import { useGlobalStateContext } from 'piral-core';
 import { setUnsavedChanges, shellOwner } from '../unsaved';
 import { revealField } from '@silverstripe/admin-patterns';
+import { FormRenderContext, useFormRenderContext } from './context';
 import { useFieldComponent } from './useFieldComponent';
 import {
   collectValueFields,
@@ -22,6 +22,7 @@ import {
   encodeSubmission,
   errorField,
   fetchFormSchema,
+  fieldKey,
   mergeFields,
   submitFormSchema,
   uniqueMessages,
@@ -35,31 +36,13 @@ export interface FormSchemaFormProps {
   onSubmitted?(response: FormSchemaResponse, action: FormField): void;
 }
 
-interface FormRenderContextValue {
-  control: Control<FormValues>;
-  submitting: boolean;
-  /** Keys of the posted fields; only these bind to the form library, so nothing else can make it dirty */
-  boundKeys: ReadonlySet<string>;
-  renderFields(fields: Array<FormField>): React.ReactNode;
-}
-
-const FormRenderContext = React.createContext<FormRenderContextValue | null>(null);
-
-function useFormRenderContext(): FormRenderContextValue {
-  const context = React.useContext(FormRenderContext);
-  if (!context) {
-    throw new Error('A form field rendered outside FormSchemaForm');
-  }
-  return context;
-}
-
 const noop = () => undefined;
 
 const BoundField: React.FC<{ field: FormField; Component: React.ComponentType<FieldComponentProps<any>> }> = ({
   field,
   Component,
 }) => {
-  const { control, submitting, renderFields } = useFormRenderContext();
+  const { control, submitting, renderFields, autofill } = useFormRenderContext();
   const { field: binding, fieldState } = useController({ name: field.key, control });
   return (
     <Component
@@ -70,13 +53,14 @@ const BoundField: React.FC<{ field: FormField; Component: React.ComponentType<Fi
       error={fieldState.error?.message ?? field.message?.value}
       submitting={submitting}
       renderFields={renderFields}
+      autofill={autofill}
     />
   );
 };
 
 export const FormFieldSlot: React.FC<{ field: FormField }> = ({ field }) => {
   const Component = useFieldComponent(field);
-  const { submitting, renderFields, boundKeys } = useFormRenderContext();
+  const { submitting, renderFields, boundKeys, autofill } = useFormRenderContext();
   if (boundKeys.has(field.key)) {
     return <BoundField field={field} Component={Component} />;
   }
@@ -89,6 +73,7 @@ export const FormFieldSlot: React.FC<{ field: FormField }> = ({ field }) => {
       error={field.message?.value}
       submitting={submitting}
       renderFields={renderFields}
+      autofill={autofill}
     />
   );
 };
@@ -135,7 +120,7 @@ const LoadedForm: React.FC<LoadedFormProps> = ({ schemaUrl, initialSchema, initi
   const fields = React.useMemo(() => mergeFields(schema.fields, state), [schema, state]);
   const actions = React.useMemo(() => mergeFields(schema.actions, state), [schema, state]);
   const valueFields = React.useMemo(() => collectValueFields(fields), [fields]);
-  const { control, handleSubmit, reset, setError, formState } = useForm<FormValues>({
+  const { control, handleSubmit, reset, setError, setValue, formState } = useForm<FormValues>({
     defaultValues: defaultValues(valueFields),
   });
   const isDirty = React.useRef(false);
@@ -223,15 +208,22 @@ const LoadedForm: React.FC<LoadedFormProps> = ({ schemaUrl, initialSchema, initi
     return handleSubmit((values) => submit(values, actionName, focusedId))(event);
   };
 
-  const context = React.useMemo(
-    () => ({
+  const context = React.useMemo(() => {
+    const boundKeys = new Set(valueFields.map((field) => field.key));
+    return {
       control,
       submitting: formState.isSubmitting,
-      boundKeys: new Set(valueFields.map((field) => field.key)),
+      dirty: formState.isDirty,
+      boundKeys,
       renderFields,
-    }),
-    [control, formState.isSubmitting, valueFields],
-  );
+      autofill(name: string, value: unknown) {
+        const key = fieldKey(name);
+        if (boundKeys.has(key)) {
+          setValue(key, value, { shouldDirty: true });
+        }
+      },
+    };
+  }, [control, formState.isSubmitting, formState.isDirty, valueFields, setValue]);
 
   return (
     <FormRenderContext.Provider value={context}>

@@ -54,9 +54,9 @@
 
 .admin-field__check {
   accent-color: var(--admin-accent-color);
-  height: 1.8rem;
+  height: var(--admin-check-size);
   margin: 0;
-  width: 1.8rem;
+  width: var(--admin-check-size);
 }
 
 .admin-field__check:focus-visible {
