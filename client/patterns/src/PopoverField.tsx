@@ -1,18 +1,22 @@
 import * as React from 'react';
+import { Button } from './Button';
 import { fieldTitle } from './FieldHolder';
+import { MoreHorizontalIcon } from './icons';
 import type { FieldProps } from './types';
 
 /**
  * A disclosure button that shows its child fields in a panel beside it, for secondary actions. The
  * panel closes on Escape (focus returns to the button), on a pointer press outside it and when focus
- * leaves it; its fields stay mounted while it is closed
+ * leaves it; its fields stay mounted while it is closed. Without a visible title the button is the
+ * design's "..." options button, its label kept as hidden text
  */
 export const PopoverField = ({ field, renderFields }: FieldProps) => {
   const [open, setOpen] = React.useState(false);
   const root = React.useRef<HTMLDivElement>(null);
   const button = React.useRef<HTMLButtonElement>(null);
   const panelId = `${field.id}_Popover`;
-  const label = fieldTitle(field) || field.buttonLabel || 'More actions';
+  const title = fieldTitle(field);
+  const label = title || field.buttonLabel || 'More actions';
 
   React.useEffect(() => {
     if (!open) {
@@ -53,18 +57,19 @@ export const PopoverField = ({ field, renderFields }: FieldProps) => {
 
   return (
     <div className="admin-popover" id={field.holderId} ref={root} onKeyDown={onKeyDown} onBlur={onBlur} onPointerDown={onPointerDown}>
-      <button
-        ref={button}
-        className="admin-button"
-        type="button"
+      <Button
+        ref={button as React.Ref<HTMLButtonElement | HTMLAnchorElement>}
+        variant={title ? 'secondary' : 'tertiary'}
         id={field.id}
         aria-expanded={open}
         aria-controls={panelId}
         disabled={field.disabled}
         onClick={() => setOpen(!open)}
+        iconOnly={!title}
+        icon={!title && <MoreHorizontalIcon />}
       >
         {label}
-      </button>
+      </Button>
       <div
         className={field.placement === 'top' ? 'admin-popover__panel admin-popover__panel--top' : 'admin-popover__panel'}
         id={panelId}

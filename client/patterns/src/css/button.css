@@ -1,10 +1,13 @@
 /**
  * Button
  *
- * The CMS Refresh buttons (Figma "Primary button" and "White buttons", 12px semibold labels). The
- * block is the outlined secondary; --primary fills it green, --tertiary drops the fill and border for
- * the grey toolbar buttons, and --icon-only squares the padding round a lone icon. Variants reassign
- * the --admin-button-* tokens. The padding tokens are the design's, measured outside the border
+ * The CMS Refresh buttons (Figma "Primary button" 2:6232 and "White buttons" 2:6153, 12px semibold
+ * labels). The block is the secondary: green outline and label on a white fill (Figma "Save outline"
+ * 2:6241); --primary fills it green (Figma "Publish" 2:6233), --tertiary is the borderless white button
+ * with a grey label for toolbars and menus, and --icon-only squares the padding round a lone icon.
+ * Variants reassign the --admin-button-* tokens. The padding tokens are the design's, measured
+ * outside the border. Hover follows the design for primary (Button/Primary Hover) and tertiary (Grey
+ * 400); the design's secondary hover tint leaves the label at 3.95:1, so secondary has none
  */
 
 .admin-button {
@@ -13,8 +16,9 @@
   --admin-button-border-radius: var(--admin-radius);
   --admin-button-border-width: 0.1rem;
   --admin-button-fg-color: var(--admin-primary-action-color);
-  --admin-button-font-size: var(--admin-font-size-xs);
+  --admin-button-font-size: var(--admin-font-size-sm);
   --admin-button-gap: var(--admin-gap-sm);
+  --admin-button-hover-bg-color: var(--admin-panel-bg-color);
   --admin-button-line-height: 1;
   --admin-button-padding-block: 1rem;
   --admin-button-padding-inline: 1.2rem;
@@ -40,7 +44,16 @@
   transition: var(--admin-transition);
 }
 
+.admin-button:hover:not(:disabled, [aria-disabled="true"]) {
+  --admin-button-bg-color: var(--admin-button-hover-bg-color);
+}
+
 .admin-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.admin-button[aria-busy="true"] {
   cursor: progress;
   opacity: 0.6;
 }
@@ -52,13 +65,16 @@
 
 .admin-button--primary {
   --admin-button-bg-color: var(--admin-primary-action-color);
+  --admin-button-border-color: var(--admin-button-bg-color);
   --admin-button-fg-color: var(--admin-primary-action-fg-color);
+  --admin-button-hover-bg-color: var(--admin-primary-action-hover-color);
 }
 
 .admin-button--tertiary {
-  --admin-button-bg-color: transparent;
-  --admin-button-border-color: transparent;
+  --admin-button-bg-color: var(--admin-panel-bg-color);
+  --admin-button-border-color: var(--admin-button-bg-color);
   --admin-button-fg-color: var(--admin-muted-fg-color);
+  --admin-button-hover-bg-color: var(--admin-divider-color);
   --admin-button-padding-block: 0.8rem;
   --admin-button-padding-inline: 1rem;
 }

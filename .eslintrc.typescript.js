@@ -16,6 +16,8 @@ module.exports = {
         FC: componentStyle,
         'React.FunctionComponent': componentStyle,
         FunctionComponent: componentStyle,
+        'React.VFC': componentStyle,
+        VFC: componentStyle,
       },
     }],
   },

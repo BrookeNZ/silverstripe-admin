@@ -81,6 +81,9 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
 
     public const CSRF_HEADER = 'X-SecurityID';
 
+    // The GridState keys of GridFieldPaginator, GridFieldSortableHeader and GridFieldFilterHeader
+    protected const QUERY_STATE_KEYS = ['GridFieldPaginator', 'GridFieldSortableHeader', 'GridFieldFilterHeader'];
+
     /**
      * Component class => adapter class. An adapter takes the component in its constructor, has a static
      * `adapts(GridFieldComponent): bool`, and implements GridField_ColumnSchemaProvider or
@@ -189,12 +192,14 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
     }
 
     /**
-     * Back to the components' defaults, dropping whatever GridField::handleRequest() read from the request
+     * Returns the paginator, sort and filter state to their defaults, dropping whatever GridField::handleRequest()
+     * read for them from the request; `sort`, `filter` and `page` are this endpoint's only way to set them. State
+     * other components keep (Readonly, CMSMain's ParentID, orderable rows) is left alone.
      */
     public function resetState(GridField $gridField): void
     {
         $data = $gridField->getState();
-        foreach (array_keys($data->toArray()) as $key) {
+        foreach (static::QUERY_STATE_KEYS as $key) {
             unset($data->$key);
         }
         foreach ($gridField->getComponents() as $component) {

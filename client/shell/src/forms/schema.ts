@@ -36,7 +36,7 @@ function asData(data: SchemaData | [] | undefined): SchemaData {
 function sharedFieldProps(
   schema: FieldSchema,
   data: SchemaData,
-): Pick<FormField, 'maxLength' | 'emptyOption' | 'headingLevel' | 'primary' | 'buttonLabel' | 'panelTitle' | 'placement'> {
+): Pick<FormField, 'maxLength' | 'emptyOption' | 'headingLevel' | 'primary' | 'icon' | 'buttonLabel' | 'panelTitle' | 'placement'> {
   return {
     buttonLabel: typeof data.buttonTooltip === 'string' ? data.buttonTooltip : null,
     panelTitle: typeof data.popoverTitle === 'string' ? data.popoverTitle : null,
@@ -44,8 +44,83 @@ function sharedFieldProps(
     maxLength: typeof data.maxlength === 'number' ? data.maxlength : null,
     emptyOption: data.hasEmptyDefault ? String(data.emptyString ?? '') : null,
     headingLevel: typeof data.headingLevel === 'number' ? data.headingLevel : null,
-    primary: /\bbtn--primary\b|\bbtn-primary\b/.test(schema.extraClass ?? ''),
+    primary: isPrimaryAction(schema.name, schema.extraClass ?? '', data),
+    icon: typeof data.icon === 'string' ? data.icon : null,
   };
+}
+
+/**
+ * The legacy FormAction's button style rule: `data.buttonStyle`, else a Bootstrap `btn-*` colour class
+ * (`btn--primary`, which every FormAction carries, is not one), else primary for the save action and
+ * for `ss-ui-action-constructive`
+ */
+function isPrimaryAction(name: string, extraClass: string, data: SchemaData): boolean {
+  if (typeof data.buttonStyle === 'string') {
+    return data.buttonStyle === 'primary';
+  }
+  const style = /(?:^|\s)btn-([a-z][a-z-]*)/.exec(extraClass)?.[1];
+  if (style) {
+    return style === 'primary';
+  }
+  return name === 'action_save' || /(?:^|\s)ss-ui-action-constructive(?:\s|$)/.test(extraClass);
+}
+
+function classList(value: unknown): Array<string> {
+  return typeof value === 'string' ? value.split(/\s+/).filter(Boolean) : [];
+}
+
+/**
+ * The actions as they read once the form has unsaved changes. An action carrying the legacy
+ * `data-text-alternate` attributes (the page form's Saved and Published) swaps to its alternate title,
+ * icon and classes, as LeftAndMain's change tracking did, so "Saved" becomes a primary "Save"
+ */
+export function withChangedActions(actions: Array<FormField>): Array<FormField> {
+  return actions.map((action) => {
+    const children = withChangedActions(action.children);
+    const attributes = action.attributes ?? {};
+    const title = attributes['data-text-alternate'];
+    if (typeof title !== 'string') {
+      return { ...action, children };
+    }
+    const removed = classList(attributes['data-btn-alternate-remove']);
+    const extraClass = [
+      ...classList(action.extraClass).filter((name) => !removed.includes(name)),
+      ...classList(attributes['data-btn-alternate-add']),
+    ].join(' ');
+    const icon = attributes['data-icon-alternate'];
+    return {
+      ...action,
+      children,
+      title,
+      extraClass,
+      icon: typeof icon === 'string' ? icon : action.icon,
+      primary: isPrimaryAction(action.name, extraClass, action.data),
+    };
+  });
+}
+
+/**
+ * The actions laid out for the action bar: a top-level group becomes a row (the legacy MajorActions
+ * button group), and each tab of a top-level tab set (the page form's "More options") becomes a
+ * popover opened by an icon button, the design's options menu
+ */
+export function actionBarFields(actions: Array<FormField>): Array<FormField> {
+  return actions.flatMap((action): Array<FormField> => {
+    if (action.component === 'CompositeField') {
+      return [{ ...action, component: 'FieldGroup', componentCandidates: ['FieldGroup'] }];
+    }
+    if (action.component === 'Tabs') {
+      return action.children.map((tab) => ({
+        ...tab,
+        component: 'PopoverField',
+        componentCandidates: ['PopoverField'],
+        title: null,
+        buttonLabel: typeof tab.title === 'string' ? tab.title : null,
+        placement: 'top',
+      }));
+    }
+    return [action];
+  });
 }
 
 /**

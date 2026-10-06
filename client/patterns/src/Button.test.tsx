@@ -2,7 +2,7 @@
 import * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Button } from './Button';
 import { SearchIcon } from './icons';
 
@@ -68,13 +68,8 @@ describe('Button', () => {
     expect(button.querySelector('svg')?.getAttribute('focusable')).toBe('false');
   });
 
-  it('disables a button while disabled or loading, and drops the href of a disabled link', () => {
+  it('disables a button while disabled, and drops the href of a disabled link', () => {
     expect((render(<Button disabled>Save</Button>) as HTMLButtonElement).disabled).toBe(true);
-    container.remove();
-
-    const loading = render(<Button loading>Save</Button>) as HTMLButtonElement;
-    expect(loading.disabled).toBe(true);
-    expect(loading.getAttribute('aria-busy')).toBe('true');
     container.remove();
 
     const link = render(
@@ -84,6 +79,66 @@ describe('Button', () => {
     );
     expect(link.hasAttribute('href')).toBe(false);
     expect(link.getAttribute('aria-disabled')).toBe('true');
+    expect(link.tabIndex).toBe(-1);
+  });
+
+  it('keeps focus when loading starts, and swallows clicks while loading', () => {
+    const onClick = vi.fn();
+    const root = document.createElement('div');
+    document.body.append(root);
+    container = root as HTMLDivElement;
+    const reactRoot = createRoot(root);
+    act(() => reactRoot.render(<Button onClick={onClick}>Save</Button>));
+    const button = root.firstElementChild as HTMLButtonElement;
+    button.focus();
+
+    act(() =>
+      reactRoot.render(
+        <Button onClick={onClick} loading>
+          Save
+        </Button>,
+      ),
+    );
+    expect(document.activeElement).toBe(button);
+    expect(button.disabled).toBe(false);
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    expect(button.getAttribute('aria-busy')).toBe('true');
+    act(() => button.click());
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('takes a disabled or loading link out of the tab order and swallows its clicks', () => {
+    for (const props of [{ disabled: true }, { loading: true }]) {
+      const onClick = vi.fn();
+      const link = render(
+        <Button href="/admin/new" onClick={onClick} {...props}>
+          Add new
+        </Button>,
+      );
+      expect(link.hasAttribute('href')).toBe(false);
+      expect(link.getAttribute('aria-disabled')).toBe('true');
+      expect(link.tabIndex).toBe(-1);
+      act(() => link.click());
+      expect(onClick).not.toHaveBeenCalled();
+      container.remove();
+    }
+    container = document.createElement('div');
+  });
+
+  it('names an icon-only button by aria-label when it has no text, and warns when it has neither', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const button = render(<Button iconOnly icon={<SearchIcon />} aria-label="Search" />);
+    expect(button.getAttribute('aria-label')).toBe('Search');
+    expect(button.querySelector('span')).toBeNull();
+    expect(warn).not.toHaveBeenCalled();
+    container.remove();
+
+    render(<Button iconOnly icon={<SearchIcon />} aria-label=" " />);
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
+
+    // @ts-expect-error an icon-only button needs aria-label or children
+    void (<Button iconOnly icon={<SearchIcon />} />);
   });
 
   it('submits when asked, carrying its name and value', () => {

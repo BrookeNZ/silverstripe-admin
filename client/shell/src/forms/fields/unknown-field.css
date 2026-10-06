@@ -22,7 +22,6 @@
 
 .shell-unknown-field__detail {
   color: var(--admin-fg-color);
-  font-size: var(--admin-font-size-sm);
   margin: 0;
 }
 

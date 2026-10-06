@@ -2,11 +2,13 @@
  * Field groups, headings and literal content
  *
  * Structural pieces inside a form or panel: groups stack their fields, or lay them in a row with
- * --row. Direction tokens sit on the group itself so a stacked group nested in a row stays stacked
+ * --row. Direction tokens sit on the group itself so a stacked group nested in a row stays stacked;
+ * a host retints the gap and the row alignment through the :root tokens
  */
 
 :root {
   --admin-group-gap: var(--admin-gap-md);
+  --admin-group-row-align: baseline;
 }
 
 .admin-group {
@@ -21,12 +23,12 @@
 }
 
 .admin-group--row {
-  --admin-group-align: baseline;
+  --admin-group-align: var(--admin-group-row-align);
   --admin-group-direction: row;
 }
 
 .admin-heading {
-  font-size: var(--admin-font-size-xl);
+  font-size: var(--admin-font-size-xxl);
   line-height: 1.2;
   margin: 0;
   overflow-wrap: anywhere;

@@ -35,7 +35,6 @@
 
 .preview-image-field__filename {
   color: var(--admin-muted-fg-color);
-  font-size: var(--admin-font-size-sm);
   overflow-wrap: anywhere;
 }
 

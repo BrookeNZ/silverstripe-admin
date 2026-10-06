@@ -13,6 +13,7 @@ use SilverStripe\Control\Session;
 use SilverStripe\Core\Config\Config;
 use SilverStripe\Dev\FunctionalTest;
 use SilverStripe\Forms\GridField\GridField;
+use SilverStripe\Forms\GridField\GridFieldConfig_RecordEditor;
 use SilverStripe\Security\SecurityToken;
 
 class GridFieldRowsEndpointTest extends FunctionalTest
@@ -126,6 +127,25 @@ class GridFieldRowsEndpointTest extends FunctionalTest
             $this->assertSame([], $body['sort'], $key);
             $this->assertSame(2, $body['pagination']['pageSize'], $key);
         }
+    }
+
+    public function testResetKeepsStateTheQueryComponentsDoNotOwn(): void
+    {
+        $grid = GridField::create('Teams', 'Teams', Team::get(), GridFieldConfig_RecordEditor::create(2));
+        $state = $grid->getState();
+        $state->ParentID = 7;
+        $state->GridFieldOrderableRows = ['enabled' => true];
+        $state->GridFieldPaginator->currentPage = 3;
+        $state->GridFieldSortableHeader->SortColumn = 'City';
+        $state->GridFieldFilterHeader->Columns = ['Name' => 'x'];
+
+        (new GridFieldRowsEndpoint())->resetState($grid);
+
+        $this->assertSame(7, $state->ParentID);
+        $this->assertTrue($state->GridFieldOrderableRows->enabled);
+        $this->assertSame(1, $state->GridFieldPaginator->currentPage);
+        $this->assertNull($state->GridFieldSortableHeader->SortColumn);
+        $this->assertSame([], $state->GridFieldFilterHeader->Columns->toArray());
     }
 
     public function testInvalidParametersAreJsonBadRequests(): void

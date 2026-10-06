@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { errorField, mergeFields, schemaText, serverMessage, uniqueMessages, withoutFields } from './schema';
+import {
+  actionBarFields,
+  errorField,
+  mergeFields,
+  schemaText,
+  serverMessage,
+  uniqueMessages,
+  withChangedActions,
+  withoutFields,
+} from './schema';
 import type { FieldSchema } from './types';
 
 const schemaField = (name: string, id: string): FieldSchema => ({
@@ -92,5 +101,118 @@ describe('schemaText', () => {
     expect(schemaText('Plain')).toBe('Plain');
     expect(schemaText(null)).toBeNull();
     expect(schemaText(false)).toBe(false);
+  });
+});
+
+const action = (name: string, extraClass: string, extra: Partial<FieldSchema> = {}): FieldSchema => ({
+  ...schemaField(name, `Form_EditForm_${name}`),
+  type: 'submit',
+  schemaType: null,
+  component: 'FormAction',
+  extraClass,
+  ...extra,
+});
+
+// The page form's actions as SiteTree::getCMSActions() sends them for a published, unchanged page
+const pageActions = (): Array<FieldSchema> => [
+  {
+    ...schemaField('MajorActions', 'Form_EditForm_MajorActions'),
+    component: 'CompositeField',
+    schemaType: 'Structural',
+    children: [
+      action('action_save', 'action btn btn--primary btn-outline-primary', {
+        title: 'Saved',
+        data: { icon: 'tick' },
+        attributes: {
+          'data-icon-alternate': 'save',
+          'data-btn-alternate-add': 'btn-primary',
+          'data-btn-alternate-remove': 'btn-outline-primary',
+          'data-text-alternate': 'Save',
+        },
+      }),
+      action('action_publish', 'action btn btn--primary btn-outline-primary', {
+        title: 'Published',
+        data: { icon: 'tick' },
+        attributes: {
+          'data-icon-alternate': 'rocket',
+          'data-btn-alternate-add': 'btn-primary',
+          'data-btn-alternate-remove': 'btn-outline-primary',
+          'data-text-alternate': 'Publish',
+        },
+      }),
+    ],
+  },
+  {
+    ...schemaField('ActionMenus', 'Form_EditForm_ActionMenus'),
+    component: 'Tabs',
+    schemaType: 'Structural',
+    children: [
+      {
+        ...schemaField('MoreOptions', 'Form_EditForm_MoreOptions'),
+        title: 'More options',
+        component: 'TabItem',
+        schemaType: 'Structural',
+        children: [action('action_unpublish', 'action btn btn--primary btn-secondary')],
+      },
+    ],
+  },
+];
+
+describe('action variants', () => {
+  it('follows the legacy FormAction rule: a Bootstrap colour class, else save and constructive are primary', () => {
+    const actions = mergeFields(
+      [
+        action('action_publish', 'action btn btn--primary btn-primary'),
+        action('action_save', 'action btn btn--primary btn-outline-primary'),
+        action('action_save', 'action btn btn--primary'),
+        action('action_publish', 'action btn btn--primary'),
+        action('action_doSomething', 'action btn ss-ui-action-constructive'),
+        action('action_delete', 'action btn btn--primary', { data: { buttonStyle: 'primary' } }),
+      ],
+      undefined,
+    );
+    expect(actions.map((field) => field.primary)).toEqual([true, false, true, false, true, true]);
+  });
+
+  it('reads the action icon from the schema data', () => {
+    const [save] = mergeFields([action('action_save', 'btn', { data: { icon: 'tick' } })], undefined);
+    expect(save.icon).toBe('tick');
+  });
+});
+
+describe('withChangedActions', () => {
+  it('swaps Saved and Published to their primary alternates at any depth', () => {
+    const merged = mergeFields(pageActions(), undefined);
+    expect(merged[0].children.map((field) => [field.title, field.primary, field.icon])).toEqual([
+      ['Saved', false, 'tick'],
+      ['Published', false, 'tick'],
+    ]);
+    const [group] = withChangedActions(merged);
+    expect(group.children.map((field) => [field.title, field.primary, field.icon, field.extraClass])).toEqual([
+      ['Save', true, 'save', 'action btn btn--primary btn-primary'],
+      ['Publish', true, 'rocket', 'action btn btn--primary btn-primary'],
+    ]);
+  });
+
+  it('returns actions without alternates unchanged', () => {
+    const merged = mergeFields([action('action_unpublish', 'btn btn-secondary')], undefined);
+    expect(withChangedActions(merged)).toEqual(merged);
+  });
+});
+
+describe('actionBarFields', () => {
+  it('lays the major actions in a row and turns each More options tab into an untitled popover opening upwards', () => {
+    const [group, menu, ...rest] = actionBarFields(mergeFields(pageActions(), undefined));
+    expect(rest).toEqual([]);
+    expect(group).toMatchObject({ name: 'MajorActions', component: 'FieldGroup', componentCandidates: ['FieldGroup'] });
+    expect(menu).toMatchObject({
+      name: 'MoreOptions',
+      component: 'PopoverField',
+      componentCandidates: ['PopoverField'],
+      title: null,
+      buttonLabel: 'More options',
+      placement: 'top',
+    });
+    expect(menu.children.map((field) => field.name)).toEqual(['action_unpublish']);
   });
 });

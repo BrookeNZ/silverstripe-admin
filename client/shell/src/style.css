@@ -59,7 +59,7 @@ body {
 
 .shell__logo {
   color: var(--shell-link-fg-color);
-  font-size: var(--admin-font-size-lg);
+  font-size: var(--admin-font-size-xl);
   font-weight: var(--shell-logo-font-weight);
   text-decoration: none;
 }
@@ -74,7 +74,7 @@ body {
   background-color: var(--shell-badge-bg-color);
   border-radius: var(--admin-radius);
   color: var(--shell-badge-fg-color);
-  font-size: var(--admin-font-size-xs);
+  font-size: var(--admin-font-size-sm);
   letter-spacing: var(--shell-badge-letter-spacing);
   padding: var(--admin-gap-xs) var(--admin-gap-sm);
   text-transform: uppercase;
@@ -121,13 +121,16 @@ body {
   display: flex;
   flex: 1;
   flex-direction: column;
-  padding: var(--admin-gap-md);
 }
 
 .shell-page {
+  --shell-form-actions-bleed: var(--shell-page-padding);
+  --shell-page-padding: var(--admin-gap-md);
+
   display: flex;
   flex: 1;
   flex-direction: column;
+  padding: var(--shell-page-padding);
 }
 
 .piral-notifications-host {
@@ -154,7 +157,7 @@ body {
   border: 0;
   color: var(--shell-notification-fg-color);
   cursor: pointer;
-  font-size: var(--admin-font-size-lg);
+  font-size: var(--admin-font-size-xl);
   line-height: 1;
   min-height: var(--admin-target-min-size);
   min-width: var(--admin-target-min-size);
@@ -166,7 +169,7 @@ body {
 }
 
 .shell-page__title {
-  font-size: var(--admin-font-size-xl);
+  font-size: var(--admin-font-size-xxl);
   margin: 0 0 var(--admin-gap-md);
 }
 

@@ -1,4 +1,4 @@
-// @vitest-environment happy-dom
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { prepareGridHtml, resolveCell } from './cells';
 import type { GridColumn } from './types';
@@ -20,8 +20,7 @@ describe('resolveCell', () => {
 
 describe('prepareGridHtml', () => {
   it('drops handlers and links and disables controls that would submit the CMS form', () => {
-    const html = prepareGridHtml('<a href="/admin/x" onclick="go()">x</a><button name="action_archive">Archive</button>');
-    const body = new DOMParser().parseFromString(html, 'text/html').body;
+    const body = prepareGridHtml('<a href="/admin/x" onclick="go()">x</a><button name="action_archive">Archive</button>');
 
     expect(body.querySelector('a')?.hasAttribute('href')).toBe(false);
     expect(body.querySelector('a')?.hasAttribute('onclick')).toBe(false);

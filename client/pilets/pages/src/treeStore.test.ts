@@ -57,7 +57,7 @@ function fakeApi() {
       return {
         items: path.map((ancestor) => ({ ...node(ancestor), page: pageOf(ancestor) })),
         node: { id, parentId: titles[id][1], page: pageOf(id) },
-        limit,
+        pageSize: limit,
       };
     }),
     search: vi.fn(),

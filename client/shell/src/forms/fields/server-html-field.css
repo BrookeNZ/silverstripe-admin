@@ -18,7 +18,6 @@
 
 .shell-server-html__marker {
   color: var(--admin-muted-fg-color);
-  font-size: var(--admin-font-size-sm);
   margin: 0;
 }
 

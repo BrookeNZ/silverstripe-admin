@@ -45,20 +45,23 @@ export const TextCell = ({ value }: GridCellProps) => <>{cellText(value)}</>;
  * Server HTML for a cell or slot: prepared like a server HTML field, and its controls disabled, because
  * the grid sits inside the CMS form and a server button would submit it; its action is not ported yet
  */
-export function prepareGridHtml(html: string): string {
-  const body = new DOMParser().parseFromString(prepareServerHtml(html).html, 'text/html').body;
-  for (const control of Array.from(body.querySelectorAll('button, input, select, textarea'))) {
+export function prepareGridHtml(html: string): DocumentFragment {
+  const { fragment } = prepareServerHtml(html);
+  for (const control of Array.from(fragment.querySelectorAll('button, input, select, textarea'))) {
     control.setAttribute('disabled', '');
     if (control.tagName === 'BUTTON') {
       control.setAttribute('type', 'button');
     }
   }
-  return body.innerHTML;
+  return fragment;
 }
 
 export const HtmlContent = ({ html, className }: { html: string; className?: string }) => {
-  const prepared = React.useMemo(() => prepareGridHtml(html), [html]);
-  return <span className={className} dangerouslySetInnerHTML={{ __html: prepared }} />;
+  const content = React.useRef<HTMLSpanElement>(null);
+  React.useLayoutEffect(() => {
+    content.current?.replaceChildren(prepareGridHtml(html));
+  }, [html]);
+  return <span className={className} ref={content} />;
 };
 
 export interface GridCellContentProps {

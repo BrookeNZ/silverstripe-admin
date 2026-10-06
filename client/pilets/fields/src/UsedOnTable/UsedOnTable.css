@@ -57,7 +57,6 @@
 .used-on__type {
   color: var(--admin-muted-fg-color);
   display: block;
-  font-size: var(--admin-font-size-sm);
 }
 
 .used-on__message {

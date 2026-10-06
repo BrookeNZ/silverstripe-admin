@@ -8,6 +8,7 @@
   "dependencies": {
     "@silverstripe/admin-patterns": "file:../patterns",
     "@tanstack/react-table": "9.2.6",
+    "dompurify": "^3.4.16",
     "piral-base": "1.12.4",
     "piral-core": "1.12.4",
     "piral-notifications": "^1.12.4",
@@ -49,6 +50,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "happy-dom": "^20.14.5",
+    "jsdom": "^30.1.2",
     "piral-cli": "1.12.4",
     "piral-cli-webpack5": "1.12.4",
     "typescript": "^5",

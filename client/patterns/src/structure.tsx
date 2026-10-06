@@ -73,6 +73,7 @@ export const Tabs = ({ field, renderFields }: FieldProps) => {
   return (
     <div className="admin-tabs" id={field.id} ref={root}>
       <TabStrip
+        className="admin-tab-strip--lined"
         role="tablist"
         aria-label={fieldTitle(field) || undefined}
         onKeyDown={onKeyDown}

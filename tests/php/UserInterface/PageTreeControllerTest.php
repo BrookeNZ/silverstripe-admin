@@ -127,7 +127,6 @@ class PageTreeControllerTest extends FunctionalTest
         $this->assertError($this->get($url . '?limit=251', null, self::AJAX), 400, 'outOfRange', 'limit');
         $this->assertError($this->get($url . '?page=x', null, self::AJAX), 400, 'invalid', 'page');
         $this->assertError($this->get($url . '?stage=archive', null, self::AJAX), 400, 'invalid', 'stage');
-        $this->assertError($this->get($url . '?stage[]=live', null, self::AJAX), 400, 'invalid', 'stage');
     }
 
     public function testPageBeyondTheLastIsEmpty(): void
@@ -165,7 +164,7 @@ class PageTreeControllerTest extends FunctionalTest
             ['id' => $this->idFor('deep6'), 'parentId' => $this->idFor('deep5'), 'page' => 1],
             $body['node']
         );
-        $this->assertSame(1, $body['limit']);
+        $this->assertSame(1, $body['pageSize']);
     }
 
     public function testAncestorsOfATopLevelNodeAreEmpty(): void

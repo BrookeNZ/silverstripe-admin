@@ -42,7 +42,7 @@ export interface AncestorsResponse {
   /** From the top-level ancestor down to the parent; `page` is the page of its parent's children it is on */
   items: Array<PageNode & { page: number | null }>;
   node: { id: number; parentId: number; page: number | null };
-  limit: number;
+  pageSize: number;
 }
 
 export interface SearchResponse {

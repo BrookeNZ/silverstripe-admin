@@ -144,17 +144,17 @@ export class TreeStore {
     if (known) {
       return known;
     }
-    const { items, node, limit } = await this.api.ancestors(id, this.firstLimit);
+    const { items, node, pageSize } = await this.api.ancestors(id, this.firstLimit);
     this.upsert(items);
     const steps = [...items.map((item) => ({ parentId: item.parentId, page: item.page })), node];
-    await Promise.all(steps.map((step) => this.loadThrough(step.parentId, (step.page ?? 1) * limit)));
+    await Promise.all(steps.map((step) => this.loadThrough(step.parentId, (step.page ?? 1) * pageSize)));
     return items.map((item) => item.id);
   }
 
   /** Re-reads a page's row (title, flags, children) from its parent's listing, after a save */
   async refresh(id: number): Promise<void> {
-    const { node, limit } = await this.api.ancestors(id, this.firstLimit);
-    const { items } = await this.api.children(node.parentId, node.page ?? 1, limit);
+    const { node, pageSize } = await this.api.ancestors(id, this.firstLimit);
+    const { items } = await this.api.children(node.parentId, node.page ?? 1, pageSize);
     this.upsert(items.filter((item) => this.nodes.has(item.id)));
   }
 

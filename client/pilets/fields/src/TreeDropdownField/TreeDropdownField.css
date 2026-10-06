@@ -60,10 +60,6 @@
   flex-direction: column;
 }
 
-.treedropdownfield__option-context {
-  font-size: var(--admin-font-size-sm);
-}
-
 .treedropdownfield__option-button {
   background-color: var(--admin-panel-bg-color);
   border: var(--admin-border);

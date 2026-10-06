@@ -3,6 +3,7 @@
 namespace SilverStripe\Admin\UserInterface;
 
 use Psr\Log\LoggerInterface;
+use ReflectionMethod;
 use SilverStripe\Admin\AdminController;
 use SilverStripe\Control\Director;
 use SilverStripe\Control\HTTPRequest;
@@ -13,6 +14,7 @@ use SilverStripe\ORM\DataList;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\Hierarchy\Hierarchy;
 use SilverStripe\Security\InheritedPermissions;
+use SilverStripe\Security\Permission;
 use SilverStripe\Security\PermissionChecker;
 use SilverStripe\Security\Security;
 use SilverStripe\Versioned\Versioned;
@@ -68,6 +70,11 @@ class PageTreeController extends AdminController
      * @var array<int, array<DataObject>> viewable children per parent ID, for the current request and stage
      */
     private array $viewableChildren = [];
+
+    /**
+     * @var array<string, bool>
+     */
+    private array $overridesCanView = [];
 
     protected function init()
     {
@@ -154,7 +161,7 @@ class PageTreeController extends AdminController
      * GET pages/tree/ancestors/<id>?limit=&stage=
      *
      * `items` runs from the top-level ancestor down to the node's parent. Each item and `node` carry `page`, the
-     * page of its parent's children (at `limit` per page) that it falls on, so a client can load just the pages
+     * page of its parent's children (at `pageSize`, the `limit` parameter, per page) that it falls on, so a client can load just the pages
      * needed to expand down to the node and scroll to it.
      */
     public function ancestors(HTTPRequest $request): HTTPResponse
@@ -194,7 +201,7 @@ class PageTreeController extends AdminController
                     'parentId' => (int) $record->ParentID,
                     'page' => $this->pageOf($record, $limit),
                 ],
-                'limit' => $limit,
+                'pageSize' => $limit,
             ];
             $this->extend('updateApiAncestors', $data, $record);
             return $this->jsonSuccess(200, $data);
@@ -234,25 +241,26 @@ class PageTreeController extends AdminController
             $matches = $this->visibleList()
                 ->filterAny(['Title:PartialMatch' => $query, 'MenuTitle:PartialMatch' => $query])
                 ->sort(['Title' => 'ASC', 'ID' => 'ASC']);
-            $viewable = [];
-            foreach (array_chunk($matches->toArray(), 500) as $chunk) {
-                $this->prepopulateVersionCache($chunk);
-                foreach ($chunk as $match) {
-                    if ($match->canView()) {
-                        $viewable[] = $match;
-                    }
-                }
-            }
+            $parentOf = array_combine(
+                array_map('intval', $matches->column('ID')),
+                array_map('intval', $matches->column('ParentID'))
+            );
+            $viewable = array_intersect_key($parentOf, array_flip($this->viewableIds(array_keys($parentOf))));
             $ancestorIds = $this->ancestorIdsOf($viewable);
-            $hiddenAncestors = $this->unviewableIds(array_unique(array_merge([], ...array_values($ancestorIds))));
-            $reachable = array_values(array_filter(
-                $viewable,
-                fn (DataObject $match) => !array_intersect($ancestorIds[(int) $match->ID], $hiddenAncestors)
+            $ancestors = array_unique(array_merge([], ...array_values($ancestorIds)));
+            $hiddenAncestors = array_diff($ancestors, $this->viewableIds($ancestors));
+            $reachable = array_keys(array_filter(
+                $ancestorIds,
+                fn (array $path) => !array_intersect($path, $hiddenAncestors)
             ));
-            $slice = $this->pageSlice($reachable, $page, $limit);
+            $sliceIds = $this->pageSlice($reachable, $page, $limit);
+            $records = DataObject::get($this->modelClass())->filter('ID', $sliceIds ?: [0])->toArray();
+            $byId = array_combine(array_map(fn (DataObject $record) => (int) $record->ID, $records), $records);
+            $slice = array_values(array_filter(array_map(fn (int $id) => $byId[$id] ?? null, $sliceIds)));
+            $this->prepopulateVersionCache($slice);
             $items = $this->serialiseNodes($slice);
             foreach ($slice as $index => $match) {
-                $items[$index]['ancestorIds'] = $ancestorIds[$match->ID];
+                $items[$index]['ancestorIds'] = $ancestorIds[(int) $match->ID];
             }
             $data = [
                 'items' => $items,
@@ -313,7 +321,8 @@ class PageTreeController extends AdminController
         }
         $candidates = $this->visibleList()->filter('ParentID', $parentId)->toArray();
         $this->prepopulateVersionCache($candidates);
-        $children = array_values(array_filter($candidates, fn (DataObject $child) => $child->canView()));
+        $viewable = array_flip($this->viewableIds(array_map(fn (DataObject $child) => (int) $child->ID, $candidates)));
+        $children = array_values(array_filter($candidates, fn (DataObject $child) => isset($viewable[(int) $child->ID])));
         return $this->viewableChildren[$parentId] = $children;
     }
 
@@ -347,22 +356,53 @@ class PageTreeController extends AdminController
     }
 
     /**
+     * The IDs among $ids the current member can view, in their order. Where the model's canView() is
+     * SiteTree's, it is evaluated here without its walk up the parents, which costs queries per level for every
+     * record: extensions and the view-all override as canView() has them, then the permission checker's batch
+     * check, which resolves Inherit in one query per tree level for the whole set. A class that overrides
+     * canView() still gets its own canView() call.
+     *
      * @param array<int> $ids
      * @return array<int>
      */
-    private function unviewableIds(array $ids): array
+    private function viewableIds(array $ids): array
     {
-        $unviewable = [];
+        $checker = $this->permissionChecker();
+        $member = Security::getCurrentUser();
+        $viewAll = $member && Permission::checkMember($member, ['ADMIN', 'SITETREE_VIEW_ALL']);
+        $viewable = [];
         foreach (array_chunk($ids, 500) as $chunk) {
             $records = DataObject::get($this->modelClass())->filter('ID', $chunk)->toArray();
             $this->prepopulateVersionCache($records);
+            $inherited = $checker instanceof InheritedPermissions && !$viewAll
+                ? $checker->canViewMultiple($chunk, $member, false)
+                : [];
+            $allowed = [];
             foreach ($records as $record) {
-                if (!$record->canView()) {
-                    $unviewable[] = (int) $record->ID;
+                if (!$checker instanceof InheritedPermissions || $this->overridesCanView($record)) {
+                    $allowed[(int) $record->ID] = (bool) $record->canView($member);
+                    continue;
+                }
+                $extended = $record->extendedCan('canView', $member);
+                $allowed[(int) $record->ID] = $extended ?? ($viewAll || !empty($inherited[(int) $record->ID]));
+            }
+            foreach ($chunk as $id) {
+                if (!empty($allowed[$id])) {
+                    $viewable[] = $id;
                 }
             }
         }
-        return $unviewable;
+        return $viewable;
+    }
+
+    private function overridesCanView(DataObject $record): bool
+    {
+        $class = get_class($record);
+        if (!isset($this->overridesCanView[$class])) {
+            $declaring = (new ReflectionMethod($record, 'canView'))->getDeclaringClass()->getName();
+            $this->overridesCanView[$class] = $declaring !== $this->modelClass();
+        }
+        return $this->overridesCanView[$class];
     }
 
     private function pageOf(DataObject $record, int $limit): ?int
@@ -376,15 +416,13 @@ class PageTreeController extends AdminController
     }
 
     /**
-     * @param array<DataObject> $records
-     * @return array<int, array<int>> record ID => IDs from the top-level ancestor down to the parent
+     * @param array<int, int> $matches record ID => parent ID
+     * @return array<int, array<int>> record ID => IDs from the top-level ancestor down to the parent, in the
+     * order of $matches
      */
-    private function ancestorIdsOf(array $records): array
+    private function ancestorIdsOf(array $matches): array
     {
-        $parentOf = [];
-        foreach ($records as $record) {
-            $parentOf[(int) $record->ID] = (int) $record->ParentID;
-        }
+        $parentOf = $matches;
         $pending = array_diff(array_unique(array_values($parentOf)), [0], array_keys($parentOf));
         while ($pending) {
             $found = DataObject::get($this->modelClass())->filter('ID', $pending)->map('ID', 'ParentID')->toArray();
@@ -395,14 +433,14 @@ class PageTreeController extends AdminController
         }
 
         $paths = [];
-        foreach ($records as $record) {
+        foreach (array_keys($matches) as $matchId) {
             $path = [];
-            $id = $parentOf[(int) $record->ID];
+            $id = $parentOf[$matchId];
             while ($id && !in_array($id, $path)) {
                 array_unshift($path, $id);
                 $id = $parentOf[$id] ?? 0;
             }
-            $paths[(int) $record->ID] = $path;
+            $paths[$matchId] = $path;
         }
         return $paths;
     }

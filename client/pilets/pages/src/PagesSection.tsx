@@ -14,10 +14,12 @@
 import * as React from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { PageComponentProps, SectionHeader } from '@silverstripe/admin-shell';
-import { fieldTitle } from '@silverstripe/admin-patterns';
+import { fieldTitle, Toggle } from '@silverstripe/admin-patterns';
 import { ApiError, createTreeApi } from './api';
 import { PageSearch } from './PageSearch';
 import { PageTree } from './PageTree';
+import { stageOptions } from './stage';
+import type { PageStage } from './stage';
 import { TreeStore } from './treeStore';
 import { currentPageDataKey, recordsChangedEvent } from './events';
 import type { RecordsChangedEvent } from './events';
@@ -111,11 +113,13 @@ export function createPagesSection(options: PagesSectionOptions): React.Componen
     const currentId = editMatch ? Number(editMatch[1]) : null;
     const [query, setQuery] = React.useState('');
     const [revealError, setRevealError] = React.useState<ApiError | null>(null);
+    const [stage, setStage] = React.useState<PageStage>('draft');
     const FormSchemaForm = React.useMemo(() => piral.getSilverstripeComponent('FormSchemaForm'), [piral]);
 
     React.useEffect(() => {
       setQuery('');
       setRevealError(null);
+      setStage('draft');
     }, [tail]);
 
     React.useEffect(() => {
@@ -169,7 +173,19 @@ export function createPagesSection(options: PagesSectionOptions): React.Componen
               This page could not be found in the tree: {revealError.message}
             </p>
           )}
-          <FormSchemaForm schemaUrl={options.schemaUrl(currentId)} onSubmitted={onSubmitted} trackUnsavedChanges />
+          <FormSchemaForm
+            schemaUrl={options.schemaUrl(currentId)}
+            onSubmitted={onSubmitted}
+            trackUnsavedChanges
+            actionsEnd={
+              <Toggle<PageStage>
+                label="Stage"
+                options={stageOptions(store.node(currentId)?.statusFlags)}
+                value={stage}
+                onChange={setStage}
+              />
+            }
+          />
         </>
       );
     } else if (otherView) {

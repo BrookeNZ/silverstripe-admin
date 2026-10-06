@@ -86,7 +86,7 @@ describe('Tabs', () => {
   it('draws the tablist through the tab strip and moves selection with the arrow keys', () => {
     const root = render(<Tabs {...props} />);
     const list = root.querySelector('[role="tablist"]') as HTMLElement;
-    expect(list.className).toBe('admin-tab-strip');
+    expect(list.className).toBe('admin-tab-strip admin-tab-strip--lined');
     const tabs = () => Array.from(root.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
     expect(tabs().map((button) => button.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false']);
     expect(tabs()[0].getAttribute('aria-controls')).toBe('Main');

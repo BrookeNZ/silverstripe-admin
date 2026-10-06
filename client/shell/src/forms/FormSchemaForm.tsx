@@ -17,6 +17,7 @@ import { revealField } from '@silverstripe/admin-patterns';
 import { FormRenderContext, useFormRenderContext } from './context';
 import { useFieldComponent } from './useFieldComponent';
 import {
+  actionBarFields,
   collectValueFields,
   defaultValues,
   encodeSubmission,
@@ -24,6 +25,7 @@ import {
   fetchFormSchema,
   fieldKey,
   mergeFields,
+  withChangedActions,
   withoutFields,
   submitFormSchema,
   uniqueMessages,
@@ -43,6 +45,8 @@ export interface FormSchemaFormProps {
   renderLoadError?(error: unknown): React.ReactNode;
   /** Reports unsaved changes even when the form state does not ask to, as legacy change tracking did for every CMS edit form */
   trackUnsavedChanges?: boolean;
+  /** Controls the host adds to the right-hand end of the action bar, such as the draft and published toggle */
+  actionsEnd?: React.ReactNode;
 }
 
 const noop = () => undefined;
@@ -132,6 +136,7 @@ const LoadedForm = ({
   onStateChange,
   omitFields = noFields,
   trackUnsavedChanges,
+  actionsEnd,
 }: LoadedFormProps) => {
   const [schema, setSchema] = React.useState(initialSchema);
   const [state, setState] = React.useState(initialState);
@@ -230,6 +235,11 @@ const LoadedForm = ({
     return handleSubmit((values) => submit(values, actionName, focusedId))(event);
   };
 
+  const barActions = React.useMemo(
+    () => actionBarFields(formState.isDirty ? withChangedActions(actions) : actions),
+    [actions, formState.isDirty],
+  );
+
   const context = React.useMemo(() => {
     const boundKeys = new Set(valueFields.map((field) => field.key));
     return {
@@ -262,7 +272,10 @@ const LoadedForm = ({
           </p>
         ))}
         {renderFields(fields)}
-        <div className="shell-form__actions">{renderFields(actions)}</div>
+        <div className="shell-form__actions">
+          {renderFields(barActions)}
+          {actionsEnd && <div className="shell-form__actions-end">{actionsEnd}</div>}
+        </div>
       </form>
     </FormRenderContext.Provider>
   );
@@ -280,6 +293,7 @@ export const FormSchemaForm = ({
   omitFields,
   renderLoadError,
   trackUnsavedChanges,
+  actionsEnd,
 }: FormSchemaFormProps) => {
   const [load, setLoad] = React.useState<LoadState>({ status: 'loading' });
 
@@ -324,6 +338,7 @@ export const FormSchemaForm = ({
       onStateChange={onStateChange}
       omitFields={omitFields}
       trackUnsavedChanges={trackUnsavedChanges}
+      actionsEnd={actionsEnd}
     />
   );
 };

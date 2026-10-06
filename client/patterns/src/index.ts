@@ -19,6 +19,8 @@ export type { ButtonProps, ButtonVariant } from './Button';
 export * from './icons';
 export { FormAction } from './FormAction';
 export { PopoverField } from './PopoverField';
+export { Toggle } from './Toggle';
+export type { ToggleOption, ToggleProps } from './Toggle';
 export { UnsavedChangesIndicator, unsavedChangesLevel } from './UnsavedChangesIndicator';
 export type { UnsavedChangesIndicatorProps, UnsavedChangesLevel, UnsavedChangesMinutes } from './UnsavedChangesIndicator';
 export { UnsavedChangesDialog } from './UnsavedChangesDialog';

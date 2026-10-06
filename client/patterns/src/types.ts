@@ -30,6 +30,8 @@ export interface FieldDescriptor {
   headingLevel?: number | null;
   /** Marks the main action among several buttons */
   primary?: boolean;
+  /** An action's icon by name, such as `tick` or `rocket`; FormAction draws the ones it knows */
+  icon?: string | null;
   /** Accessible name for a button that has no visible title, such as a popover's toggle */
   buttonLabel?: string | null;
   panelTitle?: string | null;

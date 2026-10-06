@@ -76,6 +76,6 @@
   border: var(--pages-tree-flag-border);
   border-radius: var(--admin-radius);
   flex: none;
-  font-size: var(--admin-font-size-xs);
+  font-size: var(--admin-font-size-sm);
   padding-inline: var(--admin-gap-xs);
 }

@@ -1,21 +1,23 @@
 /**
  * Pages section
  *
- * Two panes: the tree and its search on the left, the edit form on the right. The left pane sticks to
- * the viewport and gives the tree a fixed height to scroll in, which the virtualised tree needs; the
- * form scrolls with the page so its sticky action bar keeps working. The pane sits below the shell's
- * sticky section header, whose height token the shell declares. Only the layout and the alert
- * colour are styled here; the pattern library step owns the look.
+ * Two panes: the tree and its search on the left, the edit form on the right. The left pane sits flush
+ * against the menu, sticks to the viewport and gives the tree the full height below the shell's sticky
+ * section header (whose height token the shell declares) to scroll in, which the virtualised tree
+ * needs. The form column carries the standard page inset, since the shell body has none, and scrolls
+ * with the page so its sticky action bar keeps working; it is at least as tall as the pane, so a short
+ * form's action bar sits at the viewport bottom, and the bar bleeds over the inset to the column edges.
+ * Only the layout and the alert colour are styled here; the pattern library step owns the look.
  */
 
 .pages {
-  --pages-pane-height: calc(100vh - var(--shell-header-height) - 2 * var(--admin-gap-md));
-  --pages-pane-inset-block-start: calc(var(--shell-header-height) + var(--admin-gap-md));
+  --pages-main-padding: var(--admin-gap-md);
+  --pages-pane-height: calc(100vh - var(--shell-header-height));
   --pages-sidebar-width: 32rem;
+  --shell-form-actions-bleed: var(--pages-main-padding);
 
   align-items: start;
   display: grid;
-  gap: var(--admin-gap-md);
   grid-template-columns: var(--pages-sidebar-width) minmax(0, 1fr);
 }
 
@@ -24,14 +26,17 @@
   flex-direction: column;
   gap: var(--admin-gap-sm);
   height: var(--pages-pane-height);
-  inset-block-start: var(--pages-pane-inset-block-start);
+  inset-block-start: var(--shell-header-height);
   position: sticky;
 }
 
 .pages__main {
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: var(--admin-gap-sm);
+  min-height: var(--pages-pane-height);
+  padding: var(--pages-main-padding);
 }
 
 .pages__breadcrumb-list {

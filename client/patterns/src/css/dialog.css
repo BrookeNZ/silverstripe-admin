@@ -21,7 +21,7 @@
 }
 
 .admin-dialog__title {
-  font-size: var(--admin-font-size-xl);
+  font-size: var(--admin-font-size-xxl);
   line-height: 1.2;
   margin: 0 0 var(--admin-gap-sm);
 }

@@ -31,12 +31,16 @@ export const ServerHtmlField = ({ field, value, onChange, onBlur, error }: Field
   }, [field.name, binding]);
 
   React.useLayoutEffect(() => {
+    content.current?.replaceChildren(prepared.fragment.cloneNode(true));
+  }, [prepared]);
+
+  React.useLayoutEffect(() => {
     const control = binding.posts ? content.current?.querySelector<ValueControl>(`[name="${CSS.escape(field.name)}"]`) : null;
     const text = value == null ? '' : String(value);
     if (control && control.value !== text) {
       control.value = text;
     }
-  }, [binding.posts, field.name, value]);
+  }, [binding.posts, field.name, value, prepared]);
 
   React.useEffect(() => {
     const element = content.current;
@@ -65,12 +69,7 @@ export const ServerHtmlField = ({ field, value, onChange, onBlur, error }: Field
         Rendered from server HTML{binding.posts ? '' : '; changes here are not saved'}
         {prepared.links > 0 ? '; its links are not available in the shell yet' : ''}
       </p>
-      <fieldset
-        className="shell-server-html__content"
-        ref={content}
-        disabled={!binding.posts}
-        dangerouslySetInnerHTML={{ __html: prepared.html }}
-      />
+      <fieldset className="shell-server-html__content" ref={content} disabled={!binding.posts} />
       {error && (
         <p className="admin-field__message" id={`${field.id}_message`}>
           {error}

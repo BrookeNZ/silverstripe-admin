@@ -17,6 +17,8 @@
   --admin-border-color: #c1c4c8;
   --admin-check-size: 1.8rem;
   --admin-control-min-height: 4rem;
+  /* Figma New/New Grey/Grey 400, 1.35:1 on white, so decorative only */
+  --admin-divider-color: #dcdee0;
   /* The design has no error colour; this predates it */
   --admin-error-fg-color: #b3261e;
   /* Figma New/Black */
@@ -27,23 +29,30 @@
   --admin-focus-outline-offset: 0.2rem;
   --admin-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --admin-font-family-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
-  --admin-font-size-xs: 1.2rem;
-  --admin-font-size-sm: 1.4rem;
-  --admin-font-size-md: 1.6rem;
-  --admin-font-size-lg: 2rem;
-  --admin-font-size-xl: 2.4rem;
+  /* md is the body size, Figma New/Body 14px, on the 10px html base */
+  --admin-font-size-xs: 1rem;
+  --admin-font-size-sm: 1.2rem;
+  --admin-font-size-md: 1.4rem;
+  --admin-font-size-lg: 1.6rem;
+  --admin-font-size-xl: 2rem;
+  --admin-font-size-xxl: 2.4rem;
   --admin-font-weight-normal: 400;
   --admin-font-weight-bold: 600;
   --admin-gap-xs: 0.4rem;
   --admin-gap-sm: 0.8rem;
   --admin-gap-md: 1.6rem;
   --admin-input-bg-color: #ffffff;
+
+  /* Figma New/Line Grey, 1.35:1 on white, so decorative only */
+  --admin-line-color: #dadee1;
   /* Figma New/New Grey/Grey 900 */
   --admin-muted-fg-color: #595d64;
   --admin-panel-bg-color: #ffffff;
   /* Figma Button/Primary and White, 4.53:1 */
   --admin-primary-action-color: #008a00;
   --admin-primary-action-fg-color: #ffffff;
+  /* Figma Button/Primary Hover, 7.44:1 with the white label */
+  --admin-primary-action-hover-color: #006400;
   --admin-radius: 0.4rem;
   /* WCAG 2.5.8 target size */
   --admin-target-min-size: 2.4rem;
