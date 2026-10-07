@@ -104,6 +104,12 @@
   padding: 0;
 }
 
+/* A focused single select shows its chosen label as the placeholder, in the value's colour */
+.admin-combobox__input--selection-shown::placeholder {
+  color: inherit;
+  opacity: 1;
+}
+
 .admin-combobox__button {
   --admin-icon-size: var(--admin-combobox-remove-icon-size);
 

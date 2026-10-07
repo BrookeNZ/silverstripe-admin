@@ -62,7 +62,8 @@ const forbiddenTags = [
   'set', 'animate', 'animateTransform', 'animateMotion', 'math',
 ];
 
-const forbiddenAttributes = ['srcdoc', 'srcset', 'poster', 'formaction'];
+// aria-controls and data-toggle point legacy toolbar buttons at Bootstrap modals the shell never renders
+const forbiddenAttributes = ['srcdoc', 'srcset', 'poster', 'formaction', 'aria-controls', 'data-toggle'];
 
 const allowedUrl = /^(?:(?:https?|mailto|tel):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i;
 

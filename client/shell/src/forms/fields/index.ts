@@ -21,6 +21,7 @@ import { FormSchemaForm } from '../FormSchemaForm';
 import { serverHtmlComponent } from '../resolve';
 import { ServerHtmlField } from './ServerHtmlField';
 import { ShellFormAction } from './ShellFormAction';
+import { ToggleCompositeField, toggleCompositeFieldClass } from './ToggleCompositeField';
 import { UnsavedChangesIndicatorField } from './UnsavedChangesIndicatorField';
 
 export const builtInFields: Readonly<Record<string, ComponentType<FieldComponentProps<any>>>> = {
@@ -35,6 +36,7 @@ export const builtInFields: Readonly<Record<string, ComponentType<FieldComponent
   HeaderField,
   CompositeField,
   FieldGroup,
+  [toggleCompositeFieldClass]: ToggleCompositeField,
   Tabs,
   TabItem,
   FormAction: ShellFormAction,

@@ -25,6 +25,8 @@ class TreeDropdownField extends Component<any, any> {
 
   searchTimer: ReturnType<typeof setTimeout> | null;
 
+  inputRef = React.createRef<HTMLInputElement>();
+
   constructor(props) {
     super(props);
 
@@ -58,6 +60,7 @@ class TreeDropdownField extends Component<any, any> {
 
     this.state = {
       opened: false,
+      levelMessage: '',
     };
 
     this.searchTimer = null;
@@ -339,7 +342,7 @@ class TreeDropdownField extends Component<any, any> {
   }
 
   handleOpen() {
-    this.setState({ opened: true });
+    this.setState({ opened: true, levelMessage: '' });
 
     this.handleSearchReset();
   }
@@ -372,6 +375,7 @@ class TreeDropdownField extends Component<any, any> {
    */
   handleSearchChange(value) {
     clearTimeout(this.searchTimer);
+    this.setState({ levelMessage: '' });
     // delay setting a search value, so ajax requests do not hammer the server
     this.searchTimer = setTimeout(() => {
       this.props.actions.treeDropdownField.setSearch(this.props.id, value);
@@ -446,13 +450,26 @@ class TreeDropdownField extends Component<any, any> {
     // Lazy-load children and update visibility
     this.lazyLoad(path);
     this.props.actions.treeDropdownField.setVisible(this.props.id, path);
+    this.setState({ levelMessage: this.levelMessage(path) });
+  }
+
+  /** "Photography, level 2" for the level a path shows, read out through the combobox's status line */
+  levelMessage(path) {
+    const crumbs = this.getBreadcrumbs(path);
+    if (!crumbs.length) {
+      return i18n._t('Admin.TREEDROPDOWN_TOP_LEVEL', 'Top level');
+    }
+    return i18n.inject(i18n._t('Admin.TREEDROPDOWN_LEVEL', '{title}, level {level}'), {
+      title: crumbs[crumbs.length - 1].title,
+      level: crumbs.length + 1,
+    });
   }
 
   /**
    * Left and right arrows step up and down the tree from the active option; every other key is the
-   * combobox's own
+   * combobox's own. Stepping up makes the node just left the active option
    */
-  handleKeyDown(event, focused) {
+  handleKeyDown(event, focused, activate) {
     if (this.hasSearch()) {
       if (event.key === 'Escape') {
         this.handleSearchReset();
@@ -465,9 +482,14 @@ class TreeDropdownField extends Component<any, any> {
     }
 
     switch (event.key) {
-      case 'ArrowLeft': // left, go back
+      case 'ArrowLeft': {
+        const left = this.props.visible[this.props.visible.length - 1];
         this.handleBack(event);
+        if (left !== undefined) {
+          activate({ id: left });
+        }
         break;
+      }
       case 'ArrowRight': // right, drill deeper
         if (focused.count) {
           this.handleNavigate(event, focused.id);
@@ -501,11 +523,17 @@ class TreeDropdownField extends Component<any, any> {
     // Lazy-load children and update visibility
     this.lazyLoad(path);
     this.props.actions.treeDropdownField.setVisible(this.props.id, path);
+    this.setState({ levelMessage: this.levelMessage(path) });
+
+    // The breadcrumb row goes at the top level, so focus returns to the input rather than the page
+    if (event.currentTarget instanceof HTMLElement && event.currentTarget.contains(document.activeElement)) {
+      this.inputRef.current?.focus();
+    }
   }
 
   /**
-   * The breadcrumb row above the options in a nested level, which steps back up one level. Keyboard
-   * users step back with the left arrow, so the row stays out of the tab order
+   * The breadcrumb row above the options in a nested level, which steps back up one level. Tab reaches
+   * it from the input while the list is open; the left arrow does the same from an option
    */
   renderBreadcrumbs() {
     const breadcrumbs = this.getBreadcrumbs();
@@ -520,7 +548,7 @@ class TreeDropdownField extends Component<any, any> {
     }
 
     return (
-      <button type="button" className="treedropdownfield__breadcrumbs" tabIndex={-1} onClick={this.handleBack}>
+      <button type="button" className="treedropdownfield__breadcrumbs" onClick={this.handleBack}>
         <BackIcon size="sm" label={i18n._t('Admin.TREEDROPDOWN_BACK', 'Back')} />
         {crumbs}
       </button>
@@ -701,6 +729,8 @@ class TreeDropdownField extends Component<any, any> {
         loading={isLoading}
         loadingMessage={i18n._t('Admin.TREEDROPDOWN_LOADING', 'Loading...')}
         noOptionsMessage={this.noOptionsMessage}
+        statusMessage={this.state.levelMessage}
+        inputRef={this.inputRef}
         clearLabel={i18n._t('Admin.CLEAR', 'Clear')}
         removeLabel={(label) => i18n.inject(i18n._t('Admin.TREEDROPDOWN_REMOVE', 'Remove {label}'), { label })}
         placeholder={this.props.data.emptyString}

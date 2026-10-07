@@ -23,3 +23,7 @@ SilverStripe\Forms\GridField\GridFieldDetailForm_ItemRequest:
 SilverStripe\Forms\FormRequestHandler:
   extensions:
     - SilverStripe\Admin\UserInterface\GridField\GridFieldItemSubmissionExtension
+
+SilverStripe\Control\RequestHandler:
+  extensions:
+    - SilverStripe\Admin\UserInterface\SchemaRequestErrorExtension

@@ -8,12 +8,19 @@
  * registry. After a successful save the schema is fetched again, because actions change with the record
  * (publish adds unpublish), and focus goes back to the pressed action, which was disabled while saving.
  * A server error on a field in a hidden tab asks the tabs to reveal it before the field is focused.
+ *
+ * Handlers registered with `registerBeforeSubmit` for the form's element id run before every post and
+ * can cancel it. A headless form (a block's form inside the page form) renders no form element and no
+ * action bar, so it never nests a form; its host posts it through `handleRef`, and Enter in one of its
+ * inputs posts it (when dirty) instead of submitting the outer form.
  */
 import * as React from 'react';
 import { useController, useForm } from 'react-hook-form';
 import { useGlobalStateContext } from 'piral-core';
+import { useMeasuredHeight } from '../measure';
 import { setUnsavedChanges, shellOwner } from '../unsaved';
 import { revealField } from '@silverstripe/admin-patterns';
+import { runBeforeSubmit } from './beforeSubmit';
 import { FormRenderContext, useFormRenderContext } from './context';
 import { useFieldComponent } from './useFieldComponent';
 import {
@@ -30,7 +37,16 @@ import {
   uniqueMessages,
 } from './schema';
 import type { FormValues } from './schema';
-import type { FieldComponentProps, FormField, FormSchemaResponse, FormSchemaState, FormSchemaTree, SchemaMessage } from './types';
+import type {
+  FieldComponentProps,
+  FormField,
+  FormSchemaFormHandle,
+  FormSchemaResponse,
+  FormSchemaState,
+  FormSchemaSubmitResult,
+  FormSchemaTree,
+  SchemaMessage,
+} from './types';
 import './form.css';
 
 export interface FormSchemaFormProps {
@@ -50,17 +66,24 @@ export interface FormSchemaFormProps {
   onLoad?(response: FormSchemaResponse): void;
   /** Asked before an action is submitted; false cancels it, as the legacy delete confirmation did */
   confirmAction?(action: FormField): boolean | Promise<boolean>;
+  /** Renders the fields with no form element or action bar, for a form inside another form; post it through `handleRef` */
+  headless?: boolean;
+  /** Receives the handle that posts the form */
+  handleRef?: React.Ref<FormSchemaFormHandle>;
+  onDirtyChange?(dirty: boolean): void;
 }
 
 const noop = () => undefined;
 
 const noFields: ReadonlyArray<string> = [];
 
+const goodMessageTypes = new Set(['good', 'success']);
+
 const BoundField = ({
   field,
   Component,
 }: { field: FormField; Component: React.ComponentType<FieldComponentProps<any>> }) => {
-  const { control, submitting, renderFields, autofill } = useFormRenderContext();
+  const { control, submitting, renderFields, autofill, formId } = useFormRenderContext();
   const { field: binding, fieldState } = useController({ name: field.key, control });
   return (
     <Component
@@ -72,13 +95,14 @@ const BoundField = ({
       submitting={submitting}
       renderFields={renderFields}
       autofill={autofill}
+      formId={formId}
     />
   );
 };
 
 export const FormFieldSlot = ({ field }: { field: FormField }) => {
   const Component = useFieldComponent(field);
-  const { submitting, renderFields, boundKeys, autofill } = useFormRenderContext();
+  const { submitting, renderFields, boundKeys, autofill, formId } = useFormRenderContext();
   if (boundKeys.has(field.key)) {
     return <BoundField field={field} Component={Component} />;
   }
@@ -92,6 +116,7 @@ export const FormFieldSlot = ({ field }: { field: FormField }) => {
       submitting={submitting}
       renderFields={renderFields}
       autofill={autofill}
+      formId={formId}
     />
   );
 };
@@ -122,6 +147,13 @@ function focusById(id: string | undefined): void {
 
 const focusable = 'input:not([type="hidden"]), select, textarea, button, [tabindex]';
 
+// Enter in these does not submit a form
+const buttonInputTypes = new Set(['button', 'submit', 'reset', 'image']);
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 /** The element to focus for a field: its control, or for a group such as radios the checked or first control */
 function fieldFocusTarget(field: FormField): HTMLElement | null {
   const element = document.getElementById(field.id) ?? (field.holderId ? document.getElementById(field.holderId) : null);
@@ -141,6 +173,9 @@ const LoadedForm = ({
   trackUnsavedChanges,
   actionsEnd,
   confirmAction,
+  headless,
+  handleRef,
+  onDirtyChange,
 }: LoadedFormProps) => {
   const [schema, setSchema] = React.useState(initialSchema);
   const [state, setState] = React.useState(initialState);
@@ -156,6 +191,11 @@ const LoadedForm = ({
   });
   const isDirty = React.useRef(false);
   isDirty.current = formState.isDirty;
+  const barRef = useMeasuredHeight<HTMLDivElement>('--shell-form-actions-offset');
+  const formId = String(schema.attributes.id ?? schema.id);
+  const dirtyListener = React.useRef(onDirtyChange);
+  dirtyListener.current = onDirtyChange;
+  React.useEffect(() => dirtyListener.current?.(formState.isDirty), [formState.isDirty]);
 
   const globalState = useGlobalStateContext();
   const notifyUnsavedChanges = Boolean(trackUnsavedChanges || (state.notifyUnsavedChanges ?? initialState.notifyUnsavedChanges));
@@ -183,15 +223,20 @@ const LoadedForm = ({
     }
   };
 
-  const submit = async (values: FormValues, actionName: string, focusedId: string | undefined) => {
+  const submit = async (values: FormValues, actionName: string, focusedId: string | undefined): Promise<FormSchemaSubmitResult> => {
     setFormMessages([]);
     let response: FormSchemaResponse;
     try {
+      if (!(await runBeforeSubmit(formId, { action: actionName }))) {
+        requestAnimationFrame(() => focusById(focusedId));
+        return { ok: false };
+      }
       response = await submitFormSchema(schema, encodeSubmission(valueFields, values, actionName));
     } catch (error) {
-      setFormMessages([{ type: 'error', value: error instanceof Error ? error.message : String(error) }]);
+      const message = errorMessage(error);
+      setFormMessages([{ type: 'error', value: message }]);
       requestAnimationFrame(() => focusById(focusedId));
-      return;
+      return { ok: false, message };
     }
 
     const errors = response.errors ?? [];
@@ -234,6 +279,45 @@ const LoadedForm = ({
     await refetched;
     // The pressed action was disabled while saving, which drops focus to the body
     requestAnimationFrame(() => focusById(focusedId));
+    return { ok: errors.length === 0, response };
+  };
+
+  const submitWith = (actionName: string, focusedId?: string) =>
+    new Promise<FormSchemaSubmitResult>((resolve) => {
+      handleSubmit(
+        (values) => submit(values, actionName, focusedId).then(resolve, (error) => resolve({ ok: false, message: errorMessage(error) })),
+        () => resolve({ ok: false }),
+      )();
+    });
+  const latestSubmit = React.useRef(submitWith);
+  latestSubmit.current = submitWith;
+  const defaultAction = actions[0]?.name || 'action_save';
+  const latestDefaultAction = React.useRef(defaultAction);
+  latestDefaultAction.current = defaultAction;
+  React.useImperativeHandle(
+    handleRef,
+    () => ({
+      submit: (action) => latestSubmit.current(action ?? latestDefaultAction.current),
+      isDirty: () => isDirty.current,
+    }),
+    [],
+  );
+
+  // A headless form sits inside another form, whose implicit submission Enter would trigger
+  const onHeadlessKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (
+      event.key !== 'Enter' ||
+      event.defaultPrevented ||
+      !(target instanceof HTMLInputElement) ||
+      buttonInputTypes.has(target.type)
+    ) {
+      return;
+    }
+    event.preventDefault();
+    if (isDirty.current) {
+      submitWith(defaultAction, target.id);
+    }
   };
 
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -254,6 +338,7 @@ const LoadedForm = ({
   const context = React.useMemo(() => {
     const boundKeys = new Set(valueFields.map((field) => field.key));
     return {
+      formId,
       control,
       submitting: formState.isSubmitting,
       dirty: formState.isDirty,
@@ -266,24 +351,43 @@ const LoadedForm = ({
         }
       },
     };
-  }, [control, formState.isSubmitting, formState.isDirty, valueFields, setValue]);
+  }, [formId, control, formState.isSubmitting, formState.isDirty, valueFields, setValue]);
+
+  const messages = formMessages.map((message, index) =>
+    goodMessageTypes.has(message.type) ? (
+      <p className="shell-form__alert shell-form__alert--good" role="status" key={index}>
+        {message.value}
+      </p>
+    ) : (
+      <p className="shell-form__alert" role="alert" key={index}>
+        {message.value}
+      </p>
+    ),
+  );
+
+  if (headless) {
+    return (
+      <FormRenderContext.Provider value={context}>
+        <div className="shell-form" id={formId} aria-busy={formState.isSubmitting} onKeyDown={onHeadlessKeyDown}>
+          {messages}
+          {renderFields(fields)}
+        </div>
+      </FormRenderContext.Provider>
+    );
+  }
 
   return (
     <FormRenderContext.Provider value={context}>
       <form
         className="shell-form"
-        id={String(schema.attributes.id ?? schema.id)}
+        id={formId}
         noValidate
         aria-busy={formState.isSubmitting}
         onSubmit={onSubmit}
       >
-        {formMessages.map((message, index) => (
-          <p className="shell-form__alert" role="alert" key={index}>
-            {message.value}
-          </p>
-        ))}
+        {messages}
         {renderFields(fields)}
-        <div className="shell-form__actions">
+        <div className="shell-form__actions" ref={barRef}>
           {renderFields(shownActions)}
           {actionsEnd && <div className="shell-form__actions-end">{actionsEnd}</div>}
         </div>
@@ -307,6 +411,9 @@ export const FormSchemaForm = ({
   actionsEnd,
   onLoad,
   confirmAction,
+  headless,
+  handleRef,
+  onDirtyChange,
 }: FormSchemaFormProps) => {
   const [load, setLoad] = React.useState<LoadState>({ status: 'loading' });
   const loadListener = React.useRef(onLoad);
@@ -356,6 +463,9 @@ export const FormSchemaForm = ({
       trackUnsavedChanges={trackUnsavedChanges}
       actionsEnd={actionsEnd}
       confirmAction={confirmAction}
+      headless={headless}
+      handleRef={handleRef}
+      onDirtyChange={onDirtyChange}
     />
   );
 };

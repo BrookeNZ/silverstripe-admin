@@ -5,14 +5,17 @@
  * node 2:6140): Bright Blue outline and label, the selected option filled Bright Blue with a white
  * label, hover Bright Blue 100, 12px semibold labels. The native radios are visually hidden; the
  * group draws one outset ring while any of them has keyboard focus, as an inset ring would vanish
- * on the filled option. Segments are at least 2.4rem tall for the target size, one pixel taller than
- * the design's 25px control
+ * on the filled option. The control is the design's 25px tall, border included, so each segment is
+ * 23px: under the 24px target size, which the spacing exception covers, as the segments are 80px wide
  */
 
 .admin-toggle {
   --admin-toggle-bg-color: var(--admin-bg-color);
   --admin-toggle-border-width: 0.1rem;
   --admin-toggle-color: var(--admin-accent-color);
+
+  /* Figma "Draft published" 2:6140: 25px segments */
+  --admin-toggle-height: 2.5rem;
   --admin-toggle-hover-bg-color: var(--admin-hover-bg-color);
   --admin-toggle-option-min-width: 8rem;
   --admin-toggle-selected-fg-color: var(--admin-accent-fg-color);
@@ -42,7 +45,7 @@
   font-weight: var(--admin-font-weight-bold);
   justify-content: center;
   line-height: 1;
-  min-height: var(--admin-target-min-size);
+  min-height: calc(var(--admin-toggle-height) - 2 * var(--admin-toggle-border-width));
   min-width: var(--admin-toggle-option-min-width);
   padding-inline: var(--admin-gap-sm);
   position: relative;

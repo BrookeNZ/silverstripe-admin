@@ -16,6 +16,7 @@ export {
   MenuIcon,
   MoreOptionsIcon,
   PageTypeIcon,
+  PreviewIcon,
   PrintIcon,
   PublishIcon,
   RemoveIcon,
@@ -24,5 +25,8 @@ export {
   SearchIcon,
   ShareIcon,
   ShowOptionsIcon,
+  SortAscendingIcon,
+  SortDescendingIcon,
   SplitViewIcon,
+  UploadIcon,
 } from './icons';

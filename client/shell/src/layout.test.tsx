@@ -73,8 +73,10 @@ describe('Sidebar', () => {
     act(() => toggle().click());
     expect(toggle().getAttribute('aria-expanded')).toBe('true');
     expect(menu().classList.contains('shell__menu--open')).toBe(true);
+    expect(container.querySelector('.shell__sidebar')?.classList.contains('shell__sidebar--open')).toBe(true);
     act(() => toggle().click());
     expect(toggle().getAttribute('aria-expanded')).toBe('false');
+    expect(container.querySelector('.shell__sidebar')?.classList.contains('shell__sidebar--open')).toBe(false);
   });
 
   it('closes on Escape and returns focus to the toggle', () => {

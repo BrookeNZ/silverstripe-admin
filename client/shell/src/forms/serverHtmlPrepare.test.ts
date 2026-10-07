@@ -14,6 +14,15 @@ function hasAttribute(root: HTMLElement, attribute: string): boolean {
 }
 
 describe('prepareServerHtml', () => {
+  it('drops a toolbar button\'s pointers at a legacy modal', () => {
+    const prepared = prepare(
+      '<button id="Form_EditForm_action_import" class="btn" data-toggle="modal" aria-controls="Form_EditForm_import_modal">Import CSV</button>',
+    );
+    expect(hasAttribute(prepared.root, 'data-toggle')).toBe(false);
+    expect(hasAttribute(prepared.root, 'aria-controls')).toBe(false);
+    expect(prepared.root.querySelector('button')?.textContent).toBe('Import CSV');
+  });
+
   it('takes the href off links and marks them unavailable', () => {
     const prepared = prepare('<div><a href="/admin/assets/new" class="btn">Add</a><a name="top">Top</a></div>');
     const link = prepared.root.querySelector('a.btn')!;

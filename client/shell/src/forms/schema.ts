@@ -240,8 +240,19 @@ export function uniqueMessages(messages: Array<SchemaMessage>, shownInline: Arra
   });
 }
 
+const textSchemaTypes = new Set(['String', 'Text', 'HTML', 'Integer', 'Decimal', 'Date', 'Time', 'Datetime']);
+
+/**
+ * A text input reports an emptied value as "", so a text field whose state is null starts as "" too;
+ * otherwise typing and deleting would leave the form dirty. Both post as an empty value
+ */
 export function defaultValues(valueFields: Array<FormField>): FormValues {
-  return Object.fromEntries(valueFields.map((field) => [field.key, field.value]));
+  return Object.fromEntries(
+    valueFields.map((field) => [
+      field.key,
+      field.value == null && field.schemaType !== null && textSchemaTypes.has(field.schemaType) ? '' : field.value,
+    ]),
+  );
 }
 
 function isOption(value: object): value is { value: unknown } {

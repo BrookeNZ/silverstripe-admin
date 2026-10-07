@@ -4,6 +4,7 @@ import type { FormValues } from './schema';
 import type { FormField } from './types';
 
 export interface FormRenderContextValue {
+  formId: string;
   control: Control<FormValues>;
   submitting: boolean;
   dirty: boolean;

@@ -228,7 +228,83 @@ describe('Combobox', () => {
     render({ onKeyDown });
     press('ArrowDown');
     press('ArrowRight');
-    expect(onKeyDown).toHaveBeenLastCalledWith(expect.anything(), fruit[0]);
+    expect(onKeyDown).toHaveBeenLastCalledWith(expect.anything(), fruit[0], expect.any(Function));
+  });
+
+  it('starts an empty search on focus and shows the chosen label as the placeholder', () => {
+    render({ defaultValue: fruit[2] });
+    expect(input().value).toBe('Cherry');
+    act(() => input().focus());
+    expect(input().value).toBe('');
+    expect(input().placeholder).toBe('Cherry');
+    expect(input().className).toContain('admin-combobox__input--selection-shown');
+    type('ap');
+    expect(input().value).toBe('ap');
+    expect(options().map((option) => option.textContent)).toEqual(['Apple']);
+    type('');
+    expect(input().placeholder).toBe('Cherry');
+    act(() => input().blur());
+    expect(input().value).toBe('Cherry');
+  });
+
+  it('keeps the chosen label as the placeholder after choosing while focused', () => {
+    render();
+    act(() => input().focus());
+    press('ArrowDown');
+    press('Enter');
+    expect(input().value).toBe('');
+    expect(input().placeholder).toBe('Apple');
+  });
+
+  it('activates the first option when the options change under the active one, or the one onKeyDown picks', () => {
+    const level = [{ value: 'x', label: 'Child one' }, { value: 'y', label: 'Child two' }];
+    let swap: (next: Fruit[]) => void = () => undefined;
+    const Host = () => {
+      const [items, setItems] = React.useState<Fruit[]>(fruit);
+      swap = setItems;
+      return (
+        <Combobox<Fruit>
+          options={items}
+          onKeyDown={(event, option, activate) => {
+            if (event.key === 'ArrowLeft') {
+              event.preventDefault();
+              setItems(fruit);
+              activate(fruit[3]);
+            }
+          }}
+        />
+      );
+    };
+    container = document.createElement('div');
+    document.body.append(container);
+    act(() => createRoot(container).render(<Host />));
+    press('ArrowDown');
+    act(() => swap(level));
+    expect(active()).toBe('Child one');
+    press('ArrowLeft');
+    expect(active()).toBe('Date');
+  });
+
+  it('reads a status message while open', () => {
+    render({ statusMessage: 'Fruit, level 2' });
+    expect(container.querySelector('[role="status"]')?.textContent).toBe('');
+    press('ArrowDown');
+    expect(container.querySelector('[role="status"]')?.textContent).toBe('Fruit, level 2');
+  });
+
+  it('stays open when Tab moves into a control in the popup header, and Escape there returns to the input', () => {
+    render({ header: <button type="button">Back</button> });
+    act(() => input().focus());
+    press('ArrowDown');
+    press('Tab');
+    expect(input().getAttribute('aria-expanded')).toBe('true');
+    const back = container.querySelector<HTMLButtonElement>('.admin-combobox__popup button')!;
+    act(() => back.focus());
+    act(() => {
+      back.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    });
+    expect(input().getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(input());
   });
 
   it('renders custom option content', () => {

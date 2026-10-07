@@ -11,7 +11,7 @@
 import * as React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useGlobalState, useGlobalStateContext } from 'piral-core';
-import { Button, Dialog, Link, SearchIcon } from '@silverstripe/admin-patterns';
+import { Button, Dialog, Link, SearchIcon, SortAscendingIcon, SortDescendingIcon } from '@silverstripe/admin-patterns';
 import { rowPaginationFeature, rowSortingFeature, tableFeatures, useTable } from '@tanstack/react-table';
 import type { ColumnDef, PaginationState, SortingState, Updater } from '@tanstack/react-table';
 import { componentSlotName, silverstripeComponent } from '../api/silverstripe';
@@ -26,16 +26,6 @@ import type { GridColumn, GridPayload, GridPostAction, GridRow, GridSlotEntry } 
 import './grid.css';
 
 const features = tableFeatures({ rowSortingFeature, rowPaginationFeature });
-
-interface SortArrowProps {
-  direction: 'asc' | 'desc';
-}
-
-const SortArrow = ({ direction }: SortArrowProps) => (
-  <svg width="6" height="6" viewBox="0 0 6 6" fill="currentColor">
-    <path d={direction === 'asc' ? 'M3 .65 5.5 4.98H.5z' : 'M3 5.33.5 1h5z'} />
-  </svg>
-);
 
 const slotsAbove = ['before', 'buttons-before-left', 'buttons-before-right', 'toolbar-header-left', 'toolbar-header-right', 'header'];
 
@@ -222,8 +212,8 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
                     <button className="admin-grid__sort" type="button" onClick={header.column.getToggleSortingHandler()}>
                       {column.title}
                       <span className="admin-grid__sort-icon" aria-hidden="true">
-                        {sorted !== 'desc' && <SortArrow direction="asc" />}
-                        {sorted !== 'asc' && <SortArrow direction="desc" />}
+                        {sorted !== 'desc' && <SortAscendingIcon />}
+                        {sorted !== 'asc' && <SortDescendingIcon />}
                       </span>
                     </button>
                   ) : column.title ? (

@@ -9,7 +9,12 @@
  * (Figma "Top bar" Mobile v2 2:1909, Hamburger 2:1921) and opens over the content under it. The design
  * has mobile (375px) and tablet (769px) frames but no breakpoint value, so 1024px is the shell's own
  * choice. From 1024px the menu is the fixed sidebar it has always been. --shell-sticky-top is how far
- * the top bar pushes the sticky section header (header.css) and the scroll padding down
+ * the top bar pushes the sticky section header (header.css) and the scroll padding down. While the
+ * menu is open the top bar turns Royal Blue with the cross and the site name in white, as the design's
+ * open state (2:1916).
+ *
+ * The scroll padding keeps a focused element and its focus ring clear of the sticky header and the
+ * form's action bar, using the heights measure.ts publishes from the rendered elements
  */
 
 :root {
@@ -17,9 +22,17 @@
   --shell-badge-border: none;
   --shell-badge-fg-color: var(--admin-modified-fg-color);
   --shell-badge-letter-spacing: 0.06rem;
+
+  /* Figma top bar: 15px from the toggle to the logo */
+  --shell-banner-gap: var(--admin-gap-md);
+
+  /* The 0.2rem is the outline width in --admin-focus-outline (tokens.css) */
+  --shell-focus-ring-clearance: calc(0.2rem + var(--admin-focus-outline-offset));
   --shell-link-bg-hover-color: var(--admin-selected-bg-color);
   --shell-link-current-bg-color: var(--admin-selected-bg-color);
   --shell-link-fg-color: var(--admin-nav-fg-color);
+  --shell-logo-fg-color: var(--shell-link-fg-color);
+  --shell-logo-font-size: var(--admin-font-size-xl);
   --shell-logo-font-weight: 700;
   --shell-menu-bg-color: var(--admin-sunken-bg-color);
 
@@ -28,11 +41,13 @@
   --shell-menu-toggle-fg-color: var(--admin-inverse-fg-color);
   --shell-menu-toggle-hover-bg-color: var(--admin-accent-color);
   --shell-menu-toggle-icon-size: 2rem;
+  --shell-menu-toggle-ring-color: var(--admin-focus-outline-color);
   --shell-menu-toggle-size: 5rem;
   --shell-menu-width: 24rem;
   --shell-notification-bg-color: var(--admin-inverse-bg-color);
   --shell-notification-border: none;
   --shell-notification-fg-color: var(--admin-inverse-fg-color);
+  --shell-sidebar-bg-color: var(--admin-bg-color);
   --shell-sidebar-border-width: 0.1rem;
 
   /* Above the sticky section header */
@@ -47,10 +62,11 @@
   }
 }
 
-/* Keeps a focused or scrolled-to element clear of the sticky section header and the form's action bar (form.css) */
 html {
   font-size: 62.5%;
-  scroll-padding-block: calc(var(--shell-sticky-top) + var(--shell-header-height)) var(--shell-form-actions-height);
+  scroll-padding-block:
+    calc(var(--shell-sticky-top) + var(--shell-header-offset) + var(--shell-focus-ring-clearance))
+    calc(var(--shell-form-actions-offset) + var(--shell-focus-ring-clearance));
 }
 
 body {
@@ -104,7 +120,7 @@ body {
  */
 .shell__sidebar {
   align-self: start;
-  background-color: var(--admin-bg-color);
+  background-color: var(--shell-sidebar-bg-color);
   border-block-end: var(--shell-sidebar-border-width) solid var(--admin-divider-color);
   color: var(--shell-link-fg-color);
   inset-block-start: 0;
@@ -112,9 +128,23 @@ body {
   z-index: var(--shell-sidebar-z-index);
 }
 
+/* Figma "Mobile menu" 2:1916: Royal Blue bar, 16px white cross, "Site name" Inter Semi Bold 16px white, 4px apart */
+@media (width < 1024px) {
+  .shell__sidebar--open {
+    --shell-banner-gap: var(--admin-gap-xs);
+    --shell-logo-fg-color: var(--admin-inverse-fg-color);
+    --shell-logo-font-size: var(--admin-font-size-lg);
+    --shell-logo-font-weight: var(--admin-font-weight-bold);
+    --shell-menu-toggle-icon-size: 1.6rem;
+    --shell-menu-toggle-ring-color: var(--admin-inverse-fg-color);
+    --shell-sidebar-bg-color: var(--shell-menu-toggle-bg-color);
+  }
+}
+
 @media (width >= 1024px) {
   .shell__sidebar {
-    background-color: var(--shell-menu-bg-color);
+    --shell-sidebar-bg-color: var(--shell-menu-bg-color);
+
     border-block-end: 0;
     display: flex;
     flex-direction: column;
@@ -124,11 +154,10 @@ body {
   }
 }
 
-/* Figma mobile top bar: 15px from the toggle to the logo */
 .shell__banner {
   align-items: center;
   display: flex;
-  gap: var(--admin-gap-md);
+  gap: var(--shell-banner-gap);
   padding-inline-end: var(--admin-gap-md);
 }
 
@@ -149,6 +178,7 @@ body {
   --admin-button-hover-bg-color: var(--shell-menu-toggle-hover-bg-color);
   --admin-button-padding-block: calc((var(--shell-menu-toggle-size) - var(--shell-menu-toggle-icon-size)) / 2);
   --admin-button-padding-inline: var(--admin-button-padding-block);
+  --admin-focus-outline-color: var(--shell-menu-toggle-ring-color);
   --admin-icon-size: var(--shell-menu-toggle-icon-size);
 }
 
@@ -195,14 +225,14 @@ body {
 }
 
 .shell__logo {
-  color: var(--shell-link-fg-color);
-  font-size: var(--admin-font-size-xl);
+  color: var(--shell-logo-fg-color);
+  font-size: var(--shell-logo-font-size);
   font-weight: var(--shell-logo-font-weight);
   text-decoration: none;
 }
 
 .shell__logo:focus-visible {
-  outline: var(--admin-focus-outline) var(--shell-link-fg-color);
+  outline: var(--admin-focus-outline) var(--shell-logo-fg-color);
   outline-offset: var(--admin-focus-outline-offset);
 }
 
@@ -308,14 +338,16 @@ body {
   padding: var(--shell-page-padding);
 }
 
-/* Above the form's action bar, so a toast never covers its controls */
+/* Top right under the sticky header, clear of the form's action bar whatever its height */
 .piral-notifications-host {
-  bottom: calc(var(--shell-form-actions-height) + var(--admin-gap-md));
   display: flex;
   flex-direction: column;
   gap: var(--admin-gap-sm);
+  inset-block-start: calc(var(--shell-sticky-top) + var(--shell-header-offset) + var(--admin-gap-md));
+  inset-inline-end: var(--admin-gap-md);
+  max-inline-size: calc(100% - 2 * var(--admin-gap-md));
   position: fixed;
-  right: var(--admin-gap-md);
+  z-index: var(--shell-header-z-index);
 }
 
 .piral-notification {

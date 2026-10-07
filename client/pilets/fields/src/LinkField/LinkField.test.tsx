@@ -182,6 +182,7 @@ describe('LinkField', () => {
     const root = await render(<Harness initial={7} schema={field()} />);
     await click(root.querySelector('.link-field__delete'));
     expect(document.querySelector('dialog[open] .admin-dialog__title')?.textContent).toBe('Archive link?');
+    expect(root.querySelector('.link-field__delete svg')?.getAttribute('aria-label')).toBe('Archive Read more');
   });
 
   it('shows a load failure as the field message', async () => {

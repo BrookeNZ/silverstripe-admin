@@ -12,6 +12,8 @@ import type { SilverstripeClientConfig } from '../silverstripe';
 import { clearSectionHeaderOf, setSectionHeader } from '../header/state';
 import type { SectionHeader } from '../header/state';
 import { clearUnsavedChangesOf, hasUnsavedChanges, setUnsavedChanges } from '../unsaved';
+import { clearBeforeSubmitOf, registerBeforeSubmit } from '../forms/beforeSubmit';
+import type { BeforeSubmitHandler } from '../forms/beforeSubmit';
 
 export interface SilverstripeApi {
   registerSilverstripeComponent(name: string, Component: ComponentType<any>): Disposable;
@@ -29,6 +31,11 @@ export interface SilverstripeApi {
    * disposer runs; call it from the page and dispose on unmount. A later call replaces the header
    */
   setSectionHeader(header: SectionHeader): Disposable;
+  /**
+   * Runs `handler` before the form with this element id posts, and cancels the post when it resolves
+   * false or throws; a field gets its form's id as the `formId` prop
+   */
+  registerBeforeSubmit(formId: string, handler: BeforeSubmitHandler): Disposable;
 }
 
 declare module 'piral-core/lib/types/custom' {
@@ -83,6 +90,7 @@ export function createSilverstripeApi(): PiralPlugin<SilverstripeApi> {
     context.on('unload-pilet', ({ name }) => {
       clearUnsavedChangesOf(context, name);
       clearSectionHeaderOf(context, name);
+      clearBeforeSubmitOf(name);
     });
 
     return (api, meta) => ({
@@ -114,6 +122,9 @@ export function createSilverstripeApi(): PiralPlugin<SilverstripeApi> {
       },
       setSectionHeader(header) {
         return setSectionHeader(context, meta.name, header);
+      },
+      registerBeforeSubmit(formId, handler) {
+        return registerBeforeSubmit(formId, meta.name, handler);
       },
     });
   };

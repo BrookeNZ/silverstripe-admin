@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   actionBarFields,
   barActions,
+  defaultValues,
   encodeSubmission,
   errorField,
   mergeFields,
@@ -23,6 +24,24 @@ const schemaField = (name: string, id: string): FieldSchema => ({
   readOnly: false,
   disabled: false,
   data: [],
+});
+
+describe('defaultValues', () => {
+  const field = (key: string, schemaType: string | null, value: unknown) => ({ key, schemaType, value }) as unknown as FormField;
+
+  it('starts an empty text-like field as "", the value its input reports once emptied', () => {
+    expect(
+      defaultValues([field('Title', 'String', null), field('Content', 'HTML', undefined), field('Sort', 'Integer', null), field('Title2', 'Text', 'Kept')]),
+    ).toEqual({ Title: '', Content: '', Sort: '', Title2: 'Kept' });
+  });
+
+  it('keeps null for fields whose empty value is not text', () => {
+    expect(defaultValues([field('ParentID', 'SingleSelect', null), field('Image', 'Custom', null), field('Plain', null, null)])).toEqual({
+      ParentID: null,
+      Image: null,
+      Plain: null,
+    });
+  });
 });
 
 describe('errorField', () => {

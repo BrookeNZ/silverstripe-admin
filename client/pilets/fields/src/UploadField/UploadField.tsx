@@ -15,10 +15,9 @@
  * pilet once it has one.
  */
 import * as React from 'react';
-import { describedBy, FieldHolder, RemoveIcon } from '@silverstripe/admin-patterns';
+import { describedBy, FieldHolder, PreviewIcon, RemoveIcon, UploadIcon } from '@silverstripe/admin-patterns';
 import type { FieldComponentProps } from '@silverstripe/admin-shell';
 import Config from '../legacy/Config';
-import { PreviewIcon, UploadIcon } from './icons';
 import { fileMeta, uploadFile } from './uploadFile';
 import type { UploadedFile } from './uploadFile';
 import './UploadField.css';

@@ -2,6 +2,7 @@
 
 namespace SilverStripe\Admin\UserInterface\CMSMain;
 
+use SilverStripe\Admin\UserInterface\ShellSubmission;
 use SilverStripe\CMS\Controllers\CMSMain;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Control\HTTPResponse;
@@ -59,18 +60,21 @@ class EditFormActionExtension extends Extension
             && $form->getName() === 'EditForm'
             && is_numeric($vars['ID'] ?? null)
             && (int) $vars['ID'] > 0
-            && EditFormSubmissionExtension::isShellSubmission($request);
+            && ShellSubmission::isShellSubmission($request);
     }
 
     private function errorResponse(HTTPResponse $result): HTTPResponse
     {
         $code = $result->getStatusCode();
-        $message = $code === 403
-            ? EditFormSubmissionExtension::permissionMessage()
-            : (trim(strip_tags((string) $result->getBody())) ?: $result->getStatusDescription());
-        $response = EditFormSubmissionExtension::jsonError($code, (string) $message);
-        if ($result->getHeader('X-Reauthenticate')) {
-            $response->addHeader('X-Reauthenticate', $result->getHeader('X-Reauthenticate'));
+        $reauthenticate = $result->getHeader('X-Reauthenticate');
+        $message = match (true) {
+            $code === 403 && (bool) $reauthenticate => ShellSubmission::loggedOutMessage(),
+            $code === 403 => EditFormSubmissionExtension::permissionMessage(),
+            default => trim(strip_tags((string) $result->getBody())) ?: $result->getStatusDescription(),
+        };
+        $response = ShellSubmission::jsonError($code, (string) $message);
+        if ($reauthenticate) {
+            $response->addHeader('X-Reauthenticate', $reauthenticate);
         }
         return $response;
     }

@@ -229,7 +229,7 @@ export function createLinkField(FormSchemaForm: React.ComponentType<any>) {
                     )}
                     {editable && link?.canDelete !== false && (
                       <button className="link-field__delete" type="button" onClick={() => setConfirming(id)}>
-                        <RemoveIcon label={`Delete ${title}`} />
+                        <RemoveIcon label={`${archivedStates.includes(link?.versionState ?? '') ? 'Archive' : 'Delete'} ${title}`} />
                       </button>
                     )}
                   </li>

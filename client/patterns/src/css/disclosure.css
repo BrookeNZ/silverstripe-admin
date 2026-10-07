@@ -1,0 +1,75 @@
+/**
+ * Disclosure
+ *
+ * The show and hide panel from Disclosure.tsx, after the CMS Refresh "Accordion" (Figma node 2:6126:
+ * closed 2:6127, open 2:6130): a Grey 400 hairline box with a 4px radius, its header a Grey 100 row
+ * with 15px padding and a 12px New/Black caret 10px from a 14px title, regular when closed and
+ * semibold when open, with a Grey 400 line under the header when open. The panel's 15px side padding
+ * comes from the design; its block padding and gap are the tab panel's, since the design's per-field
+ * dividers belong to the field holder.
+ *
+ * The box and header lines are 1.35:1 on white and decorative; the caret and title carry the control
+ * (13.34:1, focus ring 5.56:1 on Grey 100). Both are real borders, so forced colours keep the header's
+ * edge without a rule of their own. The ring is inset because the box clips its corners
+ */
+
+.admin-disclosure {
+  --admin-disclosure-border-color: var(--admin-divider-color);
+  --admin-disclosure-button-bg-color: var(--admin-muted-bg-color);
+  --admin-disclosure-button-border: none;
+  --admin-disclosure-button-font-weight: var(--admin-font-weight-normal);
+
+  /* Figma 2:6127: 10px caret gap, 15px padding, 12px caret */
+  --admin-disclosure-button-gap: 1rem;
+  --admin-disclosure-button-padding: 1.5rem;
+  --admin-disclosure-icon-size: 1.2rem;
+
+  border: var(--admin-border) var(--admin-disclosure-border-color);
+  border-radius: var(--admin-radius);
+  overflow: clip;
+}
+
+.admin-disclosure--open {
+  --admin-disclosure-button-border: var(--admin-border) var(--admin-disclosure-border-color);
+  --admin-disclosure-button-font-weight: var(--admin-font-weight-bold);
+}
+
+.admin-disclosure__heading {
+  font-size: var(--admin-font-size-md);
+  margin: 0;
+}
+
+.admin-disclosure__button {
+  --admin-icon-size: var(--admin-disclosure-icon-size);
+
+  align-items: center;
+  background-color: var(--admin-disclosure-button-bg-color);
+  border: 0;
+  border-block-end: var(--admin-disclosure-button-border);
+  color: var(--admin-fg-color);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-weight: var(--admin-disclosure-button-font-weight);
+  gap: var(--admin-disclosure-button-gap);
+  line-height: 1.4;
+  padding: var(--admin-disclosure-button-padding);
+  text-align: start;
+  width: 100%;
+}
+
+.admin-disclosure__button:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: calc(var(--admin-focus-outline-offset) * -1);
+}
+
+.admin-disclosure__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-gap-md);
+  padding: var(--admin-gap-md) var(--admin-disclosure-button-padding);
+}
+
+.admin-disclosure__panel[hidden] {
+  display: none;
+}

@@ -4,6 +4,7 @@ namespace SilverStripe\Admin\UserInterface\GridField;
 
 use SilverStripe\Admin\FormSchemaController;
 use SilverStripe\Admin\LeftAndMain;
+use SilverStripe\Admin\UserInterface\ShellSubmission;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Control\HTTPResponse;
 use SilverStripe\Control\HTTPResponse_Exception;
@@ -11,7 +12,6 @@ use SilverStripe\Core\Extension;
 use SilverStripe\Core\Validation\ValidationResult;
 use SilverStripe\Forms\Form;
 use SilverStripe\Forms\GridField\GridFieldDetailForm_ItemRequest;
-use SilverStripe\Forms\Schema\FormSchema;
 use SilverStripe\Model\ModelData;
 
 /**
@@ -20,10 +20,15 @@ use SilverStripe\Model\ModelData;
  * EditForm. `<item link>/ItemEditForm/schema`, which FormRequestHandler already answers, skips those
  * decorations, so the shell does not use it.
  *
- * A shell submission is a POST to the form's own action with `X-Formschema-Request`. For one, the CSRF
- * token is checked up front (a failure is a JSON 400 rather than the framework's redirect back) and a
- * validation failure answers with the FormSchema state and errors instead of a PJAX fragment. The
- * success envelope is GridFieldItemSubmissionExtension's.
+ * A shell submission is a POST to the form's own action with `X-Formschema-Request`. Before the form handles
+ * one, three refusals answer JSON in place of the framework's: a failed CSRF check is a 400 (the framework
+ * redirects back), a form that wants sudo mode is a 403 (the framework makes it read only, so a save would
+ * answer "saved" and change nothing), and an action the form withholds is a 403 (the framework's is plain
+ * text naming the controller class). A validation failure answers with the FormSchema state and errors
+ * instead of a PJAX fragment. The success envelope is GridFieldItemSubmissionExtension's.
+ *
+ * A record the member cannot view answers the schema request with the same 404 as a missing one, so the
+ * endpoint does not reveal which IDs exist.
  *
  * Only while `LeftAndMain.piral_shell` is on and the grid sits under a FormSchemaController.
  *
@@ -40,18 +45,20 @@ class GridFieldItemSchemaExtension extends Extension
         $itemRequest = $this->getOwner();
         $controller = static::schemaController($itemRequest);
         if (!$controller || !LeftAndMain::config()->get('piral_shell')) {
-            throw static::jsonError(404, 'This form has no schema endpoint');
+            throw static::jsonError(404, _t(__CLASS__ . '.NO_SCHEMA', 'This form has no schema endpoint.'));
         }
         if (!$request->isGET()) {
-            throw static::jsonError(405, 'The schema endpoint only answers GET');
+            throw static::jsonError(405, _t(__CLASS__ . '.GET_ONLY', 'The schema endpoint only answers GET.'));
         }
         $record = $itemRequest->getRecord();
         if (!static::canOpen($itemRequest, $record)) {
-            throw static::jsonError(403, $record->ID ? 'You cannot view this record' : 'You cannot create this record');
+            throw $record->ID
+                ? static::jsonError(404, static::notFoundMessage())
+                : static::jsonError(403, _t(__CLASS__ . '.CANNOT_CREATE', 'You do not have permission to create this record.'));
         }
         $form = $itemRequest->ItemEditForm();
         if (!$form instanceof Form) {
-            throw static::jsonError(404, 'This record has no edit form');
+            throw static::jsonError(404, _t(__CLASS__ . '.NO_FORM', 'This record has no edit form.'));
         }
         return $controller->getSchemaResponse($itemRequest->Link('schema'), $form, null, [
             'record' => static::recordSummary($itemRequest, (bool) $record->ID),
@@ -61,13 +68,9 @@ class GridFieldItemSchemaExtension extends Extension
     protected function updateItemEditForm(Form $form): void
     {
         $itemRequest = $this->getOwner();
-        $request = $itemRequest->getRequest();
         $controller = static::schemaController($itemRequest);
-        if (!$controller || !static::isShellSubmission($request)) {
+        if (!$controller || !ShellSubmission::isShellSubmission($itemRequest->getRequest())) {
             return;
-        }
-        if (!$form->getSecurityToken()->checkRequest($request)) {
-            throw static::jsonError(400, 'The security token is missing or has expired');
         }
         $schemaId = $itemRequest->Link('schema');
         $form->setValidationResponseCallback(
@@ -76,14 +79,39 @@ class GridFieldItemSchemaExtension extends Extension
     }
 
     /**
-     * A form submission from the shell: a POST asking for FormSchema parts while the shell is on
+     * Runs once the form is built and before FormRequestHandler handles the post, where the framework's own
+     * refusals would come from
      */
-    public static function isShellSubmission(?HTTPRequest $request): bool
+    protected function afterCallActionHandler(HTTPRequest $request, string $action, $result): void
     {
-        return $request
-            && $request->isPOST()
-            && $request->getHeader(FormSchema::SCHEMA_HEADER)
-            && LeftAndMain::config()->get('piral_shell');
+        if ($action !== 'ItemEditForm' || !$result instanceof Form || $request->remaining() !== '') {
+            return;
+        }
+        if (!static::schemaController($this->getOwner()) || !ShellSubmission::isShellSubmission($request)) {
+            return;
+        }
+        if (!$result->getSecurityToken()->checkRequest($request)) {
+            throw static::jsonError(400, ShellSubmission::sessionExpiredMessage());
+        }
+        if (ShellSubmission::clickedAction($request) && $result->getFormRequiresSudoMode()) {
+            throw static::jsonError(403, _t(
+                __CLASS__ . '.SUDO_MODE',
+                'Confirm your password before you change this record. The new admin cannot ask for it yet.'
+            ));
+        }
+        if (!ShellSubmission::offersClickedAction($request, $result)) {
+            throw static::jsonError(403, static::permissionMessage());
+        }
+    }
+
+    public static function permissionMessage(): string
+    {
+        return _t(__CLASS__ . '.NO_PERMISSION', 'You do not have permission to do that to this record.');
+    }
+
+    public static function notFoundMessage(): string
+    {
+        return _t(__CLASS__ . '.NOT_FOUND', 'That record was not found.');
     }
 
     /**
@@ -121,8 +149,8 @@ class GridFieldItemSchemaExtension extends Extension
 
     /**
      * What the shell shows of the record beside its form: the section header's title, the singular name
-     * for "New <name>", the class for the records-changed event, and the edit link, which is null for a
-     * new record or one no longer in the grid's list
+     * for "New <name>", the class for the records-changed event, the edit link, which is null for a
+     * new record or one no longer in the grid's list, and for a nested record its parent's title
      */
     public static function recordSummary(GridFieldDetailForm_ItemRequest $itemRequest, bool $inList): array
     {
@@ -134,21 +162,25 @@ class GridFieldItemSchemaExtension extends Extension
             'title' => $record->ID && $record->hasMethod('getTitle') ? (string) $record->getTitle() : null,
             'singularName' => $record->hasMethod('i18n_singular_name') ? $record->i18n_singular_name() : null,
             'link' => $inList ? $itemRequest->Link('edit') : null,
+            'parentTitle' => static::parentTitle($itemRequest),
         ];
     }
 
     /**
-     * The envelope AdminController::jsonError() sends, built here because an item request is no controller
+     * The title of the record whose form holds this record's grid, for the shell's back link
      */
+    private static function parentTitle(GridFieldDetailForm_ItemRequest $itemRequest): ?string
+    {
+        $parent = $itemRequest->getController();
+        if (!$parent instanceof GridFieldDetailForm_ItemRequest) {
+            return null;
+        }
+        $record = $parent->getRecord();
+        return $record->hasMethod('getTitle') ? (string) $record->getTitle() : null;
+    }
+
     public static function jsonError(int $code, string $message): HTTPResponse_Exception
     {
-        $body = json_encode([
-            'status' => 'error',
-            'errors' => [['type' => 'error', 'code' => $code, 'value' => $message]],
-        ]);
-        $response = HTTPResponse::create($body, $code)
-            ->addHeader('Content-Type', 'application/json')
-            ->addHeader('Cache-Control', 'no-store');
-        return new HTTPResponse_Exception($response);
+        return new HTTPResponse_Exception(ShellSubmission::jsonError($code, $message));
     }
 }

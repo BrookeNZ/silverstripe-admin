@@ -13,16 +13,18 @@ import * as React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { BackIcon, TabStrip } from '@silverstripe/admin-patterns';
 import { announce } from '../announcer';
+import { useMeasuredHeight } from '../measure';
 import { useSectionHeader } from './state';
 import type { SectionHeader as SectionHeaderContent } from './state';
 import './header.css';
 
 export type SectionHeaderProps = Omit<SectionHeaderContent, 'documentTitle'> & {
   titleRef?: React.Ref<HTMLHeadingElement>;
+  headerRef?: React.Ref<HTMLDivElement>;
 };
 
-export const SectionHeader = ({ title, backTo, backLabel = 'Back', views = [], titleRef }: SectionHeaderProps) => (
-  <div className="shell-header">
+export const SectionHeader = ({ title, backTo, backLabel = 'Back', views = [], titleRef, headerRef }: SectionHeaderProps) => (
+  <div className="shell-header" ref={headerRef}>
     <div className="shell-header__current">
       {backTo && (
         <Link className="shell-header__back" to={backTo} aria-label={backLabel}>
@@ -53,17 +55,27 @@ export function documentTitle(header: SectionHeaderContent, application: string)
   return `${header.documentTitle ?? header.title} - ${application}`;
 }
 
+export const keptHeaderDelay = 300;
+
+export const retitleWindow = 3000;
+
 /** The header the showing page set, or nothing */
 export const SectionHeaderBar = () => {
   const entry = useSectionHeader();
   const { pathname } = useLocation();
   const titleRef = React.useRef<HTMLHeadingElement>(null);
+  const headerRef = useMeasuredHeight<HTMLDivElement>('--shell-header-offset');
   const application = React.useRef(applicationName(document.title)).current;
   const mounted = React.useRef(false);
-  const pendingFocus = React.useRef(false);
+  const pending = React.useRef<{ staleId: number | undefined } | null>(null);
+  const [landings, setLandings] = React.useState(0);
+  const announceUntil = React.useRef(0);
+  const announced = React.useRef('');
 
   React.useEffect(() => {
-    pendingFocus.current = mounted.current;
+    if (mounted.current) {
+      pending.current = { staleId: entry?.id };
+    }
     mounted.current = true;
   }, [pathname]);
 
@@ -73,20 +85,42 @@ export const SectionHeaderBar = () => {
     }
   }, [entry, application]);
 
-  // A frame's wait lets the leaving page dispose its header and the arriving page set its own
+  // The arriving page usually sets its header just after the route changes; one that keeps the
+  // leaving page's header gets focus after a short wait instead
   React.useEffect(() => {
-    if (!pendingFocus.current || !entry) {
+    if (!pending.current || !entry) {
       return undefined;
     }
-    const frame = requestAnimationFrame(() => {
-      if (pendingFocus.current && titleRef.current) {
-        pendingFocus.current = false;
-        titleRef.current.focus();
-        announce(titleRef.current.textContent ?? '');
-      }
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [entry?.id, pathname]);
+    const land = () => {
+      pending.current = null;
+      titleRef.current?.focus();
+      announced.current = '';
+      announceUntil.current = performance.now() + retitleWindow;
+      setLandings((count) => count + 1);
+    };
+    if (entry.id !== pending.current.staleId) {
+      const frame = requestAnimationFrame(land);
+      return () => cancelAnimationFrame(frame);
+    }
+    const timer = setTimeout(land, keptHeaderDelay);
+    return () => clearTimeout(timer);
+  }, [entry, pathname]);
 
-  return entry ? <SectionHeader {...entry.header} titleRef={titleRef} /> : null;
+  // A record page titles itself again once its record loads ("Users #1", then the name): the
+  // announcement waits for the header to settle, and a retitle soon after landing is read too
+  React.useEffect(() => {
+    if (!entry || performance.now() > announceUntil.current) {
+      return undefined;
+    }
+    const { title } = entry.header;
+    const timer = setTimeout(() => {
+      if (title !== announced.current && document.activeElement === titleRef.current) {
+        announced.current = title;
+        announce(title);
+      }
+    }, keptHeaderDelay);
+    return () => clearTimeout(timer);
+  }, [entry, landings]);
+
+  return entry ? <SectionHeader {...entry.header} titleRef={titleRef} headerRef={headerRef} /> : null;
 };

@@ -2,8 +2,10 @@
 
 namespace SilverStripe\Admin\UserInterface\GridField;
 
+use SilverStripe\Admin\UserInterface\ShellSubmission;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Control\HTTPResponse;
+use SilverStripe\Control\HTTPResponse_Exception;
 use SilverStripe\Core\Extension;
 use SilverStripe\Forms\Form;
 use SilverStripe\Forms\FormRequestHandler;
@@ -17,8 +19,9 @@ use SilverStripe\ORM\DataObject;
  * Before the action runs, the member's permission for it is checked and a refusal is a JSON 403: canEdit
  * to save a record, canCreate to save a new one, canDelete to delete or archive, canPublish (plus the
  * save permission) to publish and canUnpublish to unpublish. The stock item requests leave such an action
- * out of the form, so the framework usually refuses first (a plain 403); this covers item requests that
- * allow an action the form does not show.
+ * out of the form, so GridFieldItemSchemaExtension usually refuses first; this covers item requests that
+ * allow an action the form does not show. Creating without canCreate is refused for every submission,
+ * legacy ones included (plain text for those), because the framework's doSave lets it through.
  *
  * The item request's actions end by rendering the form as a PJAX fragment or redirecting, and an XHR
  * without `X-Pjax` makes the fragment render fail, so the action runs with `X-Pjax: ValidationResult`
@@ -39,11 +42,12 @@ class GridFieldItemSubmissionExtension extends Extension
 
     protected function beforeCallFormHandler(HTTPRequest $request, string $funcName, array $vars, Form $form, $subject): void
     {
+        $this->refuseCreateWithoutPermission($subject, $funcName);
         if (!$this->handles($request, $subject)) {
             return;
         }
         if (!$this->allows($subject, $subject->getRecord(), $funcName)) {
-            throw GridFieldItemSchemaExtension::jsonError(403, sprintf('You cannot run "%s" on this record', $funcName));
+            throw GridFieldItemSchemaExtension::jsonError(403, GridFieldItemSchemaExtension::permissionMessage());
         }
         $this->creating = !$subject->getRecord()->ID;
         $request->addHeader(static::PJAX_HEADER, 'ValidationResult');
@@ -58,10 +62,30 @@ class GridFieldItemSubmissionExtension extends Extension
         $result = $this->successResponse($subject, $form);
     }
 
+    /**
+     * doSave checks canEdit on an unsaved record, not canCreate, and its read-only form still writes a blank one
+     */
+    private function refuseCreateWithoutPermission($subject, string $funcName): void
+    {
+        if (!$subject instanceof GridFieldDetailForm_ItemRequest
+            || !in_array($funcName, ['doSave', 'doPublish'], true)
+            || $subject->getRecord()->ID
+            || GridFieldItemSchemaExtension::canCreate($subject, $subject->getRecord())
+        ) {
+            return;
+        }
+        $message = _t(__CLASS__ . '.CANNOT_CREATE', 'You do not have permission to create this record.');
+        throw new HTTPResponse_Exception(
+            ShellSubmission::isShellSubmission($subject->getRequest())
+                ? ShellSubmission::jsonError(403, $message)
+                : HTTPResponse::create($message, 403)
+        );
+    }
+
     private function handles(?HTTPRequest $request, $subject): bool
     {
         return $subject instanceof GridFieldDetailForm_ItemRequest
-            && GridFieldItemSchemaExtension::isShellSubmission($request)
+            && ShellSubmission::isShellSubmission($request)
             && GridFieldItemSchemaExtension::schemaController($subject);
     }
 

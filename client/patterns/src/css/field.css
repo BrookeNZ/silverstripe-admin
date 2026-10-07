@@ -8,11 +8,13 @@
 .admin-field {
   --admin-field-align: stretch;
   --admin-field-direction: column;
+  --admin-field-max-width: 77rem;
 
   align-items: var(--admin-field-align);
   display: flex;
   flex-direction: var(--admin-field-direction);
   gap: var(--admin-gap-xs);
+  max-width: var(--admin-field-max-width);
 }
 
 .admin-field--inline {
@@ -69,6 +71,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--admin-gap-xs);
+  max-width: var(--admin-field-max-width);
   margin: 0;
   padding: 0;
 }

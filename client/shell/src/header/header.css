@@ -8,7 +8,15 @@
  * The tokens sit on :root because the content below reads the header's height: the shell's scroll
  * padding and the pages pilet's sticky tree pane. It sticks below the shell's narrow-screen top bar
  * (--shell-sticky-top in style.css). The views are the patterns package's tab strip,
- * which scrolls sideways when a ModelAdmin has more model tabs than fit and rings focus inside each tab
+ * which scrolls sideways when a ModelAdmin has more model tabs than fit and rings focus inside each tab.
+ *
+ * The title keeps its own width and wraps only past half the bar, so a long view list (ArchiveAdmin's
+ * model tabs) scrolls in its strip rather than squeezing the title.
+ *
+ * Below 576px the views drop under the title, as the design's mobile header (2:1815, 104px tall: 18px
+ * above the title row, 24px down to the views). --shell-header-height is the design's height; what
+ * sits below the header reads --shell-header-offset, which SectionHeader.tsx keeps at the rendered
+ * height, so a header without views or with a wrapped title reserves what it really takes
  */
 
 :root {
@@ -22,9 +30,13 @@
   --shell-header-back-size: 2.5rem;
   --shell-header-border: 0.1rem solid;
   --shell-header-column-gap: 5rem;
-  --shell-header-height: 6.1rem;
-  --shell-header-padding-inline-end: 3rem;
+  --shell-header-current-max-inline-size: 100%;
+  --shell-header-height: 10.4rem;
+  --shell-header-offset: var(--shell-header-height);
+  --shell-header-padding-block-start: 1.8rem;
+  --shell-header-padding-inline-end: 2rem;
   --shell-header-padding-inline-start: 2rem;
+  --shell-header-row-gap: 2.4rem;
 
   /* Figma: Inter Medium 15px */
   --shell-header-title-font-size: 1.5rem;
@@ -34,25 +46,45 @@
   --shell-header-z-index: 2;
 }
 
+@media (width >= 576px) {
+  :root {
+    --shell-header-current-max-inline-size: 50%;
+    --shell-header-height: 6.1rem;
+    --shell-header-padding-block-start: 0rem;
+    --shell-header-padding-inline-end: 3rem;
+  }
+}
+
 .shell-header {
+  align-items: flex-start;
   background-color: var(--admin-bg-color);
   border-block-end: var(--shell-header-border) var(--admin-divider-color);
   box-sizing: border-box;
-  column-gap: var(--shell-header-column-gap);
   display: flex;
+  flex-direction: column;
+  gap: var(--shell-header-row-gap) var(--shell-header-column-gap);
   inset-block-start: var(--shell-sticky-top);
-  min-height: var(--shell-header-height);
+  padding-block-start: var(--shell-header-padding-block-start);
   padding-inline: var(--shell-header-padding-inline-start) var(--shell-header-padding-inline-end);
   position: sticky;
   z-index: var(--shell-header-z-index);
 }
 
+@media (width >= 576px) {
+  .shell-header {
+    align-items: stretch;
+    flex-direction: row;
+    justify-content: space-between;
+    min-height: var(--shell-header-height);
+  }
+}
+
 .shell-header__current {
   align-items: center;
   display: flex;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   gap: var(--shell-header-back-gap);
-  min-width: 0;
+  max-inline-size: var(--shell-header-current-max-inline-size);
 }
 
 .shell-header__back {
@@ -88,5 +120,6 @@
   align-items: flex-end;
   display: flex;
   flex: 0 1 auto;
+  max-width: 100%;
   min-width: 0;
 }

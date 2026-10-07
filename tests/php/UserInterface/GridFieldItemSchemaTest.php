@@ -65,6 +65,7 @@ class GridFieldItemSchemaTest extends FunctionalTest
         $this->assertSame(Note::class, $body['record']['className']);
         $this->assertSame('First', $body['record']['title']);
         $this->assertStringEndsWith("item/{$id}/edit/", $body['record']['link']);
+        $this->assertNull($body['record']['parentTitle'], 'A record in a section grid has no parent record');
     }
 
     public function testNewItemSchemaNeedsCreatePermission(): void
@@ -80,10 +81,16 @@ class GridFieldItemSchemaTest extends FunctionalTest
         $this->assertJsonError($this->requestSchema(static::NOTES . 'new'), 403);
     }
 
-    public function testSchemaNeedsViewPermission(): void
+    public function testUnviewableAndMissingRecordsAnswerTheSame404(): void
     {
         Note::$denied = ['view'];
-        $this->assertJsonError($this->requestSchema(static::NOTES . $this->idFromFixture(Note::class, 'first')), 403);
+        $unviewable = $this->requestSchema(static::NOTES . $this->idFromFixture(Note::class, 'first'));
+        $missing = $this->requestSchema(static::NOTES . '999999');
+
+        $this->assertJsonError($unviewable, 404);
+        $this->assertJsonError($missing, 404);
+        $this->assertSame('That record was not found.', $this->errorMessage($unviewable));
+        $this->assertSame($unviewable->getBody(), $missing->getBody());
     }
 
     public function testSchemaIsOnlyServedToGetWhileTheShellIsOn(): void
@@ -166,29 +173,60 @@ class GridFieldItemSchemaTest extends FunctionalTest
                 array_merge($this->headers('state,errors'), $token)
             );
             $this->assertJsonError($response, 400);
+            $this->assertSame('Your session has expired. Please re-submit the form.', $this->errorMessage($response));
         }
         $this->assertSame('First', Note::get()->byID($id)->Title);
     }
 
     /**
-     * The form leaves out an action the member may not run, so the framework refuses these before the
-     * shell's own check in GridFieldItemSubmissionExtension is reached
+     * The form leaves out an action the member may not run, which the framework refuses as plain text
+     * naming the controller class; the shell gets the JSON refusal before the form handles the post
      */
-    public function testActionsNeedTheirPermission(): void
+    public function testWithheldActionsAreRefusedAsJson(): void
     {
         $id = $this->idFromFixture(Note::class, 'first');
 
         Note::$denied = ['edit'];
-        $this->assertSame(403, $this->submit(static::NOTES . $id, ['Title' => 'Changed', 'action_doSave' => 1])->getStatusCode());
+        $viewOnlySave = $this->submit(static::NOTES . $id, ['Title' => 'Changed', 'action_doSave' => 1]);
+        $this->assertWithheld($viewOnlySave);
         $this->assertSame('First', Note::get()->byID($id)->Title);
 
         Note::$denied = ['create'];
-        $this->assertSame(403, $this->submit(static::NOTES . 'new', ['Title' => 'Created', 'action_doSave' => 1])->getStatusCode());
+        $create = $this->submit(static::NOTES . 'new', ['Title' => 'Created', 'action_doSave' => 1]);
+        $this->assertJsonError($create, 403);
+        $this->assertSame('You do not have permission to create this record.', $this->errorMessage($create));
         $this->assertSame(0, Note::get()->filter('Title', 'Created')->count());
 
         Note::$denied = ['delete'];
-        $this->assertSame(403, $this->submit(static::NOTES . $id, ['Title' => 'First', 'action_doDelete' => 1])->getStatusCode());
+        $editOnlyDelete = $this->submit(static::NOTES . $id, ['Title' => 'First', 'action_doDelete' => 1]);
+        $this->assertWithheld($editOnlyDelete);
         $this->assertNotNull(Note::get()->byID($id));
+    }
+
+    public function testFormNeedingSudoModeRefusesASaveInsteadOfReportingSuccess(): void
+    {
+        Config::modify()->set(Note::class, 'require_sudo_mode', true);
+        $id = $this->idFromFixture(Note::class, 'first');
+
+        $response = $this->submit(static::NOTES . $id, ['Title' => 'Changed', 'action_doSave' => 1]);
+
+        $this->assertJsonError($response, 403);
+        $this->assertStringStartsWith('Confirm your password', $this->errorMessage($response));
+        $this->assertSame('First', Note::get()->byID($id)->Title);
+    }
+
+    public function testLegacyPostCannotCreateWithoutCreatePermission(): void
+    {
+        Note::$denied = ['create'];
+        $response = $this->post(
+            static::NOTES . 'new/ItemEditForm',
+            ['Title' => 'Created', 'action_doSave' => 1, 'SecurityID' => static::TOKEN],
+            ['X-Requested-With' => 'XMLHttpRequest', 'X-Pjax' => 'CurrentForm']
+        );
+
+        $this->assertSame(403, $response->getStatusCode(), (string) $response->getBody());
+        $this->assertSame(0, Note::get()->filter('Title', 'Created')->count());
+        $this->assertSame(2, Note::get()->count());
     }
 
     public function testTheShellChecksThePermissionBeforeTheActionRuns(): void
@@ -236,7 +274,7 @@ class GridFieldItemSchemaTest extends FunctionalTest
         $id = $this->idFromFixture(Notice::class, 'draft');
 
         Note::$denied = ['publish'];
-        $this->assertSame(403, $this->submit(static::NOTICES . $id, ['Title' => 'Draft', 'action_doPublish' => 1])->getStatusCode());
+        $this->assertWithheld($this->submit(static::NOTICES . $id, ['Title' => 'Draft', 'action_doPublish' => 1]));
         $this->assertFalse(Notice::get()->byID($id)->isPublished());
 
         Note::$denied = [];
@@ -245,7 +283,7 @@ class GridFieldItemSchemaTest extends FunctionalTest
         $this->assertSame('Live', Versioned::get_by_stage(Notice::class, Versioned::LIVE)->byID($id)?->Title);
 
         Note::$denied = ['unpublish'];
-        $this->assertSame(403, $this->submit(static::NOTICES . $id, ['Title' => 'Live', 'action_doUnpublish' => 1])->getStatusCode());
+        $this->assertWithheld($this->submit(static::NOTICES . $id, ['Title' => 'Live', 'action_doUnpublish' => 1]));
         $this->assertTrue(Notice::get()->byID($id)->isPublished());
 
         Note::$denied = [];
@@ -320,6 +358,18 @@ class GridFieldItemSchemaTest extends FunctionalTest
             }
         }
         return null;
+    }
+
+    private function assertWithheld(HTTPResponse $response): void
+    {
+        $this->assertJsonError($response, 403);
+        $this->assertSame('You do not have permission to do that to this record.', $this->errorMessage($response));
+        $this->assertStringNotContainsString('Class', $response->getBody());
+    }
+
+    private function errorMessage(HTTPResponse $response): string
+    {
+        return json_decode($response->getBody(), true)['errors'][0]['value'];
     }
 
     private function assertJsonError(HTTPResponse $response, int $code): void

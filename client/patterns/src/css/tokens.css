@@ -32,6 +32,7 @@
 
   /* Figma node 2:6244 Save outline hover fill; no variable */
   --admin-palette-button-primary-tint: rgb(0 138 0 / 0.1);
+  --admin-palette-grey-100: #f7f8f8;
   --admin-palette-grey-400: #dcdee0;
   --admin-palette-grey-500: #c1c4c8;
 
@@ -108,6 +109,9 @@
 
   /* 4.51:1 on the modified ground */
   --admin-modified-fg-color: var(--admin-palette-text-draft-modified);
+
+  /* Grey 100, the disclosure header ground; New/Black text on it 13.34:1 */
+  --admin-muted-bg-color: var(--admin-palette-grey-100);
   --admin-muted-fg-color: var(--admin-palette-grey-900);
   --admin-nav-fg-color: var(--admin-palette-royal-blue);
 

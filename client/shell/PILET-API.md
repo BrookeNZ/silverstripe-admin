@@ -28,6 +28,7 @@ piral-notifications, ...):
 | `setUnsavedChanges(key, dirty): Disposable` | Report unsaved changes this pilet owns; the shell confirms before navigating away. The disposer clears the key |
 | `hasUnsavedChanges(): boolean` | Whether anything in the shell is dirty |
 | `setSectionHeader(header): Disposable` | Show the section header above the content; see **Section header** |
+| `registerBeforeSubmit(formId, handler): Disposable` | Run `handler({action})` before the form with that element id posts; see **Before a form posts** |
 
 No `registerFormField`: binding a field to the form is decided by the schema (`schemaType`, read-only
 state, the posted set), not by the registration; holders are a component (`FieldHolder` in
@@ -79,7 +80,7 @@ Examples: `SearchableMultiDropdownField` tries `SilverStripe\Forms\SearchableMul
 `TextField`, `SilverStripe\Forms\TextField`, then `SilverStripe\Forms\FormField`.
 
 Field components also receive `autofill(name, value)`, which sets another posted field by name (a
-focus point picker writing its X and Y fields).
+focus point picker writing its X and Y fields), and `formId`, the id of the form element they are in.
 
 Known limit: schemas served by the framework's `FormRequestHandler::getSchema()` and userforms'
 own `getMultipartSchema()` call bypass the admin's decorator, so they carry no candidates or fallback.
@@ -159,9 +160,27 @@ A section pilet renders a record edit form with the shell's renderer, registered
 value such as the title in the section header), `omitFields` (names left out, for a host that shows
 them itself), `renderLoadError(error)`, `trackUnsavedChanges`, `onLoad(response)` (the loaded response, for a
 host reading what the endpoint sends beside the form) and `confirmAction(action)` (asked before an action is
-submitted; `false`, or a promise of it, cancels). The renderer does not emit the records-changed
+submitted; `false`, or a promise of it, cancels). For a form inside another form (a block's form inside the
+page form) `headless` renders the fields with no form element and no action bar, so forms never nest;
+Enter in one of its inputs posts it when dirty instead of submitting the outer form. Such a host takes
+`handleRef`, which receives `{submit(action?), isDirty()}` (`FormSchemaFormHandle`; `submit` resolves
+`{ok, response?, message?}` and never throws), and `onDirtyChange(dirty)`. The renderer does not emit the records-changed
 event itself; the pilet that knows the record class emits it from `onSubmitted`. The shell's grid re-reads
 its rows on every records-changed event.
+
+## Before a form posts
+
+`registerBeforeSubmit(formId, handler)` runs `handler({action})` after the form is valid and before it
+posts, where `formId` is the form element's id (`Form_EditForm`), which every field receives as `formId`.
+Handlers run one after another in registration order and are awaited; one that resolves `false` cancels
+the post and the rest, and should say why itself (a toast). A thrown error cancels too and its message
+shows on the form. The elemental area uses it to save dirty blocks before the page saves:
+
+```tsx
+React.useEffect(() => piral.registerBeforeSubmit(formId, async () => saveDirtyBlocks()), [piral, formId]);
+```
+
+The disposer removes the handler; unloading a pilet removes all of its handlers.
 
 ## Section header
 
@@ -181,11 +200,21 @@ React.useEffect(() => piral.setSectionHeader({ title, backTo: '/pages/', backLab
 | `backTo?: string` | A router path; no back button without it |
 | `backLabel?: string` | The back button's accessible name, "Back" when omitted |
 | `views?: {key, label, to, current?}[]` | Route links in a `nav` named "<title> views", `aria-current="page"` on the current one. Views are routes; for panels inside one page use the patterns package's `Tabs` |
+| `documentTitle?: string` | The first part of the browser tab title when it should differ from `title`; the shell writes "<documentTitle or title> - <application name>" |
 
-One header shows at a time and the latest call wins. A disposer clears the header only while its own
-call is still the current one, so the outgoing page's cleanup never clears the incoming page's header.
-Unloading a pilet clears a header it set. The header's height is `--shell-header-height` on `:root`; a
-pilet with its own sticky content offsets it by that token.
+Headers stack: each call pushes an entry and the newest shows. A disposer removes only its own entry,
+so disposing a later header restores the one below it, and a second dispose does nothing. Unloading a
+pilet removes every header it set.
+
+The shell keeps `document.title` on the showing header. After a client route change (a new pathname,
+not the first load or a query change) it moves focus to the header's `h1` once the arriving page has
+set its header, and announces the title through its status region; a page that retitles itself soon
+after landing (a record name arriving after "Users #1") is announced again.
+
+Sticky content below the header offsets by `calc(var(--shell-sticky-top) + var(--shell-header-offset))`:
+`--shell-sticky-top` is the narrow-screen top bar (0 from 1024px) and `--shell-header-offset` the
+header's rendered height, which the shell measures; `--shell-header-height` is only the design height
+it falls back to. The form's action bar is measured the same way into `--shell-form-actions-offset`.
 
 ## Patterns package
 

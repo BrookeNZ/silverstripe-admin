@@ -8,26 +8,44 @@
  * with the page so its sticky action bar keeps working; it is at least as tall as the pane, so a short
  * form's action bar sits at the viewport bottom, and the bar bleeds over the inset to the column edges.
  * Only the layout and the alert colour are styled here; the pattern library step owns the look.
+ *
+ * Below 1024px, where the shell's menu collapses into its top bar, the tree stacks above the form in a
+ * pane of its own height and scrolls with the page. The design has no narrow pages layout (its Site
+ * tree sidebar 2:3674 and collapsed rail 2:3681 are desktop only), so the stacking is the shell's own
+ * choice. The pane offsets read the shell's sticky top bar and the measured header height.
  */
 
 .pages {
+  --pages-columns: minmax(0, 1fr);
   --pages-main-padding: var(--admin-gap-md);
-  --pages-pane-height: calc(100vh - var(--shell-header-height));
+  --pages-pane-offset: calc(var(--shell-sticky-top) + var(--shell-header-offset));
+  --pages-pane-height: calc(100vh - var(--pages-pane-offset));
+  --pages-sidebar-height: 40vh;
+  --pages-sidebar-position: static;
   --pages-sidebar-width: 32rem;
   --shell-form-actions-bleed: var(--pages-main-padding);
 
   align-items: start;
   display: grid;
-  grid-template-columns: var(--pages-sidebar-width) minmax(0, 1fr);
+  grid-template-columns: var(--pages-columns);
+}
+
+@media (width >= 1024px) {
+  .pages {
+    --pages-columns: var(--pages-sidebar-width) minmax(0, 1fr);
+    --pages-sidebar-height: var(--pages-pane-height);
+    --pages-sidebar-position: sticky;
+  }
 }
 
 .pages__sidebar {
   display: flex;
   flex-direction: column;
   gap: var(--admin-gap-sm);
-  height: var(--pages-pane-height);
-  inset-block-start: var(--shell-header-height);
-  position: sticky;
+  height: var(--pages-sidebar-height);
+  inset-block-start: var(--pages-pane-offset);
+  min-width: 0;
+  position: var(--pages-sidebar-position);
 }
 
 .pages__main {

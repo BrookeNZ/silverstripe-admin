@@ -132,7 +132,30 @@ export interface FormFieldActions {
   autofill(name: string, value: unknown): void;
 }
 
+/** Where a field is rendered */
+export interface FormFieldContext {
+  /** The id of the form element the field is in (`Form_EditForm`), the key for `registerBeforeSubmit` */
+  formId?: string;
+}
+
 /** What a field component registered with the Pilet API receives */
-export type FieldComponentProps<V = unknown, P extends object = {}> = FieldProps<V, FormField<P>> & FormFieldActions;
+export type FieldComponentProps<V = unknown, P extends object = {}> = FieldProps<V, FormField<P>> & FormFieldActions & FormFieldContext;
+
+/** What FormSchemaForm's `handleRef` receives */
+export interface FormSchemaFormHandle {
+  /** Posts the form with the named action (the first action, else `action_save`, when omitted) */
+  submit(action?: string): Promise<FormSchemaSubmitResult>;
+  isDirty(): boolean;
+}
+
+export interface FormSchemaSubmitResult {
+  /** True when the server accepted the submission with no errors */
+  ok: boolean;
+  response?: FormSchemaResponse;
+  /** Why it failed, when the request itself failed or a before-submit handler threw */
+  message?: string;
+}
+
+export type { BeforeSubmitContext, BeforeSubmitHandler } from './beforeSubmit';
 
 export type * from '../grid/types';

@@ -161,7 +161,7 @@ export const Sidebar = ({ menu, adminPath }: { menu: Array<SilverstripeMenuItem>
   };
 
   return (
-    <div className="shell__sidebar" onKeyDown={onKeyDown} onBlur={onBlur}>
+    <div className={open ? 'shell__sidebar shell__sidebar--open' : 'shell__sidebar'} onKeyDown={onKeyDown} onBlur={onBlur}>
       <header className="shell__banner">
         <Button
           ref={toggleRef}

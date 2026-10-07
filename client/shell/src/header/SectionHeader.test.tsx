@@ -9,8 +9,8 @@ import { StateContext } from 'piral-core';
 import type { GlobalState, GlobalStateContext } from 'piral-core';
 import create from 'zustand';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { announceDelay, LiveAnnouncer } from '../announcer';
-import { applicationName, documentTitle, SectionHeaderBar } from './SectionHeader';
+import { LiveAnnouncer } from '../announcer';
+import { applicationName, documentTitle, keptHeaderDelay, SectionHeaderBar } from './SectionHeader';
 import { initialSectionHeader, setSectionHeader } from './state';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -36,6 +36,13 @@ const NavigateProbe = () => {
 
 const frame = () => act(() => new Promise((resolve) => requestAnimationFrame(() => resolve(undefined))));
 const title = () => container.querySelector('h1');
+
+/** Real timers under a loaded test run can lag, so poll in short act-wrapped waits */
+async function until(done: () => boolean, timeout = 3000) {
+  for (let waited = 0; waited < timeout && !done(); waited += 50) {
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+  }
+}
 const announced = () => container.querySelector('[role="status"]')?.textContent;
 
 beforeEach(async () => {
@@ -87,25 +94,6 @@ describe('SectionHeaderBar', () => {
     expect(title()?.getAttribute('tabindex')).toBe('-1');
   });
 
-  it('focuses the new h1 and announces it after a route change', async () => {
-    let dispose = () => undefined as void;
-    act(() => {
-      dispose = setSectionHeader(context, 'shell', { title: 'Pages' });
-    });
-    container.querySelector('button')!.focus();
-    await act(async () => {
-      navigate('/security/');
-      dispose();
-      setSectionHeader(context, 'shell', { title: 'Security' });
-    });
-    await frame();
-    expect(document.activeElement).toBe(title());
-    expect(title()?.textContent).toBe('Security');
-    expect(document.title).toBe('Security - Silverstripe');
-    await act(() => new Promise((resolve) => setTimeout(resolve, announceDelay + 10)));
-    expect(announced()).toBe('Security');
-  });
-
   it('waits for the arriving page to set its header', async () => {
     container.querySelector('button')!.focus();
     await act(async () => navigate('/security/'));
@@ -113,6 +101,50 @@ describe('SectionHeaderBar', () => {
     expect(title()).toBeNull();
     act(() => void setSectionHeader(context, 'shell', { title: 'Security' }));
     await frame();
+    expect(document.activeElement).toBe(title());
+  });
+
+  it('focuses and announces the arriving header after a route change, not the one it replaces', async () => {
+    let dispose = () => undefined as void;
+    act(() => {
+      dispose = setSectionHeader(context, 'shell', { title: 'Pages' });
+    });
+    await act(async () => navigate('/security/'));
+    await act(async () => {
+      dispose();
+      setSectionHeader(context, 'shell', { title: 'Security' });
+    });
+    await frame();
+    await until(() => announced() === 'Security');
+    expect(announced()).toBe('Security');
+    expect(document.activeElement).toBe(title());
+    expect(title()?.textContent).toBe('Security');
+    expect(document.title).toBe('Security - Silverstripe');
+  });
+
+  it('focuses a header the route change kept after a short wait', async () => {
+    act(() => void setSectionHeader(context, 'shell', { title: 'Pages' }));
+    container.querySelector('button')!.focus();
+    await act(async () => navigate('/pages/edit/show/1'));
+    await frame();
+    expect(document.activeElement).not.toBe(title());
+    await until(() => document.activeElement === title(), keptHeaderDelay * 5);
+    expect(document.activeElement).toBe(title());
+  });
+
+  it('announces the title a record page settles on', async () => {
+    let dispose = () => undefined as void;
+    await act(async () => navigate('/security/users/item/1'));
+    act(() => {
+      dispose = setSectionHeader(context, 'shell', { title: 'Users #1' });
+    });
+    await frame();
+    await act(async () => {
+      dispose();
+      setSectionHeader(context, 'shell', { title: 'Default Admin' });
+    });
+    await until(() => announced() === 'Default Admin');
+    expect(announced()).toBe('Default Admin');
     expect(document.activeElement).toBe(title());
   });
 });

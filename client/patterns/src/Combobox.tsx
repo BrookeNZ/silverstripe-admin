@@ -5,7 +5,13 @@
  * own remove button and keeps the list open. Options come from `options`, filtered by label as the
  * user types, or from `loadOptions`, called with the typed text and marking the listbox busy until it
  * resolves; a stale answer is dropped. With `searchable` off the input is read-only and typing jumps
- * to the option whose label starts with the typed letters.
+ * to the option whose label starts with the typed letters. A searchable single select empties its input
+ * while focused, as react-select does, so typing starts a fresh search; the chosen label shows as the
+ * placeholder until the user types, and returns as the value on blur.
+ *
+ * When the options change under the active one (a tree stepping into a node), the first option becomes
+ * active. A tabbable control in the popup `header` is reached with Tab from the input, which then keeps
+ * the list open; Escape there closes it and returns to the input.
  *
  * The value is controlled through `value` and `onChange`, or uncontrolled from `defaultValue`; it is
  * the option objects themselves, read through `getOptionValue` and `getOptionLabel` (`value` and
@@ -35,8 +41,8 @@ export interface ComboboxProps<T> {
   onChange?(value: T | null | T[]): void;
   onInputChange?(inputValue: string): void;
   onOpenChange?(open: boolean): void;
-  /** Runs before the built-in keys; call `preventDefault()` to handle a key yourself */
-  onKeyDown?(event: React.KeyboardEvent<HTMLInputElement>, activeOption: T | undefined): void;
+  /** Runs before the built-in keys; call `preventDefault()` to handle a key yourself, and `activate` to choose the active option once the options have changed */
+  onKeyDown?(event: React.KeyboardEvent<HTMLInputElement>, activeOption: T | undefined, activate: (option: T) => void): void;
   getOptionValue?(option: T): string | number;
   getOptionLabel?(option: T): string;
   isOptionDisabled?(option: T): boolean;
@@ -53,6 +59,8 @@ export interface ComboboxProps<T> {
   required?: boolean;
   noOptionsMessage?: string | ((inputValue: string) => string);
   loadingMessage?: string;
+  /** Read out through the status line while the list is open, such as the level a tree has moved to */
+  statusMessage?: string;
   clearLabel?: string;
   removeLabel?(optionLabel: string): string;
   inputRef?: React.Ref<HTMLInputElement>;
@@ -65,6 +73,8 @@ export interface ComboboxProps<T> {
 type Move = 'next' | 'previous' | 'first' | 'last';
 
 const TYPEAHEAD_RESET_MS = 500;
+
+const tabbable = 'button:not([tabindex="-1"]), [href], input, [tabindex]:not([tabindex="-1"])';
 
 const valueOf = (option: unknown) => (option as { value: string | number }).value;
 const labelOf = (option: unknown) => String((option as { label?: unknown }).label ?? '');
@@ -99,6 +109,7 @@ export const Combobox = <T,>({
   required = false,
   noOptionsMessage = 'No options',
   loadingMessage = 'Loading',
+  statusMessage = '',
   clearLabel = 'Clear',
   removeLabel = removeText,
   inputRef,
@@ -106,10 +117,12 @@ export const Combobox = <T,>({
 }: ComboboxProps<T>) => {
   const listboxId = `${React.useId()}listbox`;
   const ownInput = React.useRef<HTMLInputElement | null>(null);
+  const popup = React.useRef<HTMLDivElement>(null);
   const [uncontrolled, setUncontrolled] = React.useState(defaultValue);
   const [open, setOpen] = React.useState(false);
   const [inputValue, setInputValue] = React.useState('');
   const [editing, setEditing] = React.useState(false);
+  const [focused, setFocused] = React.useState(false);
   const [activeKey, setActiveKey] = React.useState<string | null>(null);
   const [loaded, setLoaded] = React.useState<ReadonlyArray<T> | null>(null);
   const [pending, setPending] = React.useState(false);
@@ -123,7 +136,8 @@ export const Combobox = <T,>({
   const matches = filterOption ?? ((option: T, text: string) => getOptionLabel(option).toLocaleLowerCase().includes(text.toLocaleLowerCase()));
   const visible = loadOptions ? loaded ?? [] : options.filter((option) => matches(option, inputValue));
   const enabled = visible.map((option, index) => (isOptionDisabled(option) ? -1 : index)).filter((index) => index >= 0);
-  const activeIndex = visible.findIndex((option) => keyOf(option) === activeKey);
+  const keyedIndex = visible.findIndex((option) => keyOf(option) === activeKey);
+  const activeIndex = keyedIndex < 0 && activeKey !== null ? enabled[0] ?? -1 : keyedIndex;
   const activeOption = activeIndex >= 0 ? visible[activeIndex] : undefined;
   const optionId = (index: number) => `${listboxId}-${index}`;
   const busy = loading || pending;
@@ -248,8 +262,10 @@ export const Combobox = <T,>({
     }
   };
 
+  const activate = (option: T) => setActiveKey(keyOf(option));
+
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    onKeyDown?.(event, activeOption);
+    onKeyDown?.(event, activeOption, activate);
     if (event.defaultPrevented || locked) {
       return;
     }
@@ -276,7 +292,7 @@ export const Combobox = <T,>({
       close();
     } else if (key === 'Backspace' && multiple && !inputValue && selected.length) {
       commit(selected.slice(0, -1));
-    } else if (key === 'Tab' && open) {
+    } else if (key === 'Tab' && open && (event.shiftKey || !popup.current?.querySelector(tabbable))) {
       close();
     } else if (key === ' ' && !searchable) {
       event.preventDefault();
@@ -320,9 +336,21 @@ export const Combobox = <T,>({
     }
   };
 
-  const shownText = multiple || editing ? inputValue : selected.map(getOptionLabel).join(', ');
+  const handlePopupKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape' && event.target !== ownInput.current) {
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+      ownInput.current?.focus();
+    }
+  };
+
+  const selectedText = selected.map(getOptionLabel).join(', ');
+  const searchesFresh = !multiple && searchable && focused && !locked;
+  const shownText = multiple || editing || searchesFresh ? inputValue : selectedText;
+  const shownPlaceholder = searchesFresh && selected.length ? selectedText : selected.length ? undefined : placeholder;
   const emptyText = typeof noOptionsMessage === 'function' ? noOptionsMessage(inputValue) : noOptionsMessage;
-  const message = busy ? loadingMessage : visible.length === 0 ? emptyText : '';
+  const message = busy ? loadingMessage : visible.length === 0 ? emptyText : statusMessage;
   const blockClasses = ['admin-combobox', disabled && 'admin-combobox--disabled', className].filter(Boolean).join(' ');
 
   return (
@@ -352,7 +380,7 @@ export const Combobox = <T,>({
             {...aria}
             ref={setInput}
             id={id}
-            className="admin-combobox__input"
+            className={searchesFresh && selected.length ? 'admin-combobox__input admin-combobox__input--selection-shown' : 'admin-combobox__input'}
             type="text"
             role="combobox"
             autoComplete="off"
@@ -362,11 +390,13 @@ export const Combobox = <T,>({
             aria-activedescendant={open && activeIndex >= 0 ? optionId(activeIndex) : undefined}
             aria-required={required || undefined}
             value={shownText}
-            placeholder={selected.length ? undefined : placeholder}
+            placeholder={shownPlaceholder}
             disabled={disabled}
             readOnly={readOnly || !searchable}
             onChange={handleInput}
             onKeyDown={handleKeyDown}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
           />
         </div>
         {clearable && !locked && selected.length > 0 && (
@@ -378,7 +408,13 @@ export const Combobox = <T,>({
           <ShowOptionsIcon />
         </span>
       </div>
-      <div className="admin-combobox__popup" hidden={!open} onMouseDown={(event) => event.preventDefault()}>
+      <div
+        ref={popup}
+        className="admin-combobox__popup"
+        hidden={!open}
+        onMouseDown={(event) => event.preventDefault()}
+        onKeyDown={handlePopupKeyDown}
+      >
         {header}
         <ul
           id={listboxId}
