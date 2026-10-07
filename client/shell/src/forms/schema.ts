@@ -128,9 +128,20 @@ export function withPristineState(actions: Array<FormField>, dirty: boolean): Ar
   });
 }
 
-/** The actions for the bar in their clean or changed form, from either legacy convention */
+/** The actions in their clean or changed form, from either legacy convention */
+function actionStates(actions: Array<FormField>, dirty: boolean): Array<FormField> {
+  return withPristineState(dirty ? withChangedActions(actions) : actions, dirty);
+}
+
 export function barActions(actions: Array<FormField>, dirty: boolean): Array<FormField> {
-  return actionBarFields(withPristineState(dirty ? withChangedActions(actions) : actions, dirty));
+  return actionBarFields(actionStates(actions, dirty));
+}
+
+/** The actions as one row of buttons, for a dialog footer: groups and tab sets give up their buttons */
+export function dialogActions(actions: Array<FormField>, dirty: boolean): Array<FormField> {
+  const buttons = (fields: Array<FormField>): Array<FormField> =>
+    fields.flatMap((field) => (field.children.length > 0 ? buttons(field.children) : [field]));
+  return buttons(actionStates(actions, dirty));
 }
 
 /**

@@ -4,19 +4,21 @@
  * outside, returning focus to the button; a group also closes when focus leaves it. It stays mounted
  * while closed, so fields inside keep their state.
  *
- * `align` lines the panel's start or end edge up with the button's (end suits a trailing "..." button),
- * and `placement` opens it below or above; a panel opening below that would run past the bottom of the
- * viewport opens above instead when there is room there. A menu follows the APG menu button pattern:
+ * The panel opens in the top layer through useAnchoredLayer, so no row, scrolling body or dialog clips
+ * it. `align` lines its start or end edge up with the button's (end suits a trailing "..." button), and
+ * `placement` opens it below or above, flipping when only the other side has room. A menu follows the APG menu button pattern:
  * opening focuses the first item, arrows, Home and End move between items, Tab leaves and closes, and
  * the buttons inside become its `menuitem`s through MenuItemContext.
  */
 import * as React from 'react';
 import { Button } from './Button';
 import { MoreOptionsIcon } from './icons';
+import { useAnchoredLayer } from './anchoredLayer';
+import type { AnchorAlign, AnchorPlacement } from './anchoredLayer';
 import { MenuItemContext } from './menuContext';
 
-export type PopoverAlign = 'start' | 'end';
-export type PopoverPlacement = 'top' | 'bottom';
+export type PopoverAlign = AnchorAlign;
+export type PopoverPlacement = AnchorPlacement;
 
 export interface PopoverProps {
   /** The button's id; the panel is `<id>_Popover` */
@@ -41,11 +43,8 @@ interface PanelProps extends PopoverProps {
 
 const itemSelector = '[role="menuitem"]';
 
-function panelClassName(align: PopoverAlign, placement: PopoverPlacement): string {
-  return ['admin-popover__panel', placement === 'top' && 'admin-popover__panel--top', align === 'end' && 'admin-popover__panel--end']
-    .filter(Boolean)
-    .join(' ');
-}
+// React 18's types do not know the popover attribute yet
+const topLayer = { popover: 'manual' } as React.HTMLAttributes<HTMLDivElement>;
 
 const AnchoredPanel = ({
   id,
@@ -60,7 +59,6 @@ const AnchoredPanel = ({
   children,
 }: PanelProps) => {
   const [open, setOpen] = React.useState(false);
-  const [flipped, setFlipped] = React.useState(false);
   const root = React.useRef<HTMLDivElement>(null);
   const button = React.useRef<HTMLButtonElement>(null);
   const panel = React.useRef<HTMLDivElement>(null);
@@ -76,17 +74,10 @@ const AnchoredPanel = ({
     }
   }, []);
 
+  const side = useAnchoredLayer(open, button, panel, align, placement);
+
   React.useLayoutEffect(() => {
-    if (!open) {
-      setFlipped(false);
-      return;
-    }
-    const rect = panel.current?.getBoundingClientRect();
-    const anchor = button.current?.getBoundingClientRect();
-    if (placement === 'bottom' && rect && anchor && rect.bottom > window.innerHeight && anchor.top > rect.height) {
-      setFlipped(true);
-    }
-    if (isMenu) {
+    if (open && isMenu) {
       items()[0]?.focus();
     }
   }, [open]);
@@ -171,8 +162,11 @@ const AnchoredPanel = ({
       </Button>
       <div
         ref={panel}
-        className={panelClassName(align, flipped ? 'top' : placement)}
+        className="admin-popover__panel"
         id={panelId}
+        {...topLayer}
+        data-align={align}
+        data-placement={side}
         role={role}
         aria-label={panelTitle || label}
         hidden={!open}

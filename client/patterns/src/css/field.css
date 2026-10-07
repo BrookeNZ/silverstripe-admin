@@ -37,8 +37,7 @@
   border-radius: var(--admin-radius);
   color: var(--admin-fg-color);
   font: inherit;
-  min-height: var(--admin-control-min-height);
-  padding: var(--admin-gap-xs) var(--admin-gap-sm);
+  padding: var(--admin-gap-sm);
 }
 
 .admin-field__control:read-only {

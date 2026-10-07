@@ -49,9 +49,6 @@
 }
 
 .admin-grid__search {
-  align-items: center;
-  display: flex;
-  gap: var(--admin-gap-xs);
   margin-inline-start: auto;
 }
 
@@ -172,13 +169,9 @@
 }
 
 .admin-grid__pages {
-  align-items: center;
   color: var(--admin-muted-fg-color);
-  display: flex;
   font-size: var(--admin-font-size-sm);
   font-weight: var(--admin-font-weight-bold);
-  gap: var(--admin-gap-sm);
-  justify-content: flex-end;
   padding: var(--admin-gap-md) 0;
 }
 

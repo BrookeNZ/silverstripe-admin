@@ -136,18 +136,25 @@
   display: inline-flex;
 }
 
+/* In the top layer at the place useAnchoredLayer measures from the control, as wide as the control */
 .admin-combobox__popup {
+  --admin-anchor-left: 0;
+  --admin-anchor-top: 0;
+  --admin-anchor-width: auto;
+
   background-color: var(--admin-panel-bg-color);
   border: var(--admin-border) var(--admin-border-color);
   border-radius: var(--admin-radius);
   box-shadow: var(--admin-combobox-popup-shadow);
   box-sizing: border-box;
-  inset-block-start: 100%;
-  inset-inline: 0;
-  margin-block-start: var(--admin-gap-xs);
+  color: var(--admin-fg-color);
+  inset: var(--admin-anchor-top) auto auto var(--admin-anchor-left);
+  margin: var(--admin-gap-xs) 0;
   max-height: var(--admin-combobox-popup-max-height);
   overflow-y: auto;
-  position: absolute;
+  padding: 0;
+  position: fixed;
+  width: var(--admin-anchor-width);
   z-index: var(--admin-z-popover);
 }
 

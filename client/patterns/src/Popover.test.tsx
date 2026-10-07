@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Button } from './Button';
+import { placeLayer } from './anchoredLayer';
 import { Menu, Popover } from './Popover';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -40,20 +41,23 @@ const ActionsMenu = ({ onPublish }: { onPublish?: () => void }) => (
 );
 
 describe('Popover and Menu', () => {
-  it('lines the panel up with the button end and opens below by default', () => {
+  it('opens the panel in the top layer, lined up with the button end and below by default', () => {
     render(<ActionsMenu />);
-    expect(panel().className).toBe('admin-popover__panel admin-popover__panel--end');
+    expect(panel().getAttribute('popover')).toBe('manual');
+    expect(panel().dataset.align).toBe('end');
+    expect(panel().dataset.placement).toBe('bottom');
     expect(panel().hidden).toBe(true);
     expect(trigger().textContent).toBe('More options for Quote');
   });
 
-  it('takes start alignment and top placement', () => {
+  it('takes start alignment and top placement for a group', () => {
     render(
       <Popover id="options" label="Settings" align="start" placement="top">
         <p>Fields</p>
       </Popover>,
     );
-    expect(panel().className).toBe('admin-popover__panel admin-popover__panel--top');
+    expect(panel().dataset.align).toBe('start');
+    expect(panel().dataset.placement).toBe('top');
     expect(panel().getAttribute('role')).toBe('group');
   });
 
@@ -112,5 +116,23 @@ describe('Popover and Menu', () => {
   it('leaves buttons outside a menu as plain buttons', () => {
     render(<Button>Save</Button>);
     expect(container.querySelector('button')?.hasAttribute('role')).toBe(false);
+  });
+});
+
+describe('placeLayer', () => {
+  const anchor = { top: 100, bottom: 130, left: 400, right: 430, width: 30, height: 30 } as DOMRect;
+  const layer = { width: 240, height: 160 };
+
+  it('puts an end-aligned panel under the button with its right edge on the button right edge', () => {
+    expect(placeLayer(anchor, layer, 4, 1000, 'end', 'bottom')).toEqual({ top: 130, left: 190, placement: 'bottom' });
+  });
+
+  it('puts a start-aligned top panel above the button, clear of the gap', () => {
+    expect(placeLayer({ ...anchor, top: 500, bottom: 530 } as DOMRect, layer, 4, 1000, 'start', 'top')).toEqual({ top: 332, left: 400, placement: 'top' });
+  });
+
+  it('flips to the side with room', () => {
+    expect(placeLayer({ ...anchor, top: 900, bottom: 930 } as DOMRect, layer, 4, 1000, 'start', 'bottom').placement).toBe('top');
+    expect(placeLayer(anchor, layer, 4, 1000, 'start', 'top').placement).toBe('bottom');
   });
 });

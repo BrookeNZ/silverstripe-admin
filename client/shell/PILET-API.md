@@ -54,7 +54,7 @@ form too.
 
 Exported types: `FieldComponentProps`, `FormField`, `FormFieldBase`, `FieldProps`, `FieldDescriptor`,
 `ChoiceOption`, `SourceOption`, `FieldSchema`, `FieldState`, `SchemaMessage`, `SchemaData`,
-`FormSchemaTree`, `FormSchemaState`, `FormSchemaResponse`.
+`FormSchemaTree`, `FormSchemaState`, `FormSchemaResponse`, `SchemaFormDialogProps`.
 
 ## Component resolution
 
@@ -164,9 +164,16 @@ submitted; `false`, or a promise of it, cancels). For a form inside another form
 page form) `headless` renders the fields with no form element and no action bar, so forms never nest;
 Enter in one of its inputs posts it when dirty instead of submitting the outer form. Such a host takes
 `handleRef`, which receives `{submit(action?), isDirty()}` (`FormSchemaFormHandle`; `submit` resolves
-`{ok, response?, message?}` and never throws), and `onDirtyChange(dirty)`. The renderer does not emit the records-changed
+`{ok, response?, message?}` and never throws), `onDirtyChange(dirty)` and `onActionsChange(actions)` (the
+form's actions as one row of buttons, groups and tab sets flattened, primary by the action bar's rule). The renderer does not emit the records-changed
 event itself; the pilet that knows the record class emits it from `onSubmitted`. The shell's grid re-reads
 its rows on every records-changed event.
+
+A form in a dialog is the shell's `SchemaFormDialog` (`getSilverstripeComponent('SchemaFormDialog')`,
+props `SchemaFormDialogProps`: `open`, `header`, `schemaUrl`, `onClose()`, `onSubmitted(response, action)`):
+the shared Dialog with the form headless in its body and Cancel, then the form's actions, in its footer.
+Each action button posts its own action and shows `loading` while it runs; errors show in the body.
+`onClose` is Cancel and Escape, and the host closes the dialog from `onSubmitted` as well.
 
 ## Before a form posts
 

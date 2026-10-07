@@ -91,6 +91,11 @@
   --admin-gap-xs: 0.4rem;
   --admin-gap-sm: 0.8rem;
   --admin-gap-md: 1.6rem;
+
+  /* The design file has no spacing variables; lg to xxl continue the scale with no design source */
+  --admin-gap-lg: 2.4rem;
+  --admin-gap-xl: 3.2rem;
+  --admin-gap-xxl: 4.8rem;
   --admin-hover-bg-color: var(--admin-palette-bright-blue-100);
 
   /* 7.79:1 on white */

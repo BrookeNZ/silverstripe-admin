@@ -8,6 +8,7 @@
  * nothing about FormSchema; `FieldComponentProps` narrows it to a FormSchema field.
  */
 import type { ChoiceOption, FieldDescriptor, FieldProps } from '@silverstripe/admin-patterns';
+import type { ReactNode } from 'react';
 
 export type { ChoiceOption, FieldDescriptor, FieldProps };
 
@@ -156,6 +157,17 @@ export interface FormSchemaSubmitResult {
   response?: FormSchemaResponse;
   /** Why it failed, when the request itself failed or a before-submit handler threw */
   message?: string;
+}
+
+/** What the shell's `SchemaFormDialog` takes */
+export interface SchemaFormDialogProps {
+  open: boolean;
+  header: ReactNode;
+  schemaUrl: string;
+  /** Cancel or Escape; the dialog stays open until the host sets `open` false */
+  onClose(): void;
+  /** A post the server accepted; the host closes the dialog here */
+  onSubmitted?(response: FormSchemaResponse, action: FormField): void;
 }
 
 export type { BeforeSubmitContext, BeforeSubmitHandler } from './beforeSubmit';

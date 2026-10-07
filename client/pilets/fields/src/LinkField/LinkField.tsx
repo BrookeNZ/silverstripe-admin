@@ -10,8 +10,8 @@
  * Links are written by the module's endpoints as soon as their dialog saves (see linkApi.ts); the
  * owner form only posts the ids.
  *
- * The nested form is the shell's renderer from `getSilverstripeComponent('FormSchemaForm')`, so it is
- * passed in by the pilet's setup. The dialog is portalled out of the page form and stops submit events
+ * The edit dialog is the shell's `SchemaFormDialog` (the link form with its actions in the dialog footer),
+ * passed in by the pilet's setup. The dialogs are portalled out of the page form and stop submit events
  * there, so saving a link never submits the page.
  *
  * No CMS Refresh design exists for this field in the file; this is the minimum markup.
@@ -20,6 +20,7 @@ import * as React from 'react';
 import { createPortal } from 'react-dom';
 import { AddIcon, Button, describedBy, Dialog, FieldHolder, RemoveIcon } from '@silverstripe/admin-patterns';
 import type { FieldComponentProps, FormSchemaResponse } from '@silverstripe/admin-shell';
+import type { SchemaFormDialogProps } from '../shell';
 import { deleteLink, fetchLinkData, linkSchemaUrl, savedLinkId, sortLinks } from './linkApi';
 import type { LinkData, LinkOwner } from './linkApi';
 import './LinkField.css';
@@ -56,7 +57,7 @@ export function linkIds(value: LinkFieldValue | undefined): number[] {
   return list.map(Number).filter((id) => id > 0);
 }
 
-export function createLinkField(FormSchemaForm: React.ComponentType<any>) {
+export function createLinkField(SchemaFormDialog: React.ComponentType<SchemaFormDialogProps>) {
   const LinkField = ({ field, value, onChange, error }: FieldComponentProps<LinkFieldValue, LinkFieldSchema>) => {
     const ids = linkIds(value);
     const idsKey = ids.join(',');
@@ -277,22 +278,13 @@ export function createLinkField(FormSchemaForm: React.ComponentType<any>) {
         </div>
         {createPortal(
           <div className="link-field__dialogs" onSubmit={(event) => event.stopPropagation()}>
-            <Dialog
+            <SchemaFormDialog
               open={editing !== null}
               onClose={() => closeEditor(editing && editing.linkId > 0 ? editButtonId(editing.linkId) : null)}
               header={editing?.title ?? ''}
-              footer={
-                <Button onClick={() => closeEditor(editing && editing.linkId > 0 ? editButtonId(editing.linkId) : null)}>Cancel</Button>
-              }
-            >
-              {editing && (
-                <FormSchemaForm
-                  key={`${editing.linkId}-${editing.typeKey}`}
-                  schemaUrl={linkSchemaUrl(editing.linkId, editing.typeKey, owner)}
-                  onSubmitted={onSaved}
-                />
-              )}
-            </Dialog>
+              schemaUrl={editing ? linkSchemaUrl(editing.linkId, editing.typeKey, owner) : ''}
+              onSubmitted={onSaved}
+            />
             <Dialog
               open={confirming !== null}
               onClose={() => setConfirming(null)}

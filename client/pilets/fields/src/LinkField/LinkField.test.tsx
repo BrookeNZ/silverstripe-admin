@@ -3,7 +3,9 @@ import * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Dialog } from '@silverstripe/admin-patterns';
 import type { PiletApi } from '@silverstripe/admin-shell';
+import type { SchemaFormDialogProps } from '../shell';
 import { connectConfig } from '../legacy/Config';
 import { createLinkField } from './LinkField';
 import type { LinkFieldValue } from './LinkField';
@@ -24,20 +26,24 @@ const reorder = vi.mocked(sortLinks);
 let container: HTMLDivElement;
 
 const formProps: Array<{ schemaUrl: string }> = [];
-const FakeForm = ({ schemaUrl, onSubmitted }: { schemaUrl: string; onSubmitted(response: unknown): void }) => {
-  formProps.push({ schemaUrl });
+const FakeDialog = ({ open, header, schemaUrl, onClose, onSubmitted }: SchemaFormDialogProps) => {
+  if (open) {
+    formProps.push({ schemaUrl });
+  }
   return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        onSubmitted({ id: `admin/linkfield/linkForm/42?typeKey=external` });
-      }}
-    >
-      <button type="submit">Create link</button>
-    </form>
+    <Dialog open={open} onClose={onClose} header={header}>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSubmitted?.({ id: `admin/linkfield/linkForm/42?typeKey=external` }, {} as never);
+        }}
+      >
+        <button type="submit">Create link</button>
+      </form>
+    </Dialog>
   );
 };
-const LinkField = createLinkField(FakeForm);
+const LinkField = createLinkField(FakeDialog);
 
 const types = {
   sitetree: { key: 'sitetree', title: 'Page on this site', allowed: true, priority: 0 },

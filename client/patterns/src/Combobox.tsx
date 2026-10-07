@@ -18,9 +18,16 @@
  * `label` by default). Tab closes the list without choosing, unlike react-select, which this replaces.
  * Text is passed in (`noOptionsMessage`, `clearLabel`, `removeLabel`) because the package has no
  * translations of its own.
+ *
+ * The popup opens in the top layer under the control (useAnchoredLayer), so a dialog's scrolling body
+ * or any overflow around the field never crops it.
  */
 import * as React from 'react';
+import { useAnchoredLayer } from './anchoredLayer';
 import { RemoveIcon, ShowOptionsIcon } from './icons';
+
+// React 18's types do not know the popover attribute yet
+const topLayer = { popover: 'manual' } as React.HTMLAttributes<HTMLDivElement>;
 
 export interface ComboboxOptionState {
   active: boolean;
@@ -118,6 +125,7 @@ export const Combobox = <T,>({
   const listboxId = `${React.useId()}listbox`;
   const ownInput = React.useRef<HTMLInputElement | null>(null);
   const popup = React.useRef<HTMLDivElement>(null);
+  const control = React.useRef<HTMLDivElement>(null);
   const [uncontrolled, setUncontrolled] = React.useState(defaultValue);
   const [open, setOpen] = React.useState(false);
   const [inputValue, setInputValue] = React.useState('');
@@ -140,6 +148,7 @@ export const Combobox = <T,>({
   const activeIndex = keyedIndex < 0 && activeKey !== null ? enabled[0] ?? -1 : keyedIndex;
   const activeOption = activeIndex >= 0 ? visible[activeIndex] : undefined;
   const optionId = (index: number) => `${listboxId}-${index}`;
+  useAnchoredLayer(open, control, popup, 'start', 'bottom');
   const busy = loading || pending;
   const locked = disabled || readOnly;
 
@@ -355,7 +364,7 @@ export const Combobox = <T,>({
 
   return (
     <div className={blockClasses} onBlur={handleBlur}>
-      <div className="admin-combobox__control" onMouseDown={handleControlMouseDown}>
+      <div className="admin-combobox__control" ref={control} onMouseDown={handleControlMouseDown}>
         <div className="admin-combobox__values">
           {multiple && selected.length > 0 && (
             <ul className="admin-combobox__tokens">
@@ -411,6 +420,7 @@ export const Combobox = <T,>({
       <div
         ref={popup}
         className="admin-combobox__popup"
+        {...topLayer}
         hidden={!open}
         onMouseDown={(event) => event.preventDefault()}
         onKeyDown={handlePopupKeyDown}

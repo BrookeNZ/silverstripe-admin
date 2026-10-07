@@ -15,7 +15,7 @@
  * pilet once it has one.
  */
 import * as React from 'react';
-import { describedBy, FieldHolder, PreviewIcon, RemoveIcon, UploadIcon } from '@silverstripe/admin-patterns';
+import { describedBy, FieldHolder, PreviewIcon, RemoveIcon, Stack, UploadIcon } from '@silverstripe/admin-patterns';
 import type { FieldComponentProps } from '@silverstripe/admin-shell';
 import Config from '../legacy/Config';
 import { fileMeta, uploadFile } from './uploadFile';
@@ -153,7 +153,8 @@ const UploadField = ({ field, value, onChange, error }: FieldComponentProps<Uplo
 
   return (
     <FieldHolder field={field} error={shownError} labelId={labelId}>
-      <div
+      <Stack
+        spacing="sm"
         className="upload-field"
         id={field.id}
         ref={group}
@@ -164,7 +165,7 @@ const UploadField = ({ field, value, onChange, error }: FieldComponentProps<Uplo
         aria-busy={busy || undefined}
       >
         {(ids.length > 0 || busy) && (
-          <ul className="upload-field__files">
+          <Stack as="ul" spacing="sm" className="upload-field__files">
             {ids.map((id) => {
               const file = known[id];
               const name = fileName(file, id);
@@ -176,10 +177,10 @@ const UploadField = ({ field, value, onChange, error }: FieldComponentProps<Uplo
                   ) : (
                     <span className="upload-field__thumbnail" />
                   )}
-                  <span className="upload-field__details">
+                  <Stack as="span" spacing="xs" className="upload-field__details">
                     <span className="upload-field__name">{name}</span>
                     <span className="upload-field__meta">{file?.exists === false ? 'File cannot be found' : fileMeta(file ?? {})}</span>
-                  </span>
+                  </Stack>
                   <span className="upload-field__actions">
                     <a className="upload-field__action" href={fileEditUrl(id)} target="_blank" rel="noopener noreferrer">
                       <PreviewIcon label={`Open ${name} in files (opens in new window)`} />
@@ -196,16 +197,20 @@ const UploadField = ({ field, value, onChange, error }: FieldComponentProps<Uplo
             {pending.map((item) => (
               <li className="upload-field__file" key={item.key}>
                 <span className="upload-field__thumbnail" />
-                <span className="upload-field__details">
+                <Stack as="span" spacing="xs" className="upload-field__details">
                   <span className="upload-field__name">{item.name}</span>
                   <progress className="upload-field__progress" value={item.progress} max={1} aria-label={`Uploading ${item.name}`} />
-                </span>
+                </Stack>
               </li>
             ))}
-          </ul>
+          </Stack>
         )}
         {canUpload && (
-          <div
+          <Stack
+            direction="row"
+            align="center"
+            justify="center"
+            spacing="xs"
             className={dragging ? 'upload-field__dropzone upload-field__dropzone--active' : 'upload-field__dropzone'}
             onDragOver={(event) => {
               event.preventDefault();
@@ -231,12 +236,12 @@ const UploadField = ({ field, value, onChange, error }: FieldComponentProps<Uplo
                 upload(files);
               }}
             />
-          </div>
+          </Stack>
         )}
         <p className="upload-field__status" role="status">
           {status}
         </p>
-      </div>
+      </Stack>
     </FieldHolder>
   );
 };

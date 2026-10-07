@@ -65,6 +65,8 @@ describe('Combobox', () => {
     expect(input().getAttribute('aria-labelledby')).toBe('fruit_label');
     expect(listbox().getAttribute('aria-labelledby')).toBe('fruit_label');
     expect(listbox().closest('[hidden]')).not.toBeNull();
+    // The popup opens in the top layer, so no scrolling dialog body around the field crops it
+    expect(listbox().closest('[popover="manual"]')?.className).toBe('admin-combobox__popup');
     expect(options().map((option) => option.getAttribute('aria-selected'))).toEqual(['false', 'false', 'false', 'false']);
     expect(options()[1].getAttribute('aria-disabled')).toBe('true');
   });

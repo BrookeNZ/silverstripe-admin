@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   actionBarFields,
   barActions,
+  dialogActions,
   defaultValues,
   encodeSubmission,
   errorField,
@@ -235,6 +236,23 @@ describe('actionBarFields', () => {
       placement: 'top',
     });
     expect(menu.children.map((field) => field.name)).toEqual(['action_unpublish']);
+  });
+});
+
+describe('dialogActions', () => {
+  it('flattens groups and tab sets into one row, in their changed form once dirty', () => {
+    const clean = dialogActions(mergeFields(pageActions(), undefined), false);
+    expect(clean.map((field) => [field.title, field.primary])).toEqual([
+      ['Saved', false],
+      ['Published', false],
+      ['action_unpublish', false],
+    ]);
+    expect(clean.map((field) => field.name)).toEqual(['action_save', 'action_publish', 'action_unpublish']);
+    const dirty = dialogActions(mergeFields(pageActions(), undefined), true);
+    expect(dirty.slice(0, 2).map((field) => [field.title, field.primary])).toEqual([
+      ['Save', true],
+      ['Publish', true],
+    ]);
   });
 });
 

@@ -19,6 +19,7 @@ import {
 } from '@silverstripe/admin-patterns';
 import type { FieldComponentProps } from '../types';
 import { FormSchemaForm } from '../FormSchemaForm';
+import { SchemaFormDialog } from '../SchemaFormDialog';
 import { serverHtmlComponent } from '../resolve';
 import { ServerHtmlField } from './ServerHtmlField';
 import { ShellFormAction } from './ShellFormAction';
@@ -53,4 +54,5 @@ export function registerBuiltInFields(api: PiletApi): void {
   }
   // Section pilets render their record edit forms with the shell's renderer
   api.registerSilverstripeComponent('FormSchemaForm', FormSchemaForm);
+  api.registerSilverstripeComponent('SchemaFormDialog', SchemaFormDialog);
 }

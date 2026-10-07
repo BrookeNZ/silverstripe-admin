@@ -17,5 +17,5 @@ export function setup(api: PiletApi) {
   api.registerSilverstripeComponent('PreviewImageField', PreviewImageField);
   api.registerSilverstripeComponent('FocusPointField', FocusPointField);
   api.registerSilverstripeComponent('UploadField', UploadField);
-  api.registerSilverstripeComponent('LinkField', createLinkField(api.getSilverstripeComponent('FormSchemaForm')));
+  api.registerSilverstripeComponent('LinkField', createLinkField(api.getSilverstripeComponent('SchemaFormDialog')));
 }

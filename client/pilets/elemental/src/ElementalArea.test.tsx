@@ -1,0 +1,318 @@
+// @vitest-environment happy-dom
+import * as React from 'react';
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
+import type { Root } from 'react-dom/client';
+import { MemoryRouter } from 'react-router-dom';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Block, ElementalApi } from './api';
+import type { ElementType } from './blocks';
+import { createElementalAreaField, recordsChangedEvent } from './ElementalArea';
+import type { BeforeSubmitHandler, ElementalPiletApi, FormSchemaFormHandle, FormSchemaSubmitResult } from './shell';
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const types: Array<ElementType> = [
+  { name: 'App_Blocks_QuoteBlock', class: 'App\\Blocks\\QuoteBlock', title: 'Quote', icon: 'font-icon-block-quote', inlineEditable: true },
+  { name: 'App_Blocks_CardBlock', class: 'App\\Blocks\\CardBlock', title: 'Cards', icon: 'font-icon-block-card', inlineEditable: false },
+];
+
+function block(id: number, title: string, typeName: string, flags: Partial<Block> = {}): Block {
+  return {
+    id,
+    title,
+    blockSchema: {
+      typeName,
+      actions: { edit: `https://example.test/admin/pages/edit/EditForm/7/field/ElementalArea/item/${id}/edit/` },
+      content: `${title} summary`,
+    },
+    obsoleteClassName: null,
+    version: 1,
+    isPublished: true,
+    isLiveVersion: true,
+    canDelete: true,
+    canPublish: true,
+    canUnpublish: true,
+    canCreate: true,
+    ...flags,
+  };
+}
+
+interface FakeForm {
+  props: Record<string, any>;
+  dirty: boolean;
+  submit: ReturnType<typeof vi.fn<(action?: string) => Promise<FormSchemaSubmitResult>>>;
+}
+
+let container: HTMLDivElement;
+let root: Root;
+let stored: Array<Block>;
+let client: { [K in keyof ElementalApi]: ReturnType<typeof vi.fn> };
+let api: ElementalPiletApi & { emitted: Array<unknown>; beforeSubmit: Map<string, BeforeSubmitHandler>; toasts: Array<[string, unknown]> };
+let forms: Map<string, FakeForm>;
+let order: Array<string>;
+
+const FakeFormSchemaForm = (props: Record<string, any>) => {
+  const form = forms.get(props.schemaUrl) ?? {
+    props,
+    dirty: false,
+    submit: vi.fn(async (action?: string) => {
+      order.push(`submit ${props.schemaUrl}`);
+      form.dirty = false;
+      form.props.onDirtyChange?.(false);
+      form.props.onSubmitted?.({ id: props.schemaUrl }, { name: action });
+      return { ok: true };
+    }),
+  };
+  form.props = props;
+  forms.set(props.schemaUrl, form);
+  React.useEffect(() => {
+    const handle: FormSchemaFormHandle = { submit: (action) => form.submit(action), isDirty: () => form.dirty };
+    props.handleRef(handle);
+    return () => props.handleRef(null);
+  }, []);
+  return <div data-schema-url={props.schemaUrl}>Block form</div>;
+};
+
+function makeApi() {
+  const listeners = new Map<string, Set<(event: any) => void>>();
+  const fake = {
+    emitted: [] as Array<unknown>,
+    beforeSubmit: new Map<string, BeforeSubmitHandler>(),
+    toasts: [] as Array<[string, unknown]>,
+    getSilverstripeComponent: () => FakeFormSchemaForm,
+    showNotification: (content: string, options: unknown) => {
+      fake.toasts.push([content, options]);
+      return () => undefined;
+    },
+    emit: (name: string, event: unknown) => {
+      fake.emitted.push(event);
+      listeners.get(name)?.forEach((listener) => listener(event));
+    },
+    on: (name: string, listener: (event: any) => void) => {
+      listeners.set(name, new Set([...(listeners.get(name) ?? []), listener]));
+    },
+    off: (name: string, listener: (event: any) => void) => {
+      listeners.get(name)?.delete(listener);
+    },
+    registerBeforeSubmit: (formId: string, handler: BeforeSubmitHandler) => {
+      fake.beforeSubmit.set(formId, handler);
+      return () => fake.beforeSubmit.delete(formId);
+    },
+  };
+  return fake as unknown as typeof api;
+}
+
+const field = {
+  id: 'Form_EditForm_ElementalArea',
+  name: 'ElementalArea',
+  holderId: 'Form_EditForm_ElementalArea_Holder',
+  'elemental-area-id': 21,
+  'page-id': 7,
+  'allowed-elements': ['App\\Blocks\\QuoteBlock', 'App\\Blocks\\CardBlock'],
+};
+
+async function flush() {
+  await act(async () => {
+    for (let i = 0; i < 5; i += 1) {
+      await Promise.resolve();
+    }
+  });
+}
+
+async function render() {
+  const Area = createElementalAreaField({
+    api,
+    client: client as unknown as ElementalApi,
+    types,
+    schemaUrl: (id) => `/schema/elementForm/${id}`,
+    routerPath: (url) => new URL(url).pathname.replace(/^\/admin/, ''),
+    pageClass: 'SilverStripe\\CMS\\Model\\SiteTree',
+  });
+  container = document.createElement('div');
+  document.body.append(container);
+  root = createRoot(container);
+  act(() =>
+    root.render(
+      <MemoryRouter>
+        <Area field={field as never} formId="Form_EditForm" value={{}} onChange={vi.fn()} onBlur={vi.fn()} submitting={false} renderFields={() => null} autofill={vi.fn()} />
+      </MemoryRouter>,
+    ),
+  );
+  await flush();
+}
+
+const button = (name: string) =>
+  [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+    (candidate) => candidate.getAttribute('aria-label') === name || candidate.textContent?.trim() === name,
+  )!;
+
+const lastToast = () => api.toasts[api.toasts.length - 1]?.[0];
+
+const click = async (element: HTMLElement) => {
+  act(() => element.click());
+  await flush();
+};
+
+beforeEach(() => {
+  stored = [block(1, 'Opening quote', 'App_Blocks_QuoteBlock', { isPublished: false, isLiveVersion: false }), block(2, 'Cards', 'App_Blocks_CardBlock', { isLiveVersion: false }), block(3, 'Closing quote', 'App_Blocks_QuoteBlock')];
+  forms = new Map();
+  order = [];
+  api = makeApi();
+  client = {
+    readElements: vi.fn(async () => stored.map((item) => ({ ...item }))),
+    create: vi.fn(async () => {
+      stored = [...stored, block(9, 'New quote', 'App_Blocks_QuoteBlock', { isPublished: false })];
+    }),
+    publish: vi.fn(async () => undefined),
+    unpublish: vi.fn(async () => undefined),
+    archive: vi.fn(async (id: number) => {
+      stored = stored.filter((item) => item.id !== id);
+    }),
+    duplicate: vi.fn(async () => undefined),
+    sort: vi.fn(async (id: number, after: number) => {
+      const moved = stored.find((item) => item.id === id)!;
+      const others = stored.filter((item) => item !== moved);
+      others.splice(after === 0 ? 0 : others.findIndex((item) => item.id === after) + 1, 0, moved);
+      stored = others;
+    }),
+  };
+});
+
+afterEach(() => {
+  act(() => root.unmount());
+  container.remove();
+});
+
+describe('ElementalArea', () => {
+  it('lists the blocks with type, summary and status, and posts no value', async () => {
+    await render();
+    const rows = [...container.querySelectorAll('.elemental-block')];
+    expect(rows.map((row) => row.querySelector('.elemental-block__title')?.textContent)).toEqual(['Opening quoteDraft', 'CardsModified', 'Closing quote']);
+    expect(rows[1].querySelector('.elemental-block__meta')?.textContent).toBe('Cards');
+    expect(rows[2].querySelector('.elemental-block__summary')?.textContent).toBe('Closing quote summary');
+    expect(container.querySelector('input, select, textarea')).toBeNull();
+    expect(client.readElements).toHaveBeenCalledWith(21, expect.anything());
+  });
+
+  it('shows the empty state', async () => {
+    stored = [];
+    await render();
+    expect(container.textContent).toContain('Add blocks to place your content');
+  });
+
+  it('links a block that is not inline editable to its edit page in the router', async () => {
+    await render();
+    const link = container.querySelector<HTMLAnchorElement>('a[aria-label="Edit Cards"]');
+    expect(link?.getAttribute('href')).toBe('/pages/edit/EditForm/7/field/ElementalArea/item/2/edit/');
+  });
+
+  it('adds a block of the chosen type and re-reads the list', async () => {
+    await render();
+    await click(button('Add a block'));
+    const input = document.querySelector<HTMLInputElement>('dialog [role="combobox"]')!;
+    act(() => {
+      input.focus();
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    });
+    const quote = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find((option) => option.textContent === 'Quote')!;
+    await click(quote);
+    await click([...document.querySelectorAll<HTMLButtonElement>('dialog button')].find((candidate) => candidate.textContent === 'Add block')!);
+    expect(client.create).toHaveBeenCalledWith('App\\Blocks\\QuoteBlock', 21);
+    expect(client.readElements).toHaveBeenCalledTimes(2);
+    expect(container.textContent).toContain('New quote');
+    expect(lastToast()).toBe('Added a Quote block');
+    // The new inline block opens for editing
+    expect(forms.has('/schema/elementForm/9')).toBe(true);
+  });
+
+  it('publishes from the block menu, then notifies and emits records-changed', async () => {
+    await render();
+    await click(button('Publish'));
+    expect(client.publish).toHaveBeenCalledWith(1);
+    expect(lastToast()).toBe('Published "Opening quote"');
+    expect(api.emitted).toEqual([
+      { recordClass: 'App\\Blocks\\QuoteBlock', ids: [1] },
+      { recordClass: 'SilverStripe\\CMS\\Model\\SiteTree', ids: [7] },
+    ]);
+  });
+
+  it('asks before archiving and archives on confirm', async () => {
+    await render();
+    const archive = [...container.querySelectorAll<HTMLButtonElement>('#elemental-block-3-menu_Popover button')].find((candidate) => candidate.textContent === 'Archive')!;
+    await click(archive);
+    expect(client.archive).not.toHaveBeenCalled();
+    expect(document.querySelector('dialog[open] .admin-dialog__title')?.textContent).toBe('Archive "Closing quote"?');
+    const confirm = [...document.querySelectorAll<HTMLButtonElement>('dialog[open] .admin-dialog__actions button')].find((candidate) => candidate.textContent === 'Archive')!;
+    await click(confirm);
+    expect(client.archive).toHaveBeenCalledWith(3);
+    expect(container.textContent).not.toContain('Closing quote');
+  });
+
+  it('moves a block down and up through the sort endpoint', async () => {
+    await render();
+    const menuButton = (id: number, label: string) =>
+      [...container.querySelectorAll<HTMLButtonElement>(`#elemental-block-${id}-menu_Popover button`)].find((candidate) => candidate.textContent === label)!;
+    await click(menuButton(1, 'Move down'));
+    expect(client.sort).toHaveBeenLastCalledWith(1, 2);
+    await click(menuButton(3, 'Move up'));
+    expect(client.sort).toHaveBeenLastCalledWith(3, 2);
+    expect([...container.querySelectorAll('.elemental-block')].map((row) => row.querySelector('.elemental-block__meta')?.textContent)).toEqual(['Cards', 'Quote', 'Quote']);
+    expect(menuButton(2, 'Move up')).toBeUndefined();
+    expect(menuButton(1, 'Move down')).toBeUndefined();
+  });
+
+  it('expands an inline block into its headless form and saves it', async () => {
+    await render();
+    await click(button('Edit Opening quote'));
+    const form = forms.get('/schema/elementForm/1')!;
+    expect(form.props.headless).toBe(true);
+    expect(form.props.omitFields).toEqual(['History']);
+    expect(button('Edit Opening quote').getAttribute('aria-expanded')).toBe('true');
+    act(() => {
+      form.dirty = true;
+      form.props.onDirtyChange(true);
+    });
+    expect(container.textContent).toContain('Unsaved');
+    await click(button('Save block'));
+    expect(form.submit).toHaveBeenCalledWith('action_save');
+    expect(lastToast()).toBe('Saved "Opening quote"');
+    expect(container.textContent).not.toContain('Unsaved');
+  });
+
+  it('saves dirty blocks before the page form posts, and cancels the page save when one fails', async () => {
+    await render();
+    await click(button('Edit Opening quote'));
+    await click(button('Edit Closing quote'));
+    const first = forms.get('/schema/elementForm/1')!;
+    const last = forms.get('/schema/elementForm/3')!;
+    act(() => {
+      first.dirty = true;
+      first.props.onDirtyChange(true);
+      last.dirty = true;
+      last.props.onDirtyChange(true);
+    });
+    const handler = api.beforeSubmit.get('Form_EditForm')!;
+    let allowed: boolean | void = undefined;
+    await act(async () => {
+      allowed = await handler({ action: 'action_save' });
+    });
+    expect(allowed).toBe(true);
+    expect(order).toEqual(['submit /schema/elementForm/1', 'submit /schema/elementForm/3']);
+
+    last.dirty = true;
+    last.submit.mockResolvedValueOnce({ ok: false });
+    await act(async () => {
+      allowed = await handler({ action: 'action_publish' });
+    });
+    expect(allowed).toBe(false);
+    expect(lastToast()).toBe('The page was not saved because a block could not be saved');
+  });
+
+  it('re-reads the blocks when the page is saved', async () => {
+    await render();
+    act(() => api.emit(recordsChangedEvent, { recordClass: 'SilverStripe\\CMS\\Model\\SiteTree', ids: [7] }));
+    await flush();
+    expect(client.readElements).toHaveBeenCalledTimes(2);
+  });
+});

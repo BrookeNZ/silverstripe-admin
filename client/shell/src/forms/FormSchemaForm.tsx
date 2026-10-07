@@ -26,6 +26,7 @@ import { useFieldComponent } from './useFieldComponent';
 import {
   barActions,
   collectValueFields,
+  dialogActions,
   defaultValues,
   encodeSubmission,
   errorField,
@@ -71,6 +72,8 @@ export interface FormSchemaFormProps {
   /** Receives the handle that posts the form */
   handleRef?: React.Ref<FormSchemaFormHandle>;
   onDirtyChange?(dirty: boolean): void;
+  /** Receives the actions as one row of buttons whenever they change, for a headless form whose host draws them */
+  onActionsChange?(actions: Array<FormField>): void;
 }
 
 const noop = () => undefined;
@@ -176,6 +179,7 @@ const LoadedForm = ({
   headless,
   handleRef,
   onDirtyChange,
+  onActionsChange,
 }: LoadedFormProps) => {
   const [schema, setSchema] = React.useState(initialSchema);
   const [state, setState] = React.useState(initialState);
@@ -334,6 +338,9 @@ const LoadedForm = ({
   };
 
   const shownActions = React.useMemo(() => barActions(actions, formState.isDirty), [actions, formState.isDirty]);
+  const actionsListener = React.useRef(onActionsChange);
+  actionsListener.current = onActionsChange;
+  React.useEffect(() => actionsListener.current?.(dialogActions(actions, formState.isDirty)), [actions, formState.isDirty]);
 
   const context = React.useMemo(() => {
     const boundKeys = new Set(valueFields.map((field) => field.key));
@@ -414,6 +421,7 @@ export const FormSchemaForm = ({
   headless,
   handleRef,
   onDirtyChange,
+  onActionsChange,
 }: FormSchemaFormProps) => {
   const [load, setLoad] = React.useState<LoadState>({ status: 'loading' });
   const loadListener = React.useRef(onLoad);
@@ -466,6 +474,7 @@ export const FormSchemaForm = ({
       headless={headless}
       handleRef={handleRef}
       onDirtyChange={onDirtyChange}
+      onActionsChange={onActionsChange}
     />
   );
 };

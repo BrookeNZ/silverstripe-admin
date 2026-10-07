@@ -11,7 +11,7 @@
 import * as React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useGlobalState, useGlobalStateContext } from 'piral-core';
-import { Button, Dialog, Link, SearchIcon, SortAscendingIcon, SortDescendingIcon } from '@silverstripe/admin-patterns';
+import { Button, Dialog, Link, SearchIcon, SortAscendingIcon, SortDescendingIcon, Stack } from '@silverstripe/admin-patterns';
 import { rowPaginationFeature, rowSortingFeature, tableFeatures, useTable } from '@tanstack/react-table';
 import type { ColumnDef, PaginationState, SortingState, Updater } from '@tanstack/react-table';
 import { componentSlotName, silverstripeComponent } from '../api/silverstripe';
@@ -267,7 +267,7 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
         </tbody>
       </table>
       {page && page.totalPages > 1 && (
-        <nav className="admin-grid__pages" aria-label={`${caption} pages`}>
+        <Stack as="nav" direction="row" align="center" justify="end" spacing="sm" wrap={false} className="admin-grid__pages" aria-label={`${caption} pages`}>
           <Button variant="tertiary" disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}>
             Previous<span className="admin-grid__hidden"> page</span>
           </Button>
@@ -277,7 +277,7 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
           <Button variant="tertiary" disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}>
             Next<span className="admin-grid__hidden"> page</span>
           </Button>
-        </nav>
+        </Stack>
       )}
       {otherSlots.map(renderSlot)}
       <p className="admin-grid__status" role="status">
@@ -337,7 +337,7 @@ const GridSearch = ({ id, label, value, active, onSearch, onClear }: GridSearchP
   const [draft, setDraft] = React.useState(value);
   React.useEffect(() => setDraft(value), [value]);
   return (
-    <div className="admin-grid__search" role="search">
+    <Stack direction="row" align="center" spacing="xs" wrap={false} className="admin-grid__search" role="search">
       <label className="admin-grid__hidden" htmlFor={id}>
         {label}
       </label>
@@ -363,7 +363,7 @@ const GridSearch = ({ id, label, value, active, onSearch, onClear }: GridSearchP
           Clear search
         </Button>
       )}
-    </div>
+    </Stack>
   );
 };
 
