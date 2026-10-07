@@ -11,3 +11,15 @@ SilverStripe\Admin\Tests\UserInterface\GridFieldRowsEndpointTest\Team:
   hidden:
     Name: Hidden
     City: Wellington
+SilverStripe\Admin\Tests\UserInterface\GridFieldRowsEndpointTest\Ship:
+  endeavour:
+    Name: Endeavour
+  locked:
+    Name: Locked
+SilverStripe\Admin\Tests\UserInterface\GridFieldRowsEndpointTest\Player:
+  first:
+    Name: First player
+    Team: =>SilverStripe\Admin\Tests\UserInterface\GridFieldRowsEndpointTest\Team.alpha
+  second:
+    Name: Second player
+    Team: =>SilverStripe\Admin\Tests\UserInterface\GridFieldRowsEndpointTest\Team.alpha

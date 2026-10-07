@@ -29,6 +29,7 @@ piral-notifications, ...):
 | `hasUnsavedChanges(): boolean` | Whether anything in the shell is dirty |
 | `setSectionHeader(header): Disposable` | Show the section header above the content; see **Section header** |
 | `registerBeforeSubmit(formId, handler): Disposable` | Run `handler({action})` before the form with that element id posts; see **Before a form posts** |
+| `registerSectionIcon(sectionCode, Icon): Disposable` | Draw `Icon` beside a section's menu item; see **Section icons** |
 
 No `registerFormField`: binding a field to the form is decided by the schema (`schemaType`, read-only
 state, the posted set), not by the registration; holders are a component (`FieldHolder` in
@@ -84,6 +85,32 @@ focus point picker writing its X and Y fields), and `formId`, the id of the form
 
 Known limit: schemas served by the framework's `FormRequestHandler::getSchema()` and userforms'
 own `getMultipartSchema()` call bypass the admin's decorator, so they carry no candidates or fallback.
+
+## Form layout
+
+A form has no inset of its own. Each top-level field and form message renders in a wrapper,
+`shell-form__field`, that pads it by `--shell-form-inset` (the admin's 16px gap), so the action bar and
+any full-width field touch the sides of the content column. A field nested inside another (a tab's
+children, a composite's children) is inside its parent's wrapper and gets no second inset, and a headless
+form (a block's form inside the page form, a form in a dialog) carries `shell-form--nested`, which sets
+the inset to 0.
+
+A field component that should run edge to edge, as the shell's GridField does, sets a static
+`fullWidth` flag before registering:
+
+```tsx
+const ReportTable = (props: FieldComponentProps) => <table>…</table>;
+ReportTable.fullWidth = true;
+api.registerSilverstripeComponent('App\\Forms\\ReportTableField', ReportTable);
+```
+
+The component `getSilverstripeComponent` returns carries the current registration's `fullWidth`, so a
+pilet decorating the GridField copies it (`Decorated.fullWidth = Grid.fullWidth`) and stays full width.
+The flag belongs to the registration, so a pilet that replaces a component decides afresh: replacing
+the GridField with a component without the flag gives the field back its inset. The wrapper is
+`shell-form__field shell-form__field--full`, and only top-level fields are affected; a full-width field
+inside a tab set stays inside the tab set's inset. Content a pilet renders around a form (a breadcrumb,
+a notice) supplies its own 16px inline padding.
 
 ## GridField
 
@@ -225,6 +252,39 @@ Sticky content below the header offsets by `calc(var(--shell-sticky-top) + var(-
 `--shell-sticky-top` is the narrow-screen top bar (0 from 1024px) and `--shell-header-offset` the
 header's rendered height, which the shell measures; `--shell-header-height` is only the design height
 it falls back to. The form's action bar is measured the same way into `--shell-form-actions-offset`.
+
+## Section icons
+
+The menu draws an icon before each section's label. By default the shell picks it from the section's
+legacy `menu_icon_class`, which the server sends as the menu item's `iconClass`:
+
+| `menu_icon_class` | Icon |
+|---|---|
+| `font-icon-sitemap` | `PagesIcon` |
+| `font-icon-page-multiple` | `CampaignsIcon` |
+| `font-icon-image` | `FilesIcon` |
+| `font-icon-chart-line` | `ReportsIcon` |
+| `font-icon-torsos-all` | `SecurityIcon` |
+| `font-icon-box` | `ArchiveIcon` |
+| `font-icon-tags` | `TaxonomiesIcon` |
+| `font-icon-cog` | `SettingsIcon` |
+| anything else, or a CSS `menu_icon` image | `SectionIcon` |
+
+A pilet replaces that for its own section with `registerSectionIcon(sectionCode, Icon)`. The code is
+the menu item's `code`, the controller class with hyphens for backslashes
+(`SilverStripe-Blog-Admin-BlogAdmin`). `Icon` renders an 18px glyph in `currentColor`; the patterns
+package's `Icon` frame does both, so a module icon is a path in it:
+
+```tsx
+const BlogIcon = () => <Icon viewBox="0 0 18 18"><path d="..." /></Icon>;
+api.registerSectionIcon('SilverStripe-Blog-Admin-BlogAdmin', BlogIcon);
+```
+
+The latest registration wins and unloading the pilet restores the default. The icon is decorative:
+the label names the link, including in the collapsed menu, where the label is visually hidden. A
+component in the `SilverStripe\Admin\LeftAndMain` / `menu.bottom` slot looks like a menu item when it is
+an anchor with the `shell-menu__link` class whose text is in a `shell-menu__label` span; that label
+hides with the rest when the menu collapses.
 
 ## Patterns package
 

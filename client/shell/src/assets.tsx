@@ -42,7 +42,7 @@ export const FileEditPage = ({ match, piral }: PageComponentProps<{ id: string }
           }
         />
       ) : (
-        <p>The asset admin section is not installed, so there is no file edit form.</p>
+        <p className="shell-page__inset">The asset admin section is not installed, so there is no file edit form.</p>
       )}
     </div>
   );

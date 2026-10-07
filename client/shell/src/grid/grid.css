@@ -149,24 +149,6 @@
   gap: var(--admin-gap-md);
 }
 
-.admin-grid__action {
-  align-items: center;
-  background: none;
-  border: 0;
-  color: var(--admin-link-color);
-  cursor: pointer;
-  display: inline-flex;
-  font: inherit;
-  min-height: var(--admin-target-min-size);
-  padding: 0;
-  text-decoration: underline;
-}
-
-.admin-grid__action:focus-visible {
-  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
-  outline-offset: var(--admin-focus-outline-offset);
-}
-
 .admin-grid__pages {
   color: var(--admin-muted-fg-color);
   font-weight: var(--admin-font-weight-bold);

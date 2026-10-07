@@ -72,7 +72,7 @@ describe('Sidebar', () => {
   it('opens and closes the menu from the toggle', () => {
     act(() => toggle().click());
     expect(toggle().getAttribute('aria-expanded')).toBe('true');
-    expect(menu().classList.contains('shell__menu--open')).toBe(true);
+    expect(menu().classList.contains('shell-menu--open')).toBe(true);
     expect(container.querySelector('.shell__sidebar')?.classList.contains('shell__sidebar--open')).toBe(true);
     act(() => toggle().click());
     expect(toggle().getAttribute('aria-expanded')).toBe('false');

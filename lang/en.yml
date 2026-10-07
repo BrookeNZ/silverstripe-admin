@@ -143,3 +143,7 @@ en:
     ImportFormHelpMember: '<p>Groups can be assigned by the <em>Groups</em> column. Groups are identified by their <em>Code</em> property, multiple groups can be separated by comma. Existing group memberships are not cleared.</p>'
     MENUTITLE: SilverStripe\Admin\SudoModeController
     TIMEOUT: 'Session timed out, please refresh and try again.'
+  SilverStripe\Admin\UserInterface\GridField\GridFieldRowsEndpoint:
+    CONFIRM_ARCHIVE: 'Are you sure you want to archive this record?'
+    CONFIRM_DELETE: 'Are you sure you want to delete this record?'
+    CONFIRM_UNLINK: 'Are you sure you want to unlink this record?'

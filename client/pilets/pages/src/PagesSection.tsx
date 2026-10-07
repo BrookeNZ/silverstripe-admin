@@ -83,7 +83,7 @@ const Breadcrumbs = ({ store, id, editPath }: { store: TreeStore; id: number; ed
     return null;
   }
   return (
-    <nav className="pages__breadcrumbs" aria-label="Breadcrumb">
+    <nav className="pages__breadcrumbs pages__inset" aria-label="Breadcrumb">
       <ol className="pages__breadcrumb-list">
         {trail.map((node, index) => (
           <li className="pages__breadcrumb" key={node.id}>
@@ -169,7 +169,7 @@ export function createPagesSection(options: PagesSectionOptions): React.Componen
         <>
           <Breadcrumbs store={store} id={currentId} editPath={editPath} />
           {revealError && !revealError.sessionExpired && (
-            <p className="pages__alert" role="alert">
+            <p className="pages__alert pages__inset" role="alert">
               This page could not be found in the tree: {revealError.message}
             </p>
           )}
@@ -190,14 +190,14 @@ export function createPagesSection(options: PagesSectionOptions): React.Componen
       );
     } else if (otherView) {
       main = (
-        <p>
+        <p className="pages__inset">
           The page {otherView[1]} view is not in the shell yet; it still belongs to the legacy admin.{' '}
           <Link to={editPath(Number(otherView[2]))}>Edit the page content instead</Link>.
         </p>
       );
     } else {
       main = (
-        <p className="pages__empty">Select a page in the tree to edit it.</p>
+        <p className="pages__empty pages__inset">Select a page in the tree to edit it.</p>
       );
     }
 

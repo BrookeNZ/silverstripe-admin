@@ -1,0 +1,44 @@
+/**
+ * History viewer: a record's versions as a table and one version's read-only form. Only layout, the
+ * status badge outline and the table rules a version list needs to read as rows
+ */
+.history-viewer {
+  --history-viewer-cell-padding-block: var(--admin-gap-sm);
+  --history-viewer-cell-padding-inline: var(--admin-gap-sm);
+  --history-viewer-row-border: var(--admin-border) var(--admin-border-color);
+}
+
+.history-viewer__heading {
+  font-size: var(--admin-font-size-lg);
+  margin: 0;
+}
+
+.history-viewer__meta {
+  color: var(--admin-meta-fg-color);
+  margin: 0;
+}
+
+.history-viewer__error {
+  color: var(--admin-error-fg-color);
+  margin: 0;
+}
+
+.history-viewer__table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.history-viewer__cell {
+  border-block-end: var(--history-viewer-row-border);
+  padding-block: var(--history-viewer-cell-padding-block);
+  padding-inline: var(--history-viewer-cell-padding-inline);
+  text-align: start;
+  vertical-align: middle;
+}
+
+.history-viewer__badge {
+  border: var(--admin-border) currentcolor;
+  border-radius: var(--admin-radius);
+  font-weight: normal;
+  padding-inline: var(--admin-gap-xs);
+}

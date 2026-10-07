@@ -43,6 +43,9 @@ use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\DataObjectSchema;
 use SilverStripe\ORM\Search\SearchContextForm;
 use SilverStripe\Security\SecurityToken;
+use SilverStripe\Versioned\GridFieldArchiveAction;
+use SilverStripe\Versioned\GridFieldRestoreAction;
+use SilverStripe\Versioned\RestoreAction;
 use SilverStripe\Security\SudoMode\SudoModeServiceInterface;
 use SplObjectStorage;
 use stdClass;
@@ -67,8 +70,10 @@ use Throwable;
  * content is `{component, props}` from a GridField_SchemaProvider (or adapter) and `{html}` from any
  * other GridField_HTMLProvider; the components in `envelope_components` are skipped because the envelope
  * carries what they render as data. Row actions are typed: GridField_ActionMenuLink components give
- * links, GridFieldDeleteAction gives a POST action. Only those actions can be posted, because their
- * arguments come from the client rather than the session state store GridField_FormAction uses.
+ * links; GridFieldDeleteAction, GridFieldArchiveAction and GridFieldRestoreAction give POST actions. Only
+ * those actions can be posted, because their arguments come from the client rather than the session state
+ * store GridField_FormAction uses. Each component's own handleAction() runs the action and its permission
+ * check; a message it leaves in the controller's X-Message-Text header comes back as `message`.
  * `pagination.totalCount` is the paginator's count, taken before canView() drops rows, as GridField does.
  *
  * Errors use the CMS JSON error envelope. A POST needs the form's CSRF token in `X-SecurityID` and
@@ -163,6 +168,8 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
                 ));
             }
             $name = strtolower((string) $request->param('ActionName'));
+            // Columns first: GridFieldArchiveAction removes the delete action from a versioned grid while augmenting them
+            $gridField->getColumns();
             if (!$this->postableAction($gridField, $name)) {
                 throw $this->error(404, sprintf('This grid has no "%s" action', $name));
             }
@@ -178,10 +185,28 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
             if (!$record || ($record->hasMethod('canView') && !$record->canView())) {
                 throw $this->error(404, 'That record is not in this grid');
             }
+            $controllerResponse = $this->controllerResponse($gridField);
+            $controllerResponse?->removeHeader('X-Message-Text');
             $gridField->handleAlterAction($name, ['RecordID' => $recordID], []);
             $this->applyQuery($gridField, $request);
-            return $this->getPayload($gridField);
+            $payload = $this->getPayload($gridField);
+            $message = $controllerResponse?->getHeader('X-Message-Text');
+            if ($message) {
+                // RestoreAction's message is HTML (an edit link, escaped title); the status line is text
+                $payload['message'] = html_entity_decode(strip_tags($message), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            }
+            return $payload;
         });
+    }
+
+    /**
+     * The response an action can leave a message header on; a grid nested in an item edit form has a
+     * GridFieldDetailForm_ItemRequest there, which is a RequestHandler without one
+     */
+    private function controllerResponse(GridField $gridField): ?HTTPResponse
+    {
+        $controller = $gridField->getForm()?->getController();
+        return $controller instanceof Controller ? $controller->getResponse() : null;
     }
 
     public function applyQuery(GridField $gridField, HTTPRequest $request): void
@@ -419,27 +444,7 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
     {
         $actions = [];
         foreach ($gridField->getComponents() as $component) {
-            if ($component instanceof GridFieldDeleteAction) {
-                $unlink = $component->getRemoveRelation();
-                $permission = $unlink ? 'canEdit' : 'canDelete';
-                if ($readonly || !$record->hasMethod($permission) || !$record->$permission()) {
-                    continue;
-                }
-                $name = $unlink ? 'unlinkrelation' : 'deleterecord';
-                $actions[] = [
-                    'name' => $name,
-                    'type' => 'action',
-                    'title' => $unlink
-                        ? _t(GridFieldDeleteAction::class . '.UnlinkRelation', 'Unlink')
-                        : _t(GridFieldDeleteAction::class . '.Delete', 'Delete'),
-                    'method' => 'POST',
-                    'url' => $gridField->Link('actions/' . $name),
-                    'args' => ['RecordID' => $record->ID],
-                    'confirm' => $unlink
-                        ? _t(__CLASS__ . '.CONFIRM_UNLINK', 'Are you sure you want to unlink this record?')
-                        : _t(__CLASS__ . '.CONFIRM_DELETE', 'Are you sure you want to delete this record?'),
-                ];
-            } elseif ($component instanceof GridField_ActionMenuLink) {
+            if ($component instanceof GridField_ActionMenuLink && !$this->isPostComponent($component)) {
                 if (!$component->getGroup($gridField, $record, 'Actions')) {
                     continue;
                 }
@@ -449,9 +454,93 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
                     'title' => (string) $component->getTitle($gridField, $record, 'Actions'),
                     'url' => $component->getUrl($gridField, $record, 'Actions'),
                 ];
+                continue;
+            }
+            $action = $readonly ? null : $this->postAction($component, $gridField, $record);
+            if ($action) {
+                $actions[] = [
+                    'name' => $action['name'],
+                    'type' => 'action',
+                    'title' => $action['title'],
+                    'method' => 'POST',
+                    'url' => $gridField->Link('actions/' . $action['name']),
+                    'args' => ['RecordID' => $record->ID],
+                    'confirm' => $action['confirm'],
+                ];
             }
         }
         return $actions;
+    }
+
+    /**
+     * The POST action a component offers for a record, gated as its legacy column content is, or null
+     *
+     * @return array{name: string, title: string, confirm: ?string}|null
+     */
+    private function postAction(GridFieldComponent $component, GridField $gridField, ModelData $record): ?array
+    {
+        if ($component instanceof GridFieldDeleteAction) {
+            $unlink = $component->getRemoveRelation();
+            $permission = $unlink ? 'canEdit' : 'canDelete';
+            if (!$record->hasMethod($permission) || !$record->$permission()) {
+                return null;
+            }
+            return $unlink
+                ? [
+                    'name' => 'unlinkrelation',
+                    'title' => _t(GridFieldDeleteAction::class . '.UnlinkRelation', 'Unlink'),
+                    'confirm' => _t(__CLASS__ . '.CONFIRM_UNLINK', 'Are you sure you want to unlink this record?'),
+                ]
+                : [
+                    'name' => 'deleterecord',
+                    'title' => _t(GridFieldDeleteAction::class . '.Delete', 'Delete'),
+                    'confirm' => _t(__CLASS__ . '.CONFIRM_DELETE', 'Are you sure you want to delete this record?'),
+                ];
+        }
+        if ($component instanceof GridFieldArchiveAction) {
+            if (!$component->getArchiveAction($gridField, $record)) {
+                return null;
+            }
+            return [
+                'name' => 'archiverecord',
+                'title' => _t(GridFieldArchiveAction::class . '.Archive', 'Archive'),
+                'confirm' => _t(__CLASS__ . '.CONFIRM_ARCHIVE', 'Are you sure you want to archive this record?'),
+            ];
+        }
+        if ($component instanceof GridFieldRestoreAction) {
+            if (!$record->hasMethod('canRestoreToDraft') || !$component->getRestoreAction($gridField, $record, 'Actions')) {
+                return null;
+            }
+            // Legacy restores without a confirm
+            return [
+                'name' => 'restore',
+                'title' => RestoreAction::shouldRestoreToRoot($record)
+                    ? _t(RestoreAction::class . '.RESTORE_TO_ROOT', 'Restore to draft at top level')
+                    : _t(RestoreAction::class . '.RESTORE', 'Restore to draft'),
+                'confirm' => null,
+            ];
+        }
+        return null;
+    }
+
+    /**
+     * The action names a component handles through this endpoint's POST route
+     *
+     * @return string[]
+     */
+    private function postActionNames(GridFieldComponent $component): array
+    {
+        return match (true) {
+            $component instanceof GridFieldDeleteAction => [$component->getRemoveRelation() ? 'unlinkrelation' : 'deleterecord'],
+            $component instanceof GridFieldArchiveAction => ['archiverecord'],
+            $component instanceof GridFieldRestoreAction => ['restore'],
+            default => [],
+        };
+    }
+
+    private function isPostComponent(GridFieldComponent $component): bool
+    {
+        return $this->postActionNames($component) !== [];
     }
 
     private function linkName(GridFieldComponent $component): string
@@ -465,8 +554,8 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
 
     private function postableAction(GridField $gridField, string $name): bool
     {
-        foreach ($gridField->getConfig()->getComponentsByType(GridFieldDeleteAction::class) as $component) {
-            if ($name === ($component->getRemoveRelation() ? 'unlinkrelation' : 'deleterecord')) {
+        foreach ($gridField->getComponents() as $component) {
+            if (in_array($name, $this->postActionNames($component), true)) {
                 return true;
             }
         }
@@ -478,7 +567,7 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
      */
     private function isRowActionComponent(GridFieldComponent $component): bool
     {
-        return $component instanceof GridFieldDeleteAction
+        return $this->isPostComponent($component)
             || $component instanceof GridField_ActionMenuLink
             || $component instanceof GridField_ActionMenu;
     }
@@ -715,7 +804,9 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
         } catch (HTTPResponse_Exception $exception) {
             return $this->asJsonError($exception->getResponse());
         } catch (ValidationException $exception) {
-            return $this->jsonError(403, $exception->getMessage());
+            // RestoreAction gives 409 for a record that is not archived; anything without a client error code is a 403
+            $code = $exception->getCode();
+            return $this->jsonError($code >= 400 && $code < 500 ? $code : 403, $exception->getMessage());
         } catch (Throwable $exception) {
             Injector::inst()->get(LoggerInterface::class)->error($exception->getMessage(), ['exception' => $exception]);
             return $this->jsonError(500, Director::isDev() ? $exception->getMessage() : 'The grid could not be loaded');

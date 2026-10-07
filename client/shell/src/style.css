@@ -3,12 +3,14 @@
  *
  * The legacy admin bundle is not loaded when the shell is. Shared tokens (--admin-*) and component
  * styles come from @silverstripe/admin-patterns, imported before this file; the chrome tokens here
- * cover what only the shell draws: the menu, the content area and notifications.
+ * cover what only the shell draws: the sidebar, the content area and notifications. The menu inside
+ * the sidebar is styled in menu/menu.css.
  *
  * Below 1024px the menu collapses behind a toggle in a top bar, after the design's mobile top bar
  * (Figma "Top bar" Mobile v2 2:1909, Hamburger 2:1921) and opens over the content under it. The design
  * has mobile (375px) and tablet (769px) frames but no breakpoint value, so 1024px is the shell's own
- * choice. From 1024px the menu is the fixed sidebar it has always been. --shell-sticky-top is how far
+ * choice. From 1024px the menu is the fixed sidebar, 200px wide, or the 62px icon rail when the menu's
+ * collapse button has collapsed it. --shell-sticky-top is how far
  * the top bar pushes the sticky section header (header.css) and the scroll padding down. While the
  * menu is open the top bar turns Royal Blue with the cross and the site name in white, as the design's
  * open state (2:1916).
@@ -22,14 +24,16 @@
   --shell-badge-border: none;
   --shell-badge-fg-color: var(--admin-modified-fg-color);
   --shell-badge-letter-spacing: 0.06rem;
+  --shell-banner-display: flex;
 
   /* Figma top bar: 15px from the toggle to the logo */
   --shell-banner-gap: var(--admin-gap-md);
 
   /* The 0.2rem is the outline width in --admin-focus-outline (tokens.css) */
   --shell-focus-ring-clearance: calc(0.2rem + var(--admin-focus-outline-offset));
-  --shell-link-bg-hover-color: var(--admin-selected-bg-color);
-  --shell-link-current-bg-color: var(--admin-selected-bg-color);
+
+  /* The content inset: form fields (form.css), page content and the pages pilet's column all read it */
+  --shell-inset: var(--admin-gap-md);
   --shell-link-fg-color: var(--admin-nav-fg-color);
   --shell-logo-fg-color: var(--shell-link-fg-color);
   --shell-logo-font-size: var(--admin-font-size-xl);
@@ -43,7 +47,10 @@
   --shell-menu-toggle-icon-size: 2rem;
   --shell-menu-toggle-ring-color: var(--admin-focus-outline-color);
   --shell-menu-toggle-size: 5rem;
-  --shell-menu-width: 24rem;
+
+  /* Figma "Sidebar" 2:1931: 200px, 62px collapsed (2:1960) */
+  --shell-menu-collapsed-width: 6.2rem;
+  --shell-menu-width: 20rem;
   --shell-notification-bg-color: var(--admin-inverse-bg-color);
   --shell-notification-border: none;
   --shell-notification-fg-color: var(--admin-inverse-fg-color);
@@ -85,7 +92,7 @@ body {
 
 @media (width >= 1024px) {
   .shell {
-    grid-template-columns: var(--shell-menu-width) 1fr;
+    grid-template-columns: auto 1fr;
   }
 }
 
@@ -145,17 +152,26 @@ body {
     --shell-sidebar-bg-color: var(--shell-menu-bg-color);
 
     border-block-end: 0;
+    border-inline-end: var(--shell-sidebar-border-width) solid var(--admin-divider-color);
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    gap: var(--admin-gap-sm);
     height: 100vh;
-    padding: var(--admin-gap-md);
+    inline-size: var(--shell-menu-width);
+  }
+}
+
+/* The icon rail has no room for the logo and badge */
+@media (width >= 1024px) {
+  .shell__sidebar--collapsed {
+    --shell-banner-display: none;
+    --shell-menu-width: var(--shell-menu-collapsed-width);
   }
 }
 
 .shell__banner {
   align-items: center;
-  display: flex;
+  display: var(--shell-banner-display);
   gap: var(--shell-banner-gap);
   padding-inline-end: var(--admin-gap-md);
 }
@@ -165,7 +181,7 @@ body {
     align-items: stretch;
     flex-direction: column;
     gap: var(--admin-gap-sm);
-    padding-inline-end: 0;
+    padding: var(--admin-gap-md);
   }
 }
 
@@ -185,42 +201,6 @@ body {
   .shell__menu-toggle {
     display: none;
   }
-}
-
-/* Under the top bar while open; the full-height sidebar's list from 1024px, where min-height 0 lets the list scroll */
-.shell__menu {
-  --shell-menu-display: none;
-
-  background-color: var(--shell-menu-bg-color);
-  box-shadow: 0 var(--admin-gap-xs) var(--admin-gap-sm) var(--admin-shadow-color);
-  box-sizing: border-box;
-  display: var(--shell-menu-display);
-  flex-direction: column;
-  gap: var(--admin-gap-sm);
-  inset-block-start: 100%;
-  inset-inline: 0;
-  max-height: calc(100dvh - var(--shell-sticky-top));
-  min-height: 0;
-  overflow-y: auto;
-  padding: var(--admin-gap-md);
-  position: absolute;
-}
-
-@media (width >= 1024px) {
-  .shell__menu {
-    --shell-menu-display: flex;
-
-    background-color: transparent;
-    box-shadow: none;
-    max-height: none;
-    overflow-y: visible;
-    padding: 0;
-    position: static;
-  }
-}
-
-.shell__menu--open {
-  --shell-menu-display: flex;
 }
 
 .shell__logo {
@@ -259,49 +239,6 @@ body {
   }
 }
 
-/* The list scrolls inside the fixed-height sidebar; min-height 0 lets a flex child shrink below its content */
-.shell__list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--admin-gap-xs);
-  list-style: none;
-  margin: 0;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 0;
-}
-
-.shell__link {
-  border-radius: var(--admin-radius);
-  color: var(--shell-link-fg-color);
-  display: block;
-  padding: var(--admin-gap-sm);
-  text-decoration: none;
-  transition: var(--admin-transition);
-}
-
-.shell__link:hover {
-  background-color: var(--shell-link-bg-hover-color);
-}
-
-.shell__link[aria-current="page"] {
-  background-color: var(--shell-link-current-bg-color);
-}
-
-@media (forced-colors: active) {
-  .shell__link[aria-current="page"] {
-    --shell-link-current-bg-color: Highlight;
-    --shell-link-fg-color: HighlightText;
-
-    forced-color-adjust: none;
-  }
-}
-
-.shell__link:focus-visible {
-  outline: var(--admin-focus-outline) var(--shell-link-fg-color);
-  outline-offset: var(--admin-focus-outline-offset);
-}
-
 /* Content, body and page are flex columns so a form can grow to the viewport and pin its action bar; min-width 0 lets the grid column shrink below wide content */
 .shell__content {
   display: flex;
@@ -327,13 +264,15 @@ body {
 }
 
 .shell-page {
-  --shell-form-actions-bleed: var(--shell-page-padding);
-  --shell-page-padding: var(--admin-gap-md);
-
   display: flex;
   flex: 1;
   flex-direction: column;
-  padding: var(--shell-page-padding);
+  padding-block-start: var(--admin-gap-md);
+}
+
+/* Content that is not a form keeps the inset a form gives its fields */
+.shell-page__inset {
+  padding-inline: var(--shell-inset);
 }
 
 /* Top right under the sticky header, clear of the form's action bar whatever its height */

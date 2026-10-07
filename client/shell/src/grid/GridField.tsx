@@ -22,3 +22,5 @@ export const GridField = (props: FieldComponentProps) => {
     </React.Suspense>
   );
 };
+
+GridField.fullWidth = true;

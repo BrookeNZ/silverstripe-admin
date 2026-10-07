@@ -24,6 +24,7 @@
   --admin-palette-background-modified: #fdf2eb;
   --admin-palette-black: #292b2e;
   --admin-palette-blue-100: #f8fafc;
+  --admin-palette-blue-200: #f1f5f9;
   --admin-palette-blue-300: #e6edf4;
   --admin-palette-bright-blue: #005ae1;
   --admin-palette-bright-blue-100: #e5f0ff;
@@ -119,6 +120,7 @@
   --admin-muted-bg-color: var(--admin-palette-grey-100);
   --admin-muted-fg-color: var(--admin-palette-grey-900);
   --admin-nav-fg-color: var(--admin-palette-royal-blue);
+  --admin-nav-hover-bg-color: var(--admin-palette-blue-200);
 
   /* The focus point marker sits on an image, so these stay fixed in every theme */
   --admin-on-image-fg-color: var(--admin-palette-white);
@@ -130,6 +132,10 @@
   --admin-primary-action-fg-color: var(--admin-palette-white);
   --admin-primary-action-hover-color: var(--admin-palette-button-primary-hover);
   --admin-radius: 0.4rem;
+
+  /* Figma "Collapse expand button" 2:6289 drop shadows, pure black with no variable */
+  --admin-raised-hover-shadow: 0 0 0.6rem rgb(0 0 0 / 0.4);
+  --admin-raised-shadow: 0 0 0.4rem rgb(0 0 0 / 0.25);
 
   /* The green label is 3.95:1 on this tint over white; kept as designed */
   --admin-secondary-action-hover-color: var(--admin-palette-button-primary-tint);

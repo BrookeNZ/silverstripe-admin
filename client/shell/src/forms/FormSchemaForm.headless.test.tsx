@@ -17,6 +17,7 @@ vi.mock('./schema', async (importOriginal) => ({
   submitFormSchema: vi.fn(),
 }));
 vi.mock('./useFieldComponent', () => ({
+  useFullWidthField: () => false,
   useFieldComponent: () =>
     ({ field, value, onChange, formId, error }: FieldComponentProps<string>) =>
       field.type === 'submit' ? (
@@ -109,6 +110,12 @@ describe('FormSchemaForm headless mode', () => {
     expect(container.querySelector('form')).toBeNull();
     expect(container.querySelector('.shell-form__actions')).toBeNull();
     expect(container.querySelector('#Form_Block_Title')?.getAttribute('data-form-id')).toBe('Form_Block');
+  });
+
+  it('marks itself nested, so its fields take no second inset', async () => {
+    await render(<FormSchemaForm schemaUrl="schema/Block" headless />);
+    expect(container.querySelector('.shell-form')?.classList.contains('shell-form--nested')).toBe(true);
+    expect(container.querySelector('#Form_Block_Title')?.parentElement?.className).toBe('shell-form__field');
   });
 
   it('reports dirty state and posts through the handle', async () => {

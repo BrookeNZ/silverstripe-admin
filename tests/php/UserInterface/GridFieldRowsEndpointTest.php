@@ -3,6 +3,8 @@
 namespace SilverStripe\Admin\Tests\UserInterface;
 
 use SilverStripe\Admin\LeftAndMain;
+use SilverStripe\Admin\Tests\UserInterface\GridFieldRowsEndpointTest\Player;
+use SilverStripe\Admin\Tests\UserInterface\GridFieldRowsEndpointTest\Ship;
 use SilverStripe\Admin\Tests\UserInterface\GridFieldRowsEndpointTest\Team;
 use SilverStripe\Admin\Tests\UserInterface\GridFieldRowsEndpointTest\TestController;
 use SilverStripe\Admin\UserInterface\GridField\GridFieldAddNewButtonSchema;
@@ -15,18 +17,23 @@ use SilverStripe\Dev\FunctionalTest;
 use SilverStripe\Forms\GridField\GridField;
 use SilverStripe\Forms\GridField\GridFieldConfig_RecordEditor;
 use SilverStripe\Security\SecurityToken;
+use SilverStripe\Versioned\Versioned;
 
 class GridFieldRowsEndpointTest extends FunctionalTest
 {
     protected static $fixture_file = 'GridFieldRowsEndpointTest.yml';
 
-    protected static $extra_dataobjects = [Team::class];
+    protected static $extra_dataobjects = [Team::class, Ship::class, Player::class];
 
     protected static $extra_controllers = [TestController::class];
 
     private const JSON = ['Accept' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest'];
 
     private const GRID = 'GridFieldRowsEndpointTest/Form/field/Teams/';
+
+    private const FLEET = 'GridFieldRowsEndpointTest/Fleet/field/Ships/';
+
+    private const ARCHIVE = 'GridFieldRowsEndpointTest/Archive/field/Ships/';
 
     protected function setUp(): void
     {
@@ -223,6 +230,138 @@ class GridFieldRowsEndpointTest extends FunctionalTest
         $this->assertSame(400, $this->postAction('deleterecord', ['RecordID' => 'x'], $headers)->getStatusCode());
     }
 
+    public function testArchiveAndRestoreAreAdvertisedLikeDelete(): void
+    {
+        $this->logInWithPermission('ADMIN');
+        $fleet = $this->getJson('rows', static::FLEET);
+        $endeavour = $this->idFromFixture(Ship::class, 'endeavour');
+        $this->assertSame(['Endeavour', 'Locked'], $this->titles($fleet));
+        $this->assertSame([], $fleet['rows'][0]['cells']['Actions'] ?? [], 'The archive button HTML is not sent');
+        $this->assertSame([
+            'name' => 'archiverecord',
+            'type' => 'action',
+            'title' => 'Archive',
+            'method' => 'POST',
+            'url' => $fleet['rows'][0]['actions'][1]['url'],
+            'args' => ['RecordID' => $endeavour],
+            'confirm' => 'Are you sure you want to archive this record?',
+        ], $fleet['rows'][0]['actions'][1]);
+        $this->assertStringContainsString('field/Ships/actions/archiverecord/', $fleet['rows'][0]['actions'][1]['url']);
+        $this->assertNotContains('deleterecord', array_column($fleet['rows'][0]['actions'], 'name'));
+        $this->assertSame(['edit'], array_column($fleet['rows'][1]['actions'], 'name'), 'Locked cannot be archived');
+
+        Ship::get()->byID($endeavour)->doArchive();
+        $archive = $this->getJson('rows', static::ARCHIVE);
+        $this->assertSame(['Endeavour'], $this->titles($archive));
+        $restore = $archive['rows'][0]['actions'][0];
+        $this->assertSame(['restore', 'action', 'Restore to draft', 'POST'], [$restore['name'], $restore['type'], $restore['title'], $restore['method']]);
+        $this->assertNull($restore['confirm']);
+        $this->assertSame('Endeavour', $archive['rows'][0]['title']);
+    }
+
+    public function testArchiveRunsAndAnswersWithTheRefreshedRows(): void
+    {
+        $this->logInWithPermission('ADMIN');
+        $this->session()->set('SecurityID', 'valid-token');
+        $endeavour = $this->idFromFixture(Ship::class, 'endeavour');
+
+        $this->assertJsonError($this->postAction('archiverecord', ['RecordID' => $endeavour], [], static::FLEET), 400);
+        $wrong = $this->postAction('archiverecord', ['RecordID' => $endeavour], ['X-SecurityID' => 'stolen'], static::FLEET);
+        $this->assertJsonError($wrong, 400);
+        $this->assertNotNull(Ship::get()->byID($endeavour));
+
+        $response = $this->postAction('archiverecord', ['RecordID' => $endeavour], ['X-SecurityID' => 'valid-token'], static::FLEET);
+        $this->assertSame(200, $response->getStatusCode(), $response->getBody());
+        $this->assertSame(['Locked'], $this->titles(json_decode($response->getBody(), true)));
+        $this->assertNull(Ship::get()->byID($endeavour));
+        $this->assertTrue(Versioned::get_latest_version(Ship::class, $endeavour)->isArchived());
+    }
+
+    public function testForbiddenArchiveAndRestoreChangeNothing(): void
+    {
+        $this->logInWithPermission('CMS_ACCESS_CMSMain');
+        $this->session()->set('SecurityID', 'valid-token');
+        $headers = ['X-SecurityID' => 'valid-token'];
+        $locked = $this->idFromFixture(Ship::class, 'locked');
+
+        $archive = $this->postAction('archiverecord', ['RecordID' => $locked], $headers, static::FLEET);
+        $this->assertJsonError($archive, 403);
+        $this->assertNotNull(Ship::get()->byID($locked));
+
+        $this->assertJsonError($this->postAction('deleterecord', ['RecordID' => $locked], $headers, static::FLEET), 404);
+        $this->assertNotNull(Ship::get()->byID($locked));
+
+        Versioned::withVersionedMode(function () use ($locked) {
+            Versioned::set_stage(Versioned::DRAFT);
+            Ship::get()->byID($locked)->doArchive();
+        });
+        $this->assertSame([], $this->getJson('rows', static::ARCHIVE)['rows'][0]['actions']);
+        $restore = $this->postAction('restore', ['RecordID' => $locked], $headers, static::ARCHIVE);
+        $this->assertJsonError($restore, 403);
+        $this->assertNull(Ship::get()->byID($locked));
+    }
+
+    public function testRestoreRunsAndReturnsItsMessage(): void
+    {
+        $this->logInWithPermission('ADMIN');
+        $this->session()->set('SecurityID', 'valid-token');
+        $endeavour = $this->idFromFixture(Ship::class, 'endeavour');
+        $ship = Ship::get()->byID($endeavour);
+        $ship->Name = 'Endeavour & Co';
+        $ship->write();
+        $ship->doArchive();
+
+        $response = $this->postAction('restore', ['RecordID' => $endeavour], ['X-SecurityID' => 'valid-token'], static::ARCHIVE);
+        $this->assertSame(200, $response->getStatusCode(), $response->getBody());
+        $body = json_decode($response->getBody(), true);
+        $this->assertSame([], $body['rows']);
+        $this->assertSame('Successfully restored the ship "Endeavour & Co"', $body['message'], 'Edit link and entities are gone');
+        $this->assertSame('Endeavour & Co', Ship::get()->byID($endeavour)?->Name);
+    }
+
+    public function testRestoringARecordThatIsNotArchivedIsAConflict(): void
+    {
+        $this->logInWithPermission('ADMIN');
+        $this->session()->set('SecurityID', 'valid-token');
+        $ship = Ship::get()->byID($this->idFromFixture(Ship::class, 'endeavour'));
+        $ship->publishRecursive();
+        $ship->deleteFromStage(Versioned::DRAFT);
+
+        $response = $this->postAction('restore', ['RecordID' => $ship->ID], ['X-SecurityID' => 'valid-token'], static::ARCHIVE);
+        $this->assertJsonError($response, 409);
+        $this->assertNull(Ship::get()->byID($ship->ID));
+    }
+
+    public function testAnOrphanedRecordRestoresToTheTopLevel(): void
+    {
+        $this->logInWithPermission('ADMIN');
+        $parent = Ship::create(['Name' => 'Mother']);
+        $parent->write();
+        $child = Ship::create(['Name' => 'Tender', 'ParentID' => $parent->ID]);
+        $child->write();
+        $child->doArchive();
+        $parent->doArchive();
+
+        $rows = $this->getJson('rows', static::ARCHIVE)['rows'];
+        $titles = array_combine(array_column($rows, 'title'), array_map(fn ($row) => $row['actions'][0]['title'], $rows));
+        $this->assertSame('Restore to draft at top level', $titles['Tender']);
+        $this->assertSame('Restore to draft', $titles['Mother']);
+    }
+
+    public function testDeleteWorksOnAGridNestedInAnItemEditForm(): void
+    {
+        $this->session()->set('SecurityID', 'valid-token');
+        $first = $this->idFromFixture(Player::class, 'first');
+        $nested = GridFieldRowsEndpointTest::GRID . 'item/' . $this->idFromFixture(Team::class, 'alpha') . '/ItemEditForm/field/Players/';
+
+        $response = $this->postAction('deleterecord', ['RecordID' => $first], ['X-SecurityID' => 'valid-token'], $nested);
+        $this->assertSame(200, $response->getStatusCode(), $response->getBody());
+        $this->assertNull(Player::get()->byID($first));
+        $body = json_decode($response->getBody(), true);
+        $this->assertSame(['Second player'], $this->titles($body));
+        $this->assertArrayNotHasKey('message', $body);
+    }
+
     public function testWrongMethodsGetJsonErrors(): void
     {
         $rows = $this->post(GridFieldRowsEndpointTest::GRID . 'rows', [], GridFieldRowsEndpointTest::JSON);
@@ -262,18 +401,18 @@ class GridFieldRowsEndpointTest extends FunctionalTest
         $this->assertNull(GridFieldRowsEndpoint::rowsUrl($ownHolder));
     }
 
-    private function getJson(string $path): array
+    private function getJson(string $path, string $grid = GridFieldRowsEndpointTest::GRID): array
     {
-        $response = $this->get(GridFieldRowsEndpointTest::GRID . $path, null, GridFieldRowsEndpointTest::JSON);
+        $response = $this->get($grid . $path, null, GridFieldRowsEndpointTest::JSON);
         $this->assertSame(200, $response->getStatusCode(), $response->getBody());
         $this->assertSame('application/json', $response->getHeader('Content-Type'));
         return json_decode($response->getBody(), true);
     }
 
-    private function postAction(string $name, array $args, array $headers): HTTPResponse
+    private function postAction(string $name, array $args, array $headers, string $grid = GridFieldRowsEndpointTest::GRID): HTTPResponse
     {
         return $this->post(
-            GridFieldRowsEndpointTest::GRID . 'actions/' . $name,
+            $grid . 'actions/' . $name,
             [],
             array_merge(GridFieldRowsEndpointTest::JSON, ['Content-Type' => 'application/json'], $headers),
             null,
@@ -292,5 +431,10 @@ class GridFieldRowsEndpointTest extends FunctionalTest
     private function names(array $body): array
     {
         return array_map(fn ($row) => $row['cells']['Name']['value'], $body['rows']);
+    }
+
+    private function titles(array $body): array
+    {
+        return array_column($body['rows'], 'title');
     }
 }

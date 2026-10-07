@@ -3,6 +3,10 @@
 namespace SilverStripe\Admin\Tests\UserInterface\GridFieldRowsEndpointTest;
 
 use SilverStripe\Dev\TestOnly;
+use SilverStripe\Forms\FieldList;
+use SilverStripe\Forms\GridField\GridField;
+use SilverStripe\Forms\GridField\GridFieldConfig_RecordEditor;
+use SilverStripe\Forms\TextField;
 use SilverStripe\ORM\DataObject;
 
 class Team extends DataObject implements TestOnly
@@ -12,6 +16,10 @@ class Team extends DataObject implements TestOnly
     private static array $db = [
         'Name' => 'Varchar',
         'City' => 'Varchar',
+    ];
+
+    private static array $has_many = [
+        'Players' => Player::class,
     ];
 
     private static array $summary_fields = [
@@ -25,6 +33,14 @@ class Team extends DataObject implements TestOnly
     ];
 
     private static string $default_sort = '"Name" ASC';
+
+    public function getCMSFields()
+    {
+        return FieldList::create(
+            TextField::create('Name'),
+            GridField::create('Players', 'Players', $this->Players(), GridFieldConfig_RecordEditor::create())
+        );
+    }
 
     public function canView($member = null)
     {

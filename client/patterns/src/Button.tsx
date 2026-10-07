@@ -1,7 +1,8 @@
 /**
  * The admin button, after the CMS Refresh design's three button styles: primary (solid green),
  * secondary (green outline on white, the default) and tertiary (white with a grey label, the design's
- * "white buttons").
+ * "white buttons"), plus text: a button drawn as a Link (Figma "Text link" 2:6274) for an action that sits
+ * in a row of links, so the element stays a button while it reads like its neighbours.
  * The design has no destructive style, so there is no danger variant yet.
  *
  * Renders a `<button type="button">`, or an `<a>` when given `href`. An icon-only button needs a name:
@@ -19,7 +20,7 @@ import type { IconPosition } from './IconLabel';
 // The bundler replaces this, as it does for React's own development checks
 declare const process: { env: { NODE_ENV?: string } };
 
-export type ButtonVariant = 'primary' | 'secondary' | 'tertiary';
+export type ButtonVariant = 'primary' | 'secondary' | 'tertiary' | 'text';
 
 interface ButtonBaseProps {
   variant?: ButtonVariant;

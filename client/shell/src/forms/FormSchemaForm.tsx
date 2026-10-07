@@ -13,6 +13,10 @@
  * can cancel it. A headless form (a block's form inside the page form) renders no form element and no
  * action bar, so it never nests a form; its host posts it through `handleRef`, and Enter in one of its
  * inputs posts it (when dirty) instead of submitting the outer form.
+ *
+ * Each top-level field and message sits in a `shell-form__field` wrapper that carries the content inset,
+ * so a field whose registered component declares `fullWidth` (the GridField) and the action bar reach
+ * the edges of the content column. A headless form is already inside an inset field, so it adds none.
  */
 import * as React from 'react';
 import { useController, useForm } from 'react-hook-form';
@@ -22,7 +26,7 @@ import { setUnsavedChanges, shellOwner } from '../unsaved';
 import { revealField, Stack } from '@silverstripe/admin-patterns';
 import { runBeforeSubmit } from './beforeSubmit';
 import { FormRenderContext, useFormRenderContext } from './context';
-import { useFieldComponent } from './useFieldComponent';
+import { useFieldComponent, useFullWidthField } from './useFieldComponent';
 import {
   barActions,
   collectValueFields,
@@ -127,6 +131,21 @@ export const FormFieldSlot = ({ field }: { field: FormField }) => {
 };
 
 const renderFields = (fields: Array<FormField>) => fields.map((field) => <FormFieldSlot key={field.id} field={field} />);
+
+const TopLevelField = ({ field }: { field: FormField }) => {
+  const fullWidth = useFullWidthField(field);
+  return (
+    <div className={fullWidth ? 'shell-form__field shell-form__field--full' : 'shell-form__field'}>
+      <FormFieldSlot field={field} />
+    </div>
+  );
+};
+
+// A hidden input draws no box, so a wrapper round it would be an empty flex item taking a gap
+const isHidden = (field: FormField) => field.schemaType === 'Hidden' || field.type === 'hidden';
+
+const renderTopLevelFields = (fields: Array<FormField>) =>
+  fields.map((field) => (isHidden(field) ? <FormFieldSlot key={field.id} field={field} /> : <TopLevelField key={field.id} field={field} />));
 
 function findAction(actions: Array<FormField>, name: string | undefined): FormField | undefined {
   for (const action of actions) {
@@ -377,24 +396,26 @@ const LoadedForm = ({
     };
   }, [formId, control, formState.isSubmitting, formState.isDirty, valueFields, setValue]);
 
-  const messages = formMessages.map((message, index) =>
-    goodMessageTypes.has(message.type) ? (
-      <p className="shell-form__alert shell-form__alert--good" role="status" key={index}>
-        {message.value}
-      </p>
-    ) : (
-      <p className="shell-form__alert" role="alert" key={index}>
-        {message.value}
-      </p>
-    ),
-  );
+  const messages = formMessages.map((message, index) => (
+    <div className="shell-form__field" key={index}>
+      {goodMessageTypes.has(message.type) ? (
+        <p className="shell-form__alert shell-form__alert--good" role="status">
+          {message.value}
+        </p>
+      ) : (
+        <p className="shell-form__alert" role="alert">
+          {message.value}
+        </p>
+      )}
+    </div>
+  ));
 
   if (headless) {
     return (
       <FormRenderContext.Provider value={context}>
-        <Stack className="shell-form" spacing="md" wrap={false} id={formId} aria-busy={formState.isSubmitting} onKeyDown={onHeadlessKeyDown}>
+        <Stack className="shell-form shell-form--nested" spacing="md" wrap={false} id={formId} aria-busy={formState.isSubmitting} onKeyDown={onHeadlessKeyDown}>
           {messages}
-          {renderFields(fields)}
+          {renderTopLevelFields(fields)}
         </Stack>
       </FormRenderContext.Provider>
     );
@@ -413,7 +434,7 @@ const LoadedForm = ({
         onSubmit={onSubmit}
       >
         {messages}
-        {renderFields(fields)}
+        {renderTopLevelFields(fields)}
         <div className="shell-form__actions" ref={barRef}>
           {renderFields(shownActions)}
           {actionsEnd && <div className="shell-form__actions-end">{actionsEnd}</div>}
@@ -467,17 +488,21 @@ export const FormSchemaForm = ({
     return () => abort.abort();
   }, [schemaUrl]);
 
-  if (load.status === 'loading') {
-    return <p className="shell-form__status" role="status">Loading form…</p>;
-  }
-  if (load.status === 'failed') {
-    if (renderLoadError) {
-      return <>{renderLoadError(load.error)}</>;
-    }
+  if (load.status !== 'ready') {
     return (
-      <p className="shell-form__alert" role="alert">
-        The form could not be loaded: {load.message}
-      </p>
+      <div className={headless ? 'shell-form shell-form--nested' : 'shell-form'}>
+        <div className="shell-form__field">
+          {load.status === 'loading' ? (
+            <p className="shell-form__status" role="status">Loading form…</p>
+          ) : renderLoadError ? (
+            renderLoadError(load.error)
+          ) : (
+            <p className="shell-form__alert" role="alert">
+              The form could not be loaded: {load.message}
+            </p>
+          )}
+        </div>
+      </div>
     );
   }
   return (

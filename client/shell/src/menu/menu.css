@@ -1,0 +1,190 @@
+/**
+ * Menu
+ *
+ * The CMS section menu, after the CMS Refresh "Sidebar" (Figma 2:53537 in frame 2:53436, component
+ * set 2:1931) and its "Sidebar item" states (2:1747): 18px Royal Blue icon, 11px gap, New/Body 14px
+ * New/Black label, 15px by 22px padding; hover Blue 200; the current item Blue 300 with a 4px Royal
+ * Blue bar inside its start edge and a semibold label. The bar is a border, so the start padding gives
+ * its width back and the icon stays 22px in.
+ *
+ * Below 1024px the menu is the disclosure under the top bar (style.css) and never collapses. From
+ * 1024px it fills the sidebar under the banner, and --collapsed is the design's 62px icon rail
+ * (2:1960): labels stay in the accessibility tree as each link's name. The collapse button is
+ * "Collapse expand button" 2:6289, a 25px white circle with a Bright Blue chevron, 20px above the foot
+ * and 15px from the end edge, centred in the rail.
+ */
+
+.shell-menu {
+  --shell-menu-collapse-bg-color: var(--admin-panel-bg-color);
+  --shell-menu-collapse-fg-color: var(--admin-accent-color);
+  --shell-menu-collapse-hover-shadow: var(--admin-raised-hover-shadow);
+  --shell-menu-collapse-icon-size: 1.3rem;
+  --shell-menu-collapse-shadow: var(--admin-raised-shadow);
+  --shell-menu-collapse-size: 2.5rem;
+  --shell-menu-current-bg-color: var(--admin-selected-bg-color);
+  --shell-menu-current-fg-color: var(--admin-fg-color);
+  --shell-menu-current-icon-color: var(--admin-nav-fg-color);
+  --shell-menu-current-indicator-color: var(--admin-nav-fg-color);
+  --shell-menu-display: none;
+  --shell-menu-footer-display: none;
+  --shell-menu-footer-justify: flex-end;
+  --shell-menu-footer-padding-block-end: 2rem;
+
+  /* Figma measures the 15px from the sidebar's outer edge, so the sidebar border (style.css) comes off */
+  --shell-menu-footer-padding-inline-end: calc(1.5rem - var(--shell-sidebar-border-width));
+  --shell-menu-hover-bg-color: var(--admin-nav-hover-bg-color);
+  --shell-menu-icon-size: 1.8rem;
+  --shell-menu-indicator-width: 0.4rem;
+  --shell-menu-label-block-size: auto;
+  --shell-menu-label-clip-path: none;
+  --shell-menu-label-inline-size: auto;
+  --shell-menu-label-position: static;
+  --shell-menu-link-bg-color: transparent;
+  --shell-menu-link-fg-color: var(--admin-fg-color);
+  --shell-menu-link-font-weight: var(--admin-font-weight-normal);
+  --shell-menu-link-gap: 1.1rem;
+  --shell-menu-link-icon-color: var(--admin-nav-fg-color);
+  --shell-menu-link-indicator-color: transparent;
+  --shell-menu-link-line-height: 1.4;
+  --shell-menu-link-padding-block: 1.5rem;
+  --shell-menu-link-padding-inline: 2.2rem;
+
+  background-color: var(--shell-menu-bg-color);
+  box-shadow: 0 var(--admin-gap-xs) var(--admin-gap-sm) var(--admin-shadow-color);
+  display: var(--shell-menu-display);
+  flex-direction: column;
+  inset-block-start: 100%;
+  inset-inline: 0;
+  max-height: calc(100dvh - var(--shell-sticky-top));
+  min-height: 0;
+  overflow-y: auto;
+  position: absolute;
+}
+
+@media (width >= 1024px) {
+  .shell-menu {
+    --shell-menu-display: flex;
+    --shell-menu-footer-display: flex;
+
+    background-color: transparent;
+    box-shadow: none;
+    flex: 1;
+    max-height: none;
+    overflow-y: visible;
+    position: static;
+  }
+}
+
+.shell-menu--open {
+  --shell-menu-display: flex;
+}
+
+@media (width >= 1024px) {
+  .shell-menu--collapsed {
+    --shell-menu-footer-justify: center;
+    --shell-menu-footer-padding-inline-end: 0rem;
+    --shell-menu-label-block-size: 0.1rem;
+    --shell-menu-label-clip-path: inset(50%);
+    --shell-menu-label-inline-size: 0.1rem;
+    --shell-menu-label-position: absolute;
+  }
+}
+
+/* The list scrolls inside the full-height sidebar; min-height 0 lets a flex child shrink below its content */
+.shell-menu__list {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.shell-menu__link {
+  align-items: flex-start;
+  background-color: var(--shell-menu-link-bg-color);
+  border-inline-start: var(--shell-menu-indicator-width) solid var(--shell-menu-link-indicator-color);
+  color: var(--shell-menu-link-fg-color);
+  display: flex;
+  font-weight: var(--shell-menu-link-font-weight);
+  gap: var(--shell-menu-link-gap);
+  line-height: var(--shell-menu-link-line-height);
+  padding: var(--shell-menu-link-padding-block) var(--shell-menu-link-padding-inline)
+    var(--shell-menu-link-padding-block) calc(var(--shell-menu-link-padding-inline) - var(--shell-menu-indicator-width));
+  text-decoration: none;
+  transition: var(--admin-transition);
+}
+
+.shell-menu__link:hover {
+  --shell-menu-link-bg-color: var(--shell-menu-hover-bg-color);
+}
+
+.shell-menu__link[aria-current="page"] {
+  --shell-menu-link-bg-color: var(--shell-menu-current-bg-color);
+  --shell-menu-link-fg-color: var(--shell-menu-current-fg-color);
+  --shell-menu-link-font-weight: var(--admin-font-weight-bold);
+  --shell-menu-link-icon-color: var(--shell-menu-current-icon-color);
+  --shell-menu-link-indicator-color: var(--shell-menu-current-indicator-color);
+}
+
+@media (forced-colors: active) {
+  .shell-menu__link[aria-current="page"] {
+    --shell-menu-current-bg-color: Highlight;
+    --shell-menu-current-fg-color: HighlightText;
+    --shell-menu-current-icon-color: HighlightText;
+    --shell-menu-current-indicator-color: HighlightText;
+
+    forced-color-adjust: none;
+  }
+}
+
+/* Inset, so the ring stays inside a list that clips what overflows it */
+.shell-menu__link:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: calc(var(--admin-focus-outline-offset) * -2);
+}
+
+.shell-menu__icon {
+  --admin-icon-size: var(--shell-menu-icon-size);
+
+  color: var(--shell-menu-link-icon-color);
+  display: flex;
+}
+
+/* One line, cut with an ellipsis; the link's title shows the whole label on hover */
+.shell-menu__label {
+  block-size: var(--shell-menu-label-block-size);
+  clip-path: var(--shell-menu-label-clip-path);
+  inline-size: var(--shell-menu-label-inline-size);
+  min-width: 0;
+  overflow: hidden;
+  position: var(--shell-menu-label-position);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell-menu__footer {
+  display: var(--shell-menu-footer-display);
+  justify-content: var(--shell-menu-footer-justify);
+  margin-block-start: auto;
+  padding-block-end: var(--shell-menu-footer-padding-block-end);
+  padding-inline-end: var(--shell-menu-footer-padding-inline-end);
+}
+
+.shell-menu__collapse {
+  --admin-button-bg-color: var(--shell-menu-collapse-bg-color);
+  --admin-button-border-color: var(--shell-menu-collapse-bg-color);
+  --admin-button-border-radius: 50%;
+  --admin-button-border-width: 0rem;
+  --admin-button-fg-color: var(--shell-menu-collapse-fg-color);
+  --admin-button-hover-bg-color: var(--shell-menu-collapse-bg-color);
+  --admin-button-padding-block: calc((var(--shell-menu-collapse-size) - var(--shell-menu-collapse-icon-size)) / 2);
+  --admin-icon-size: var(--shell-menu-collapse-icon-size);
+
+  box-shadow: var(--shell-menu-collapse-shadow);
+}
+
+.shell-menu__collapse:hover {
+  --shell-menu-collapse-shadow: var(--shell-menu-collapse-hover-shadow);
+}

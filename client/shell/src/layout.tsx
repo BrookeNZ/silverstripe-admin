@@ -1,17 +1,16 @@
 import * as React from 'react';
 import { Link, RouterProvider, createBrowserRouter, useLocation } from 'react-router-dom';
-import { ComponentsState, ErrorComponentsState, ExtensionSlot, SwitchErrorInfo } from 'piral-core';
+import { ComponentsState, ErrorComponentsState, SwitchErrorInfo } from 'piral-core';
 import { Notifications } from 'piral-notifications';
 import { Button, CloseIcon, MenuIcon, Link as TextLink } from '@silverstripe/admin-patterns';
 import { LiveAnnouncer } from './announcer';
-import { extensionSlotName } from './api/silverstripe';
 import { SectionHeaderBar } from './header/SectionHeader';
+import { useMenuCollapsed } from './menu/collapse';
+import { Menu } from './menu/Menu';
 import { routerLink } from './routing';
 import type { SilverstripeMenuItem } from './silverstripe';
 import { NotificationsHost, NotificationsToast } from './notifications';
 import { UnsavedChangesGuard } from './unsaved';
-
-const leftAndMain = 'SilverStripe\\Admin\\LeftAndMain';
 
 const RouterChildren = React.createContext<React.ReactNode>(null);
 
@@ -45,20 +44,22 @@ export const SectionWithoutPilet = () => {
   const section = useLocation().pathname.split('/').filter(Boolean)[0] ?? '';
   return (
     <div className="shell-page">
-      <h1 className="shell-page__title">No pilet owns “{section}” yet</h1>
-      <p>
-        This section still belongs to the legacy admin. Turn the shell flag off to use it, or ship a pilet
-        that registers pages under /{section}.
-      </p>
-      {section === 'assets' && (
+      <div className="shell-page__inset">
+        <h1 className="shell-page__title">No pilet owns “{section}” yet</h1>
         <p>
-          The file edit form already renders in the shell:{' '}
-          <TextLink href="/assets/edit/2" renderLink={routerLink}>edit file 2</TextLink>.
+          This section still belongs to the legacy admin. Turn the shell flag off to use it, or ship a pilet
+          that registers pages under /{section}.
         </p>
-      )}
-      <p>
-        <TextLink href="/" renderLink={routerLink}>Shell home</TextLink>
-      </p>
+        {section === 'assets' && (
+          <p>
+            The file edit form already renders in the shell:{' '}
+            <TextLink href="/assets/edit/2" renderLink={routerLink}>edit file 2</TextLink>.
+          </p>
+        )}
+        <p>
+          <TextLink href="/" renderLink={routerLink}>Shell home</TextLink>
+        </p>
+      </div>
     </div>
   );
 };
@@ -67,52 +68,28 @@ export const errors: Partial<ErrorComponentsState> = {
   not_found: SectionWithoutPilet,
   loading: () => (
     <div className="shell-page">
-      <h1 className="shell-page__title">The shell could not load its modules</h1>
-      <p>
-        The pilet feed did not answer. Your CMS session may have expired:{' '}
-        <TextLink href={window.ss?.config?.adminUrl ?? '/admin/'}>log in again</TextLink>.
-      </p>
+      <div className="shell-page__inset">
+        <h1 className="shell-page__title">The shell could not load its modules</h1>
+        <p>
+          The pilet feed did not answer. Your CMS session may have expired:{' '}
+          <TextLink href={window.ss?.config?.adminUrl ?? '/admin/'}>log in again</TextLink>.
+        </p>
+      </div>
     </div>
   ),
 };
 
 export const Home = () => (
   <div className="shell-page">
-    <h1 className="shell-page__title">Piral shell</h1>
-    <p>
-      The legacy admin is switched off while the shell flag is on. Pilets listed by the feed register pages
-      and extensions in this shell; a section without a pilet shows a placeholder.
-    </p>
+    <div className="shell-page__inset">
+      <h1 className="shell-page__title">Piral shell</h1>
+      <p>
+        The legacy admin is switched off while the shell flag is on. Pilets listed by the feed register pages
+        and extensions in this shell; a section without a pilet shows a placeholder.
+      </p>
+    </div>
   </div>
 );
-
-/** The menu link's path inside the router, or null when it points outside the admin */
-function routerPath(link: string, adminPath: string): string | null {
-  const url = new URL(link, document.baseURI);
-  if (url.origin !== window.location.origin || !`${url.pathname}/`.startsWith(`${adminPath}/`)) {
-    return null;
-  }
-  return url.pathname.slice(adminPath.length) || '/';
-}
-
-const MenuLink = ({ item, adminPath }: { item: SilverstripeMenuItem; adminPath: string }) => {
-  const { pathname } = useLocation();
-  const to = routerPath(item.link, adminPath);
-  if (to === null) {
-    return (
-      <a className="shell__link" href={item.link}>
-        {item.title}
-      </a>
-    );
-  }
-  const section = to.replace(/\/$/, '');
-  const current = section ? pathname === section || pathname.startsWith(`${section}/`) : pathname === '/';
-  return (
-    <Link className="shell__link" to={to} aria-current={current ? 'page' : undefined}>
-      {item.title}
-    </Link>
-  );
-};
 
 export const mainId = 'shell-main';
 
@@ -139,10 +116,12 @@ export const menuId = 'shell-menu';
 /**
  * The logo and the menu. Below 1024px the menu is a disclosure behind the toggle (style.css); it closes
  * on a route change, on Escape (focus returns to the toggle) and when focus leaves the sidebar, so it
- * never covers the page the user moved on to
+ * never covers the page the user moved on to. From 1024px the menu's collapse button narrows the whole
+ * sidebar to the icon rail, which has no room for the logo and badge
  */
 export const Sidebar = ({ menu, adminPath }: { menu: Array<SilverstripeMenuItem>; adminPath: string }) => {
   const [open, setOpen] = React.useState(false);
+  const [collapsed, setCollapsed] = useMenuCollapsed();
   const toggleRef = React.useRef<HTMLButtonElement | HTMLAnchorElement>(null);
   const { pathname } = useLocation();
 
@@ -160,8 +139,12 @@ export const Sidebar = ({ menu, adminPath }: { menu: Array<SilverstripeMenuItem>
     }
   };
 
+  const sidebarClasses = ['shell__sidebar', open && 'shell__sidebar--open', collapsed && 'shell__sidebar--collapsed']
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <div className={open ? 'shell__sidebar shell__sidebar--open' : 'shell__sidebar'} onKeyDown={onKeyDown} onBlur={onBlur}>
+    <div className={sidebarClasses} onKeyDown={onKeyDown} onBlur={onBlur}>
       <header className="shell__banner">
         <Button
           ref={toggleRef}
@@ -180,16 +163,14 @@ export const Sidebar = ({ menu, adminPath }: { menu: Array<SilverstripeMenuItem>
         </Link>
         <span className="shell__badge">Piral shell</span>
       </header>
-      <nav className={open ? 'shell__menu shell__menu--open' : 'shell__menu'} id={menuId} aria-label="CMS sections">
-        <ul className="shell__list">
-          {menu.map((item) => (
-            <li className="shell__item" key={item.code}>
-              <MenuLink item={item} adminPath={adminPath} />
-            </li>
-          ))}
-        </ul>
-        <ExtensionSlot name={extensionSlotName(leftAndMain, 'menu.bottom')} />
-      </nav>
+      <Menu
+        id={menuId}
+        menu={menu}
+        adminPath={adminPath}
+        open={open}
+        collapsed={collapsed}
+        onCollapsedChange={setCollapsed}
+      />
     </div>
   );
 };
@@ -223,8 +204,10 @@ export function createLayout(menu: Array<SilverstripeMenuItem>, adminPath: strin
         <SwitchErrorInfo {...props} />
       ) : (
         <div className="shell-page">
-          <h1 className="shell-page__title">Error</h1>
-          <SwitchErrorInfo {...props} />
+          <div className="shell-page__inset">
+            <h1 className="shell-page__title">Error</h1>
+            <SwitchErrorInfo {...props} />
+          </div>
         </div>
       ),
   };

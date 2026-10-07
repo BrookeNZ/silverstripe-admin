@@ -29,7 +29,7 @@ const SectionView = ({ route }: { route: SectionRoute }) => {
   return (
     <div className="shell-page">
       {unhandled.length > 0 && (
-        <p role="note">
+        <p className="shell-page__inset" role="note">
           The shell has no view for “{unhandled.join('/')}” in {section.title} yet, so this is the section’s
           main form.
         </p>

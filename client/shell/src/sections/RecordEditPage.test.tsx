@@ -27,6 +27,7 @@ const registry = vi.hoisted(() => ({ fields: {} as Record<string, React.Componen
 vi.mock('../forms/useFieldComponent', async () => {
   const { resolveFieldComponent } = await import('../forms/resolve');
   return {
+    useFullWidthField: () => false,
     useFieldComponent: (field: FieldSchema) => {
       const { name } = resolveFieldComponent(field, (candidate) => candidate in registry.fields);
       return registry.fields[name!];

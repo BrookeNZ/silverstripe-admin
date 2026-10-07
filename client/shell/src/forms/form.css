@@ -5,12 +5,15 @@
  * fields, groups and headings inside it are styled by @silverstripe/admin-patterns. A form message
  * draws as an error unless it carries --good, for a schema message of type good or success.
  *
+ * The form has no inset of its own: each top-level field and message sits in a `shell-form__field`
+ * wrapper that pads it by --shell-form-inset, so a full-width field (`--full`, the GridField) and the
+ * action bar touch the sides of the content column. A nested form (`--nested`, a block's form inside
+ * the page form) already sits in an inset field, so its own fields take none.
+ *
  * The action bar is the CMS Refresh "Bottom bar" (Figma node 2:6870, edit mode 2:6871): white, a Grey
  * 400 top line drawn inside its 65px height, 15px by 20px padding round the 35px buttons, the actions on the left and the host's extra controls pushed to
- * the right. In the design it spans the whole content column, so it bleeds out of the column's inset
- * by --shell-form-actions-bleed, which the host that pads the form sets to that padding (`.shell-page`
- * in the shell, `.pages` in the pages pilet). It sits at the bottom of a short form, which grows to the
- * viewport, and stays in view while a long one scrolls.
+ * the right. It spans the whole content column, as in the design, sits at the bottom of a short form,
+ * which grows to the viewport, and stays in view while a long one scrolls.
  *
  * Below 576px the host's controls drop to a second row, as the design's mobile bar (2:6939) and its note
  * "secondary buttons stack at 576px" (2:6960). The bar's tokens sit on :root because the shell reads
@@ -20,7 +23,6 @@
  */
 
 :root {
-  --shell-form-actions-bleed: 0rem;
   --shell-form-actions-border-width: 0.1rem;
 
   /* Figma: the 35px buttons set each row's height */
@@ -49,8 +51,25 @@
   --shell-form-alert-bg-color: var(--admin-error-bg-color);
   --shell-form-alert-border: 0.4rem solid;
   --shell-form-alert-color: var(--admin-error-fg-color);
+  --shell-form-inset: var(--shell-inset);
 
   flex: 1;
+}
+
+.shell-form--nested {
+  --shell-form-inset: 0rem;
+}
+
+.shell-form__field {
+  padding-inline: var(--shell-form-inset);
+}
+
+.shell-form__field:empty {
+  display: none;
+}
+
+.shell-form__field--full {
+  --shell-form-inset: 0rem;
 }
 
 .shell-form__alert {
@@ -82,8 +101,7 @@
   flex-wrap: wrap;
   gap: var(--shell-form-actions-gap);
   inset-block-end: 0;
-  margin-block: auto calc(var(--shell-form-actions-bleed) * -1);
-  margin-inline: calc(var(--shell-form-actions-bleed) * -1);
+  margin-block-start: auto;
   min-block-size: var(--shell-form-actions-min-height);
   padding: calc(var(--shell-form-actions-padding-block) - var(--shell-form-actions-border-width)) var(--shell-form-actions-padding-inline) var(--shell-form-actions-padding-block);
   position: sticky;

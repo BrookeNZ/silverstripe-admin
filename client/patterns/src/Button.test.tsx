@@ -68,6 +68,13 @@ describe('Button', () => {
     expect(button.querySelector('svg')?.getAttribute('focusable')).toBe('false');
   });
 
+  it('draws a text button as a link while keeping it a button', () => {
+    const button = render(<Button variant="text">Delete</Button>) as HTMLButtonElement;
+    expect(button.tagName).toBe('BUTTON');
+    expect(button.type).toBe('button');
+    expect(button.className).toBe('admin-button admin-button--text');
+  });
+
   it('disables a button while disabled, and drops the href of a disabled link', () => {
     expect((render(<Button disabled>Save</Button>) as HTMLButtonElement).disabled).toBe(true);
     container.remove();

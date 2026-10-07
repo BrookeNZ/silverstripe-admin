@@ -38,7 +38,8 @@ export interface GridPostAction {
   method: 'POST';
   url: string;
   args: Record<string, unknown>;
-  confirm?: string;
+  /** Asked before posting; an action without one (restore) posts on click */
+  confirm?: string | null;
 }
 
 export type GridRowAction = GridLinkAction | GridPostAction;
@@ -90,6 +91,8 @@ export interface GridPayload {
   bulkActions: Array<unknown>;
   slots: Record<string, Array<GridSlotEntry>>;
   emptyText: string;
+  /** What a row action reported, such as where a restore put the record */
+  message?: string;
 }
 
 /** What a component registered as `GridField.cell.<Name>` receives */

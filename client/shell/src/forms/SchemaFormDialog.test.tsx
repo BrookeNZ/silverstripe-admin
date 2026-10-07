@@ -16,6 +16,7 @@ vi.mock('./schema', async (importOriginal) => ({
   submitFormSchema: vi.fn(),
 }));
 vi.mock('./useFieldComponent', () => ({
+  useFullWidthField: () => false,
   useFieldComponent: () =>
     ({ field, value, onChange, error }: FieldComponentProps<string>) => (
       <>

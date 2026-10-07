@@ -39,6 +39,16 @@ function linkTarget(url: string): { href: string; renderLink?: typeof routerLink
   return path ? { href: path, renderLink: routerLink } : { href: absolute(url) };
 }
 
+/** How a row is named to screen readers and in dialogs: its title, or its ID */
+export function rowLabel(row: GridRow): string {
+  return row.title ?? `#${row.id}`;
+}
+
+/** What the status line announces after a row action */
+export function actionStatus(action: GridPostAction, row: GridRow, payload: GridPayload): string {
+  return payload.message ?? `${action.title}: ${rowLabel(row)} done`;
+}
+
 function resolve<T>(updater: Updater<T>, previous: T): T {
   return typeof updater === 'function' ? (updater as (old: T) => T)(previous) : updater;
 }
@@ -135,9 +145,10 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
     setConfirming(null);
     setLoading(true);
     try {
-      setPayload(await requestGrid(withParams(action.url, rowsParams(query)), { method: 'POST', body: action.args }));
+      const next = await requestGrid(withParams(action.url, rowsParams(query)), { method: 'POST', body: action.args });
+      setPayload(next);
       setError(null);
-      setStatus(`${action.title}: ${row.title ?? row.id} done`);
+      setStatus(actionStatus(action, row, next));
     } catch (reason) {
       setError((reason as Error).message);
     } finally {
@@ -297,14 +308,14 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
   );
 };
 
-interface RowActionsProps {
+export interface RowActionsProps {
   row: GridRow;
   readonly: boolean;
   onAction(action: GridPostAction): void;
 }
 
-const RowActions = ({ row, readonly, onAction }: RowActionsProps) => {
-  const label = row.title ?? `#${row.id}`;
+export const RowActions = ({ row, readonly, onAction }: RowActionsProps) => {
+  const label = rowLabel(row);
   return (
     <span className="admin-grid__actions">
       {row.actions.map((action) =>
@@ -314,10 +325,10 @@ const RowActions = ({ row, readonly, onAction }: RowActionsProps) => {
             <span className="admin-grid__hidden"> {label}</span>
           </Link>
         ) : readonly ? null : (
-          <button className="admin-grid__action" key={action.name} type="button" onClick={() => onAction(action)}>
+          <Button key={action.name} variant="text" onClick={() => onAction(action)}>
             {action.title}
             <span className="admin-grid__hidden"> {label}</span>
-          </button>
+          </Button>
         ),
       )}
     </span>
@@ -377,7 +388,7 @@ export const ConfirmDialog = ({ confirming, onCancel, onConfirm }: ConfirmDialog
   <Dialog
     open={confirming !== null}
     onClose={onCancel}
-    header={confirming ? `${confirming.action.title} ${confirming.row.title ?? `#${confirming.row.id}`}?` : ''}
+    header={confirming ? `${confirming.action.title} ${rowLabel(confirming.row)}?` : ''}
     body={confirming?.action.confirm}
     footer={
       <>

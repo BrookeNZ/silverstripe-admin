@@ -14,9 +14,20 @@ import type { SectionHeader } from '../header/state';
 import { clearUnsavedChangesOf, hasUnsavedChanges, setUnsavedChanges } from '../unsaved';
 import { clearBeforeSubmitOf, registerBeforeSubmit } from '../forms/beforeSubmit';
 import type { BeforeSubmitHandler } from '../forms/beforeSubmit';
+import { sectionIconSlotName } from '../menu/sectionIcons';
+
+/**
+ * A field component with `fullWidth` set renders edge to edge in a form, without the inset every other
+ * top-level field gets
+ */
+export type SilverstripeComponent<P = any> = ComponentType<P> & { fullWidth?: boolean };
+
+export function isFullWidth(component: unknown): boolean {
+  return (component as { fullWidth?: unknown } | null)?.fullWidth === true;
+}
 
 export interface SilverstripeApi {
-  registerSilverstripeComponent(name: string, Component: ComponentType<any>): Disposable;
+  registerSilverstripeComponent(name: string, Component: SilverstripeComponent): Disposable;
   getSilverstripeComponent(name: string): ComponentType<any>;
   registerExtensionComponent(name: string, slot: string, Component: ComponentType<any>): Disposable;
   getConfig(): Readonly<SilverstripeClientConfig>;
@@ -36,6 +47,11 @@ export interface SilverstripeApi {
    * false or throws; a field gets its form's id as the `formId` prop
    */
   registerBeforeSubmit(formId: string, handler: BeforeSubmitHandler): Disposable;
+  /**
+   * Draws `Icon` beside the section's menu item in place of the icon its legacy `menu_icon_class`
+   * picks. `sectionCode` is the menu item's code: the controller class with hyphens for backslashes
+   */
+  registerSectionIcon(sectionCode: string, Icon: ComponentType): Disposable;
 }
 
 declare module 'piral-core/lib/types/custom' {
@@ -100,12 +116,21 @@ export function createSilverstripeApi(): PiralPlugin<SilverstripeApi> {
         if (existing.length > 0) {
           console.info(`Silverstripe component "${name}" is overridden; the latest registration is used`);
         }
-        return api.registerExtension(slot, ({ params }: { params: Record<string, unknown> }) =>
-          React.createElement(Component, params),
-        );
+        const Registered = ({ params }: { params: Record<string, unknown> }) => React.createElement(Component, params);
+        return api.registerExtension(slot, Object.assign(Registered, { fullWidth: isFullWidth(Component) }));
       },
       getSilverstripeComponent(name) {
-        return silverstripeComponent(name);
+        const Resolved = silverstripeComponent(name);
+        if (!Object.prototype.hasOwnProperty.call(Resolved, 'fullWidth')) {
+          // Read at access time, so a decorator copying the flag gets the current registration's answer
+          Object.defineProperty(Resolved, 'fullWidth', {
+            get: () => {
+              const registrations = context.readState((state) => state.registry.extensions[componentSlotName(name)] ?? []);
+              return isFullWidth(registrations[registrations.length - 1]?.reference);
+            },
+          });
+        }
+        return Resolved;
       },
       registerExtensionComponent(name, slot, Component) {
         return api.registerExtension(extensionSlotName(name, slot), Component);
@@ -125,6 +150,9 @@ export function createSilverstripeApi(): PiralPlugin<SilverstripeApi> {
       },
       registerBeforeSubmit(formId, handler) {
         return registerBeforeSubmit(formId, meta.name, handler);
+      },
+      registerSectionIcon(sectionCode, Icon) {
+        return api.registerExtension(sectionIconSlotName(sectionCode), () => React.createElement(Icon));
       },
     });
   };
