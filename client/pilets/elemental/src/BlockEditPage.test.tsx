@@ -66,6 +66,7 @@ async function render(path = '/pages/edit/EditForm/7/field/ElementalArea/item/65
 beforeEach(() => {
   api = {
     emitted: [],
+    recordsChangedEvent: 'silverstripe:records-changed',
     toasts: [],
     headers: [],
     dirty: false,

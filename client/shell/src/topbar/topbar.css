@@ -1,0 +1,189 @@
+/**
+ * Top bar
+ *
+ * The CMS Refresh "Top bar" (Figma 2:53077, variants 2:1894): white, a Grey 400 bottom border and a
+ * faint drop shadow, 60px high with 15px insets. The start holds the 18px Bright Blue logo mark, a
+ * 26px Grey 500 divider and the site name (Inter Semi Bold 16px, New/Black), 15px apart; the end
+ * holds the "Header dropdown" menus (2:1878) 10px apart, each with a 22px Secondary/Dark Blue icon.
+ *
+ * Below 1024px it is "Mobile v2" (2:1909): 50px high, the Royal Blue hamburger (2:1921) flush with the
+ * start edge, a 20px logo, no site name, 20px end inset and the menus 8px apart. --menu-open is
+ * "Mobile menu" (2:1916): Royal Blue, the 16px white cross and the site name in white, 4px apart.
+ *
+ * The block size and border width sit on :root because style.css derives --shell-sticky-top from them.
+ */
+
+:root {
+  --shell-top-bar-block-size: 5rem;
+  --shell-top-bar-border-width: 0.1rem;
+}
+
+@media (width >= 1024px) {
+  :root {
+    --shell-top-bar-block-size: 6rem;
+  }
+}
+
+.shell-top-bar {
+  --shell-top-bar-badge-bg-color: var(--admin-modified-bg-color);
+  --shell-top-bar-badge-border: none;
+  --shell-top-bar-badge-display: inline-block;
+  --shell-top-bar-badge-fg-color: var(--admin-modified-fg-color);
+  --shell-top-bar-badge-letter-spacing: 0.06rem;
+  --shell-top-bar-bg-color: var(--admin-bg-color);
+  --shell-top-bar-border-color: var(--admin-divider-color);
+  --shell-top-bar-divider-display: none;
+  --shell-top-bar-end-display: flex;
+  --shell-top-bar-end-gap: var(--admin-gap-sm);
+  --shell-top-bar-icon-color: var(--admin-header-icon-color);
+  --shell-top-bar-icon-size: 2.2rem;
+  --shell-top-bar-logo-display: flex;
+  --shell-top-bar-logo-fg-color: var(--admin-accent-color);
+  --shell-top-bar-logo-size: 2rem;
+  --shell-top-bar-name-display: none;
+  --shell-top-bar-name-fg-color: var(--admin-fg-color);
+  --shell-top-bar-padding-inline-end: 2rem;
+  --shell-top-bar-padding-inline-start: 0rem;
+  --shell-top-bar-ring-color: var(--admin-focus-outline-color);
+  --shell-top-bar-shadow: var(--admin-bar-shadow);
+  --shell-top-bar-start-gap: 1.5rem;
+  --shell-top-bar-toggle-bg-color: var(--admin-nav-fg-color);
+  --shell-top-bar-toggle-display: inline-flex;
+  --shell-top-bar-toggle-fg-color: var(--admin-inverse-fg-color);
+  --shell-top-bar-toggle-hover-bg-color: var(--admin-accent-color);
+  --shell-top-bar-toggle-icon-size: 2rem;
+  --shell-top-bar-toggle-size: var(--shell-top-bar-block-size);
+  --shell-top-bar-z-index: var(--admin-z-top-bar);
+
+  align-items: center;
+  background-color: var(--shell-top-bar-bg-color);
+  block-size: var(--shell-top-bar-block-size);
+  border-block-end: var(--shell-top-bar-border-width) solid var(--shell-top-bar-border-color);
+  box-shadow: var(--shell-top-bar-shadow);
+  display: flex;
+  gap: var(--admin-gap-md);
+  grid-column: 1 / -1;
+  inset-block-start: 0;
+  justify-content: space-between;
+  padding-inline: var(--shell-top-bar-padding-inline-start) var(--shell-top-bar-padding-inline-end);
+  position: sticky;
+  z-index: var(--shell-top-bar-z-index);
+}
+
+@media (width >= 1024px) {
+  .shell-top-bar {
+    --shell-top-bar-divider-display: block;
+    --shell-top-bar-end-gap: 1rem;
+    --shell-top-bar-logo-size: 1.8rem;
+    --shell-top-bar-name-display: block;
+    --shell-top-bar-padding-inline-end: 1.5rem;
+    --shell-top-bar-padding-inline-start: 1.5rem;
+    --shell-top-bar-toggle-display: none;
+  }
+}
+
+@media (width < 1024px) {
+  .shell-top-bar--menu-open {
+    --shell-top-bar-badge-display: none;
+    --shell-top-bar-bg-color: var(--shell-top-bar-toggle-bg-color);
+    --shell-top-bar-border-color: var(--shell-top-bar-toggle-bg-color);
+    --shell-top-bar-end-display: none;
+    --shell-top-bar-logo-display: none;
+    --shell-top-bar-name-display: block;
+    --shell-top-bar-name-fg-color: var(--admin-inverse-fg-color);
+    --shell-top-bar-ring-color: var(--admin-inverse-fg-color);
+    --shell-top-bar-start-gap: var(--admin-gap-xs);
+    --shell-top-bar-toggle-icon-size: 1.6rem;
+  }
+}
+
+/* Forced colours drop the ground, so a border keeps the badge's boundary */
+@media (forced-colors: active) {
+  .shell-top-bar {
+    --shell-top-bar-badge-border: 0.1rem solid transparent;
+  }
+}
+
+.shell-top-bar__start {
+  align-items: center;
+  display: flex;
+  gap: var(--shell-top-bar-start-gap);
+  min-width: 0;
+}
+
+/* Wins over .admin-button--tertiary on the same element because this file loads after the component stylesheet */
+.shell-top-bar__menu-toggle {
+  --admin-button-bg-color: var(--shell-top-bar-toggle-bg-color);
+  --admin-button-border-color: var(--shell-top-bar-toggle-bg-color);
+  --admin-button-border-radius: 0;
+  --admin-button-fg-color: var(--shell-top-bar-toggle-fg-color);
+  --admin-button-hover-bg-color: var(--shell-top-bar-toggle-hover-bg-color);
+  --admin-button-padding-block: calc((var(--shell-top-bar-toggle-size) - var(--shell-top-bar-toggle-icon-size)) / 2);
+  --admin-button-padding-inline: var(--admin-button-padding-block);
+  --admin-focus-outline-color: var(--shell-top-bar-ring-color);
+  --admin-icon-size: var(--shell-top-bar-toggle-icon-size);
+
+  display: var(--shell-top-bar-toggle-display);
+}
+
+.shell-top-bar__logo {
+  color: var(--shell-top-bar-logo-fg-color);
+  display: var(--shell-top-bar-logo-display);
+}
+
+.shell-top-bar__logo:focus-visible {
+  outline: var(--admin-focus-outline) var(--shell-top-bar-ring-color);
+  outline-offset: var(--admin-focus-outline-offset);
+}
+
+.shell-top-bar__logo-mark {
+  --admin-icon-size: var(--shell-top-bar-logo-size);
+}
+
+/* Figma "Line 16": 26px */
+.shell-top-bar__divider {
+  background-color: var(--admin-border-color);
+  block-size: 2.6rem;
+  display: var(--shell-top-bar-divider-display);
+  inline-size: var(--shell-top-bar-border-width);
+}
+
+.shell-top-bar__site-name {
+  color: var(--shell-top-bar-name-fg-color);
+  display: var(--shell-top-bar-name-display);
+  font-size: var(--admin-font-size-lg);
+  font-weight: var(--admin-font-weight-bold);
+  overflow: hidden;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell-top-bar__site-name:focus-visible {
+  outline: var(--admin-focus-outline) var(--shell-top-bar-ring-color);
+  outline-offset: var(--admin-focus-outline-offset);
+}
+
+.shell-top-bar__badge {
+  background-color: var(--shell-top-bar-badge-bg-color);
+  border: var(--shell-top-bar-badge-border);
+  border-radius: var(--admin-radius);
+  color: var(--shell-top-bar-badge-fg-color);
+  display: var(--shell-top-bar-badge-display);
+  letter-spacing: var(--shell-top-bar-badge-letter-spacing);
+  padding: var(--admin-gap-xs) var(--admin-gap-sm);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.shell-top-bar__end {
+  align-items: center;
+  display: var(--shell-top-bar-end-display);
+  gap: var(--shell-top-bar-end-gap);
+}
+
+.shell-top-bar__icon {
+  --admin-icon-size: var(--shell-top-bar-icon-size);
+
+  color: var(--shell-top-bar-icon-color);
+}

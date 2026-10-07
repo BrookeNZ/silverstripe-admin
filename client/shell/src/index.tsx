@@ -10,7 +10,11 @@ import { registerGridComponents } from './grid';
 import { initialSectionHeader } from './header/state';
 import { createLayout, createRouter, errors, Home, readMenu, SectionWithoutPilet } from './layout';
 import { createShellNotificationsApi } from './notifications';
+import { readTopBar } from './topbar/TopBar';
+import { chosenPreviewMode } from './preview/mode';
 import { createSectionPage } from './sections/SectionPage';
+import { createServerCacheApi } from './state/serverCache';
+import { initialCurrentRecord } from './state/sharedState';
 import { initialUnsavedChanges } from './unsaved';
 import './style.css';
 
@@ -26,7 +30,7 @@ const adminPath = new URL(root.dataset.adminUrl ?? 'admin/', document.baseURI).p
 const instance = createInstance({
   state: {
     components: {
-      ...createLayout(readMenu(root), adminPath),
+      ...createLayout(readMenu(root), adminPath, readTopBar(root)),
       Router: createRouter(adminPath),
     },
     errorComponents: {
@@ -38,10 +42,12 @@ const instance = createInstance({
     routes: {
       '/': Home,
     },
+    currentRecord: initialCurrentRecord,
     sectionHeader: initialSectionHeader,
     unsavedChanges: initialUnsavedChanges,
+    viewMode: chosenPreviewMode(),
   },
-  plugins: [createShellNotificationsApi(8000), createSilverstripeApi()],
+  plugins: [createShellNotificationsApi(8000), createSilverstripeApi(), createServerCacheApi()],
   requestPilets() {
     return fetch(feedUrl, {
       credentials: 'same-origin',

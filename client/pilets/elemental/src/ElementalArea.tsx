@@ -34,14 +34,7 @@ import type { BlockAction } from './BlockRow';
 import { AddBlockDialog } from './AddBlockDialog';
 import { closestEdge, stepByRow } from './collision';
 import { InlineBlockForm } from './InlineBlockForm';
-import type { AreaFieldProps, ElementalPiletApi, FormSchemaFormHandle } from './shell';
-
-export const recordsChangedEvent = 'silverstripe:records-changed';
-
-export interface RecordsChangedEvent {
-  recordClass: string;
-  ids: Array<number>;
-}
+import type { AreaFieldProps, ElementalPiletApi, FormSchemaFormHandle, RecordsChangedEvent } from './shell';
 
 export interface ElementalAreaOptions {
   api: ElementalPiletApi;
@@ -167,11 +160,11 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
           for (const block of changed) {
             const type = blockType(block, types);
             const event: RecordsChangedEvent = { recordClass: type?.class ?? 'DNADesign\\Elemental\\Models\\BaseElement', ids: [block.id] };
-            api.emit(recordsChangedEvent, event);
+            api.emit(api.recordsChangedEvent, event);
           }
           // A block change alters the page's Modified badge in the tree
           const pageEvent: RecordsChangedEvent = { recordClass: pageClass, ids: [pageId] };
-          api.emit(recordsChangedEvent, pageEvent);
+          api.emit(api.recordsChangedEvent, pageEvent);
         } finally {
           emitting.current = false;
         }
@@ -186,9 +179,9 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
           load();
         }
       };
-      api.on(recordsChangedEvent, refresh);
+      api.on(api.recordsChangedEvent, refresh);
       return () => {
-        api.off(recordsChangedEvent, refresh);
+        api.off(api.recordsChangedEvent, refresh);
       };
     }, [load, pageId]);
 

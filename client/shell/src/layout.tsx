@@ -1,16 +1,19 @@
 import * as React from 'react';
-import { Link, RouterProvider, createBrowserRouter, useLocation } from 'react-router-dom';
+import { RouterProvider, createBrowserRouter, useLocation } from 'react-router-dom';
 import { ComponentsState, ErrorComponentsState, SwitchErrorInfo } from 'piral-core';
 import { Notifications } from 'piral-notifications';
-import { Button, CloseIcon, MenuIcon, Link as TextLink } from '@silverstripe/admin-patterns';
+import { Link as TextLink } from '@silverstripe/admin-patterns';
 import { LiveAnnouncer } from './announcer';
 import { SectionHeaderBar } from './header/SectionHeader';
+import { SectionSidebar } from './header/SectionSidebar';
 import { useSectionHeader } from './header/state';
 import { usePreviewMode } from './preview/mode';
 import { PreviewPane } from './preview/PreviewPane';
 import { useMenuCollapsed } from './menu/collapse';
 import { Menu } from './menu/Menu';
 import { routerLink } from './routing';
+import { TopBar } from './topbar/TopBar';
+import type { TopBarData } from './topbar/TopBar';
 import type { SilverstripeMenuItem } from './silverstripe';
 import { NotificationsHost, NotificationsToast } from './notifications';
 import { UnsavedChangesGuard } from './unsaved';
@@ -129,16 +132,24 @@ export const SkipLink = () => (
 
 export const menuId = 'shell-menu';
 
+interface MenuDisclosure {
+  open: boolean;
+  toggle: () => void;
+  toggleRef: React.RefObject<HTMLButtonElement | HTMLAnchorElement>;
+  sidebarRef: React.RefObject<HTMLDivElement>;
+  onKeyDown: (event: React.KeyboardEvent) => void;
+  onBlur: (event: React.FocusEvent) => void;
+}
+
 /**
- * The logo and the menu. Below 1024px the menu is a disclosure behind the toggle (style.css); it closes
- * on a route change, on Escape (focus returns to the toggle) and when focus leaves the sidebar, so it
- * never covers the page the user moved on to. From 1024px the menu's collapse button narrows the whole
- * sidebar to the icon rail, which has no room for the logo and badge
+ * Below 1024px the menu is a disclosure behind the top bar's toggle (style.css); it closes on a route
+ * change, on Escape (focus returns to the toggle) and when focus leaves both the toggle and the
+ * sidebar, so it never covers the page the user moved on to
  */
-export const Sidebar = ({ menu, adminPath }: { menu: Array<SilverstripeMenuItem>; adminPath: string }) => {
+const useMenuDisclosure = (): MenuDisclosure => {
   const [open, setOpen] = React.useState(false);
-  const [collapsed, setCollapsed] = useMenuCollapsed();
   const toggleRef = React.useRef<HTMLButtonElement | HTMLAnchorElement>(null);
+  const sidebarRef = React.useRef<HTMLDivElement>(null);
   const { pathname } = useLocation();
 
   React.useEffect(() => setOpen(false), [pathname]);
@@ -149,36 +160,31 @@ export const Sidebar = ({ menu, adminPath }: { menu: Array<SilverstripeMenuItem>
       toggleRef.current?.focus();
     }
   };
-  const onBlur = (event: React.FocusEvent<HTMLDivElement>) => {
-    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+  const onBlur = (event: React.FocusEvent) => {
+    const next = event.relatedTarget as Node | null;
+    if (!toggleRef.current?.contains(next) && !sidebarRef.current?.contains(next)) {
       setOpen(false);
     }
   };
 
-  const sidebarClasses = ['shell__sidebar', open && 'shell__sidebar--open', collapsed && 'shell__sidebar--collapsed']
-    .filter(Boolean)
-    .join(' ');
+  return { open, toggle: () => setOpen(!open), toggleRef, sidebarRef, onKeyDown, onBlur };
+};
+
+interface SidebarProps {
+  menu: Array<SilverstripeMenuItem>;
+  adminPath: string;
+  disclosure: MenuDisclosure;
+}
+
+/** The menu. From 1024px its collapse button narrows the whole sidebar to the icon rail */
+export const Sidebar = ({ menu, adminPath, disclosure }: SidebarProps) => {
+  const [collapsed, setCollapsed] = useMenuCollapsed();
+  const { open, sidebarRef, onKeyDown, onBlur } = disclosure;
+
+  const sidebarClasses = ['shell__sidebar', collapsed && 'shell__sidebar--collapsed'].filter(Boolean).join(' ');
 
   return (
-    <div className={sidebarClasses} onKeyDown={onKeyDown} onBlur={onBlur}>
-      <header className="shell__banner">
-        <Button
-          ref={toggleRef}
-          className="shell__menu-toggle"
-          variant="tertiary"
-          iconOnly
-          icon={open ? <CloseIcon /> : <MenuIcon />}
-          aria-expanded={open}
-          aria-controls={menuId}
-          onClick={() => setOpen(!open)}
-        >
-          Menu
-        </Button>
-        <Link className="shell__logo" to="/">
-          Silverstripe
-        </Link>
-        <span className="shell__badge">Piral shell</span>
-      </header>
+    <div className={sidebarClasses} ref={sidebarRef} onKeyDown={onKeyDown} onBlur={onBlur}>
       <Menu
         id={menuId}
         menu={menu}
@@ -188,6 +194,31 @@ export const Sidebar = ({ menu, adminPath }: { menu: Array<SilverstripeMenuItem>
         onCollapsedChange={setCollapsed}
       />
     </div>
+  );
+};
+
+interface ChromeProps {
+  menu: Array<SilverstripeMenuItem>;
+  adminPath: string;
+  topBar: TopBarData;
+}
+
+/** The top bar and the sidebar, sharing the menu's open state; both are cells of the shell's grid */
+export const Chrome = ({ menu, adminPath, topBar }: ChromeProps) => {
+  const disclosure = useMenuDisclosure();
+  return (
+    <>
+      <TopBar
+        data={topBar}
+        menuId={menuId}
+        menuOpen={disclosure.open}
+        onMenuToggle={disclosure.toggle}
+        toggleRef={disclosure.toggleRef}
+        onKeyDown={disclosure.onKeyDown}
+        onBlur={disclosure.onBlur}
+      />
+      <Sidebar menu={menu} adminPath={adminPath} disclosure={disclosure} />
+    </>
   );
 };
 
@@ -209,19 +240,42 @@ export const Workspace = ({ children }: { children: React.ReactNode }) => {
 };
 
 /**
+ * The main landmark. When the page's header asks for a sidebar, the sidebar column sits before the
+ * content column (section header, then the page), at every width, as the legacy tree panel did. The
+ * content column keeps its place in the tree either way, so the page does not remount when its header
+ * adds or drops the sidebar. Preview mode hides the sidebar but keeps it mounted
+ */
+export const Content = ({ children }: { children: React.ReactNode }) => {
+  const header = useSectionHeader()?.header;
+  const { mode } = usePreviewMode();
+  const sidebar = header?.sidebar;
+  const sidebarHidden = Boolean(header?.preview) && mode === 'preview';
+  return (
+    <main
+      className={sidebar && !sidebarHidden ? 'shell__content shell__content--split' : 'shell__content'}
+      id={mainId}
+      tabIndex={-1}
+    >
+      {sidebar && <SectionSidebar title={sidebar.title} section={sidebar.section} hidden={sidebarHidden} />}
+      <div className="shell__column">
+        <SectionHeaderBar />
+        <Workspace>{children}</Workspace>
+      </div>
+      <LiveAnnouncer />
+    </main>
+  );
+};
+
+/**
  * Menu links are client navigations: the shell serves every admin section while the flag is on, so a
  * full load would only rebuild the shell, and the unsaved-changes guard can ask in its own dialog
  */
-export function createLayout(menu: Array<SilverstripeMenuItem>, adminPath: string): Partial<ComponentsState> {
+export function createLayout(menu: Array<SilverstripeMenuItem>, adminPath: string, topBar: TopBarData): Partial<ComponentsState> {
   const Layout: ComponentsState['Layout'] = ({ children }) => (
     <div className="shell">
       <SkipLink />
-      <Sidebar menu={menu} adminPath={adminPath} />
-      <main className="shell__content" id={mainId} tabIndex={-1}>
-        <SectionHeaderBar />
-        <Workspace>{children}</Workspace>
-        <LiveAnnouncer />
-      </main>
+      <Chrome menu={menu} adminPath={adminPath} topBar={topBar} />
+      <Content>{children}</Content>
       <Notifications />
       <UnsavedChangesGuard />
     </div>

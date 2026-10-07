@@ -7,6 +7,7 @@
   ],
   "dependencies": {
     "@silverstripe/admin-patterns": "file:../patterns",
+    "@tanstack/react-query": "5.104.1",
     "@tanstack/react-table": "9.2.6",
     "dompurify": "^3.4.16",
     "piral-base": "1.12.4",

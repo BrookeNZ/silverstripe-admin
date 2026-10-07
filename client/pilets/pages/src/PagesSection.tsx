@@ -1,6 +1,7 @@
 /**
- * The Pages section: the page tree beside the page edit form. One route (`<prefix>/*`) renders it, so
- * the tree stays mounted while the tail of the URL changes; the tail keeps the legacy shape
+ * The Pages section: the page edit form, with the page tree (PagesSidebar.tsx) in the sidebar column the
+ * shell draws when the section header names it. One route (`<prefix>/*`) renders the page, so the tree's
+ * session stays open while the tail of the URL changes; the tail keeps the legacy shape
  * (`edit/show/<id>`) so CMSEditLink() and bookmarks still land here.
  *
  * A page has three views, as in legacy CMSMain: Content (`edit`), Settings (`settings`, the settings
@@ -11,8 +12,9 @@
  * The form is the shell's FormSchema renderer, fetched by name from the component registry. The page
  * edit form's state does not ask for change tracking (the legacy admin tracked every edit form), so the
  * section asks for it, and the shell's guard confirms before a tree selection navigates away. After a save
- * the section emits the records-changed event, and the tree re-reads the saved page's row, or moves it
- * when the save changed its parent.
+ * the section announces the page as a changed SiteTree record, which refetches the cached tree listing
+ * showing its row; the shell matches classes by ancestry, so an event for a page's own class (a history
+ * revert) reaches the listing too.
  *
  * The section header carries the page title (from the tree, so a save that renames the page retitles
  * it), the page's ancestors as its breadcrumb and the page's views; the index has the section title and
@@ -21,31 +23,38 @@
  * Draft/Published toggle picks, so switching stage reloads the preview pane. The form draws the toggle in
  * split and preview modes only; the stage lives here, so it survives the toggle unmounting in edit mode.
  *
- * "Add page" above the tree creates a page under the open page, or at the top level from the index, through
- * PageCreateController, then re-reads the parent's children and lands on the new page's edit route.
+ * The page opens the session the sidebar reads (the tree store and the API clients) while it is mounted,
+ * sets the open page as the shared `currentRecord`, and renders `TreeQueries`, the cached reads behind the
+ * store, so the tree loads even while the sidebar is not drawn. Leaving the section and coming back starts
+ * a new store over the same cache.
  */
 import * as React from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import type { PageComponentProps, SectionHeader } from '@silverstripe/admin-shell';
-import { AddIcon, Button, fieldTitle, Toggle } from '@silverstripe/admin-patterns';
-import { AddPageDialog } from './AddPageDialog';
-import { addPage } from './addPage';
-import { ApiError, createPageApi, createTreeApi } from './api';
-import { PageSearch } from './PageSearch';
-import { PageTree } from './PageTree';
+import { fieldTitle, Toggle } from '@silverstripe/admin-patterns';
+import { createPageApi, createTreeApi } from './api';
+import type { ChildrenResponse, TreeApi } from './api';
+import { createMoveApi } from './move';
+import { createPagesSessionHolder, createPagesSidebar, useStoreVersion } from './PagesSidebar';
 import { previewLinks } from './preview';
 import type { PreviewLinks } from './preview';
 import { stageOptions } from './stage';
 import type { PageStage } from './stage';
-import { TreeStore } from './treeStore';
-import { currentPageDataKey, recordsChangedEvent } from './events';
-import type { RecordsChangedEvent } from './events';
+import { childPageKey, childPageRecords, TreeStore } from './treeStore';
+import type { ChildPageKey, ChildPageRequest } from './treeStore';
+import { currentPageDataKey } from './events';
 
 export interface PagesSectionOptions {
   routePrefix: string;
+  /** The section's menu item code, which the sidebar is registered under */
+  sectionCode: string;
+  /** The section's menu title, drawn over the tree */
+  sectionTitle: string;
+  /** The base class tree keys, records-changed events and the shared current record name */
   pageClass: string;
   treeUrl: string;
   createUrl: string;
+  moveUrl: string;
   securityId(): string;
   loginUrl: string;
   /** The schema URL of each view's form, for the views whose controller the site has */
@@ -118,44 +127,98 @@ export function pageSectionHeader(
   };
 }
 
-function useStoreVersion(store: TreeStore): number {
-  return React.useSyncExternalStore(store.subscribe, store.getVersion);
-}
-
 // The preview pane and header modes replace it, as the legacy preview panel plucked it out of the form
 const navigatorFields = ['SilverStripeNavigator'];
 
-const SessionExpired = ({ loginUrl }: { loginUrl: string }) => (
-  <p className="pages__alert" role="alert">
-    Your CMS session has expired: <a href={loginUrl}>log in again</a>.
-  </p>
-);
+/** The shape of the Pilet API's `useServerQuery` that the tree's reads use */
+export type ChildPageQueryHook = (
+  key: ChildPageKey,
+  fetcher: (context: { signal: AbortSignal }) => Promise<ChildrenResponse>,
+  options: { records(data: ChildrenResponse): ReadonlyArray<number> },
+) => { status: 'pending' | 'error' | 'success'; data: ChildrenResponse | undefined; error: Error | null; isFetching: boolean };
 
-export function createPagesSection(options: PagesSectionOptions): React.ComponentType<PageComponentProps> {
+interface TreeQueriesProps {
+  store: TreeStore;
+  api: TreeApi;
+  useServerQuery: ChildPageQueryHook;
+}
+
+const ChildPageQuery = ({ store, api, useServerQuery, request }: TreeQueriesProps & { request: ChildPageRequest }) => {
+  const { data, error, status, isFetching } = useServerQuery(
+    childPageKey(request),
+    ({ signal }) => api.children(request.parentId, request.page, request.limit, signal),
+    { records: childPageRecords },
+  );
+  // A retry remounts on the cached error; it is reported once the new read settles
+  const failed = status === 'error' && !isFetching;
+  React.useEffect(() => {
+    if (data !== undefined || failed) {
+      store.receive(request, { data, error });
+    }
+  }, [store, request, data, error, failed]);
+  return null;
+};
+
+/** Reads every page of children the store asks for through the server cache and hands it back */
+export const TreeQueries = ({ store, api, useServerQuery }: TreeQueriesProps) => {
+  const requests = React.useSyncExternalStore(store.subscribe, store.getRequests);
+  return (
+    <>
+      {requests.map((request) => (
+        <ChildPageQuery
+          key={`${request.parentId}:${request.page}:${request.limit}:${request.attempt}`}
+          store={store}
+          api={api}
+          useServerQuery={useServerQuery}
+          request={request}
+        />
+      ))}
+    </>
+  );
+};
+
+export interface PagesSectionComponents {
+  Page: React.ComponentType<PageComponentProps>;
+  /** For `registerSectionSidebar` under `sectionCode` */
+  Sidebar: ReturnType<typeof createPagesSidebar>;
+}
+
+export function createPagesSection(options: PagesSectionOptions): PagesSectionComponents {
   const editPath = (id: number) => `${options.routePrefix}/edit/show/${id}`;
   const availableViews = pageViews.map(({ view }) => view).filter((view) => options.schemaUrls[view]);
+  const holder = createPagesSessionHolder();
+  const sidebar = { title: options.sectionTitle, section: options.sectionCode };
 
   const PagesSection = ({ piral }: PageComponentProps) => {
-    const api = React.useMemo(() => createTreeApi(options.treeUrl), []);
-    const store = React.useMemo(() => new TreeStore(api), [api]);
+    const api = React.useMemo(() => createTreeApi(options.treeUrl, piral.fetchJson), [piral]);
+    const store = React.useMemo(
+      () => new TreeStore(api, { invalidate: (ids) => piral.invalidateRecords(options.pageClass, ids) }),
+      [api, piral],
+    );
     const createClient = React.useMemo(() => createPageApi(options.createUrl, options.securityId), []);
+    const moveClient = React.useMemo(() => createMoveApi(options.moveUrl, options.securityId), []);
     useStoreVersion(store);
-    const navigate = useNavigate();
     const tail = useParams()['*'] ?? '';
     const opened = parsePageTail(tail, availableViews);
     const currentId = opened?.id ?? null;
-    const [query, setQuery] = React.useState('');
-    const [revealError, setRevealError] = React.useState<ApiError | null>(null);
+    const revealError = opened ? store.revealError(opened.id) : null;
     const [stage, setStage] = React.useState<PageStage>('draft');
     const [links, setLinks] = React.useState<PreviewLinks>({});
-    const [adding, setAdding] = React.useState(false);
-    const [creating, setCreating] = React.useState(false);
-    const [createError, setCreateError] = React.useState<string | null>(null);
     const FormSchemaForm = React.useMemo(() => piral.getSilverstripeComponent('FormSchemaForm'), [piral]);
 
+    // Layout effects, so the session is open with the current page before the header draws the sidebar
+    React.useLayoutEffect(() => {
+      const session = { api, store, createClient, moveClient };
+      holder.open(session);
+      return () => holder.close(session);
+    }, [api, store, createClient, moveClient]);
+
+    React.useLayoutEffect(
+      () => (currentId === null ? undefined : piral.setCurrentRecord({ recordClass: options.pageClass, id: currentId })),
+      [piral, currentId],
+    );
+
     React.useEffect(() => {
-      setQuery('');
-      setRevealError(null);
       setStage('draft');
       setLinks({});
     }, [tail]);
@@ -169,54 +232,15 @@ export function createPagesSection(options: PagesSectionOptions): React.Componen
       piral.setData(currentPageDataKey, currentId);
     }, [piral, currentId]);
 
-    React.useEffect(() => {
-      const refresh = ({ recordClass, ids }: RecordsChangedEvent) => {
-        if (recordClass === options.pageClass || ids.some((id) => store.node(id)?.className === recordClass)) {
-          for (const id of ids) {
-            store.refresh(id).catch(() => undefined);
-          }
-        }
-      };
-      piral.on(recordsChangedEvent, refresh);
-      return () => {
-        piral.off(recordsChangedEvent, refresh);
-      };
-    }, [piral, store]);
-
     const onSubmitted = React.useCallback(
       (_response: unknown, action: Parameters<typeof fieldTitle>[0]) => {
         piral.showNotification(`${fieldTitle(action)} succeeded`, { type: 'success' });
         if (currentId !== null) {
-          const event: RecordsChangedEvent = { recordClass: options.pageClass, ids: [currentId] };
-          piral.emit(recordsChangedEvent, event);
+          piral.invalidateRecords(options.pageClass, [currentId]);
         }
       },
       [piral, currentId],
     );
-
-    const closeAdd = () => {
-      setAdding(false);
-      setCreateError(null);
-    };
-    const create = (className: string) => {
-      setCreating(true);
-      setCreateError(null);
-      addPage(
-        {
-          client: createClient,
-          store,
-          land: (page) => {
-            setAdding(false);
-            piral.showNotification(`Created "${page.title}"`, { type: 'success' });
-            navigate(editPath(page.id));
-          },
-        },
-        currentId ?? 0,
-        className,
-      )
-        .catch((failure: unknown) => setCreateError(failure instanceof Error ? failure.message : String(failure)))
-        .finally(() => setCreating(false));
-    };
 
     const header = pageSectionHeader(
       options.routePrefix,
@@ -231,10 +255,9 @@ export function createPagesSection(options: PagesSectionOptions): React.Componen
         : null,
       availableViews,
     );
+    header.sidebar = sidebar;
     const headerKey = JSON.stringify(header);
     React.useEffect(() => piral.setSectionHeader(header), [piral, headerKey]);
-    const searching = query.trim().length > 0;
-    const sessionExpired = store.sessionExpired || Boolean(revealError?.sessionExpired);
 
     let main: React.ReactNode;
     if (opened) {
@@ -278,38 +301,16 @@ export function createPagesSection(options: PagesSectionOptions): React.Componen
 
     return (
       <div className="pages">
-        <nav className="pages__sidebar" aria-label="Page tree">
-          <div className="pages__tools">
-            <Button icon={<AddIcon />} onClick={() => setAdding(true)}>
-              Add page
-            </Button>
-            <PageSearch api={api} editPath={editPath} query={query} onQueryChange={setQuery} />
-            {sessionExpired && <SessionExpired loginUrl={options.loginUrl} />}
-          </div>
-          <PageTree
-            store={store}
-            currentId={currentId}
-            hidden={searching}
-            onSelect={(id) => navigate(editPath(id))}
-            onRevealError={(error) =>
-              setRevealError(error instanceof ApiError ? error : new ApiError(String(error), 0, 'network'))
-            }
-          />
-        </nav>
-        <div className="pages__main">{main}</div>
-        <AddPageDialog
-          open={adding}
-          parentId={currentId ?? 0}
-          client={createClient}
-          creating={creating}
-          error={createError}
-          onCreate={create}
-          onClose={closeAdd}
-        />
+        {main}
+        <TreeQueries store={store} api={api} useServerQuery={piral.useServerQuery} />
       </div>
     );
   };
   PagesSection.displayName = 'PagesSection';
-  return PagesSection;
+
+  return {
+    Page: PagesSection,
+    Sidebar: createPagesSidebar({ holder, recordClass: options.pageClass, editPath, loginUrl: options.loginUrl }),
+  };
 }
 

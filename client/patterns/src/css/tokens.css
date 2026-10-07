@@ -42,8 +42,12 @@
   --admin-palette-button-warning: #f6c445;
   --admin-palette-button-warning-hover: #e0a800;
   --admin-palette-button-warning-text: #3e464e;
+
+  /* Figma Secondary/Dark Blue */
+  --admin-palette-dark-blue: #0049a3;
   --admin-palette-grey-100: #f7f8f8;
   --admin-palette-grey-200: #f1f3f3;
+  --admin-palette-grey-300: #e9ebec;
   --admin-palette-grey-400: #dcdee0;
   --admin-palette-grey-500: #c1c4c8;
 
@@ -52,6 +56,9 @@
   --admin-palette-grey-800: #71767f;
   --admin-palette-grey-900: #595d64;
   --admin-palette-line-grey: #dadee1;
+
+  /* Figma New Grey/700, not the older Grey/700 above */
+  --admin-palette-new-grey-700: #8b9098;
 
   /* Figma node 2:6270 Remove hover fill; no variable */
   --admin-palette-red-100: #fbe5e7;
@@ -73,6 +80,9 @@
   /* The Bright Blue label is 4.45:1 on it, under 4.5:1; kept as designed */
   --admin-accent-tint-color: var(--admin-palette-bright-blue-200);
   --admin-backdrop-color: rgb(from var(--admin-palette-black) r g b / 0.5);
+
+  /* Figma "Top bar" 2:53077 drop shadow, pure black with no variable */
+  --admin-bar-shadow: 0 0.3rem 0.45rem rgb(0 0 0 / 0.05);
   --admin-bg-color: var(--admin-palette-white);
   --admin-border: 0.1rem solid;
 
@@ -84,14 +94,25 @@
   /* 4.84:1 on white; on the tint the label is 4.03:1, under 4.5:1, kept as designed */
   --admin-danger-color: var(--admin-palette-border-invalid);
   --admin-danger-tint-color: var(--admin-palette-red-100);
+  --admin-disabled-bg-color: var(--admin-palette-grey-200);
+
+  /* 2.88:1 on the disabled ground, under 4.5:1; kept as designed */
+  --admin-disabled-fg-color: var(--admin-palette-new-grey-700);
   --admin-disabled-opacity: 0.6;
 
   /* Grey 400 is 1.35:1 on white, so decorative only */
   --admin-divider-color: var(--admin-palette-grey-400);
 
+  /* Figma "Text field" Type=Dropdown 2:57781: 12px by 15px, 14px text on a 1.4 line */
+  --admin-dropdown-line-height: 1.4;
+  --admin-dropdown-padding: 1.2rem 1.5rem;
+
   /* No design source for error; its ground is the page until one exists */
   --admin-error-bg-color: var(--admin-palette-white);
   --admin-error-fg-color: var(--admin-palette-red-700);
+
+  /* Grey 300, the dropdown option rule; decorative only */
+  --admin-faint-divider-color: var(--admin-palette-grey-300);
   --admin-fg-color: var(--admin-palette-black);
   --admin-focus-outline: 0.2rem solid;
 
@@ -120,6 +141,9 @@
   --admin-gap-xl: 3.2rem;
   --admin-gap-xxl: 4.8rem;
   --admin-hover-bg-color: var(--admin-palette-bright-blue-100);
+
+  /* The top bar's help and person icons; 8.46:1 on white */
+  --admin-header-icon-color: var(--admin-palette-dark-blue);
 
   /* 7.79:1 on white */
   --admin-icon-color: var(--admin-palette-grey-700);
@@ -193,14 +217,16 @@
   --admin-warning-border-color: var(--admin-palette-yellow-800);
 
   /*
-   * Stacking layers, lowest first: the sticky header and action bar, the narrow-screen menu overlay,
-   * popovers (menus, combobox lists) where the browser has no popover API, then toasts, then the skip link.
+   * Stacking layers, lowest first: the sticky header and action bar, the narrow-screen menu overlay, the
+   * top bar (its shadow falls on the menu), popovers (menus, combobox lists) where the browser has no
+   * popover API, then toasts, then the skip link.
    * Dialogs, and popovers where the API exists, open in the top layer above all of these and need none.
    * The fallback popover is fixed to the viewport like its top-layer self, so it sits over the sticky bars
    * and the overlay; it still cannot leave a stacking context its control is in, such as the action bar
    */
   --admin-z-sticky: 20;
   --admin-z-overlay: 30;
+  --admin-z-top-bar: 32;
   --admin-z-popover-fallback: 35;
   --admin-z-toast: 40;
   --admin-z-skip-link: 50;
@@ -212,6 +238,7 @@
   :root {
     --admin-border-color: var(--admin-palette-grey-900);
     --admin-divider-color: var(--admin-palette-grey-900);
+    --admin-faint-divider-color: var(--admin-palette-grey-900);
     --admin-line-color: var(--admin-palette-grey-900);
     --admin-muted-fg-color: var(--admin-palette-black);
   }

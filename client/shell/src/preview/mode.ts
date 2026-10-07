@@ -55,7 +55,8 @@ export function resetPreviewMode(): void {
   chosen = null;
 }
 
-function subscribe(listener: () => void): () => void {
+/** The shared state's `viewMode` follows the choice through this */
+export function subscribePreviewMode(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
@@ -71,7 +72,7 @@ function useWideViewport(): boolean {
 
 /** Whether the viewport has room for a preview, and the mode to draw: edit when it has not */
 export function usePreviewMode(): { mode: PreviewMode; available: boolean } {
-  const mode = React.useSyncExternalStore(subscribe, chosenPreviewMode);
+  const mode = React.useSyncExternalStore(subscribePreviewMode, chosenPreviewMode);
   const available = useWideViewport();
   return { mode: available ? mode : 'edit', available };
 }

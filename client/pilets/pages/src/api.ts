@@ -1,9 +1,10 @@
 /**
  * Client for the read-only page tree endpoints at admin/pages/tree (PageTreeController in the admin
- * module): paged children, the path to a page, and search; and the add page endpoints at admin/pages/create
- * (PageCreateController): the types a parent accepts, and creating a page, which sends the CSRF token. Requests are sent the way the shell sends its
- * feed request, so the server answers an expired session with a JSON 401 rather than a login redirect.
- * Failures carry the endpoint's error envelope as an ApiError.
+ * module): paged children, the path to a page, and search, read through the shell's `fetchJson`; and the
+ * add page endpoints at admin/pages/create (PageCreateController): the types a parent accepts, and
+ * creating a page, which sends the CSRF token. Moving a page is in move.ts. Requests are sent the way the
+ * shell sends its feed request, so the server answers an expired session with a JSON 401 rather than a
+ * login redirect. Failures carry the endpoint's error envelope as an ApiError.
  */
 
 export interface StatusFlag {
@@ -57,14 +58,25 @@ export class ApiError extends Error {
     readonly status: number,
     readonly reason: string,
     readonly field: string | null = null,
+    readonly sessionExpired: boolean = status === 401,
   ) {
     super(message);
     this.name = 'ApiError';
   }
+}
 
-  get sessionExpired(): boolean {
-    return this.status === 401;
+/** Keeps the status and session expiry of the shell's ServerRequestError, which pilets see only as a shape */
+export function toApiError(error: unknown): ApiError {
+  if (error instanceof ApiError) {
+    return error;
   }
+  const { message, status, sessionExpired } = (error ?? {}) as { message?: unknown; status?: unknown; sessionExpired?: unknown };
+  const text = typeof message === 'string' ? message : String(error);
+  if (typeof status !== 'number') {
+    return new ApiError(text, 0, 'network');
+  }
+  const expired = sessionExpired === true;
+  return new ApiError(text, status, expired ? 'notLoggedIn' : 'http', null, expired);
 }
 
 interface ErrorEnvelope {
@@ -99,24 +111,24 @@ export async function requestJson<T>(url: string, signal?: AbortSignal): Promise
 }
 
 export interface TreeApi {
-  children(parentId: number, page: number, limit: number): Promise<ChildrenResponse>;
+  children(parentId: number, page: number, limit: number, signal?: AbortSignal): Promise<ChildrenResponse>;
   ancestors(id: number, limit: number): Promise<AncestorsResponse>;
   search(query: string, signal?: AbortSignal): Promise<SearchResponse>;
 }
 
+/** The part of the shell's `fetchJson` the tree uses */
+export type TreeRequest = <T>(url: string, init?: { query?: Record<string, string | number>; signal?: AbortSignal }) => Promise<T>;
+
 /** `treeUrl` is the absolute URL of admin/pages/tree/, the url_segment of PageTreeController */
-export function createTreeApi(treeUrl: string, request: typeof requestJson = requestJson): TreeApi {
-  const url = (path: string, query: Record<string, string | number>) => {
-    const target = new URL(path, treeUrl);
-    for (const [name, value] of Object.entries(query)) {
-      target.searchParams.set(name, String(value));
-    }
-    return target.href;
-  };
+export function createTreeApi(treeUrl: string, request: TreeRequest): TreeApi {
+  const read = <T>(path: string, query: Record<string, string | number>, signal?: AbortSignal): Promise<T> =>
+    request<T>(new URL(path, treeUrl).href, { query, signal }).catch((error: unknown) => {
+      throw toApiError(error);
+    });
   return {
-    children: (parentId, page, limit) => request(url(`children/${parentId}`, { page, limit })),
-    ancestors: (id, limit) => request(url(`ancestors/${id}`, { limit })),
-    search: (query, signal) => request(url('search', { q: query }), signal),
+    children: (parentId, page, limit, signal) => read(`children/${parentId}`, { page, limit }, signal),
+    ancestors: (id, limit) => read(`ancestors/${id}`, { limit }),
+    search: (query, signal) => read('search', { q: query }, signal),
   };
 }
 
@@ -148,31 +160,49 @@ export interface CreatePageApi {
   create(parentId: number, className: string): Promise<CreatedPage>;
 }
 
+/**
+ * POSTs a JSON body with the CSRF token in X-SecurityID; failures carry the endpoint's error envelope.
+ * `failure` names the action in the message used when the envelope has none
+ */
+export async function postJson<T>(
+  url: string,
+  body: unknown,
+  securityId: () => string,
+  failure: string,
+  fetcher: typeof fetch = fetch,
+): Promise<T> {
+  const response = await fetcher(url, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+      'X-SecurityID': securityId(),
+    },
+    body: JSON.stringify(body),
+  });
+  if (response.redirected) {
+    throw new ApiError('Not logged in', 401, 'notLoggedIn');
+  }
+  const parsed = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = (parsed as ErrorEnvelope).errors?.[0];
+    throw new ApiError(
+      error?.value || `${failure} answered ${response.status}`,
+      response.status,
+      error?.reason ?? 'http',
+      error?.field ?? null,
+    );
+  }
+  return parsed as T;
+}
+
 /** `createUrl` is the absolute URL of admin/pages/create/, the url_segment of PageCreateController */
 export function createPageApi(createUrl: string, securityId: () => string, fetcher: typeof fetch = fetch): CreatePageApi {
   return {
     types: (parentId) => requestJson(new URL(`types/${parentId}`, createUrl).href),
-    async create(parentId, className) {
-      const response = await fetcher(new URL('page', createUrl).href, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-          'X-SecurityID': securityId(),
-        },
-        body: JSON.stringify({ parentId, className }),
-      });
-      if (response.redirected) {
-        throw new ApiError('Not logged in', 401, 'notLoggedIn');
-      }
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        const error = (body as ErrorEnvelope).errors?.[0];
-        throw new ApiError(error?.value || `Creating the page answered ${response.status}`, response.status, error?.reason ?? 'http');
-      }
-      return body as CreatedPage;
-    },
+    create: (parentId, className) =>
+      postJson(new URL('page', createUrl).href, { parentId, className }, securityId, 'Creating the page', fetcher),
   };
 }

@@ -9,7 +9,10 @@ import { FormSchemaForm } from './FormSchemaForm';
 import { fetchFormSchema, submitFormSchema } from './schema';
 import type { FieldComponentProps, FormSchemaFormHandle } from './types';
 
-vi.mock('piral-core', () => ({ useGlobalStateContext: () => ({}) }));
+vi.mock('piral-core', () => ({
+  useGlobalStateContext: () => ({}),
+  useGlobalState: (select: (state: unknown) => unknown) => select({ sectionHeader: { current: null, entries: [] } }),
+}));
 vi.mock('../unsaved', () => ({ setUnsavedChanges: () => () => undefined, shellOwner: 'shell' }));
 vi.mock('./schema', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./schema')>()),

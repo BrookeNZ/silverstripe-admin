@@ -26,7 +26,7 @@ export function setup(api: PiletApi) {
     historyViewerComponent,
     createHistoryViewer({
       api,
-      client: createHistoryApi({ read: absolute(read), revert: absolute(revert) }, () => String(config.SecurityID ?? '')),
+      client: createHistoryApi({ read: absolute(read), revert: absolute(revert) }, api.fetchJson),
       versionSchemaUrl: (recordClass, id, version) => {
         const url = new URL(absolute(versionSchemaUrl));
         url.searchParams.set('RecordClass', recordClass);

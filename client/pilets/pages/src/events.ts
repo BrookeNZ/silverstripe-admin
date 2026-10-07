@@ -3,9 +3,7 @@
  * client/shell/PILET-API.md under "Shared state and events"
  */
 
-/** Emitted after a save, publish or other change to records; the tree re-reads the rows named */
-export const recordsChangedEvent = 'silverstripe:records-changed';
-
+/** The payload of the Pilet API's `recordsChangedEvent` */
 export interface RecordsChangedEvent {
   recordClass: string;
   ids: Array<number>;

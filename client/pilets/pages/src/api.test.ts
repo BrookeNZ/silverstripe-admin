@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError, createTreeApi, requestJson } from './api';
+import type { TreeRequest } from './api';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -10,17 +11,28 @@ function stubFetch(status: number, body: unknown, redirected = false) {
 }
 
 describe('createTreeApi', () => {
-  it('builds the endpoint URLs', async () => {
-    const request = vi.fn(async (_url: string) => ({}));
-    const api = createTreeApi('https://example.test/admin/pages/tree/', request as typeof requestJson);
-    await api.children(0, 2, 250);
+  it('reads the endpoints through the request it is given', async () => {
+    const request = vi.fn(async () => ({}));
+    const api = createTreeApi('https://example.test/admin/pages/tree/', request as TreeRequest);
+    const signal = new AbortController().signal;
+    await api.children(0, 2, 250, signal);
     await api.ancestors(12, 250);
     await api.search('a b');
-    expect(request.mock.calls.map(([url]) => url)).toEqual([
-      'https://example.test/admin/pages/tree/children/0?page=2&limit=250',
-      'https://example.test/admin/pages/tree/ancestors/12?limit=250',
-      'https://example.test/admin/pages/tree/search?q=a+b',
+    expect(request.mock.calls).toEqual([
+      ['https://example.test/admin/pages/tree/children/0', { query: { page: 2, limit: 250 }, signal }],
+      ['https://example.test/admin/pages/tree/ancestors/12', { query: { limit: 250 }, signal: undefined }],
+      ['https://example.test/admin/pages/tree/search', { query: { q: 'a b' }, signal: undefined }],
     ]);
+  });
+
+  it('turns the shell request error into an ApiError that keeps the session expiry', async () => {
+    const expired = Object.assign(new Error('Your session may have expired'), { status: 403, sessionExpired: true });
+    const api = createTreeApi('https://example.test/admin/pages/tree/', (async () => {
+      throw expired;
+    }) as TreeRequest);
+    const error = (await api.children(0, 1, 50).catch((caught: unknown) => caught)) as ApiError;
+    expect(error).toBeInstanceOf(ApiError);
+    expect([error.status, error.sessionExpired, error.message]).toEqual([403, true, 'Your session may have expired']);
   });
 });
 

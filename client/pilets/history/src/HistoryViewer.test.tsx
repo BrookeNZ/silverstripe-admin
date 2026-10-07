@@ -5,8 +5,7 @@ import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { HistoryApi, Version } from './api';
-import { HistoryApiError } from './api';
-import { createHistoryViewer, recordsChangedEvent } from './HistoryViewer';
+import { createHistoryViewer } from './HistoryViewer';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -29,6 +28,67 @@ let client: { read: ReturnType<typeof vi.fn>; revert: ReturnType<typeof vi.fn> }
 let emitted: Array<[string, unknown]>;
 let toasts: Array<string>;
 let formUrls: Array<string>;
+let queryKeys: Array<string>;
+let generation: number;
+let invalidated: Set<() => void>;
+
+const requestError = (message: string, status: number) => Object.assign(new Error(message), { status });
+
+type QueryState = { key: string; status: 'pending' | 'error' | 'success'; data: unknown; error: Error | null };
+
+// Stands in for the shell's server cache: reads per key, and an announced change rereads every key keeping its data
+function useServerQuery(key: ReadonlyArray<unknown>, fetcher: (context: { signal: AbortSignal }) => Promise<unknown>, options: { enabled?: boolean } = {}) {
+  const [seen, setSeen] = React.useState(generation);
+  const [state, setState] = React.useState<QueryState | null>(null);
+  React.useEffect(() => {
+    const listener = () => setSeen(generation);
+    invalidated.add(listener);
+    return () => {
+      invalidated.delete(listener);
+    };
+  }, []);
+  const serialised = JSON.stringify(key);
+  React.useEffect(() => {
+    if (options.enabled === false) {
+      return undefined;
+    }
+    queryKeys.push(serialised);
+    const controller = new AbortController();
+    fetcher({ signal: controller.signal }).then(
+      (data) => setState({ key: serialised, status: 'success', data, error: null }),
+      (error: Error) => setState({ key: serialised, status: 'error', data: undefined, error }),
+    );
+    return () => controller.abort();
+  }, [serialised, seen]);
+  const current = state?.key === serialised ? state : { status: 'pending' as const, data: undefined, error: null };
+  return { status: current.status, data: current.data, error: current.error, isFetching: false, refetch: async () => undefined };
+}
+
+function useServerMutation(mutation: (variables: unknown) => Promise<unknown>, options: { changes?(variables: unknown, result: unknown): unknown } = {}) {
+  const [status, setStatus] = React.useState<'idle' | 'pending' | 'error' | 'success'>('idle');
+  return {
+    status,
+    error: null,
+    reset: () => setStatus('idle'),
+    mutate: async (variables: unknown) => {
+      setStatus('pending');
+      try {
+        const result = await mutation(variables);
+        setStatus('success');
+        const change = options.changes?.(variables, result);
+        if (change) {
+          emitted.push(['silverstripe:records-changed', change]);
+          generation += 1;
+          invalidated.forEach((listener) => listener());
+        }
+        return result;
+      } catch (error) {
+        setStatus('error');
+        throw error;
+      }
+    },
+  };
+}
 
 const FakeForm = ({ schemaUrl }: { schemaUrl: string }) => {
   formUrls.push(schemaUrl);
@@ -50,9 +110,8 @@ async function render(data: Record<string, unknown> = {}) {
         toasts.push(String(content));
         return undefined as never;
       },
-      emit: (name: string, value: unknown) => {
-        emitted.push([name, value]);
-      },
+      useServerQuery,
+      useServerMutation,
     } as never,
     client: client as unknown as HistoryApi,
     versionSchemaUrl: (recordClass, id, number) => `schema?${recordClass}/${id}/${number}`,
@@ -83,6 +142,9 @@ beforeEach(() => {
   emitted = [];
   toasts = [];
   formUrls = [];
+  queryKeys = [];
+  generation = 0;
+  invalidated = new Set();
   client = {
     read: vi.fn(async (_class: string, _id: number, page: number) =>
       page === 1
@@ -103,6 +165,7 @@ describe('HistoryViewer', () => {
     await render();
 
     expect(client.read).toHaveBeenCalledWith('Page', 1, 1, expect.any(AbortSignal));
+    expect(queryKeys).toEqual(['["Page",1,"versions",1]']);
     const rows = Array.from(container.querySelectorAll('tbody tr')).map((row) =>
       Array.from(row.children).map((cell) => cell.textContent?.trim()),
     );
@@ -136,7 +199,7 @@ describe('HistoryViewer', () => {
 
     expect(client.revert).toHaveBeenCalledWith('Page', 1, 2);
     expect(toasts).toEqual(['Reverted to version 2']);
-    expect(emitted).toEqual([[recordsChangedEvent, { recordClass: 'Page', ids: [1] }]]);
+    expect(emitted).toEqual([['silverstripe:records-changed', { recordClass: 'Page', ids: [1] }]]);
     expect(client.read).toHaveBeenCalledTimes(2);
     expect(container.querySelector('table')).not.toBeNull();
     expect(document.activeElement?.textContent).toBe('Versions');
@@ -150,7 +213,7 @@ describe('HistoryViewer', () => {
   });
 
   it('shows a failed revert in the version view and stays there', async () => {
-    client.revert.mockRejectedValueOnce(new HistoryApiError('You do not have permission', 403));
+    client.revert.mockRejectedValueOnce(requestError('You do not have permission', 403));
     await render();
     await click('Version 2');
     await click('Revert to this version');
@@ -161,7 +224,7 @@ describe('HistoryViewer', () => {
   });
 
   it('shows a failed read as an alert', async () => {
-    client.read.mockRejectedValueOnce(new HistoryApiError('Sorry, it seems there was a 404 error.', 404));
+    client.read.mockRejectedValueOnce(requestError('Sorry, it seems there was a 404 error.', 404));
     await render();
     expect(container.querySelector('[role="alert"]')?.textContent).toBe('Sorry, it seems there was a 404 error.');
   });

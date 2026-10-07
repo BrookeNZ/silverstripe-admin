@@ -1,75 +1,73 @@
 /**
  * Pages section
  *
- * Two panes: the tree and its search on the left, the edit form on the right. The left pane sits flush
- * against the menu, sticks to the viewport and scrolls as one pane (toolbar and tree together, as the
- * legacy tree panel did) in the full height below the shell's sticky section header (whose height
- * token the shell declares); the virtualised tree measures from its offset inside the pane. The form column scrolls with the page so its sticky action bar keeps working; it is at least
- * as tall as the pane, so a short form's action bar sits at the viewport bottom. The column has no
- * inline padding: the form insets its own fields, and the rest of the column's content takes the same
- * inset from `pages__inset`.
- * The sidebar takes the design's pane inset, width and edges; beyond that only the layout and the alert
- * colour are styled here, and the pattern library step owns the look.
+ * The page tree column and the edit form. The tree, its toolbar and search fill the sidebar column the
+ * shell draws beside the section header and form (header/section-sidebar.css in the shell), which owns
+ * the column's width, edge and stickiness. The tree's pane is the scroll box (the virtualised tree
+ * measures from its offset inside it) and scrolls as one, toolbar and tree together, as the legacy tree
+ * panel did. From 1024px it fills the column's body below its header row; below 1024px, where the column
+ * stacks above the form, it takes a height of its own and the column scrolls with the page. The design
+ * has no narrow pages layout (its Site tree sidebar 2:3674 and collapsed rail 2:3681 are desktop only),
+ * so the stacking is the shell's own choice.
  *
- * Below 1024px, where the shell's menu collapses into its top bar, the tree stacks above the form in a
- * pane of its own height and scrolls with the page. The design has no narrow pages layout (its Site
- * tree sidebar 2:3674 and collapsed rail 2:3681 are desktop only), so the stacking is the shell's own
- * choice. The pane offsets read the shell's sticky top bar and the measured header height.
+ * The form column scrolls with the page so its sticky action bar keeps working; it is at least as tall
+ * as the viewport below the header, so a short form's action bar sits at the viewport bottom. It has no
+ * inline padding: the form insets its own fields, and the rest of its content takes the same inset from
+ * `pages__inset`. Beyond the layout only the alert colour is styled here; the pattern library step owns
+ * the look.
  */
 
 .pages {
-  --pages-columns: minmax(0, 1fr);
-  --pages-pane-offset: calc(var(--shell-sticky-top) + var(--shell-header-offset));
-  --pages-pane-height: calc(100vh - var(--pages-pane-offset));
-  --pages-sidebar-height: 40vh;
-
-  /* Figma Site tree sidebar 2:3675: 20px toolbar and tree inset, 330px wide */
-  --pages-sidebar-inset: 2rem;
-  --pages-sidebar-position: static;
-  --pages-sidebar-width: 33rem;
-
-  align-items: start;
-  display: grid;
-  grid-template-columns: var(--pages-columns);
-}
-
-@media (width >= 1024px) {
-  .pages {
-    --pages-columns: var(--pages-sidebar-width) minmax(0, 1fr);
-    --pages-sidebar-height: var(--pages-pane-height);
-    --pages-sidebar-position: sticky;
-  }
-}
-
-.pages__sidebar {
-  background-color: var(--admin-panel-bg-color);
-  border-inline: var(--admin-border) var(--admin-divider-color);
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: var(--pages-sidebar-inset);
-  height: var(--pages-sidebar-height);
-  inset-block-start: var(--pages-pane-offset);
-  min-width: 0;
-  overflow: auto;
-  position: var(--pages-sidebar-position);
-}
-
-/* The pane inset sits on the toolbar, not the pane, so the scrollbar stays on the pane's edge */
-.pages__tools {
-  display: flex;
-  flex-direction: column;
-  gap: var(--pages-sidebar-inset);
-  padding: var(--pages-sidebar-inset) var(--pages-sidebar-inset) 0;
-}
-
-.pages__main {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: var(--admin-gap-sm);
-  min-height: var(--pages-pane-height);
+  min-height: calc(100vh - var(--shell-sticky-top) - var(--shell-header-offset));
   padding-block-start: var(--admin-gap-md);
+}
+
+.pages-sidebar {
+  --pages-sidebar-flex: none;
+  --pages-sidebar-height: 40vh;
+
+  /* Figma Site tree sidebar 2:3677: 20px toolbar and tree inset */
+  --pages-sidebar-inset: 2rem;
+
+  display: flex;
+  flex: var(--pages-sidebar-flex);
+  flex-direction: column;
+  height: var(--pages-sidebar-height);
+  min-height: 0;
+  overflow: auto;
+}
+
+@media (width >= 1024px) {
+  .pages-sidebar {
+    --pages-sidebar-flex: 1;
+    --pages-sidebar-height: auto;
+  }
+}
+
+/* The pane insets sit on its rows, not the pane, so the scrollbar stays on the pane's edge */
+.pages-search {
+  padding: var(--pages-sidebar-inset) var(--pages-sidebar-inset) 0;
+}
+
+/* Figma 2:3677: 20px padding, 15px between the buttons */
+.pages-tree-toolbar {
+  --pages-tree-toolbar-gap: 1.5rem;
+
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--pages-tree-toolbar-gap);
+  padding: var(--pages-sidebar-inset);
+}
+
+.pages-sidebar__alert {
+  color: var(--admin-error-fg-color);
+  margin: 0;
+  padding: 0 var(--pages-sidebar-inset) var(--pages-sidebar-inset);
 }
 
 .pages__inset {

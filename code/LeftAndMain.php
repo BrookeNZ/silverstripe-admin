@@ -8,6 +8,7 @@ use SilverStripe\Admin\Forms\UnsavedChangesIndicator;
 use SilverStripe\Admin\Navigator\SilverStripeNavigator;
 use SilverStripe\Admin\UserInterface\PiletFeedController;
 use SilverStripe\Admin\UserInterface\PiralShellAssets;
+use SilverStripe\Admin\UserInterface\RecordClassAncestry;
 use SilverStripe\Admin\SingleRecordAdmin;
 use SilverStripe\CMS\Controllers\CMSMain;
 use SilverStripe\Control\Controller;
@@ -41,6 +42,7 @@ use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\FieldType\DBField;
 use SilverStripe\ORM\FieldType\DBHTMLText;
 use SilverStripe\ORM\Hierarchy\Hierarchy;
+use SilverStripe\Security\Member;
 use SilverStripe\Security\Permission;
 use SilverStripe\Security\PermissionProvider;
 use SilverStripe\Security\Security;
@@ -302,6 +304,7 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
         $combinedClientConfig['baseUrl'] = Director::baseURL();
         $combinedClientConfig['absoluteBaseUrl'] = Director::absoluteBaseURL();
         $combinedClientConfig['adminUrl'] = AdminRootController::admin_url();
+        $combinedClientConfig['recordClasses'] = RecordClassAncestry::singleton()->getMap();
 
         // Get "global" CSRF token for use in JavaScript
         $token = SecurityToken::inst();
@@ -610,6 +613,42 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
             ];
         }
         return json_encode($items, JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * The Piral shell's top bar as JSON: the site, the signed-in member and the help links the legacy
+     * menu template renders
+     */
+    public function PiralTopBar(): string
+    {
+        $member = Security::getCurrentUser();
+        $helpLinks = [];
+        foreach ($this->getHelpLinks() as $link) {
+            $helpLinks[] = ['title' => (string) $link->Title, 'url' => (string) $link->URL];
+        }
+        return json_encode([
+            'siteName' => (string) ($this->SiteConfig()?->Title ?: $this->getApplicationName()),
+            'siteUrl' => Director::absoluteBaseURL(),
+            'applicationName' => (string) $this->getApplicationName(),
+            'applicationLink' => (string) $this->ApplicationLink(),
+            'member' => $member ? [
+                'name' => $this->memberDisplayName($member),
+                'profileUrl' => AdminRootController::admin_url('myprofile'),
+            ] : null,
+            'logoutUrl' => $this->LogoutURL(),
+            'helpLinks' => $helpLinks,
+        ], JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * Composed as LeftAndMain_MenuStatus.ss does: first name and surname, else the first name, else the email
+     */
+    private function memberDisplayName(Member $member): string
+    {
+        if ($member->FirstName && $member->Surname) {
+            return $member->FirstName . ' ' . $member->Surname;
+        }
+        return (string) ($member->FirstName ?: $member->Email);
     }
 
     /**

@@ -23,6 +23,13 @@ export interface SectionHeaderCrumb {
   to: string;
 }
 
+export interface SectionHeaderSidebar {
+  /** Drawn at the top of the sidebar column, level with the header; the section's menu title */
+  title: string;
+  /** The code the sidebar body was registered under with `registerSectionSidebar` */
+  section: string;
+}
+
 export interface SectionHeader {
   /** Rendered as the page's h1 */
   title: string;
@@ -39,6 +46,8 @@ export interface SectionHeader {
   views?: Array<SectionHeaderView>;
   /** The record's draft preview URL; with it the header offers edit, split and preview modes */
   preview?: string;
+  /** With it the layout draws a sidebar column beside the header and page, filled by the section's registered sidebar */
+  sidebar?: SectionHeaderSidebar;
 }
 
 export interface SectionHeaderEntry {

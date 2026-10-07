@@ -1,7 +1,8 @@
 /**
  * Search above the tree: after two characters and a pause it asks the search endpoint and lists the
  * matches flat, each a link to the page's edit route. Following a link (or clearing the field) returns
- * to the tree, which stays mounted underneath so its open nodes survive.
+ * to the tree, which stays mounted underneath so its open nodes survive. With `onClose` the field is
+ * a disclosure the sidebar's header button opened: it takes focus when drawn and Escape closes it.
  */
 import * as React from 'react';
 import { Link } from 'react-router-dom';
@@ -10,11 +11,14 @@ import { ApiError } from './api';
 import type { SearchResponse, TreeApi } from './api';
 
 export interface PageSearchProps {
+  /** The id the opening button's aria-controls names */
+  id?: string;
   api: TreeApi;
   editPath(id: number): string;
   query: string;
   onQueryChange(query: string): void;
   minLength?: number;
+  onClose?(): void;
 }
 
 const debounceMs = 300;
@@ -27,9 +31,17 @@ type SearchState =
   | { status: 'done'; response: SearchResponse }
   | { status: 'failed'; error: ApiError };
 
-export const PageSearch = ({ api, editPath, query, onQueryChange, minLength = 2 }: PageSearchProps) => {
+export const PageSearch = ({ id, api, editPath, query, onQueryChange, minLength = 2, onClose }: PageSearchProps) => {
   const [state, setState] = React.useState<SearchState>({ status: 'idle' });
+  const inputRef = React.useRef<HTMLInputElement>(null);
   const term = query.trim();
+  const opened = Boolean(onClose);
+
+  React.useEffect(() => {
+    if (opened) {
+      inputRef.current?.focus();
+    }
+  }, [opened]);
 
   React.useEffect(() => {
     if (term.length < minLength) {
@@ -71,13 +83,14 @@ export const PageSearch = ({ api, editPath, query, onQueryChange, minLength = 2 
   const error = state.status === 'failed' ? state.error.message : undefined;
 
   return (
-    <div className="pages-search">
+    <div className="pages-search" id={id}>
       <FieldHolder
         field={{ id: inputId, title: 'Search pages' }}
         labelFor={inputId}
         error={error}
       >
         <input
+          ref={inputRef}
           className="admin-field__control"
           id={inputId}
           type="search"
@@ -86,7 +99,13 @@ export const PageSearch = ({ api, editPath, query, onQueryChange, minLength = 2 
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === 'Escape' && query) {
+            if (event.key !== 'Escape') {
+              return;
+            }
+            if (onClose) {
+              event.preventDefault();
+              onClose();
+            } else if (query) {
               event.preventDefault();
               onQueryChange('');
             }

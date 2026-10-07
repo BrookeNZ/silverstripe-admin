@@ -15,6 +15,7 @@ export {
   ExportIcon,
   FilesIcon,
   ForwardIcon,
+  HelpIcon,
   HomeIcon,
   ImportIcon,
   ListViewIcon,
@@ -40,4 +41,5 @@ export {
   SplitViewIcon,
   TaxonomiesIcon,
   UploadIcon,
+  UserIcon,
 } from './icons';

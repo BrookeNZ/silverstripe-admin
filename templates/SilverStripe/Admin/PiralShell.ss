@@ -7,6 +7,6 @@
     <title>$Title</title>
 </head>
 <body class="cms cms--piral">
-    <div id="ss-admin-shell" data-feed-url="$PiletFeedLink" data-admin-url="$AdminURL" data-menu="$PiralMenu.ATT"></div>
+    <div id="ss-admin-shell" data-feed-url="$PiletFeedLink" data-admin-url="$AdminURL" data-menu="$PiralMenu.ATT" data-top-bar="$PiralTopBar.ATT"></div>
 </body>
 </html>

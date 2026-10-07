@@ -8,15 +8,16 @@
  * Which version is open is component state, not a route, so the field works wherever versioned-admin puts
  * it. Opening a version focuses its heading; going back focuses the version's row button.
  *
+ * Version pages are read through the shell's server cache under `[recordClass, id, 'versions', page]`, so a
+ * records-changed event for the record, from a revert here or a save elsewhere, refetches them.
+ *
  * Gaps against legacy: no compare mode, no preview of a version, no author avatars.
  */
 import * as React from 'react';
 import type { FieldComponentProps, PiletApi } from '@silverstripe/admin-shell';
 import { Button, Stack } from '@silverstripe/admin-patterns';
-import type { HistoryApi, Version, VersionPage } from './api';
+import type { HistoryApi, Version } from './api';
 import { canRevertTo, formatEdited, memberName, pageCount, statusLabels, versionStatus } from './versions';
-
-export const recordsChangedEvent = 'silverstripe:records-changed';
 
 interface HistoryViewerData {
   recordId?: number | null;
@@ -26,15 +27,10 @@ interface HistoryViewerData {
 }
 
 export interface HistoryViewerOptions {
-  api: Pick<PiletApi, 'getSilverstripeComponent' | 'showNotification' | 'emit'>;
+  api: Pick<PiletApi, 'getSilverstripeComponent' | 'showNotification' | 'useServerQuery' | 'useServerMutation'>;
   client: HistoryApi;
   versionSchemaUrl(recordClass: string, id: number, version: number): string;
 }
-
-type ListState =
-  | { status: 'loading' }
-  | { status: 'failed'; message: string }
-  | { status: 'loaded'; result: VersionPage };
 
 const StatusBadge = ({ version }: { version: Version }) => (
   <span className="history-viewer__badge">{statusLabels[versionStatus(version)]}</span>
@@ -49,38 +45,27 @@ export function createHistoryViewer({ api, client, versionSchemaUrl }: HistoryVi
     const recordClass = String(data.recordClass ?? '');
     const pageSize = Number(data.limit ?? 30);
     const [page, setPage] = React.useState(1);
-    const [reload, setReload] = React.useState(0);
-    const [list, setList] = React.useState<ListState>({ status: 'loading' });
     const [newestVersion, setNewestVersion] = React.useState<number | null>(null);
     const [selected, setSelected] = React.useState<Version | null>(null);
-    const [reverting, setReverting] = React.useState(false);
     const [revertError, setRevertError] = React.useState<string | null>(null);
+    const list = api.useServerQuery(
+      [recordClass, recordId, 'versions', page],
+      ({ signal }) => client.read(recordClass, recordId, page, signal),
+      { enabled: Boolean(recordId && recordClass) },
+    );
+    const reverting = api.useServerMutation((version: number) => client.revert(recordClass, recordId, version), {
+      changes: () => ({ recordClass, ids: [recordId] }),
+    });
     const versionHeading = React.useRef<HTMLHeadingElement>(null);
     const listHeading = React.useRef<HTMLHeadingElement>(null);
     const returnFocusTo = React.useRef<number | null>(null);
     const headingId = `${field.id}_versions`;
 
     React.useEffect(() => {
-      if (!recordId || !recordClass) {
-        return undefined;
+      if (page === 1 && list.data) {
+        setNewestVersion(list.data.versions[0]?.version ?? null);
       }
-      const controller = new AbortController();
-      setList({ status: 'loading' });
-      client.read(recordClass, recordId, page, controller.signal).then(
-        (result) => {
-          setList({ status: 'loaded', result });
-          if (page === 1) {
-            setNewestVersion(result.versions[0]?.version ?? null);
-          }
-        },
-        (error: unknown) => {
-          if (!controller.signal.aborted) {
-            setList({ status: 'failed', message: error instanceof Error ? error.message : String(error) });
-          }
-        },
-      );
-      return () => controller.abort();
-    }, [recordClass, recordId, page, reload]);
+    }, [page, list.data]);
 
     React.useEffect(() => {
       if (selected) {
@@ -89,7 +74,7 @@ export function createHistoryViewer({ api, client, versionSchemaUrl }: HistoryVi
     }, [selected]);
 
     React.useEffect(() => {
-      if (selected || list.status !== 'loaded' || returnFocusTo.current === null) {
+      if (selected || list.status !== 'success' || returnFocusTo.current === null) {
         return;
       }
       const target = returnFocusTo.current === 0
@@ -97,7 +82,7 @@ export function createHistoryViewer({ api, client, versionSchemaUrl }: HistoryVi
         : document.getElementById(`${field.id}_version_${returnFocusTo.current}`);
       returnFocusTo.current = null;
       target?.focus();
-    }, [selected, list, field.id]);
+    }, [selected, list.status, list.data, field.id]);
 
     if (!recordId || !recordClass) {
       return <p>This record has no history to show yet.</p>;
@@ -110,22 +95,17 @@ export function createHistoryViewer({ api, client, versionSchemaUrl }: HistoryVi
     };
 
     const revert = async (version: Version) => {
-      setReverting(true);
       setRevertError(null);
       try {
-        await client.revert(recordClass, recordId, version.version);
+        await reverting.mutate(version.version);
       } catch (error) {
         setRevertError(error instanceof Error ? error.message : String(error));
-        setReverting(false);
         return;
       }
-      setReverting(false);
       api.showNotification(`Reverted to version ${version.version}`, { type: 'success' });
-      api.emit(recordsChangedEvent, { recordClass, ids: [recordId] });
       returnFocusTo.current = 0;
       setSelected(null);
       setPage(1);
-      setReload((count) => count + 1);
     };
 
     if (selected) {
@@ -139,7 +119,7 @@ export function createHistoryViewer({ api, client, versionSchemaUrl }: HistoryVi
             <Stack direction="row" spacing="sm" align="center">
               <Button onClick={() => closeVersion(selected.version)}>Back to all versions</Button>
               {revertable && (
-                <Button variant="primary" loading={reverting} disabled={reverting} onClick={() => revert(selected)}>
+                <Button variant="primary" loading={reverting.status === 'pending'} disabled={reverting.status === 'pending'} onClick={() => revert(selected)}>
                   Revert to this version
                 </Button>
               )}
@@ -159,22 +139,22 @@ export function createHistoryViewer({ api, client, versionSchemaUrl }: HistoryVi
       );
     }
 
-    const pages = list.status === 'loaded' ? pageCount(list.result.totalCount, pageSize) : 1;
+    const pages = list.data ? pageCount(list.data.totalCount, pageSize) : 1;
     return (
       <Stack spacing="md" className="history-viewer">
         <h2 className="history-viewer__heading" id={headingId} ref={listHeading} tabIndex={-1}>
           Versions
         </h2>
         <p className="history-viewer__meta" role="status">
-          {list.status === 'loading' && 'Loading versions'}
-          {list.status === 'loaded' && `${list.result.totalCount} versions, page ${page} of ${pages}`}
+          {list.status === 'pending' && 'Loading versions'}
+          {list.data && `${list.data.totalCount} versions, page ${page} of ${pages}`}
         </p>
-        {list.status === 'failed' && (
+        {list.status === 'error' && (
           <p className="history-viewer__error" role="alert">
-            {list.message}
+            {list.error?.message}
           </p>
         )}
-        {list.status === 'loaded' && list.result.versions.length > 0 && (
+        {list.data && list.data.versions.length > 0 && (
           <table className="history-viewer__table" aria-labelledby={headingId}>
             <thead>
               <tr>
@@ -185,7 +165,7 @@ export function createHistoryViewer({ api, client, versionSchemaUrl }: HistoryVi
               </tr>
             </thead>
             <tbody>
-              {list.result.versions.map((version) => (
+              {list.data.versions.map((version) => (
                 <tr key={version.version}>
                   <th className="history-viewer__cell" scope="row">
                     <Button

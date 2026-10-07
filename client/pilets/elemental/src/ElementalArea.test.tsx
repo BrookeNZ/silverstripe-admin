@@ -7,7 +7,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Block, ElementalApi } from './api';
 import type { ElementType } from './blocks';
-import { createElementalAreaField, precedingHeading, recordsChangedEvent } from './ElementalArea';
+import { createElementalAreaField, precedingHeading } from './ElementalArea';
 import type { BeforeSubmitHandler, ElementalPiletApi, FormSchemaFormHandle, FormSchemaSubmitResult } from './shell';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -78,6 +78,7 @@ function makeApi() {
   const listeners = new Map<string, Set<(event: any) => void>>();
   const fake = {
     emitted: [] as Array<unknown>,
+    recordsChangedEvent: 'silverstripe:records-changed',
     beforeSubmit: new Map<string, BeforeSubmitHandler>(),
     toasts: [] as Array<[string, unknown]>,
     getSilverstripeComponent: () => FakeFormSchemaForm,
@@ -405,7 +406,7 @@ describe('ElementalArea', () => {
 
   it('re-reads the blocks when the page is saved', async () => {
     await render();
-    act(() => api.emit(recordsChangedEvent, { recordClass: 'SilverStripe\\CMS\\Model\\SiteTree', ids: [7] }));
+    act(() => api.emit(api.recordsChangedEvent, { recordClass: 'SilverStripe\\CMS\\Model\\SiteTree', ids: [7] }));
     await flush();
     expect(client.readElements).toHaveBeenCalledTimes(2);
   });

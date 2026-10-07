@@ -14,9 +14,7 @@ import { Button, Dialog, fieldTitle } from '@silverstripe/admin-patterns';
 import type { FormField, FormSchemaRecord, FormSchemaResponse, PageComponentProps } from '@silverstripe/admin-shell';
 import { blockTitle } from './blocks';
 import type { ElementType } from './blocks';
-import { recordsChangedEvent } from './ElementalArea';
-import type { RecordsChangedEvent } from './ElementalArea';
-import type { ElementalPiletApi } from './shell';
+import type { ElementalPiletApi, RecordsChangedEvent } from './shell';
 
 export interface BlockEditPageOptions {
   api: ElementalPiletApi;
@@ -109,8 +107,8 @@ export function createBlockEditPage(options: BlockEditPageOptions): React.Compon
       }
       const blockEvent: RecordsChangedEvent = { recordClass: saved.className, ids: saved.id ? [saved.id] : [Number(blockId)] };
       const pageEvent: RecordsChangedEvent = { recordClass: pageClass, ids: [Number(pageId)] };
-      api.emit(recordsChangedEvent, blockEvent);
-      api.emit(recordsChangedEvent, pageEvent);
+      api.emit(api.recordsChangedEvent, blockEvent);
+      api.emit(api.recordsChangedEvent, pageEvent);
       const verb = fieldTitle(action);
       if (response.deleted) {
         const savedType = types.find((candidate) => candidate.class === saved.className);

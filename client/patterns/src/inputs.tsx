@@ -56,7 +56,7 @@ export const SingleSelectField = ({ field, value, onChange, onBlur, error }: Fie
   <FieldHolder field={field} error={error} labelFor={field.id}>
     <select
       {...controlProps(field, error)}
-      className="admin-field__control"
+      className="admin-field__control admin-field__control--select"
       value={textValue(value)}
       onChange={(event) => onChange(event.target.value)}
       onBlur={onBlur}

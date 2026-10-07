@@ -15,10 +15,52 @@ import { clearUnsavedChangesOf, hasUnsavedChanges, setUnsavedChanges } from '../
 import { clearBeforeSubmitOf, registerBeforeSubmit } from '../forms/beforeSubmit';
 import type { BeforeSubmitHandler } from '../forms/beforeSubmit';
 import { sectionIconSlotName } from '../menu/sectionIcons';
+import { sectionSidebarSlotName } from '../header/SectionSidebar';
+import type { SectionSidebarSlotProps } from '../header/SectionSidebar';
 import { menuItemReference, menuItemSlot } from '../menu/menuItems';
 import type { MenuItemRegistration } from '../menu/menuItems';
+import { chosenPreviewMode, subscribePreviewMode } from '../preview/mode';
+import { recordsChangedEvent } from '../events';
+import type { RecordsChangedEvent, RecordsChangedEventName } from '../events';
+import {
+  clearCurrentRecordOf,
+  createUseSharedState,
+  setCurrentRecord,
+  setViewMode,
+  sharedConfig,
+  subscribeSharedState,
+} from '../state/sharedState';
+import type { CurrentRecord, SharedState, SharedStateListener, SharedStateSelector, SharedToast } from '../state/sharedState';
 
-export type { MenuItemRegistration };
+import type {
+  ServerMutation,
+  ServerMutationOptions,
+  ServerMutationResult,
+  ServerQueryContext,
+  ServerQueryFetcher,
+  ServerQueryKey,
+  ServerQueryKeyPart,
+  ServerQueryOptions,
+  ServerQueryResult,
+} from '../state/serverCache';
+import type { ServerRequest, ServerRequestError, ServerRequestInit, ServerRequestMethod } from '../state/serverRequest';
+
+export type { CurrentRecord, MenuItemRegistration, RecordsChangedEvent, RecordsChangedEventName, SharedState, SharedStateListener, SharedStateSelector, SharedToast };
+export type {
+  ServerMutation,
+  ServerMutationOptions,
+  ServerMutationResult,
+  ServerQueryContext,
+  ServerQueryFetcher,
+  ServerQueryKey,
+  ServerQueryKeyPart,
+  ServerQueryOptions,
+  ServerQueryResult,
+  ServerRequest,
+  ServerRequestError,
+  ServerRequestInit,
+  ServerRequestMethod,
+};
 
 /**
  * A field component with `fullWidth` set renders edge to edge in a form, without the inset every other
@@ -61,10 +103,32 @@ export interface SilverstripeApi {
    */
   registerSectionIcon(sectionCode: string, Icon: ComponentType): Disposable;
   /**
+   * Fills the sidebar column the layout draws while the showing page's header has a `sidebar` naming
+   * `sectionCode`. The latest registration is drawn
+   */
+  registerSectionSidebar(sectionCode: string, Sidebar: ComponentType<SectionSidebarSlotProps>): Disposable;
+  /**
    * Adds a link after the CMS sections that the shell draws like a section's, for a page with no server
    * section behind it. A section the server knows already has its menu item
    */
   registerMenuItem(item: MenuItemRegistration): Disposable;
+  /**
+   * Reads shared state in a component and re-renders when the selected value changes (Object.is). The
+   * selector may be inline; one that builds a new object re-renders on every shared state change
+   */
+  useSharedState<T>(selector: SharedStateSelector<T>): T;
+  /**
+   * Calls `listener(value, previous)` each time the selected value changes, not at once. Unloading the
+   * pilet unsubscribes it
+   */
+  subscribeSharedState<T>(selector: SharedStateSelector<T>, listener: SharedStateListener<T>): Disposable;
+  /**
+   * Names the record the showing page edits, as shared state's `currentRecord`, until the disposer runs;
+   * call it from the page and dispose on unmount. A later call wins until it is disposed
+   */
+  setCurrentRecord(record: CurrentRecord): Disposable;
+  /** The records-changed event's name, for `emit`, `on` and `off`; its value is a `RecordsChangedEvent` */
+  readonly recordsChangedEvent: RecordsChangedEventName;
 }
 
 declare module 'piral-core/lib/types/custom' {
@@ -102,24 +166,20 @@ export function silverstripeComponent(name: string): ComponentType<any> {
   return Resolved;
 }
 
-function deepFreeze<T>(value: T): T {
-  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
-    Object.freeze(value);
-    for (const key of Object.keys(value as object)) {
-      deepFreeze((value as Record<string, unknown>)[key]);
-    }
-  }
-  return value;
-}
-
-let frozenConfig: Readonly<SilverstripeClientConfig> | undefined;
-
 export function createSilverstripeApi(): PiralPlugin<SilverstripeApi> {
   return (context) => {
+    const subscriptions = new Map<string, Set<Disposable>>();
+    const useSharedState = createUseSharedState(context);
+
+    subscribePreviewMode(() => setViewMode(context, chosenPreviewMode()));
+
     context.on('unload-pilet', ({ name }) => {
       clearUnsavedChangesOf(context, name);
       clearSectionHeaderOf(context, name);
+      clearCurrentRecordOf(context, name);
       clearBeforeSubmitOf(name);
+      subscriptions.get(name)?.forEach((unsubscribe) => unsubscribe());
+      subscriptions.delete(name);
     });
 
     return (api, meta) => ({
@@ -149,8 +209,7 @@ export function createSilverstripeApi(): PiralPlugin<SilverstripeApi> {
         return api.registerExtension(extensionSlotName(name, slot), Component);
       },
       getConfig() {
-        frozenConfig ??= deepFreeze(structuredClone(window.ss.config));
-        return frozenConfig;
+        return sharedConfig();
       },
       setUnsavedChanges(key, dirty) {
         return setUnsavedChanges(context, meta.name, key, dirty);
@@ -167,9 +226,30 @@ export function createSilverstripeApi(): PiralPlugin<SilverstripeApi> {
       registerSectionIcon(sectionCode, Icon) {
         return api.registerExtension(sectionIconSlotName(sectionCode), () => React.createElement(Icon));
       },
+      registerSectionSidebar(sectionCode, Sidebar) {
+        return api.registerExtension(sectionSidebarSlotName(sectionCode), ({ params }) =>
+          React.createElement(Sidebar, params as SectionSidebarSlotProps),
+        );
+      },
       registerMenuItem(item) {
         return api.registerExtension(menuItemSlot, menuItemReference(item));
       },
+      useSharedState,
+      subscribeSharedState(selector, listener) {
+        const owned = subscriptions.get(meta.name) ?? new Set<Disposable>();
+        subscriptions.set(meta.name, owned);
+        const unsubscribe = subscribeSharedState(context, selector, listener);
+        const dispose = () => {
+          unsubscribe();
+          owned.delete(dispose);
+        };
+        owned.add(dispose);
+        return dispose;
+      },
+      setCurrentRecord(record) {
+        return setCurrentRecord(context, meta.name, record);
+      },
+      recordsChangedEvent,
     });
   };
 }

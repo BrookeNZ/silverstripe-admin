@@ -3,32 +3,25 @@
  *
  * The legacy admin bundle is not loaded when the shell is. Shared tokens (--admin-*) and component
  * styles come from @silverstripe/admin-patterns, imported before this file; the chrome tokens here
- * cover what only the shell draws: the sidebar, the content area and notifications. The menu inside
- * the sidebar is styled in menu/menu.css, which owns the --shell-menu-* tokens; the sidebar's own
- * (--shell-sidebar-*, including its width and the toggle) stay here because the layout reads them.
+ * cover what only the shell draws: the sidebar, the content area and notifications. The top bar is
+ * styled in topbar/topbar.css and the menu inside the sidebar in menu/menu.css, each owning its own
+ * tokens; the sidebar's own (--shell-sidebar-*, including its width) stay here because the layout
+ * reads them.
  *
- * Below 1024px the menu collapses behind a toggle in a top bar, after the design's mobile top bar
- * (Figma "Top bar" Mobile v2 2:1909, Hamburger 2:1921) and opens over the content under it. The design
- * has mobile (375px) and tablet (769px) frames but no breakpoint value, so 1024px is the shell's own
- * choice. From 1024px the menu is the fixed sidebar, 200px wide, or the 62px icon rail when the menu's
- * collapse button has collapsed it. --shell-sticky-top is how far
- * the top bar pushes the sticky section header (header.css) and the scroll padding down. While the
- * menu is open the top bar turns Royal Blue with the cross and the site name in white, as the design's
- * open state (2:1916).
+ * The top bar spans the viewport above the sidebar and the content. Below 1024px the menu collapses
+ * behind the bar's toggle and opens over the content under it. The design has mobile (375px) and
+ * tablet (769px) frames but no breakpoint value, so 1024px is the shell's own choice. From 1024px the
+ * menu is the sticky sidebar under the bar, 200px wide, or the 62px icon rail when the menu's collapse
+ * button has collapsed it. --shell-sticky-top is the bar's height at every width: how far it pushes
+ * the sticky section header (header.css), the sidebar and the scroll padding down.
  *
  * The scroll padding keeps a focused element and its focus ring clear of the sticky header and the
  * form's action bar, using the heights measure.ts publishes from the rendered elements
  */
 
 :root {
-  --shell-badge-bg-color: var(--admin-modified-bg-color);
-  --shell-badge-border: none;
-  --shell-badge-fg-color: var(--admin-modified-fg-color);
-  --shell-badge-letter-spacing: 0.06rem;
-  --shell-banner-display: flex;
-
-  /* Figma top bar: 15px from the toggle to the logo */
-  --shell-banner-gap: var(--admin-gap-md);
+  --shell-content-columns: auto minmax(0, 1fr);
+  --shell-content-display: flex;
 
   /* The 0.2rem is the outline width in --admin-focus-outline (tokens.css) */
   --shell-focus-ring-clearance: calc(0.2rem + var(--admin-focus-outline-offset));
@@ -36,9 +29,6 @@
   /* The content inset: form fields (form.css), page content and the pages pilet's column all read it */
   --shell-inset: var(--admin-gap-md);
   --shell-link-fg-color: var(--admin-nav-fg-color);
-  --shell-logo-fg-color: var(--shell-link-fg-color);
-  --shell-logo-font-size: var(--admin-font-size-xl);
-  --shell-logo-font-weight: 700;
   --shell-notification-bg-color: var(--admin-inverse-bg-color);
   --shell-notification-border: none;
   --shell-notification-fg-color: var(--admin-inverse-fg-color);
@@ -49,25 +39,13 @@
   /* Figma "Sidebar" 2:1960, collapsed */
   --shell-sidebar-collapsed-width: 6.2rem;
 
-  /* Figma Hamburger 2:1921: Royal Blue square, Bright Blue on hover (2:1926), 20px glyph */
-  --shell-sidebar-toggle-bg-color: var(--admin-nav-fg-color);
-  --shell-sidebar-toggle-fg-color: var(--admin-inverse-fg-color);
-  --shell-sidebar-toggle-hover-bg-color: var(--admin-accent-color);
-  --shell-sidebar-toggle-icon-size: 2rem;
-  --shell-sidebar-toggle-ring-color: var(--admin-focus-outline-color);
-  --shell-sidebar-toggle-size: 5rem;
-
   /* Figma "Sidebar" 2:1931 */
   --shell-sidebar-width: 20rem;
   --shell-sidebar-z-index: var(--admin-z-overlay);
   --shell-skip-link-z-index: var(--admin-z-skip-link);
-  --shell-sticky-top: calc(var(--shell-sidebar-toggle-size) + var(--shell-sidebar-border-width));
-}
 
-@media (width >= 1024px) {
-  :root {
-    --shell-sticky-top: 0rem;
-  }
+  /* The top bar's tokens are on :root in topbar/topbar.css */
+  --shell-sticky-top: calc(var(--shell-top-bar-block-size) + var(--shell-top-bar-border-width));
 }
 
 html {
@@ -86,7 +64,9 @@ body {
   margin: 0;
 }
 
+/* The top bar spans the first row (topbar.css); the sidebar and the content share the second */
 .shell {
+  align-content: start;
   display: grid;
   grid-template-columns: 1fr;
   min-height: 100vh;
@@ -123,129 +103,57 @@ body {
 }
 
 /*
- * A sticky top bar holding the menu toggle until 1024px; from there the full-height sidebar, where start
- * alignment stops the grid stretching it to the page height, which sticky needs
+ * Until 1024px an empty sticky strip under the top bar that the menu's disclosure hangs from; from there
+ * the sidebar, where start alignment stops the grid stretching it to the page height, which sticky needs
  */
 .shell__sidebar {
   align-self: start;
   background-color: var(--shell-sidebar-bg-color);
-  border-block-end: var(--shell-sidebar-border-width) solid var(--admin-divider-color);
   color: var(--shell-link-fg-color);
-  inset-block-start: 0;
+  inset-block-start: var(--shell-sticky-top);
   position: sticky;
   z-index: var(--shell-sidebar-z-index);
-}
-
-/* Figma "Mobile menu" 2:1916: Royal Blue bar, 16px white cross, "Site name" Inter Semi Bold 16px white, 4px apart */
-@media (width < 1024px) {
-  .shell__sidebar--open {
-    --shell-banner-gap: var(--admin-gap-xs);
-    --shell-logo-fg-color: var(--admin-inverse-fg-color);
-    --shell-logo-font-size: var(--admin-font-size-lg);
-    --shell-logo-font-weight: var(--admin-font-weight-bold);
-    --shell-sidebar-toggle-icon-size: 1.6rem;
-    --shell-sidebar-toggle-ring-color: var(--admin-inverse-fg-color);
-    --shell-sidebar-bg-color: var(--shell-sidebar-toggle-bg-color);
-  }
 }
 
 @media (width >= 1024px) {
   .shell__sidebar {
     --shell-sidebar-bg-color: var(--admin-sunken-bg-color);
 
-    border-block-end: 0;
     border-inline-end: var(--shell-sidebar-border-width) solid var(--admin-divider-color);
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    height: calc(100vh - var(--shell-sticky-top));
     inline-size: var(--shell-sidebar-width);
   }
 }
 
-/* The icon rail has no room for the logo and badge */
 @media (width >= 1024px) {
   .shell__sidebar--collapsed {
-    --shell-banner-display: none;
     --shell-sidebar-width: var(--shell-sidebar-collapsed-width);
   }
 }
 
-.shell__banner {
-  align-items: center;
-  display: var(--shell-banner-display);
-  gap: var(--shell-banner-gap);
-  padding-inline-end: var(--admin-gap-md);
-}
-
-@media (width >= 1024px) {
-  .shell__banner {
-    align-items: stretch;
-    flex-direction: column;
-    gap: var(--admin-gap-sm);
-    padding: var(--admin-gap-md);
-  }
-}
-
-.shell__menu-toggle {
-  --admin-button-bg-color: var(--shell-sidebar-toggle-bg-color);
-  --admin-button-border-color: var(--shell-sidebar-toggle-bg-color);
-  --admin-button-border-radius: 0;
-  --admin-button-fg-color: var(--shell-sidebar-toggle-fg-color);
-  --admin-button-hover-bg-color: var(--shell-sidebar-toggle-hover-bg-color);
-  --admin-button-padding-block: calc((var(--shell-sidebar-toggle-size) - var(--shell-sidebar-toggle-icon-size)) / 2);
-  --admin-button-padding-inline: var(--admin-button-padding-block);
-  --admin-focus-outline-color: var(--shell-sidebar-toggle-ring-color);
-  --admin-icon-size: var(--shell-sidebar-toggle-icon-size);
-}
-
-@media (width >= 1024px) {
-  .shell__menu-toggle {
-    display: none;
-  }
-}
-
-.shell__logo {
-  color: var(--shell-logo-fg-color);
-  font-size: var(--shell-logo-font-size);
-  font-weight: var(--shell-logo-font-weight);
-  text-decoration: none;
-}
-
-.shell__logo:focus-visible {
-  outline: var(--admin-focus-outline) var(--shell-logo-fg-color);
-  outline-offset: var(--admin-focus-outline-offset);
-}
-
-.shell__badge {
-  align-self: center;
-  background-color: var(--shell-badge-bg-color);
-  border: var(--shell-badge-border);
-  border-radius: var(--admin-radius);
-  color: var(--shell-badge-fg-color);
-  letter-spacing: var(--shell-badge-letter-spacing);
-  padding: var(--admin-gap-xs) var(--admin-gap-sm);
-  text-transform: uppercase;
-}
-
-@media (width >= 1024px) {
-  .shell__badge {
-    align-self: flex-start;
-  }
-}
-
-/* Forced colours drop the ground, so a border keeps the badge's boundary */
-@media (forced-colors: active) {
-  .shell__badge {
-    --shell-badge-border: 0.1rem solid transparent;
-  }
-}
-
-/* Content, body and page are flex columns so a form can grow to the viewport and pin its action bar; min-width 0 lets the grid column shrink below wide content */
+/* Content, column, body and page are flex columns so a form can grow to the viewport and pin its action bar; min-width 0 lets the grid column shrink below wide content */
 .shell__content {
-  display: flex;
+  display: var(--shell-content-display);
   flex-direction: column;
-  min-height: 100vh;
+  grid-template-columns: var(--shell-content-columns);
+  min-height: calc(100vh - var(--shell-sticky-top));
+  min-width: 0;
+}
+
+/* A section sidebar (header/section-sidebar.css) beside the content column; stacked above it until 1024px */
+@media (width >= 1024px) {
+  .shell__content--split {
+    --shell-content-display: grid;
+  }
+}
+
+.shell__column {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   min-width: 0;
 }
 

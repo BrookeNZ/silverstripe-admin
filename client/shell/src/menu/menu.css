@@ -8,7 +8,7 @@
  * its width back and the icon stays 22px in.
  *
  * Below 1024px the menu is the disclosure under the top bar (style.css) and never collapses. From
- * 1024px it fills the sidebar under the banner, and --collapsed is the design's 62px icon rail
+ * 1024px it fills the sidebar, and --collapsed is the design's 62px icon rail
  * (2:1960): labels stay in the accessibility tree as each link's name. The collapse button is
  * "Collapse expand button" 2:6289, a 25px white circle with a Bright Blue chevron, 20px above the foot
  * and 15px from the end edge, centred in the rail.

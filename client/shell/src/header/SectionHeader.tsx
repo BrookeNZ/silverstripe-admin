@@ -20,7 +20,7 @@ import { useSectionHeader } from './state';
 import type { SectionHeaderCrumb, SectionHeader as SectionHeaderContent } from './state';
 import './header.css';
 
-export type SectionHeaderProps = Omit<SectionHeaderContent, 'documentTitle' | 'preview'> & {
+export type SectionHeaderProps = Omit<SectionHeaderContent, 'documentTitle' | 'preview' | 'sidebar'> & {
   titleRef?: React.Ref<HTMLHeadingElement>;
   headerRef?: React.Ref<HTMLDivElement>;
 };

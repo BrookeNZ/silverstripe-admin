@@ -204,3 +204,23 @@ describe('SectionHeader preview', () => {
     expect(container.textContent).not.toContain('Share');
   });
 });
+
+describe('SectionHeader sidebar', () => {
+  it('draws the same header with or without a sidebar, leaving the sidebar title to the layout', async () => {
+    await act(async () => {
+      setSectionHeader(context, 'pages', {
+        title: 'Home',
+        backTo: '/pages/',
+        sidebar: { title: 'Pages', section: 'SilverStripe-CMS-Controllers-CMSMain' },
+      });
+    });
+    const withSidebar = container.querySelector('.shell-header')?.outerHTML;
+    expect(title()?.textContent).toBe('Home');
+    expect(container.querySelector('h2')).toBeNull();
+    expect(container.textContent).not.toContain('Pages');
+    await act(async () => {
+      setSectionHeader(context, 'pages', { title: 'Home', backTo: '/pages/' });
+    });
+    expect(container.querySelector('.shell-header')?.outerHTML).toBe(withSidebar);
+  });
+});

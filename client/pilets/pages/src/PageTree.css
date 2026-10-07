@@ -11,6 +11,10 @@
  * in the modified ground when the page has unpublished changes; the label fills the row so the tint
  * reaches the pane edge. The focus ring is on the whole row and sits inside it because the scroll box
  * clips anything outside it.
+ *
+ * Dragging: the handle sits beside the page icon on the current page's row (Figma 2:3552). The design
+ * draws no drop feedback, so a drop between rows shows a line in the focus colour, placed by headless-tree
+ * through --pages-tree-drop-line-*, and a drop onto a page rings that row.
  */
 
 .pages-tree {
@@ -26,6 +30,16 @@
   /* Figma tag padding 1px 3px 2px, radius 2px */
   --pages-tree-flag-padding: 0.1rem 0.3rem 0.2rem;
   --pages-tree-flag-radius: 0.2rem;
+
+  /* Not in the design */
+  --pages-tree-drop-color: var(--admin-focus-outline-color);
+  --pages-tree-drop-line-size: 0.2rem;
+
+  /* Figma Grey 900 5 by 14 handle, 3px before the page icon */
+  --pages-tree-handle-color: var(--pages-tree-icon-color);
+  --pages-tree-icons-gap: 0.3rem;
+
+  /* Must match indentPx in PageTree.tsx */
   --pages-tree-indent: 2rem;
   --pages-tree-item-bg-color: transparent;
 
@@ -57,6 +71,25 @@
   padding-inline-start: var(--pages-sidebar-inset);
 }
 
+.pages-tree__drop-line {
+  background-color: var(--pages-tree-drop-color);
+  block-size: var(--pages-tree-drop-line-size);
+  inline-size: var(--pages-tree-drop-line-width);
+  inset-block-start: var(--pages-tree-drop-line-top);
+  inset-inline-start: var(--pages-tree-drop-line-start);
+  pointer-events: none;
+  position: absolute;
+}
+
+.pages-tree__status {
+  block-size: 0.1rem;
+  clip-path: inset(50%);
+  inline-size: 0.1rem;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+}
+
 .pages-tree__canvas {
   height: var(--pages-tree-canvas-height);
   position: relative;
@@ -84,6 +117,11 @@
 
 .pages-tree__item--current {
   --pages-tree-item-bg-color: var(--pages-tree-item-current-bg-color);
+}
+
+.pages-tree__item--drop-target {
+  outline: var(--admin-focus-outline) var(--pages-tree-drop-color);
+  outline-offset: calc(var(--admin-focus-outline-offset) * -1);
 }
 
 .pages-tree__item--changed {
@@ -124,6 +162,30 @@
   gap: var(--pages-tree-label-gap);
   min-width: 0;
   padding: var(--pages-tree-label-padding);
+}
+
+.pages-tree__icons {
+  align-items: center;
+  display: inline-flex;
+  flex: none;
+  gap: var(--pages-tree-icons-gap);
+}
+
+.pages-tree__handle {
+  color: var(--pages-tree-handle-color);
+  cursor: grab;
+  display: inline-flex;
+  position: relative;
+
+  /* The 5px handle keeps the design's width; a centred box gives it the 24px target */
+  &::before {
+    content: '';
+    inset: 50% auto auto 50%;
+    min-height: var(--admin-target-min-size);
+    min-width: var(--admin-target-min-size);
+    position: absolute;
+    translate: -50% -50%;
+  }
 }
 
 .pages-tree__icon {

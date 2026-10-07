@@ -30,7 +30,16 @@ piral-notifications, ...):
 | `setSectionHeader(header): Disposable` | Show the section header above the content; see **Section header** |
 | `registerBeforeSubmit(formId, handler): Disposable` | Run `handler({action})` before the form with that element id posts; see **Before a form posts** |
 | `registerSectionIcon(sectionCode, Icon): Disposable` | Draw `Icon` beside a section's menu item; see **Section icons** |
+| `registerSectionSidebar(sectionCode, Sidebar): Disposable` | Fill the sidebar column a header's `sidebar` asks for; see **Section header** |
 | `registerMenuItem({ code, label, to, Icon? }): Disposable` | Add a menu link the shell draws like a section's; see **Menu items** |
+| `useSharedState(selector): T` | Read shared state in a component; see **Shared state and events** |
+| `subscribeSharedState(selector, listener): Disposable` | Hear changes to shared state outside React; see **Shared state and events** |
+| `setCurrentRecord({recordClass, id}): Disposable` | Name the record the showing page edits; see **Shared state and events** |
+| `recordsChangedEvent` | The records-changed event's name, for `emit`/`on`/`off`; see **Shared state and events** |
+| `useServerQuery(key, fetcher, options?): ServerQueryResult<T>` | Read and cache server data under a key; see **Server cache** |
+| `useServerMutation(mutation, options?): ServerMutationResult<V, R>` | Run a write and announce the records it changed; see **Server cache** |
+| `invalidateRecords(recordClass, ids): void` | Emit records-changed, which refetches every cached read of those records; see **Server cache** |
+| `fetchJson(url, init?): Promise<T>` | The shell's fetch for admin JSON endpoints, with the session and CSRF handling; see **Server cache** |
 
 No `registerFormField`: binding a field to the form is decided by the schema (`schemaType`, read-only
 state, the posted set), not by the registration; holders are a component (`FieldHolder` in
@@ -174,13 +183,40 @@ client navigation, so the unsaved changes guard confirms it when the form is dir
 
 ## Shared state and events
 
-Pilets share state through Piral's own data store and event bus, which every `PiletApi` already has
-(`setData`/`getData`, `emit`/`on`/`off`); the shell adds no verb for them. Names in use:
+The shell holds the admin's shared state in Piral global state and gives pilets a read-only view of it.
+Pilets never import piral-core, Redux or zustand; they read through two verbs and write through named
+ones, so every value has an owner and unloading a pilet clears what it set.
 
-| Name | Kind | Value |
+- `useSharedState(selector)` is a React hook: it returns `selector(state)` and re-renders when that
+  value changes, compared with `Object.is`. The selector may be inline. Return a part of the state
+  (`(state) => state.currentRecord`) or a primitive; a selector that builds a new object or array
+  re-renders on every shared state change.
+- `subscribeSharedState(selector, listener)` calls `listener(value, previous)` each time the selected
+  value changes, and not when subscribing. The disposer unsubscribes, and so does unloading the pilet.
+
+The view (`SharedState`) is frozen:
+
+| Key | Value | Written by |
 |---|---|---|
-| `silverstripe:records-changed` | event | `{recordClass: string, ids: number[]}`, emitted after a save, publish or other change to those records; a view listing them (the page tree) re-reads them |
-| `silverstripe:pages:current-page-id` | data | The page the Pages section is editing, or `null`; owned by the pages pilet (`setData` keeps the first writer as owner) |
+| `config` | The deep-frozen config `getConfig` returns | Nothing; fixed at load |
+| `toasts` | `{id, options}[]`, the open toasts oldest first | `showNotification` and dismissing |
+| `unsavedChanges` | `boolean`, whether anything has reported unsaved changes | `setUnsavedChanges` |
+| `viewMode` | `'edit' \| 'split' \| 'preview'`, the preview mode the viewer chose and kept in their browser; a viewport under 1024px still draws edit | The shell's mode menu |
+| `header` | The section header drawn, or `null` | `setSectionHeader` |
+| `currentRecord` | `{recordClass, id}` of the record the showing page edits, or `null` | `setCurrentRecord` |
+
+`setCurrentRecord(record)` keeps the record until its disposer runs; set it from the page and dispose on
+unmount. Records stack like headers: the latest set wins, and disposing it restores the one below.
+
+Records-changed is the one event the shell defines. Its name is `api.recordsChangedEvent`
+(`silverstripe:records-changed`); the shell package publishes types only, so a pilet reads the name from
+the API rather than importing or repeating it. Its value is `RecordsChangedEvent`,
+`{recordClass: string, ids: number[]}`, emitted with `emit` after a save, publish or other change to
+those records; a view listing them (the page tree, the grid, the block list) re-reads them on `on`.
+
+Piral's own data store (`setData`/`getData`) still carries `silverstripe:pages:current-page-id`, the page
+the Pages section is editing or `null`, owned by the pages pilet. It is superseded by `currentRecord` and
+goes once the Pages section sets that instead.
 
 A section pilet renders a record edit form with the shell's renderer, registered as `FormSchemaForm`
 (`getSilverstripeComponent('FormSchemaForm')`): props `schemaUrl`, `onSubmitted(response, action)`,
@@ -205,6 +241,55 @@ props `SchemaFormDialogProps`: `open`, `header`, `intro` (controls above the for
 the shared Dialog with the form headless in its body and Cancel, then the form's actions, in its footer.
 Each action button posts its own action and shows `loading` while it runs; errors show in the body.
 `onClose` is Cancel and Escape, and the host closes the dialog from `onSubmitted` as well.
+
+### Server cache
+
+Server reads are cached by the shell in one TanStack Query client. Pilets never import the library; they
+use four verbs, and a records-changed event is what clears the cache, so emitters stay as they are.
+
+- `fetchJson<T>(url, init?)` requests an admin JSON endpoint: `Accept: application/json` and
+  `X-Requested-With` on every request, `X-SecurityID` from the config on anything but a GET, credentials
+  same-origin. `init` takes `method`, `query` (added to the query string), `body` (sent as JSON;
+  `URLSearchParams` and `FormData` are sent as they are), `headers` and `signal`. It resolves to the parsed
+  body, or `null` for an empty one, and rejects with a `ServerRequestError`: `message` (the CMS envelope's
+  first error, or a generic one), `status`, and `sessionExpired`, set for a 401, a 403 with
+  `X-Reauthenticate` and a redirect to the login form, whose message asks the viewer to reload and log in.
+  A success whose body is not JSON (an HTML page) rejects too.
+- `useServerQuery<T>(key, fetcher, options?)` is a React hook. `fetcher({signal, request})` loads the data,
+  `request` being `fetchJson`; the same key on screen twice fetches once. Options: `enabled` (false holds the
+  read back), `staleTime` in milliseconds (0 by default, so a remount refetches behind the cached data) and
+  `keepPrevious` (keep the last key's data on screen while the next key loads) and `records(data)`, which
+  returns the ids of the key's class that the result shows (the rows of a listing), so an event naming any
+  of them refetches the listing even when the key itself names none. It returns
+  `{status: 'pending' | 'error' | 'success', data, error, isFetching, refetch()}`. A failure with a status
+  under 500 is not retried; anything else is retried once. Window focus does not refetch.
+- `useServerMutation<V, R>(mutation, options?)` is a React hook for a write: `mutation(variables, request)`.
+  It returns `{mutate(variables), status: 'idle' | 'pending' | 'error' | 'success', error, reset()}`;
+  `mutate` resolves with the result or rejects with the error. On success, `options.changes(variables,
+  result)` names the records changed (one `RecordsChangedEvent`, a list, or `null`), and each is emitted
+  as records-changed.
+- `invalidateRecords(recordClass, ids)` emits records-changed for those records.
+
+Keys are arrays, `[scope, ...parts]` with parts that are strings, numbers, booleans or `null`. The shell
+listens to records-changed and invalidates the keys an event matches:
+
+| Key | Matched by |
+|---|---|
+| `['schema', ...]` (form schemas), `['grid', ...]` (grid rows), `['blocks', ...]` (an area's blocks) | Every event, since any of them can show any record |
+| `[recordClass, id, ...]`, such as `['Page', 7, 'versions', 1]` for a record's versions | An event naming that class with `id` among its ids, or with no ids |
+| `[recordClass, 'list', ...]` or any non-numeric second part, a read over the class | Every event naming that class |
+| Any key whose `records(data)` returned an id the event names | That event; this is how the pages tree's `[SiteTree, parentId, 'children', ...]` listings follow a saved row |
+
+An invalidated read on screen refetches with its data still showing; one off screen is marked stale and
+refetches when next read. Class names must match exactly: an event for a base class (`SiteTree`) does
+not invalidate keys under a subclass (`Page`), though such a key still refetches on its next mount.
+
+The pages pilet reads each tree level this way, keyed `[SiteTree, parentId, 'children', page, limit]` with
+`records` returning the child ids, and announces a save, a new child or a move as a SiteTree event instead of
+re-reading; an event for a page's own class is announced again as SiteTree, since class names must match.
+
+The history pilet reads its version pages this way, keyed `[recordClass, id, 'versions', page]`, and
+reverts with `useServerMutation`, whose `changes` names the record.
 
 ## Before a form posts
 
@@ -243,6 +328,26 @@ React.useEffect(() => piral.setSectionHeader({ title, backTo: '/pages/', backLab
 | `views?: {key, label, to, current?}[]` | Route links in a `nav` named "<title> views", `aria-current="page"` on the current one. Views are routes; for panels inside one page use the patterns package's `Tabs` |
 | `documentTitle?: string` | The first part of the browser tab title when it should differ from `title`; the shell writes "<documentTitle or title> - <application name>" |
 | `preview?: string` | The record's preview URL, loaded in an `iframe` named "Preview of <title>". Set it again to load another (the pages section swaps `?stage=Stage` for `?stage=Live` with its Draft/Published toggle) |
+| `sidebar?: {title, section}` | Draws a sidebar column before the header and page, so the header and its breadcrumb sit over the page only. Its header row, level with the section header and sharing its bottom divider, holds `title` as a labelled element (not a heading, so the page's `h1` stays first) and a search button that opens the sidebar's search; the Sidebar component receives `{ titleId, searchId, searchOpen, closeSearch }`; below it the latest component registered with `registerSectionSidebar(section, Sidebar)` |
+
+### Section sidebar
+
+A section with a panel beside its pages (the pages section's tree) registers the panel once and names
+it from each header that should show it:
+
+```tsx
+api.registerSectionSidebar('SilverStripe-CMS-Controllers-CMSMain', PageTreeSidebar);
+// in the page
+React.useEffect(() => piral.setSectionHeader({ title, sidebar: { title: 'Pages', section: 'SilverStripe-CMS-Controllers-CMSMain' } }), [piral, title]);
+```
+
+`section` is the code the sidebar was registered under; by convention the section's menu item code.
+The sidebar renders in the layout, outside the page's route, so it gets no route params: anything it
+shares with the page (the pages section's tree store and open page) lives in a store both read. It is
+under the router, so its links and navigations go through the unsaved-changes guard. From 1024px the
+column is 330px wide, sticks at the viewport height, and its body is a flex column the sidebar fills
+and scrolls itself (`flex: 1; min-height: 0; overflow: auto`); below 1024px it stacks above the content
+and the sidebar sets its own height. Without `sidebar` the layout is a single content column.
 
 With `preview` set and the viewport at least 1024px wide, the form's action bar ends with Share and a
 menu of Edit, Split and Preview modes: the form alone, the form beside the preview, or the preview alone,

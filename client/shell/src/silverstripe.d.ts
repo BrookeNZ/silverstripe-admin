@@ -21,6 +21,8 @@ export interface SilverstripeClientConfig {
   adminUrl: string;
   environment: string;
   debugging: boolean;
+  /** Each record class with a table, mapped to its ancestors from its parent up to DataObject */
+  recordClasses?: Record<string, Array<string>>;
   [key: string]: unknown;
 }
 
