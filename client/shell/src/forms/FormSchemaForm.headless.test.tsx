@@ -190,4 +190,20 @@ describe('FormSchemaForm before-submit handlers', () => {
     await flush();
     expect(order).toEqual(['handler', 'handler', 'post']);
   });
+
+  it('posts what a handler writes into a field', async () => {
+    const handle = React.createRef<FormSchemaFormHandle>();
+    disposers.push(
+      registerBeforeSubmit('Form_Block', 'test', () => {
+        type('Flushed');
+      }),
+    );
+    await render(<FormSchemaForm schemaUrl="schema/Block" headless handleRef={handle} />);
+    type('Typed');
+    await act(async () => {
+      await handle.current!.submit();
+    });
+    const [, body] = vi.mocked(submitFormSchema).mock.calls[0];
+    expect(String(body)).toContain('Title=Flushed');
+  });
 });

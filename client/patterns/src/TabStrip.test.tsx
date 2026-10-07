@@ -89,7 +89,7 @@ describe('Tabs', () => {
     expect(list.className).toBe('admin-tab-strip admin-tab-strip--lined');
     const tabs = () => Array.from(root.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
     expect(tabs().map((button) => button.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false']);
-    expect(tabs()[0].getAttribute('aria-controls')).toBe('Main');
+    expect(tabs()[0].getAttribute('aria-controls')).toMatch(/Main$/);
     expect(tabs()[0].className).toBe('admin-tab-strip__tab admin-tab-strip__tab--current');
 
     act(() => {
@@ -98,12 +98,28 @@ describe('Tabs', () => {
     expect(tabs().map((button) => button.tabIndex)).toEqual([-1, 0, -1]);
     expect(document.activeElement).toBe(tabs()[1]);
     expect(tabs()[1].className).toBe('admin-tab-strip__tab admin-tab-strip__tab--current');
-    expect((root.querySelector('#Seo') as HTMLElement).hidden).toBe(false);
-    expect((root.querySelector('#Main') as HTMLElement).hidden).toBe(true);
+    const panel = (index: number) => document.getElementById(tabs()[index].getAttribute('aria-controls') ?? '') as HTMLElement;
+    expect(panel(1).hidden).toBe(false);
+    expect(panel(0).hidden).toBe(true);
 
     act(() => {
       tabs()[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
     });
     expect(document.activeElement).toBe(tabs()[2]);
+  });
+
+  it('labels each panel by its own tab when two tab sets share schema ids, as a block form inside the page form does', () => {
+    const pageField = { ...field, children: [tab('Root_Main', 'Main content')] } as unknown as FieldDescriptor;
+    const blockField = { ...field, children: [tab('Root_Main', 'Content')] } as unknown as FieldDescriptor;
+    render(
+      <div>
+        <Tabs {...props} field={pageField} />
+        <Tabs {...props} field={blockField} />
+      </div>,
+    );
+    const names = Array.from(container.querySelectorAll('[role="tabpanel"]')).map(
+      (panel) => document.getElementById(panel.getAttribute('aria-labelledby') ?? '')?.textContent,
+    );
+    expect(names).toEqual(['Main content', 'Content']);
   });
 });

@@ -49,6 +49,14 @@ export function moveBlock<T extends Pick<Block, 'id'>>(blocks: ReadonlyArray<T>,
   return others;
 }
 
-export function blockTitle(block: Pick<Block, 'title'>): string {
-  return block.title?.trim() || 'Untitled block';
+/** A block's title, or its type's name ("Quote block") when it has none */
+export function blockTitle(block: Pick<Block, 'title'>, type?: Pick<ElementType, 'title'>): string {
+  const title = block.title?.trim();
+  if (title) {
+    return title;
+  }
+  if (!type?.title) {
+    return 'Untitled block';
+  }
+  return /\bblock$/i.test(type.title) ? type.title : `${type.title} block`;
 }

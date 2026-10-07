@@ -4,14 +4,17 @@ import type { ElementType } from './blocks';
 
 export interface AddBlockDialogProps {
   open: boolean;
+  header: string;
   types: ReadonlyArray<ElementType>;
   adding: boolean;
+  /** Why the last create failed, shown inside the dialog, which a toast would sit under */
+  error: string | null;
   onAdd(type: ElementType): void;
   onClose(): void;
 }
 
 /** The design has no block type picker; this is a dialog holding a searchable list of the allowed types */
-export const AddBlockDialog = ({ open, types, adding, onAdd, onClose }: AddBlockDialogProps) => {
+export const AddBlockDialog = ({ open, header, types, adding, error, onAdd, onClose }: AddBlockDialogProps) => {
   const [chosen, setChosen] = React.useState<ElementType | null>(null);
   const labelId = React.useId();
   const inputId = React.useId();
@@ -26,7 +29,8 @@ export const AddBlockDialog = ({ open, types, adding, onAdd, onClose }: AddBlock
     <Dialog
       open={open}
       onClose={onClose}
-      header="Add a block"
+      header={header}
+      alert={error}
       body={
         <FieldHolder field={{ id: inputId, title: 'Block type' }} labelFor={inputId} labelId={labelId}>
           {open && (
@@ -46,10 +50,10 @@ export const AddBlockDialog = ({ open, types, adding, onAdd, onClose }: AddBlock
       }
       footer={
         <>
+          <Button onClick={onClose}>Cancel</Button>
           <Button variant="primary" loading={adding} aria-disabled={!chosen || undefined} onClick={() => chosen && onAdd(chosen)}>
             Add block
           </Button>
-          <Button onClick={onClose}>Cancel</Button>
         </>
       }
     />

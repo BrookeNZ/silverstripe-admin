@@ -3,8 +3,9 @@
  *
  * A button with a panel of secondary fields or a menu of actions. The panel opens in the top layer
  * (`popover="manual"`) at the place useAnchoredLayer measures from the button, passed in as
- * `--admin-anchor-top` and `--admin-anchor-left`; the popover layer token stacks it where the popover API
- * is missing. The margin is the gap to the button, which the placement reads back
+ * `--admin-anchor-top` and `--admin-anchor-left`; `--admin-z-popover-fallback` stacks it where the
+ * popover API is missing. The margin is the gap to the button, which the placement reads back. A long
+ * panel scrolls inside its maximum height, as the combobox list does
  */
 
 .admin-popover {
@@ -14,6 +15,7 @@
 .admin-popover__panel {
   --admin-anchor-left: 0;
   --admin-anchor-top: 0;
+  --admin-popover-panel-max-height: 40rem;
   --admin-popover-panel-min-width: 24rem;
   --admin-popover-panel-shadow: 0 0.4rem 1.6rem var(--admin-shadow-color);
 
@@ -28,10 +30,12 @@
   gap: var(--admin-gap-sm);
   inset: var(--admin-anchor-top) auto auto var(--admin-anchor-left);
   margin: var(--admin-gap-xs) 0;
+  max-height: var(--admin-popover-panel-max-height);
   min-width: var(--admin-popover-panel-min-width);
+  overflow-y: auto;
   padding: var(--admin-gap-sm);
   position: fixed;
-  z-index: var(--admin-z-popover);
+  z-index: var(--admin-z-popover-fallback);
 }
 
 .admin-popover__panel[hidden] {
@@ -41,4 +45,8 @@
 .admin-popover__title {
   font-weight: var(--admin-font-weight-bold);
   margin: 0;
+}
+
+.admin-popover__panel[role="menu"] {
+  --admin-button-justify: flex-start;
 }

@@ -19,7 +19,7 @@ import { useController, useForm } from 'react-hook-form';
 import { useGlobalStateContext } from 'piral-core';
 import { useMeasuredHeight } from '../measure';
 import { setUnsavedChanges, shellOwner } from '../unsaved';
-import { revealField } from '@silverstripe/admin-patterns';
+import { revealField, Stack } from '@silverstripe/admin-patterns';
 import { runBeforeSubmit } from './beforeSubmit';
 import { FormRenderContext, useFormRenderContext } from './context';
 import { useFieldComponent } from './useFieldComponent';
@@ -74,6 +74,8 @@ export interface FormSchemaFormProps {
   onDirtyChange?(dirty: boolean): void;
   /** Receives the actions as one row of buttons whenever they change, for a headless form whose host draws them */
   onActionsChange?(actions: Array<FormField>): void;
+  /** The action being posted, then null once it settles, whether a button or Enter posted it */
+  onSubmittingChange?(action: string | null): void;
 }
 
 const noop = () => undefined;
@@ -180,6 +182,7 @@ const LoadedForm = ({
   handleRef,
   onDirtyChange,
   onActionsChange,
+  onSubmittingChange,
 }: LoadedFormProps) => {
   const [schema, setSchema] = React.useState(initialSchema);
   const [state, setState] = React.useState(initialState);
@@ -190,7 +193,7 @@ const LoadedForm = ({
   const fields = React.useMemo(() => withoutFields(mergeFields(schema.fields, state), omitFields), [schema, state, omitFields]);
   const actions = React.useMemo(() => mergeFields(schema.actions, state), [schema, state]);
   const valueFields = React.useMemo(() => collectValueFields(fields), [fields]);
-  const { control, handleSubmit, reset, setError, setValue, formState } = useForm<FormValues>({
+  const { control, getValues, handleSubmit, reset, setError, setValue, formState } = useForm<FormValues>({
     defaultValues: defaultValues(valueFields),
   });
   const isDirty = React.useRef(false);
@@ -227,14 +230,28 @@ const LoadedForm = ({
     }
   };
 
-  const submit = async (values: FormValues, actionName: string, focusedId: string | undefined): Promise<FormSchemaSubmitResult> => {
+  const submittingListener = React.useRef(onSubmittingChange);
+  submittingListener.current = onSubmittingChange;
+  const submit = async (actionName: string, focusedId: string | undefined): Promise<FormSchemaSubmitResult> => {
+    submittingListener.current?.(actionName);
+    try {
+      return await post(actionName, focusedId);
+    } finally {
+      submittingListener.current?.(null);
+    }
+  };
+
+  const post = async (actionName: string, focusedId: string | undefined): Promise<FormSchemaSubmitResult> => {
     setFormMessages([]);
     let response: FormSchemaResponse;
+    let values: FormValues;
     try {
       if (!(await runBeforeSubmit(formId, { action: actionName }))) {
         requestAnimationFrame(() => focusById(focusedId));
         return { ok: false };
       }
+      // A handler may write a field (an editor flushing its content), so post the values as they are now
+      values = getValues();
       response = await submitFormSchema(schema, encodeSubmission(valueFields, values, actionName));
     } catch (error) {
       const message = errorMessage(error);
@@ -289,7 +306,7 @@ const LoadedForm = ({
   const submitWith = (actionName: string, focusedId?: string) =>
     new Promise<FormSchemaSubmitResult>((resolve) => {
       handleSubmit(
-        (values) => submit(values, actionName, focusedId).then(resolve, (error) => resolve({ ok: false, message: errorMessage(error) })),
+        () => submit(actionName, focusedId).then(resolve, (error) => resolve({ ok: false, message: errorMessage(error) })),
         () => resolve({ ok: false }),
       )();
     });
@@ -308,7 +325,7 @@ const LoadedForm = ({
   );
 
   // A headless form sits inside another form, whose implicit submission Enter would trigger
-  const onHeadlessKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+  const onHeadlessKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
     const target = event.target as HTMLElement;
     if (
       event.key !== 'Enter' ||
@@ -324,11 +341,11 @@ const LoadedForm = ({
     }
   };
 
-  const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const onSubmit = (event: React.FormEvent<HTMLElement>) => {
     const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
     const actionName = submitter?.name || 'action_save';
     const focusedId = document.activeElement?.id || submitter?.id;
-    const submitValues = handleSubmit((values) => submit(values, actionName, focusedId));
+    const submitValues = handleSubmit(() => submit(actionName, focusedId));
     const action = confirmAction && findAction(actions, actionName);
     if (!action) {
       return submitValues(event);
@@ -375,18 +392,21 @@ const LoadedForm = ({
   if (headless) {
     return (
       <FormRenderContext.Provider value={context}>
-        <div className="shell-form" id={formId} aria-busy={formState.isSubmitting} onKeyDown={onHeadlessKeyDown}>
+        <Stack className="shell-form" spacing="md" wrap={false} id={formId} aria-busy={formState.isSubmitting} onKeyDown={onHeadlessKeyDown}>
           {messages}
           {renderFields(fields)}
-        </div>
+        </Stack>
       </FormRenderContext.Provider>
     );
   }
 
   return (
     <FormRenderContext.Provider value={context}>
-      <form
+      <Stack
+        as="form"
         className="shell-form"
+        spacing="md"
+        wrap={false}
         id={formId}
         noValidate
         aria-busy={formState.isSubmitting}
@@ -398,7 +418,7 @@ const LoadedForm = ({
           {renderFields(shownActions)}
           {actionsEnd && <div className="shell-form__actions-end">{actionsEnd}</div>}
         </div>
-      </form>
+      </Stack>
     </FormRenderContext.Provider>
   );
 };
@@ -422,6 +442,7 @@ export const FormSchemaForm = ({
   handleRef,
   onDirtyChange,
   onActionsChange,
+  onSubmittingChange,
 }: FormSchemaFormProps) => {
   const [load, setLoad] = React.useState<LoadState>({ status: 'loading' });
   const loadListener = React.useRef(onLoad);
@@ -475,6 +496,7 @@ export const FormSchemaForm = ({
       handleRef={handleRef}
       onDirtyChange={onDirtyChange}
       onActionsChange={onActionsChange}
+      onSubmittingChange={onSubmittingChange}
     />
   );
 };

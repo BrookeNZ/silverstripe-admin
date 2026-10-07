@@ -1,0 +1,22 @@
+/**
+ * HTML editor field
+ *
+ * TinyMCE draws its own frame, toolbar and content area with the module's "silverstripe" skin, loaded
+ * as it is; the CMS Refresh design has no editor, so only the focus ring follows the field convention.
+ * Focus sits inside the editor's iframe, which the outer document's :focus-within does not reliably see,
+ * so the editor's own focus and blur events set --focused on the wrapper, toolbar included
+ */
+
+.htmleditor-field {
+  border-radius: var(--admin-radius);
+}
+
+.htmleditor-field--focused {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: var(--admin-focus-outline-offset);
+}
+
+.htmleditor-field__status {
+  color: var(--admin-muted-fg-color);
+  margin: 0;
+}

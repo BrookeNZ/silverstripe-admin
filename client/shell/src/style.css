@@ -241,7 +241,6 @@ body {
   border: var(--shell-badge-border);
   border-radius: var(--admin-radius);
   color: var(--shell-badge-fg-color);
-  font-size: var(--admin-font-size-sm);
   letter-spacing: var(--shell-badge-letter-spacing);
   padding: var(--admin-gap-xs) var(--admin-gap-sm);
   text-transform: uppercase;

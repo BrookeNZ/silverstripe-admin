@@ -160,8 +160,8 @@ abstract class ModelAdmin extends LeftAndMain
             } elseif ($this->shellOwnsRequest()) {
                 // The shell renders whatever the path, and names a segment it cannot resolve itself
                 $this->modelTab = null;
-            } elseif ($this->modelTab === 'schema') {
-                // A schema URL without a model tab, which would read "schema" as a model class
+            } elseif ($this->modelTab === 'schema' && ShellSubmission::isShellRequest($this->getRequest())) {
+                // A shell schema URL without a model tab, which would read "schema" as a model class
                 $this->modelTab = null;
                 if (!$this->getResponse()->isFinished()) {
                     throw new HTTPResponse_Exception(ShellSubmission::jsonError(404, _t(

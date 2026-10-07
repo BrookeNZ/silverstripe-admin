@@ -12,7 +12,7 @@
 
   align-items: var(--admin-field-align);
   display: flex;
-  flex-direction: var(--admin-field-direction);
+  flex-flow: var(--admin-field-direction) wrap;
   gap: var(--admin-gap-xs);
   max-width: var(--admin-field-max-width);
 }
@@ -23,7 +23,9 @@
 }
 
 .admin-field__label {
+  flex-shrink: 0;
   font-weight: var(--admin-font-weight-bold);
+  max-width: 100%;
   padding: 0;
 }
 

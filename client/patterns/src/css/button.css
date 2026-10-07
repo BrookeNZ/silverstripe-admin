@@ -16,7 +16,6 @@
   --admin-button-border-radius: var(--admin-radius);
   --admin-button-border-width: 0.1rem;
   --admin-button-fg-color: var(--admin-primary-action-color);
-  --admin-button-font-size: var(--admin-font-size-sm);
   --admin-button-gap: var(--admin-gap-sm);
   --admin-button-hover-bg-color: var(--admin-secondary-action-hover-color);
   --admin-button-line-height: 1;
@@ -31,10 +30,9 @@
   cursor: pointer;
   display: inline-flex;
   font: inherit;
-  font-size: var(--admin-button-font-size);
   font-weight: var(--admin-font-weight-bold);
   gap: var(--admin-button-gap);
-  justify-content: center;
+  justify-content: var(--admin-button-justify, center);
   line-height: var(--admin-button-line-height);
   min-height: var(--admin-target-min-size);
   min-width: var(--admin-target-min-size);

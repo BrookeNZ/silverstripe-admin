@@ -41,7 +41,6 @@
   color: var(--admin-toggle-option-fg-color);
   cursor: pointer;
   display: inline-flex;
-  font-size: var(--admin-font-size-sm);
   font-weight: var(--admin-font-weight-bold);
   justify-content: center;
   line-height: 1;

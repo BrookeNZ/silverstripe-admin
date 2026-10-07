@@ -9,10 +9,6 @@
   /* Figma 2:6066: 60px tall rows, 15px gaps. The design is 298px wide; the field fills its holder by decision */
   --upload-field-gap: 1.5rem;
   --upload-field-row-height: 6rem;
-
-  /* Figma New/Body small 13px, and the 12px of New/Button small and New/Meta data */
-  --upload-field-font-size: 1.3rem;
-  --upload-field-detail-font-size: var(--admin-font-size-sm);
 }
 
 .upload-field:focus-visible {
@@ -46,7 +42,6 @@
 
 .upload-field__details {
   flex: 1;
-  font-size: var(--upload-field-detail-font-size);
   line-height: 1;
   min-width: 0;
   padding-inline-start: var(--upload-field-gap);
@@ -99,7 +94,6 @@
   border: var(--admin-border) var(--admin-strong-border-color);
   border-radius: var(--admin-radius);
   border-style: dashed;
-  font-size: var(--upload-field-font-size);
   line-height: 1.4;
   min-height: var(--upload-field-row-height);
   padding-inline: var(--upload-field-gap);

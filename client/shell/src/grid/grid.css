@@ -80,7 +80,6 @@
 
 .admin-grid__count {
   color: var(--admin-muted-fg-color);
-  font-size: var(--admin-font-size-sm);
   font-weight: var(--admin-font-weight-bold);
 }
 
@@ -170,7 +169,6 @@
 
 .admin-grid__pages {
   color: var(--admin-muted-fg-color);
-  font-size: var(--admin-font-size-sm);
   font-weight: var(--admin-font-weight-bold);
   padding: var(--admin-gap-md) 0;
 }

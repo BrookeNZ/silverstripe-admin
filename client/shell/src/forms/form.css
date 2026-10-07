@@ -15,8 +15,8 @@
  * Below 576px the host's controls drop to a second row, as the design's mobile bar (2:6939) and its note
  * "secondary buttons stack at 576px" (2:6960). The bar's tokens sit on :root because the shell reads
  * --shell-form-actions-offset for the page's bottom scroll padding, so a focused field is scrolled
- * clear of the bar. FormSchemaForm keeps that token at the bar's rendered height; until it has
- * measured, it falls back to --shell-form-actions-height, derived from the design's rows
+ * clear of the bar. FormSchemaForm keeps that token at the bar's rendered height; a page with no bar
+ * reserves nothing
  */
 
 :root {
@@ -32,20 +32,16 @@
 
   /* Figma: 10px between Saved and Publish */
   --shell-form-actions-group-gap: 1rem;
-  --shell-form-actions-height: calc(var(--shell-form-actions-rows-height) + var(--shell-form-actions-inset));
   --shell-form-actions-inset: calc(2 * var(--shell-form-actions-padding-block));
   --shell-form-actions-min-height: calc(var(--shell-form-actions-control-height) + var(--shell-form-actions-inset));
-  --shell-form-actions-offset: var(--shell-form-actions-height);
+  --shell-form-actions-offset: 0rem;
   --shell-form-actions-padding-block: 1.5rem;
   --shell-form-actions-padding-inline: 2rem;
-  --shell-form-actions-rows: 2;
-  --shell-form-actions-rows-height: calc(var(--shell-form-actions-rows) * var(--shell-form-actions-control-height) + (var(--shell-form-actions-rows) - 1) * var(--shell-form-actions-gap));
 }
 
 @media (width >= 576px) {
   :root {
     --shell-form-actions-end-basis: auto;
-    --shell-form-actions-rows: 1;
   }
 }
 
@@ -53,11 +49,7 @@
   --shell-form-alert-bg-color: var(--admin-error-bg-color);
   --shell-form-alert-border: 0.4rem solid;
   --shell-form-alert-color: var(--admin-error-fg-color);
-  --shell-form-gap: var(--admin-gap-md);
 
-  display: flex;
-  flex-direction: column;
-  gap: var(--shell-form-gap);
   flex: 1;
 }
 

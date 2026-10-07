@@ -42,6 +42,19 @@ describe('Dialog', () => {
     expect(document.activeElement?.textContent).toBe('Cancel');
   });
 
+  it('focuses the heading when asked to, for a body still loading', () => {
+    const root = render(<Dialog open focusHeading onClose={noop} header="Edit link" footer={<button type="button">Cancel</button>} />);
+    expect(document.activeElement).toBe(root.querySelector('.admin-dialog__title'));
+    expect(root.querySelector('.admin-dialog__title')?.getAttribute('tabindex')).toBe('-1');
+  });
+
+  it('shows an alert at the top of the body', () => {
+    const root = render(<Dialog open onClose={noop} header="Add a block" alert="The block could not be added: Server error" body="Pick a type" />);
+    const alert = root.querySelector('.admin-dialog__body')?.firstElementChild;
+    expect(alert?.getAttribute('role')).toBe('alert');
+    expect(alert?.textContent).toBe('The block could not be added: Server error');
+  });
+
   it('renders each slot in its region and is labelled by the header', () => {
     const root = render(<Dialog open onClose={noop} header="Delete page?" body="It goes for good." footer={<button type="button">Delete</button>} />);
     const dialog = root.querySelector('dialog')!;

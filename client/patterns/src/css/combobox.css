@@ -155,7 +155,7 @@
   padding: 0;
   position: fixed;
   width: var(--admin-anchor-width);
-  z-index: var(--admin-z-popover);
+  z-index: var(--admin-z-popover-fallback);
 }
 
 .admin-combobox__popup[hidden] {

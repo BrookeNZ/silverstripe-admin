@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { afterBlockId, blockStatus, moveBlock } from './blocks';
+import { afterBlockId, blockStatus, blockTitle, moveBlock } from './blocks';
 
 const list = [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }];
 
@@ -30,5 +30,14 @@ describe('afterBlockId and moveBlock', () => {
   it('moves to the end after the last other block', () => {
     expect(afterBlockId(list, 1, 3)).toBe(4);
     expect(moveBlock(list, 1, 3).map((block) => block.id)).toEqual([2, 3, 4, 1]);
+  });
+});
+
+describe('blockTitle', () => {
+  it('uses the title, then the type name, then a generic name', () => {
+    expect(blockTitle({ title: ' Opening ' }, { title: 'Quote' })).toBe('Opening');
+    expect(blockTitle({ title: '' }, { title: 'Quote' })).toBe('Quote block');
+    expect(blockTitle({ title: null } as never, { title: 'Content block' })).toBe('Content block');
+    expect(blockTitle({ title: '' })).toBe('Untitled block');
   });
 });

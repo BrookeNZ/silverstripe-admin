@@ -157,13 +157,15 @@
   --admin-warning-border-color: var(--admin-palette-yellow-800);
 
   /*
-   * Stacking layers, lowest first: popovers (menus, combobox lists) under the sticky header and action
-   * bar, which sit under the narrow-screen menu overlay, then toasts, then the skip link. Dialogs are
-   * native modals in the top layer and need none
+   * Stacking layers, lowest first: the sticky header and action bar, the narrow-screen menu overlay,
+   * popovers (menus, combobox lists) where the browser has no popover API, then toasts, then the skip link.
+   * Dialogs, and popovers where the API exists, open in the top layer above all of these and need none.
+   * The fallback popover is fixed to the viewport like its top-layer self, so it sits over the sticky bars
+   * and the overlay; it still cannot leave a stacking context its control is in, such as the action bar
    */
-  --admin-z-popover: 10;
   --admin-z-sticky: 20;
   --admin-z-overlay: 30;
+  --admin-z-popover-fallback: 35;
   --admin-z-toast: 40;
   --admin-z-skip-link: 50;
 

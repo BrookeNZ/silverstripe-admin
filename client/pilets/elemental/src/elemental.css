@@ -40,10 +40,10 @@
   padding: 0;
 }
 
-/* Figma 2:6320: padding 25px block, 20px inline */
+/* Figma 2:6320 draws 25px block and 20px inline padding; 16px block and no inline padding by decision */
 .elemental-block {
-  --elemental-block-padding-block: 2.5rem;
-  --elemental-block-padding-inline: 2rem;
+  --elemental-block-padding-block: var(--admin-gap-md);
+  --elemental-block-padding-inline: 0;
   --elemental-block-transform: none;
   --elemental-block-transition: none;
   --elemental-block-z-index: auto;
@@ -94,20 +94,16 @@
 
 .elemental-block__meta {
   color: var(--admin-meta-fg-color);
-  font-size: var(--admin-font-size-sm);
 }
 
-/* Figma New/Body small: 13px, Grey 800 (4.57:1 on white) */
 .elemental-block__summary {
   color: var(--admin-meta-fg-color);
-  font-size: 1.3rem;
   line-height: 1.4;
 }
 
 .elemental-block__flag {
   border: var(--admin-border) currentcolor;
   border-radius: var(--admin-radius);
-  font-size: var(--admin-font-size-sm);
   padding-inline: var(--admin-gap-xs);
 }
 

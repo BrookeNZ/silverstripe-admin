@@ -19,7 +19,7 @@ const tree = {
 
 let container: HTMLDivElement;
 
-const Host = ({ value = 0 }: { value?: number }) => {
+const Host = ({ value = 0, showSelectedPath = false }: { value?: number; showSelectedPath?: boolean }) => {
   const [visible, setVisible] = React.useState<number[]>([]);
   const actions = {
     treeDropdownField: {
@@ -35,11 +35,11 @@ const Host = ({ value = 0 }: { value?: number }) => {
     <TreeDropdownField
       id="Form_ParentID"
       name="ParentID"
-      data={{ urlTree: 'admin/tree', showSearch: true }}
+      data={{ urlTree: 'admin/tree', showSearch: true, showSelectedPath }}
       tree={tree}
       visible={visible}
       search=""
-      selectedValues={value ? [{ id: 2, title: 'Documents' }] : []}
+      selectedValues={value ? [{ id: 2, title: 'Documents', titlePath: showSelectedPath ? 'Documents/' : undefined }] : []}
       value={value}
       actions={actions}
       fetch={() => new Promise(() => undefined)}
@@ -48,10 +48,10 @@ const Host = ({ value = 0 }: { value?: number }) => {
   );
 };
 
-function render(value?: number) {
+function render(value?: number, showSelectedPath?: boolean) {
   container = document.createElement('div');
   document.body.append(container);
-  act(() => createRoot(container).render(<Host value={value} />));
+  act(() => createRoot(container).render(<Host value={value} showSelectedPath={showSelectedPath} />));
 }
 
 const input = () => container.querySelector<HTMLInputElement>('[role="combobox"]')!;
@@ -106,5 +106,18 @@ describe('TreeDropdownField', () => {
     act(() => input().focus());
     expect(input().value).toBe('');
     expect(input().placeholder).toBe('Documents');
+  });
+
+  it('shows the selected path as the placeholder whether the list is open or closed again', () => {
+    render(2, true);
+    expect(input().value).toBe('Documents/');
+    act(() => input().focus());
+    press(input(), 'ArrowDown');
+    expect(input().placeholder).toBe('Documents/');
+    expect(active()?.textContent).toContain('Documents');
+    expect(active()?.textContent).not.toContain('Documents/');
+    press(input(), 'Escape');
+    expect(input().getAttribute('aria-expanded')).toBe('false');
+    expect(input().placeholder).toBe('Documents/');
   });
 });

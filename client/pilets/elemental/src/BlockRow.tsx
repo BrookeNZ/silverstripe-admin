@@ -52,7 +52,7 @@ export const BlockRow = (props: BlockRowProps) => {
     disabled: busy,
     transition: reducedMotion() ? null : undefined,
   });
-  const title = blockTitle(block);
+  const title = blockTitle(block, type);
   const status = blockStatus(block);
   const regionId = `elemental-block-${block.id}-form`;
   const inline = Boolean(type?.inlineEditable);
@@ -99,6 +99,15 @@ export const BlockRow = (props: BlockRowProps) => {
           {block.blockSchema.content && <span className="elemental-block__summary">{block.blockSchema.content}</span>}
         </div>
         <div className="elemental-block__controls">
+          {items.length > 0 && (
+            <Menu id={menuId(block)} label={`More options for ${title}`}>
+              {items.map((item) => (
+                <Button key={item.action} variant="tertiary" aria-disabled={busy || undefined} onClick={() => !busy && onAction(item.action)}>
+                  {item.label}
+                </Button>
+              ))}
+            </Menu>
+          )}
           {inline ? (
             <Button
               variant="tertiary"
@@ -119,15 +128,6 @@ export const BlockRow = (props: BlockRowProps) => {
                 Edit
               </Link>
             )
-          )}
-          {items.length > 0 && (
-            <Menu id={menuId(block)} label={`More options for ${title}`}>
-              {items.map((item) => (
-                <Button key={item.action} variant="tertiary" aria-disabled={busy || undefined} onClick={() => !busy && onAction(item.action)}>
-                  {item.label}
-                </Button>
-              ))}
-            </Menu>
           )}
         </div>
       </div>

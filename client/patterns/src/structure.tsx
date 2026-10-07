@@ -6,7 +6,7 @@ import { flushSync } from 'react-dom';
 import { fieldTitle } from './FieldHolder';
 import { revealFieldEvent } from './reveal';
 import { TabStrip } from './TabStrip';
-import type { FieldProps } from './types';
+import type { FieldDescriptor, FieldProps } from './types';
 
 export const CompositeField = ({ field, renderFields }: FieldProps) => (
   <div className="admin-group" id={field.holderId}>
@@ -43,6 +43,9 @@ export const Tabs = ({ field, renderFields }: FieldProps) => {
   const tabRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
   const panelRefs = React.useRef<Array<HTMLDivElement | null>>([]);
   const root = React.useRef<HTMLDivElement>(null);
+  // Schema tab ids are not unique per form (every block form has a Root_Main, as the page form does)
+  const scope = React.useId();
+  const panelId = (tab: FieldDescriptor) => `${scope}${tab.id}`;
 
   React.useEffect(() => {
     const element = root.current;
@@ -86,8 +89,8 @@ export const Tabs = ({ field, renderFields }: FieldProps) => {
               tabRefs.current[index] = element;
             },
             role: 'tab',
-            id: `${tab.id}_tab`,
-            'aria-controls': tab.id,
+            id: `${panelId(tab)}_tab`,
+            'aria-controls': panelId(tab),
             'aria-selected': index === active,
             tabIndex: index === active ? 0 : -1,
             onClick: () => setActive(index),
@@ -103,8 +106,8 @@ export const Tabs = ({ field, renderFields }: FieldProps) => {
           }}
           className="admin-tabs__panel"
           role="tabpanel"
-          id={tab.id}
-          aria-labelledby={`${tab.id}_tab`}
+          id={panelId(tab)}
+          aria-labelledby={`${panelId(tab)}_tab`}
           hidden={index !== active}
           tabIndex={0}
         >

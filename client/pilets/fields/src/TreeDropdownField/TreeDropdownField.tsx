@@ -643,7 +643,7 @@ class TreeDropdownField extends Component<any, any> {
   }
 
   formatOptionLabel(option, inputValue = '') {
-    const title = this.getOptionLabel(option);
+    const title = option.title || '';
     const search = this.props.search || inputValue;
 
     return search.length
@@ -652,10 +652,11 @@ class TreeDropdownField extends Component<any, any> {
   }
 
   /**
-   * A closed field with showSelectedPath shows the selected node's full path
+   * With showSelectedPath the selected node reads as its full path, open or closed, so the placeholder a
+   * focused field shows does not change when the list closes; rows in the list show their own title
    */
   getOptionLabel(option) {
-    if (!this.state.opened && this.props.data.showSelectedPath && option.titlePath) {
+    if (this.props.data.showSelectedPath && option.titlePath) {
       return option.titlePath;
     }
     return option.title || '';

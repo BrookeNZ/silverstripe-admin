@@ -7,7 +7,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Block, ElementalApi } from './api';
 import type { ElementType } from './blocks';
-import { createElementalAreaField, recordsChangedEvent } from './ElementalArea';
+import { createElementalAreaField, precedingHeading, recordsChangedEvent } from './ElementalArea';
 import type { BeforeSubmitHandler, ElementalPiletApi, FormSchemaFormHandle, FormSchemaSubmitResult } from './shell';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -120,7 +120,7 @@ async function flush() {
   });
 }
 
-async function render() {
+async function render(areaHeading?: string) {
   const Area = createElementalAreaField({
     api,
     client: client as unknown as ElementalApi,
@@ -135,6 +135,7 @@ async function render() {
   act(() =>
     root.render(
       <MemoryRouter>
+        {areaHeading && <h2>{areaHeading}</h2>}
         <Area field={field as never} formId="Form_EditForm" value={{}} onChange={vi.fn()} onBlur={vi.fn()} submitting={false} renderFields={() => null} autofill={vi.fn()} />
       </MemoryRouter>,
     ),
@@ -224,6 +225,79 @@ describe('ElementalArea', () => {
     expect(lastToast()).toBe('Added a Quote block');
     // The new inline block opens for editing
     expect(forms.has('/schema/elementForm/9')).toBe(true);
+  });
+
+  it('creates one block when Add block is pressed twice in one tick', async () => {
+    await render();
+    await click(button('Add a block'));
+    const input = document.querySelector<HTMLInputElement>('dialog [role="combobox"]')!;
+    act(() => {
+      input.focus();
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    });
+    await click([...document.querySelectorAll<HTMLElement>('[role="option"]')].find((option) => option.textContent === 'Quote')!);
+    const add = [...document.querySelectorAll<HTMLButtonElement>('dialog button')].find((candidate) => candidate.textContent === 'Add block')!;
+    act(() => {
+      add.click();
+      add.click();
+    });
+    await flush();
+    expect(client.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a failed create inside the open dialog rather than as a toast, Cancel before Add block', async () => {
+    client.create.mockRejectedValueOnce(new Error('Server error'));
+    await render();
+    await click(button('Add a block'));
+    const dialog = document.querySelector<HTMLDialogElement>('dialog[open]')!;
+    expect([...dialog.querySelectorAll('.admin-dialog__actions button')].map((candidate) => candidate.textContent)).toEqual(['Cancel', 'Add block']);
+    const input = dialog.querySelector<HTMLInputElement>('[role="combobox"]')!;
+    act(() => {
+      input.focus();
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    });
+    await click([...document.querySelectorAll<HTMLElement>('[role="option"]')].find((option) => option.textContent === 'Quote')!);
+    await click([...dialog.querySelectorAll<HTMLButtonElement>('button')].find((candidate) => candidate.textContent === 'Add block')!);
+    expect(dialog.open).toBe(true);
+    expect(dialog.querySelector('[role="alert"]')?.textContent).toBe('The block could not be added: Server error');
+    expect(api.toasts).toEqual([]);
+
+    await click([...dialog.querySelectorAll<HTMLButtonElement>('button')].find((candidate) => candidate.textContent === 'Cancel')!);
+    await click(button('Add a block'));
+    expect(document.querySelector('dialog[open] [role="alert"]')).toBeNull();
+  });
+
+  it('names the heading, list and add button after a heading placed before the area', async () => {
+    await render('Full width block area (bottom)');
+    expect(container.querySelector('.elemental-area__title')?.textContent).toBe('Blocks in Full width block area (bottom)');
+    expect(container.querySelector('ol')?.getAttribute('aria-label')).toBe('Blocks in Full width block area (bottom)');
+    expect(container.querySelector(`#${field.id}_add`)?.getAttribute('aria-label')).toBe('Add a block to Full width block area (bottom)');
+    await click(button('Add a block to Full width block area (bottom)'));
+    expect(document.querySelector('dialog[open] .admin-dialog__title')?.textContent).toBe('Add a block to Full width block area (bottom)');
+  });
+
+  it('finds the heading through the wrapper element Piral puts round each field', () => {
+    const form = document.createElement('div');
+    form.className = 'shell-form';
+    form.innerHTML =
+      '<piral-component><div id="title"><input></div></piral-component><piral-component><h2>Restricted width block area (top)</h2></piral-component><piral-component><div id="area"></div></piral-component><piral-component><div id="other"></div></piral-component>';
+    expect(precedingHeading(form.querySelector<HTMLElement>('#area'))).toBe('Restricted width block area (top)');
+    expect(precedingHeading(form.querySelector<HTMLElement>('#other'))).toBeNull();
+    expect(precedingHeading(form.querySelector<HTMLElement>('#title'))).toBeNull();
+  });
+
+  it('keeps the plain names with no heading before the area', async () => {
+    await render();
+    expect(container.querySelector('.elemental-area__title')?.textContent).toBe('Blocks');
+    expect(button('Add a block')).toBeDefined();
+  });
+
+  it('names an untitled block by its type', async () => {
+    stored = [block(4, '', 'App_Blocks_QuoteBlock')];
+    await render();
+    expect(container.querySelector('.elemental-block__title')?.textContent).toBe('Quote block');
+    expect(button('Reorder Quote block')).toBeDefined();
+    expect(button('More options for Quote block')).toBeDefined();
   });
 
   it('publishes from the block menu, then notifies and emits records-changed', async () => {

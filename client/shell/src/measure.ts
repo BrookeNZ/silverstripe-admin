@@ -3,7 +3,8 @@
  * section header and the form's action bar: the scroll padding, the pages tree pane and the toast host
  * read the real height rather than a design height that a wrapped bar or a header without views
  * would get wrong. With several measured elements on one token (a form in a dialog over the page) the
- * tallest wins; with none left the property is removed and the stylesheet's design height applies.
+ * tallest wins; with none left the property is removed and the stylesheet's default applies: the
+ * header's design height, which the header measures over as soon as it renders, and no bar at all.
  */
 import * as React from 'react';
 

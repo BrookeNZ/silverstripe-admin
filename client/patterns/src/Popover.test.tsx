@@ -122,17 +122,73 @@ describe('Popover and Menu', () => {
 describe('placeLayer', () => {
   const anchor = { top: 100, bottom: 130, left: 400, right: 430, width: 30, height: 30 } as DOMRect;
   const layer = { width: 240, height: 160 };
+  const viewport = { width: 1200, height: 1000 };
 
   it('puts an end-aligned panel under the button with its right edge on the button right edge', () => {
-    expect(placeLayer(anchor, layer, 4, 1000, 'end', 'bottom')).toEqual({ top: 130, left: 190, placement: 'bottom' });
+    expect(placeLayer(anchor, layer, 4, viewport, 'end', 'bottom')).toEqual({ top: 130, left: 190, placement: 'bottom' });
   });
 
   it('puts a start-aligned top panel above the button, clear of the gap', () => {
-    expect(placeLayer({ ...anchor, top: 500, bottom: 530 } as DOMRect, layer, 4, 1000, 'start', 'top')).toEqual({ top: 332, left: 400, placement: 'top' });
+    expect(placeLayer({ ...anchor, top: 500, bottom: 530 } as DOMRect, layer, 4, viewport, 'start', 'top')).toEqual({ top: 332, left: 400, placement: 'top' });
   });
 
   it('flips to the side with room', () => {
-    expect(placeLayer({ ...anchor, top: 900, bottom: 930 } as DOMRect, layer, 4, 1000, 'start', 'bottom').placement).toBe('top');
-    expect(placeLayer(anchor, layer, 4, 1000, 'start', 'top').placement).toBe('bottom');
+    expect(placeLayer({ ...anchor, top: 900, bottom: 930 } as DOMRect, layer, 4, viewport, 'start', 'bottom').placement).toBe('top');
+    expect(placeLayer(anchor, layer, 4, viewport, 'start', 'top').placement).toBe('bottom');
+  });
+
+  it('keeps the panel inside the viewport horizontally', () => {
+    expect(placeLayer({ ...anchor, left: 10, right: 40 } as DOMRect, layer, 4, viewport, 'end', 'bottom').left).toBe(0);
+    expect(placeLayer({ ...anchor, left: 1100, right: 1130 } as DOMRect, layer, 4, viewport, 'start', 'bottom').left).toBe(960);
+  });
+});
+
+describe('useAnchoredLayer', () => {
+  const observers: Array<{ callback: ResizeObserverCallback; targets: Array<Element>; disconnected: boolean }> = [];
+
+  class FakeResizeObserver {
+    private entry: (typeof observers)[number];
+
+    constructor(callback: ResizeObserverCallback) {
+      this.entry = { callback, targets: [], disconnected: false };
+      observers.push(this.entry);
+    }
+
+    observe(target: Element) {
+      this.entry.targets.push(target);
+    }
+
+    unobserve() {}
+
+    disconnect() {
+      this.entry.disconnected = true;
+    }
+  }
+
+  afterEach(() => {
+    observers.length = 0;
+    vi.unstubAllGlobals();
+  });
+
+  it('re-places the panel when the panel or the button changes size, and stops watching once closed', () => {
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+    render(
+      <Menu id="options" label="More options" placement="top">
+        <Button>Publish</Button>
+      </Menu>,
+    );
+    vi.spyOn(trigger(), 'getBoundingClientRect').mockReturnValue({ top: 500, bottom: 530, left: 400, right: 430, width: 30, height: 30 } as DOMRect);
+    const size = vi.spyOn(panel(), 'getBoundingClientRect').mockReturnValue({ width: 240, height: 100 } as DOMRect);
+    act(() => trigger().click());
+    expect(panel().style.getPropertyValue('--admin-anchor-top')).toBe('400px');
+
+    const [observer] = observers;
+    expect(observer.targets).toEqual([panel(), trigger()]);
+    size.mockReturnValue({ width: 240, height: 200 } as DOMRect);
+    act(() => observer.callback([], observer as unknown as ResizeObserver));
+    expect(panel().style.getPropertyValue('--admin-anchor-top')).toBe('300px');
+
+    act(() => trigger().click());
+    expect(observer.disconnected).toBe(true);
   });
 });

@@ -1,0 +1,218 @@
+/**
+ * The HTML editor field: TinyMCE on a textarea the component creates itself, so React never reconciles
+ * the nodes TinyMCE inserts beside it.
+ *
+ * Value sync replaces the legacy change tracker's `prepValueForChangeTracker`. TinyMCE rewrites the
+ * stored HTML as it loads (wrapping bare text in a paragraph, for instance), so the content it holds
+ * right after init is the baseline: while the editor still holds that content the field reports the
+ * stored value unchanged, and the form stays clean. Edits reach the form after typing pauses, on blur
+ * and before the form posts. A value from outside (the state a save brings back) replaces the content
+ * and becomes the new baseline.
+ */
+import * as React from 'react';
+import { describedBy, FieldHolder } from '@silverstripe/admin-patterns';
+import type { Editor, TinyMCE } from 'tinymce';
+import { loadTinyMce } from './loadTinyMce';
+import { editorOptions, parseEditorConfig } from './settings';
+import type { HtmlEditorFieldProps, HtmlEditorPiletApi } from './shell';
+
+export interface HtmlEditorFieldOptions {
+  api: HtmlEditorPiletApi;
+  load?(baseUrl: string): Promise<TinyMCE>;
+  /** How long typing must pause before the content reaches the form, in milliseconds */
+  syncDelay?: number;
+}
+
+type Status = 'loading' | 'ready' | 'failed';
+
+interface SyncState {
+  /** The value the editor's baseline content came from */
+  stored: string;
+  /** What TinyMCE made of `stored` */
+  baseline: string;
+  /** The last value given to the form */
+  reported: string;
+}
+
+function textValue(value: unknown): string {
+  return value == null ? '' : String(value);
+}
+
+function rawConfig(field: HtmlEditorFieldProps['field']): unknown {
+  const attributes = (field.attributes ?? {}) as Record<string, unknown>;
+  const dataAttributes = ((field.data as Record<string, unknown> | undefined)?.attributes ?? {}) as Record<string, unknown>;
+  return attributes['data-config'] ?? dataAttributes['data-config'];
+}
+
+export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300 }: HtmlEditorFieldOptions) {
+  const HtmlEditorField = ({ field, value, onChange, onBlur, error, formId }: HtmlEditorFieldProps) => {
+    const configText = textValue(rawConfig(field));
+    const config = React.useMemo(() => parseEditorConfig(configText), [configText]);
+    const host = React.useRef<HTMLDivElement>(null);
+    const editorRef = React.useRef<Editor | null>(null);
+    const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+    const timer = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const sync = React.useRef<SyncState>({ stored: '', baseline: '', reported: '' });
+    const latest = React.useRef({ onChange, onBlur, value });
+    latest.current = { onChange, onBlur, value };
+    const [status, setStatus] = React.useState<Status>('loading');
+    const [focused, setFocused] = React.useState(false);
+    const label = typeof field.title === 'string' || typeof field.title === 'number' ? String(field.title) : field.name;
+    const readOnly = Boolean(field.readOnly || field.disabled);
+    const labelId = `${field.id}_label`;
+    const descriptionIds = describedBy(field, error);
+
+    const report = React.useCallback(() => {
+      clearTimeout(timer.current);
+      const editor = editorRef.current;
+      if (!editor) {
+        return;
+      }
+      const content = editor.getContent();
+      const next = content === sync.current.baseline ? sync.current.stored : content;
+      if (next !== sync.current.reported) {
+        sync.current.reported = next;
+        latest.current.onChange(next);
+      }
+    }, []);
+
+    React.useEffect(() => {
+      const element = host.current;
+      if (!element) {
+        return undefined;
+      }
+      const textarea = document.createElement('textarea');
+      textarea.id = field.id;
+      textarea.name = field.name;
+      textarea.value = textValue(latest.current.value);
+      textarea.hidden = true;
+      element.append(textarea);
+      textareaRef.current = textarea;
+      let cancelled = false;
+      setStatus('loading');
+
+      const setup = (editor: Editor) => {
+        editor.on('init', () => {
+          const stored = textValue(latest.current.value);
+          sync.current = { stored, baseline: editor.getContent(), reported: stored };
+        });
+        editor.on('input change undo redo', () => {
+          clearTimeout(timer.current);
+          timer.current = setTimeout(report, syncDelay);
+        });
+        editor.on('focus', () => setFocused(true));
+        editor.on('blur', () => {
+          setFocused(false);
+          report();
+          latest.current.onBlur();
+        });
+      };
+
+      load(String(config.baseURL ?? ''))
+        .then((tinymce) => (cancelled ? [] : tinymce.init(editorOptions(config, { target: textarea, label, readOnly, setup }))))
+        .then((editors) => {
+          const [editor] = editors;
+          if (cancelled) {
+            editor?.remove();
+            return;
+          }
+          if (!editor) {
+            throw new Error('The editor did not start');
+          }
+          editorRef.current = editor;
+          setStatus('ready');
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setStatus('failed');
+          }
+        });
+
+      return () => {
+        cancelled = true;
+        clearTimeout(timer.current);
+        editorRef.current?.remove();
+        editorRef.current = null;
+        textarea.remove();
+        textareaRef.current = null;
+      };
+      // Read-only state changes on the running editor below; a new config starts a new editor
+    }, [config, field.id, field.name, load, report]);
+
+    React.useEffect(() => {
+      editorRef.current?.mode.set(readOnly ? 'readonly' : 'design');
+    }, [readOnly, status]);
+
+    React.useEffect(() => {
+      const editor = editorRef.current;
+      const text = textValue(value);
+      if (!editor || text === sync.current.reported) {
+        return;
+      }
+      clearTimeout(timer.current);
+      editor.setContent(text);
+      editor.undoManager.clear();
+      editor.setDirty(false);
+      sync.current = { stored: text, baseline: editor.getContent(), reported: text };
+    }, [value, status]);
+
+    React.useEffect(() => {
+      const frame = editorRef.current?.iframeElement;
+      if (!frame) {
+        return;
+      }
+      for (const [name, attribute] of [['aria-describedby', descriptionIds], ['aria-invalid', error ? 'true' : undefined]] as const) {
+        if (attribute) {
+          frame.setAttribute(name, attribute);
+        } else {
+          frame.removeAttribute(name);
+        }
+      }
+    }, [descriptionIds, error, status]);
+
+    // The editor cannot load: the plain textarea still edits the HTML
+    React.useEffect(() => {
+      const textarea = textareaRef.current;
+      if (status !== 'failed' || !textarea) {
+        return undefined;
+      }
+      textarea.hidden = false;
+      textarea.className = 'admin-field__control';
+      textarea.readOnly = readOnly;
+      textarea.rows = 10;
+      textarea.setAttribute('aria-labelledby', labelId);
+      if (descriptionIds) {
+        textarea.setAttribute('aria-describedby', descriptionIds);
+      }
+      const input = () => latest.current.onChange(textarea.value);
+      textarea.addEventListener('input', input);
+      return () => textarea.removeEventListener('input', input);
+    }, [status, readOnly, labelId, descriptionIds]);
+
+    React.useEffect(() => {
+      if (!formId || !api.registerBeforeSubmit) {
+        return undefined;
+      }
+      return api.registerBeforeSubmit(formId, () => {
+        report();
+      });
+    }, [formId, report]);
+
+    return (
+      <FieldHolder field={field} error={error} labelId={labelId}>
+        {status === 'loading' && (
+          <p className="htmleditor-field__status" role="status">
+            Loading the editor
+          </p>
+        )}
+        {status === 'failed' && (
+          <p className="htmleditor-field__status" role="alert">
+            The editor could not be loaded. You can still edit the HTML below.
+          </p>
+        )}
+        <div className={focused ? 'htmleditor-field htmleditor-field--focused' : 'htmleditor-field'} ref={host} aria-busy={status === 'loading'} />
+      </FieldHolder>
+    );
+  };
+  return HtmlEditorField;
+}

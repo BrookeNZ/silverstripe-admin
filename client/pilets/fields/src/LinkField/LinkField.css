@@ -58,7 +58,6 @@
 
 .link-field__description {
   color: var(--admin-meta-fg-color);
-  font-size: var(--admin-font-size-sm);
   overflow-wrap: anywhere;
 }
 
@@ -66,7 +65,6 @@
   background-color: var(--admin-modified-bg-color);
   border-radius: var(--admin-radius);
   color: var(--admin-modified-fg-color);
-  font-size: var(--admin-font-size-sm);
   padding-inline: var(--admin-gap-xs);
 }
 

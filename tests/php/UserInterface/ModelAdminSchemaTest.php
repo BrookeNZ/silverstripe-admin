@@ -2,7 +2,10 @@
 
 namespace SilverStripe\Admin\Tests\UserInterface;
 
+use RuntimeException;
+use SilverStripe\Admin\LeftAndMain;
 use SilverStripe\Admin\SecurityAdmin;
+use SilverStripe\Core\Config\Config;
 use SilverStripe\Dev\FunctionalTest;
 
 class ModelAdminSchemaTest extends FunctionalTest
@@ -34,6 +37,7 @@ class ModelAdminSchemaTest extends FunctionalTest
 
     public function testSchemaUrlWithoutAModelTabIsAJson404(): void
     {
+        Config::modify()->set(LeftAndMain::class, 'piral_shell', true);
         $response = $this->get(
             'admin/security/schema/EditForm',
             null,
@@ -43,6 +47,21 @@ class ModelAdminSchemaTest extends FunctionalTest
         $this->assertSame(404, $response->getStatusCode(), $response->getBody());
         $this->assertSame('application/json', $response->getHeader('Content-Type'));
         $this->assertStringContainsString('needs a model tab', json_decode($response->getBody(), true)['errors'][0]['value']);
+    }
+
+    public function testSchemaUrlWithoutAModelTabKeepsTheLegacyErrorWithTheShellOff(): void
+    {
+        Config::modify()->set(LeftAndMain::class, 'piral_shell', false);
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Invalid Model class');
+        $this->get('admin/security/schema/EditForm', null, ['Accept' => 'application/json', 'X-Formschema-Request' => 'schema,state']);
+    }
+
+    public function testSchemaUrlWithoutAModelTabKeepsTheLegacyErrorWithoutAShellRequest(): void
+    {
+        Config::modify()->set(LeftAndMain::class, 'piral_shell', true);
+        $this->expectException(RuntimeException::class);
+        $this->get('admin/security/schema/EditForm');
     }
 
     public function testClientConfigListsModelTabsInOrder(): void

@@ -1,0 +1,9 @@
+---
+Name: adminpiralhtmleditor
+Only:
+  moduleexists: silverstripe/htmleditor-tinymce
+---
+SilverStripe\Admin\UserInterface\PiletFeed:
+  pilets:
+    silverstripe-htmleditor:
+      link: 'silverstripe/admin:client/dist/pilets/htmleditor/index.js'

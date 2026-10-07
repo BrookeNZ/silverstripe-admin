@@ -126,6 +126,31 @@ describe('SchemaFormDialog', () => {
     expect(footerButtons()[1].disabled).toBe(false);
   });
 
+  it('marks the first action busy while Enter in a field posts it', async () => {
+    let resolvePost: (value: unknown) => void = () => undefined;
+    vi.mocked(submitFormSchema).mockImplementation(() => new Promise((resolve) => (resolvePost = resolve)) as never);
+    await render(<SchemaFormDialog open header="Add link" schemaUrl="schema/LinkForm" onClose={() => undefined} />);
+    const input = container.querySelector<HTMLInputElement>('#Form_LinkForm_Title')!;
+    await act(async () => {
+      const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+      setValue.call(input, 'Home');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await flush();
+    // The mocked field component is a new type on every render, so the input has been replaced
+    const typedInput = container.querySelector<HTMLInputElement>('#Form_LinkForm_Title')!;
+    await act(async () => {
+      typedInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    });
+    await flush();
+    expect(submitFormSchema).toHaveBeenCalledTimes(1);
+    expect(footerButtons()[1].getAttribute('aria-busy')).toBe('true');
+    expect(footerButtons()[2].disabled).toBe(true);
+    await act(async () => resolvePost({ ...response, errors: [] }));
+    await flush();
+    expect(footerButtons()[1].getAttribute('aria-busy')).toBeNull();
+  });
+
   it('shows server errors in the body and does not hand over a failed post', async () => {
     vi.mocked(submitFormSchema).mockResolvedValue({
       ...response,
@@ -148,6 +173,26 @@ describe('SchemaFormDialog', () => {
     });
     expect(onClose).toHaveBeenCalledTimes(2);
     expect(submitFormSchema).not.toHaveBeenCalled();
+  });
+
+  it('focuses the heading while the form loads, then its first field', async () => {
+    let resolveLoad: (value: unknown) => void = () => undefined;
+    vi.mocked(fetchFormSchema).mockImplementation(() => new Promise((resolve) => (resolveLoad = resolve)) as never);
+    await render(<SchemaFormDialog open header="Add link" schemaUrl="schema/LinkForm" onClose={() => undefined} />);
+    expect(document.activeElement).toBe(container.querySelector('.admin-dialog__title'));
+    await act(async () => resolveLoad(response));
+    await flush();
+    expect(document.activeElement?.id).toBe('Form_LinkForm_Title');
+  });
+
+  it('leaves focus where the user moved it while the form loaded', async () => {
+    let resolveLoad: (value: unknown) => void = () => undefined;
+    vi.mocked(fetchFormSchema).mockImplementation(() => new Promise((resolve) => (resolveLoad = resolve)) as never);
+    await render(<SchemaFormDialog open header="Add link" schemaUrl="schema/LinkForm" onClose={() => undefined} />);
+    act(() => footerButtons()[0].focus());
+    await act(async () => resolveLoad(response));
+    await flush();
+    expect(document.activeElement).toBe(footerButtons()[0]);
   });
 
   it('loads no form while closed', async () => {

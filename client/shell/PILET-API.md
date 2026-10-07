@@ -165,7 +165,8 @@ page form) `headless` renders the fields with no form element and no action bar,
 Enter in one of its inputs posts it when dirty instead of submitting the outer form. Such a host takes
 `handleRef`, which receives `{submit(action?), isDirty()}` (`FormSchemaFormHandle`; `submit` resolves
 `{ok, response?, message?}` and never throws), `onDirtyChange(dirty)` and `onActionsChange(actions)` (the
-form's actions as one row of buttons, groups and tab sets flattened, primary by the action bar's rule). The renderer does not emit the records-changed
+form's actions as one row of buttons, groups and tab sets flattened, primary by the action bar's rule) and
+`onSubmittingChange(action | null)` (the action posting, from a button or Enter, then null). The renderer does not emit the records-changed
 event itself; the pilet that knows the record class emits it from `onSubmitted`. The shell's grid re-reads
 its rows on every records-changed event.
 
@@ -181,7 +182,9 @@ Each action button posts its own action and shows `loading` while it runs; error
 posts, where `formId` is the form element's id (`Form_EditForm`), which every field receives as `formId`.
 Handlers run one after another in registration order and are awaited; one that resolves `false` cancels
 the post and the rest, and should say why itself (a toast). A thrown error cancels too and its message
-shows on the form. The elemental area uses it to save dirty blocks before the page saves:
+shows on the form. The form posts its values as they are once the handlers finish, so a field that
+writes its pending value in a handler (the HTML editor flushing its content) is posted with it. The
+elemental area uses it to save dirty blocks before the page saves:
 
 ```tsx
 React.useEffect(() => piral.registerBeforeSubmit(formId, async () => saveDirtyBlocks()), [piral, formId]);

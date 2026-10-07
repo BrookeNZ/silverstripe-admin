@@ -19,8 +19,8 @@ import * as React from 'react';
 import { createPortal } from 'react-dom';
 import { Link as RouterLink } from 'react-router-dom';
 import { DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import type { Announcements, CollisionDetection, DragEndEvent } from '@dnd-kit/core';
-import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import type { Announcements, DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { AddIcon, Button, Dialog } from '@silverstripe/admin-patterns';
 import type { Block, ElementalApi } from './api';
 import { afterBlockId, blockTitle, blockType, moveBlock } from './blocks';
@@ -28,6 +28,7 @@ import type { ElementType } from './blocks';
 import { BlockRow, handleId, menuId } from './BlockRow';
 import type { BlockAction } from './BlockRow';
 import { AddBlockDialog } from './AddBlockDialog';
+import { closestEdge, stepByRow } from './collision';
 import { InlineBlockForm } from './InlineBlockForm';
 import type { AreaFieldProps, ElementalPiletApi, FormSchemaFormHandle } from './shell';
 
@@ -72,16 +73,21 @@ function containingFormId(props: AreaFieldProps): string {
 }
 
 /**
- * The block whose top edge is nearest the dragged block's top edge. An expanded block is much taller than
- * its neighbours, so comparing centres (closestCenter) never leaves its own slot
+ * The text of a heading placed directly before the area, as a page with two areas names each with a
+ * HeaderField; null when the field before it is anything else. Piral wraps every field in its own
+ * piral-component element, so wrappers holding a single element are looked through
  */
-export const closestTop: CollisionDetection = ({ collisionRect, droppableRects, droppableContainers }) =>
-  droppableContainers
-    .flatMap((container) => {
-      const rect = droppableRects.get(container.id);
-      return rect ? [{ id: container.id, data: { droppableContainer: container, value: Math.abs(rect.top - collisionRect.top) } }] : [];
-    })
-    .sort((a, b) => a.data.value - b.data.value);
+export function precedingHeading(element: HTMLElement | null): string | null {
+  let current = element;
+  while (current && !current.previousElementSibling && !current.parentElement?.matches('form, .shell-form')) {
+    current = current.parentElement;
+  }
+  let before = current?.previousElementSibling ?? null;
+  while (before && !before.matches('h1, h2, h3, h4, h5, h6') && before.childElementCount === 1) {
+    before = before.firstElementChild;
+  }
+  return before?.matches('h1, h2, h3, h4, h5, h6') ? before.textContent?.trim() || null : null;
+}
 
 function focusLater(id: string) {
   requestAnimationFrame(() => document.getElementById(id)?.focus());
@@ -91,6 +97,8 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
   const { api, client, types, schemaUrl, routerPath, pageClass } = options;
   const FormSchemaForm = api.getSilverstripeComponent('FormSchemaForm');
   const renderRouterLink = ({ to, ...rest }: Record<string, unknown>) => <RouterLink {...(rest as object)} to={String(to)} />;
+
+  const blockName = (block: Block) => blockTitle(block, blockType(block, types));
 
   const ElementalArea = (props: AreaFieldProps & { field: AreaProps }) => {
     const { field } = props;
@@ -111,12 +119,18 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
     const [busy, setBusy] = React.useState<number | null>(null);
     const [saving, setSaving] = React.useState<ReadonlySet<number>>(new Set());
     const [adding, setAdding] = React.useState<'closed' | 'open' | 'posting'>('closed');
+    const [addError, setAddError] = React.useState<string | null>(null);
+    const creating = React.useRef(false);
+    const root = React.useRef<HTMLDivElement>(null);
+    const [areaTitle, setAreaTitle] = React.useState<string | null>(null);
     const [archiving, setArchiving] = React.useState<Block | null>(null);
     const handles = React.useRef(new Map<number, FormSchemaFormHandle>());
     const blocksRef = React.useRef(blocks);
     blocksRef.current = blocks;
     const emitting = React.useRef(false);
     const addButtonId = `${field.id}_add`;
+
+    React.useLayoutEffect(() => setAreaTitle(precedingHeading(root.current)), []);
 
     const load = React.useCallback(
       async (signal?: AbortSignal) => {
@@ -198,7 +212,7 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
         const result = await handle.submit('action_save');
         if (!result.ok) {
           setIn(setExpanded, block.id, true);
-          api.showNotification(`"${blockTitle(block)}" could not be saved${result.message ? `: ${result.message}` : ''}`, {
+          api.showNotification(`"${blockName(block)}" could not be saved${result.message ? `: ${result.message}` : ''}`, {
             type: 'error',
           });
           return false;
@@ -214,7 +228,7 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
       notifyChanged([block]);
       const read = await load();
       const saved = read?.find((candidate) => candidate.id === block.id) ?? block;
-      api.showNotification(`Saved "${blockTitle(saved)}"`, { type: 'success', autoClose: 5000 });
+      api.showNotification(`Saved "${blockName(saved)}"`, { type: 'success', autoClose: 5000 });
     };
 
     // Page Save and Publish save every dirty block first and stop if one fails
@@ -264,7 +278,7 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
 
     const onAction = async (block: Block, action: BlockAction) => {
       const index = (blocksRef.current ?? []).findIndex((candidate) => candidate.id === block.id);
-      const title = blockTitle(block);
+      const title = blockName(block);
       switch (action) {
         case 'archive':
           setArchiving(block);
@@ -308,21 +322,34 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
       const list = blocksRef.current ?? [];
       const index = list.findIndex((candidate) => candidate.id === block.id);
       const neighbour = list[index + 1] ?? list[index - 1];
-      await runWrite(block, () => client.archive(block.id), actionMessages.archive(blockTitle(block)));
+      await runWrite(block, () => client.archive(block.id), actionMessages.archive(blockName(block)));
       handles.current.delete(block.id);
       setIn(setDirty, block.id, false);
       focusLater(neighbour ? menuId(neighbour) : addButtonId);
     };
 
+    const openAddDialog = () => {
+      setAddError(null);
+      setAdding('open');
+    };
+
     const addBlock = async (type: ElementType) => {
+      // Two clicks in one tick both arrive before the loading state renders
+      if (creating.current) {
+        return;
+      }
+      creating.current = true;
+      setAddError(null);
       setAdding('posting');
       const before = new Set((blocksRef.current ?? []).map((block) => block.id));
       try {
         await client.create(type.class, areaId);
       } catch (error) {
         setAdding('open');
-        api.showNotification(error instanceof Error ? error.message : String(error), { type: 'error' });
+        setAddError(`The block could not be added: ${error instanceof Error ? error.message : String(error)}`);
         return;
+      } finally {
+        creating.current = false;
       }
       setAdding('closed');
       const read = await load();
@@ -342,12 +369,12 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
 
     const sensors = useSensors(
       useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-      useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+      useSensor(KeyboardSensor, { coordinateGetter: stepByRow }),
     );
 
     const titleOf = (id: number | string) => {
       const block = blocksRef.current?.find((candidate) => candidate.id === id);
-      return block ? blockTitle(block) : 'block';
+      return block ? blockName(block) : 'block';
     };
     const positionOf = (id: number | string | undefined) => {
       const list = blocksRef.current ?? [];
@@ -379,6 +406,9 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
       return path ? { to: path, inRouter: true } : { to: url, inRouter: false };
     };
 
+    const heading = areaTitle ? `Blocks in ${areaTitle}` : 'Blocks';
+    const addLabel = areaTitle ? `Add a block to ${areaTitle}` : 'Add a block';
+
     let list: React.ReactNode;
     if (loadError) {
       list = (
@@ -398,7 +428,7 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
       list = (
         <DndContext
           sensors={sensors}
-          collisionDetection={closestTop}
+          collisionDetection={closestEdge}
           onDragEnd={onDragEnd}
           accessibility={{
             announcements,
@@ -408,7 +438,7 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
           }}
         >
           <SortableContext items={blocks.map((block) => block.id)} strategy={verticalListSortingStrategy}>
-            <ol className="elemental-area__list" aria-label="Blocks">
+            <ol className="elemental-area__list" aria-label={heading}>
               {blocks.map((block, index) => {
                 const type = blockType(block, types);
                 const isExpanded = expanded.has(block.id);
@@ -436,7 +466,7 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
                           FormSchemaForm={FormSchemaForm}
                           schemaUrl={schemaUrl(block.id)}
                           regionId={`elemental-block-${block.id}-form`}
-                          title={blockTitle(block)}
+                          title={blockName(block)}
                           handleRef={(handle) => {
                             if (handle) {
                               handles.current.set(block.id, handle);
@@ -462,11 +492,11 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
     }
 
     return (
-      <div className="elemental-area" id={field.holderId}>
+      <div className="elemental-area" id={field.holderId} ref={root}>
         <div className="elemental-area__header">
-          <h2 className="elemental-area__title">Blocks</h2>
+          <h2 className="elemental-area__title">{heading}</h2>
           {addableTypes.length > 0 && (
-            <Button id={addButtonId} variant="primary" icon={<AddIcon size="sm" />} onClick={() => setAdding('open')}>
+            <Button id={addButtonId} variant="primary" icon={<AddIcon size="sm" />} aria-label={addLabel} onClick={openAddDialog}>
               Add a block
             </Button>
           )}
@@ -476,15 +506,17 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
           <>
             <AddBlockDialog
               open={adding !== 'closed'}
+              header={addLabel}
               types={addableTypes}
               adding={adding === 'posting'}
+              error={addError}
               onAdd={addBlock}
               onClose={() => setAdding('closed')}
             />
             <Dialog
               open={archiving !== null}
               onClose={() => setArchiving(null)}
-              header={archiving ? `Archive "${blockTitle(archiving)}"?` : 'Archive block?'}
+              header={archiving ? `Archive "${blockName(archiving)}"?` : 'Archive block?'}
               body={<p>The block is removed from this page and kept in the archive.</p>}
               footer={
                 <>
