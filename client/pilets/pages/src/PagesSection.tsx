@@ -17,14 +17,23 @@
  * The section header carries the page title (from the tree, so a save that renames the page retitles
  * it), the page's ancestors as its breadcrumb and the page's views; the index has the section title and
  * no back button. A deep link shows the ancestors the tree has loaded and fills in as the tree loads.
+ * It also carries the page's preview URL, read from the loaded form (see preview.ts) for the stage the
+ * Draft/Published toggle picks, so switching stage reloads the preview pane.
+ *
+ * "Add page" above the tree creates a page under the open page, or at the top level from the index, through
+ * PageCreateController, then re-reads the parent's children and lands on the new page's edit route.
  */
 import * as React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { PageComponentProps, SectionHeader } from '@silverstripe/admin-shell';
-import { fieldTitle, Toggle } from '@silverstripe/admin-patterns';
-import { ApiError, createTreeApi } from './api';
+import { AddIcon, Button, fieldTitle, Toggle } from '@silverstripe/admin-patterns';
+import { AddPageDialog } from './AddPageDialog';
+import { addPage } from './addPage';
+import { ApiError, createPageApi, createTreeApi } from './api';
 import { PageSearch } from './PageSearch';
 import { PageTree } from './PageTree';
+import { previewLinks } from './preview';
+import type { PreviewLinks } from './preview';
 import { stageOptions } from './stage';
 import type { PageStage } from './stage';
 import { TreeStore } from './treeStore';
@@ -35,6 +44,8 @@ export interface PagesSectionOptions {
   routePrefix: string;
   pageClass: string;
   treeUrl: string;
+  createUrl: string;
+  securityId(): string;
   loginUrl: string;
   /** The schema URL of each view's form, for the views whose controller the site has */
   schemaUrls: Partial<Record<PageView, (id: number) => string>>;
@@ -80,7 +91,13 @@ export function pageAncestors(store: Pick<TreeStore, 'node'>, id: number): Array
 /** The header for a page view, or for the section index when no page is open */
 export function pageSectionHeader(
   routePrefix: string,
-  page: { id: number; title: string | undefined; view: PageView; ancestors?: ReadonlyArray<PageAncestor> } | null,
+  page: {
+    id: number;
+    title: string | undefined;
+    view: PageView;
+    ancestors?: ReadonlyArray<PageAncestor>;
+    preview?: string;
+  } | null,
   available: ReadonlyArray<PageView> = pageViews.map(({ view }) => view),
 ): SectionHeader {
   if (!page) {
@@ -96,12 +113,16 @@ export function pageSectionHeader(
       to: `${routePrefix}/${view}/show/${page.id}`,
       current: view === page.view,
     })),
+    ...(page.preview ? { preview: page.preview } : {}),
   };
 }
 
 function useStoreVersion(store: TreeStore): number {
   return React.useSyncExternalStore(store.subscribe, store.getVersion);
 }
+
+// The preview pane and header modes replace it, as the legacy preview panel plucked it out of the form
+const navigatorFields = ['SilverStripeNavigator'];
 
 const SessionExpired = ({ loginUrl }: { loginUrl: string }) => (
   <p className="pages__alert" role="alert">
@@ -116,6 +137,7 @@ export function createPagesSection(options: PagesSectionOptions): React.Componen
   const PagesSection = ({ piral }: PageComponentProps) => {
     const api = React.useMemo(() => createTreeApi(options.treeUrl), []);
     const store = React.useMemo(() => new TreeStore(api), [api]);
+    const createClient = React.useMemo(() => createPageApi(options.createUrl, options.securityId), []);
     useStoreVersion(store);
     const navigate = useNavigate();
     const tail = useParams()['*'] ?? '';
@@ -124,13 +146,23 @@ export function createPagesSection(options: PagesSectionOptions): React.Componen
     const [query, setQuery] = React.useState('');
     const [revealError, setRevealError] = React.useState<ApiError | null>(null);
     const [stage, setStage] = React.useState<PageStage>('draft');
+    const [links, setLinks] = React.useState<PreviewLinks>({});
+    const [adding, setAdding] = React.useState(false);
+    const [creating, setCreating] = React.useState(false);
+    const [createError, setCreateError] = React.useState<string | null>(null);
     const FormSchemaForm = React.useMemo(() => piral.getSilverstripeComponent('FormSchemaForm'), [piral]);
 
     React.useEffect(() => {
       setQuery('');
       setRevealError(null);
       setStage('draft');
+      setLinks({});
     }, [tail]);
+
+    const onStateChange = React.useCallback(
+      (state: { fields: Array<{ name: string; value: unknown }> }) => setLinks(previewLinks(state.fields, window.location.href)),
+      [],
+    );
 
     React.useEffect(() => {
       piral.setData(currentPageDataKey, currentId);
@@ -161,9 +193,41 @@ export function createPagesSection(options: PagesSectionOptions): React.Componen
       [piral, currentId],
     );
 
+    const closeAdd = () => {
+      setAdding(false);
+      setCreateError(null);
+    };
+    const create = (className: string) => {
+      setCreating(true);
+      setCreateError(null);
+      addPage(
+        {
+          client: createClient,
+          store,
+          land: (page) => {
+            setAdding(false);
+            piral.showNotification(`Created "${page.title}"`, { type: 'success' });
+            navigate(editPath(page.id));
+          },
+        },
+        currentId ?? 0,
+        className,
+      )
+        .catch((failure: unknown) => setCreateError(failure instanceof Error ? failure.message : String(failure)))
+        .finally(() => setCreating(false));
+    };
+
     const header = pageSectionHeader(
       options.routePrefix,
-      opened ? { id: opened.id, title: store.node(opened.id)?.title, view: opened.view, ancestors: pageAncestors(store, opened.id) } : null,
+      opened
+        ? {
+            id: opened.id,
+            title: store.node(opened.id)?.title,
+            view: opened.view,
+            ancestors: pageAncestors(store, opened.id),
+            preview: links[stage],
+          }
+        : null,
       availableViews,
     );
     const headerKey = JSON.stringify(header);
@@ -190,6 +254,8 @@ export function createPagesSection(options: PagesSectionOptions): React.Componen
               key={schemaUrl}
               schemaUrl={schemaUrl}
               onSubmitted={onSubmitted}
+              onStateChange={onStateChange}
+              omitFields={navigatorFields}
               trackUnsavedChanges
               actionsEnd={
                 <Toggle<PageStage>
@@ -212,6 +278,9 @@ export function createPagesSection(options: PagesSectionOptions): React.Componen
     return (
       <div className="pages">
         <nav className="pages__sidebar" aria-label="Page tree">
+          <Button icon={<AddIcon />} onClick={() => setAdding(true)}>
+            Add page
+          </Button>
           <PageSearch api={api} editPath={editPath} query={query} onQueryChange={setQuery} />
           {sessionExpired && <SessionExpired loginUrl={options.loginUrl} />}
           <PageTree
@@ -225,6 +294,15 @@ export function createPagesSection(options: PagesSectionOptions): React.Componen
           />
         </nav>
         <div className="pages__main">{main}</div>
+        <AddPageDialog
+          open={adding}
+          parentId={currentId ?? 0}
+          client={createClient}
+          creating={creating}
+          error={createError}
+          onCreate={create}
+          onClose={closeAdd}
+        />
       </div>
     );
   };

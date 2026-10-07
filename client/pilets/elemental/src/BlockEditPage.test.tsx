@@ -102,6 +102,13 @@ describe('BlockEditPage', () => {
     expect(header.crumbs[1]).toEqual({ label: 'Home', to: '/pages/edit/show/7' });
   });
 
+  it('shows the block type as the header badge once the block loads', async () => {
+    await render();
+    expect(api.headers[api.headers.length - 1].badge).toBeUndefined();
+    act(() => formProps.onLoad({ id: 'x', record: { ...record, title: 'Opening quote' } }));
+    expect(api.headers[api.headers.length - 1]).toMatchObject({ title: 'Opening quote', badge: 'Quote' });
+  });
+
   it('reports a save for the block and its page', async () => {
     await render();
     act(() => formProps.onSubmitted({ id: 'x', record: { ...record, title: 'Saved quote' }, message: 'Saved Quote "Saved quote"' }, { name: 'action_doSave', title: 'Save' }));

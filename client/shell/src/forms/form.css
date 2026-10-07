@@ -10,13 +10,17 @@
  * action bar touch the sides of the content column. A nested form (`--nested`, a block's form inside
  * the page form) already sits in an inset field, so its own fields take none.
  *
- * The action bar is the CMS Refresh "Bottom bar" (Figma node 2:6870, edit mode 2:6871): white, a Grey
- * 400 top line drawn inside its 65px height, 15px by 20px padding round the 35px buttons, the actions on the left and the host's extra controls pushed to
- * the right. It spans the whole content column, as in the design, sits at the bottom of a short form,
- * which grows to the viewport, and stays in view while a long one scrolls.
+ * The action bar is the CMS Refresh "Bottom bar" (Figma node 2:6870; edit mode 2:6871, split mode
+ * 2:6892, preview mode 2:6921): white, a Grey 400 top line drawn inside its 65px height, 15px by 20px
+ * padding round the 35px buttons. The form's actions sit on the left; the right-hand group holds the
+ * host's controls (the pages section's Draft/Published toggle) and, when the page has a preview, Share
+ * and the mode menu, 30px after them. In preview mode the right-hand group alone draws, at the foot of
+ * the preview pane. The bar spans the whole content column, as in the design, sits at the bottom of a
+ * short form, which grows to the viewport, and stays in view while a long one scrolls.
  *
- * Below 576px the host's controls drop to a second row, as the design's mobile bar (2:6939) and its note
- * "secondary buttons stack at 576px" (2:6960). The bar's tokens sit on :root because the shell reads
+ * Below 576px the right-hand group drops to a second row under the actions, as the design's mobile bars
+ * (2:6939, 2:6930) and its note "secondary buttons stack at 576px" (2:6960). The preview controls never
+ * reach that width, since a preview needs 1024px. The bar's tokens sit on :root because the shell reads
  * --shell-form-actions-offset for the page's bottom scroll padding, so a focused field is scrolled
  * clear of the bar. FormSchemaForm keeps that token at the bar's rendered height; a page with no bar
  * reserves nothing
@@ -28,6 +32,9 @@
   /* Figma: the 35px buttons set each row's height */
   --shell-form-actions-control-height: 3.5rem;
   --shell-form-actions-end-basis: 100%;
+
+  /* Figma: 30px between the stage toggle and the preview controls */
+  --shell-form-actions-end-gap: 3rem;
 
   /* Figma: 15px between the save group, the options button and the utilities, and between stacked rows */
   --shell-form-actions-gap: 1.5rem;
@@ -117,6 +124,6 @@
   display: flex;
   flex-basis: var(--shell-form-actions-end-basis);
   flex-wrap: wrap;
-  gap: var(--shell-form-actions-group-gap);
+  gap: var(--shell-form-actions-end-gap);
   margin-inline-start: auto;
 }

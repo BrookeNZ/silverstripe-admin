@@ -4,12 +4,16 @@
  * The record's draft preview beside the section's content (split mode) or in its place (preview
  * mode). The design's bottom bar variants (Figma 2:6892, 2:6906, 2:6921) draw only the mode menu, not
  * the pane, so the even split and the divider are the shell's own: the divider repeats the section
- * header's border. The pane sticks under the header and fills the rest of the viewport
+ * header's border. The pane sticks under the header and fills the rest of the viewport. In preview
+ * mode the form's action bar draws at its foot, below the frame
  */
 
 :root {
   --shell-preview-border: var(--shell-header-border) var(--admin-divider-color);
   --shell-preview-inline-size: 50%;
+
+  /* Figma: 10px between Share and the mode menu */
+  --shell-preview-tools-gap: 1rem;
   --shell-preview-top: calc(var(--shell-sticky-top) + var(--shell-header-offset));
 }
 
@@ -19,6 +23,7 @@
   box-sizing: border-box;
   display: flex;
   flex: 0 0 var(--shell-preview-inline-size);
+  flex-direction: column;
   inset-block-start: var(--shell-preview-top);
   position: sticky;
 }
@@ -34,7 +39,8 @@
   flex: 1;
 }
 
-/* The views' tabs sit on the header's divider; the menu centres in the bar */
 .shell-preview-tools {
-  align-self: center;
+  align-items: center;
+  display: flex;
+  gap: var(--shell-preview-tools-gap);
 }

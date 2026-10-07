@@ -240,6 +240,12 @@ React.useEffect(() => piral.setSectionHeader({ title, backTo: '/pages/', backLab
 | `backLabel?: string` | The back button's accessible name: "Back to <last crumb label>" when back falls to the last crumb, "Back" otherwise |
 | `views?: {key, label, to, current?}[]` | Route links in a `nav` named "<title> views", `aria-current="page"` on the current one. Views are routes; for panels inside one page use the patterns package's `Tabs` |
 | `documentTitle?: string` | The first part of the browser tab title when it should differ from `title`; the shell writes "<documentTitle or title> - <application name>" |
+| `preview?: string` | The record's preview URL, loaded in an `iframe` named "Preview of <title>". Set it again to load another (the pages section swaps `?stage=Stage` for `?stage=Live` with its Draft/Published toggle) |
+
+With `preview` set and the viewport at least 1024px wide, the form's action bar ends with Share and a
+menu of Edit, Split and Preview modes: the form alone, the form beside the preview, or the preview alone,
+where the bar's right-hand group stays at the foot of the pane. The mode is the viewer's own choice and
+kept across pages; below 1024px, and on a page without `preview`, the form shows alone.
 
 Headers stack: each call pushes an entry and the newest shows. A disposer removes only its own entry,
 so disposing a later header restores the one below it, and a second dispose does nothing. Unloading a

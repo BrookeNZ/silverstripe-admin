@@ -64,6 +64,7 @@ export function createBlockEditPage(options: BlockEditPageOptions): React.Compon
       () =>
         api.setSectionHeader({
           title,
+          badge: type?.title,
           crumbs: [
             { label: 'Pages', to: `${routePrefix}/` },
             { label: record?.parentTitle || `Page #${pageId}`, to: pagePath },
@@ -71,7 +72,7 @@ export function createBlockEditPage(options: BlockEditPageOptions): React.Compon
           backTo: pagePath,
           backLabel: `Back to ${pageTitle}`,
         }),
-      [title, pageTitle, pagePath],
+      [title, type?.title, pageTitle, pagePath],
     );
 
     // The unsaved changes guard would stop a navigation made while the archived form still reads dirty

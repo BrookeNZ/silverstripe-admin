@@ -181,3 +181,26 @@ describe('SectionHeader crumbs', () => {
     expect(container.querySelector('.shell-header__back')).toBeNull();
   });
 });
+
+describe('SectionHeader badge', () => {
+  it('draws the badge beside the title as its description, outside its name', async () => {
+    await act(async () => {
+      setSectionHeader(context, 'elemental', { title: 'Get the most out of Silverstripe CMS', badge: 'Feature column block' });
+    });
+    const badge = container.querySelector('.shell-header__badge');
+    expect(badge?.textContent).toBe('Feature column block');
+    expect(title()?.textContent).toBe('Get the most out of Silverstripe CMS');
+    expect(title()?.getAttribute('aria-describedby')).toBe(badge?.id);
+  });
+});
+
+describe('SectionHeader preview', () => {
+  it('leaves the preview controls to the action bar', async () => {
+    await act(async () => {
+      setSectionHeader(context, 'pages', { title: 'About', preview: 'https://example.test/about/' });
+    });
+    expect(title()?.textContent).toBe('About');
+    expect(container.querySelector('#shell-preview-mode')).toBeNull();
+    expect(container.textContent).not.toContain('Share');
+  });
+});

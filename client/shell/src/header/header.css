@@ -31,6 +31,15 @@
 
   /* Figma back button 2:1736: a 25px circle round the 13px chevron */
   --shell-header-back-size: 2.5rem;
+
+  /* Figma toolbar badge I2:30209;2:1853 is 11px; kept at the 14px body size like the breadcrumb */
+  --shell-header-badge-bg-color: var(--admin-hover-bg-color);
+  --shell-header-badge-fg-color: var(--admin-fg-color);
+  --shell-header-badge-font-size: var(--admin-font-size-md);
+  --shell-header-badge-line-height: 1.4;
+  --shell-header-badge-padding-block: 0.2rem;
+  --shell-header-badge-padding-inline: 0.5rem;
+  --shell-header-badge-radius: 0.3rem;
   --shell-header-border: 0.1rem solid;
   --shell-header-column-gap: 5rem;
 
@@ -55,6 +64,9 @@
   /* Figma: Inter Medium 15px */
   --shell-header-title-font-size: 1.5rem;
   --shell-header-title-font-weight: 500;
+
+  /* Figma 2:1851: 10px between the title and the badge */
+  --shell-header-title-row-gap: 1rem;
   --shell-header-z-index: var(--admin-z-sticky);
 }
 
@@ -157,6 +169,21 @@
   overflow-wrap: anywhere;
 }
 
+.shell-header__title-row {
+  align-items: center;
+  display: flex;
+  gap: var(--shell-header-title-row-gap);
+}
+
+.shell-header__badge {
+  background-color: var(--shell-header-badge-bg-color);
+  border-radius: var(--shell-header-badge-radius);
+  color: var(--shell-header-badge-fg-color);
+  font-size: var(--shell-header-badge-font-size);
+  line-height: var(--shell-header-badge-line-height);
+  padding: var(--shell-header-badge-padding-block) var(--shell-header-badge-padding-inline);
+}
+
 /* Figma 2:1876: the title under a breadcrumb is Inter Regular 16px */
 .shell-header__title--nested {
   --shell-header-title-font-size: var(--admin-font-size-lg);
@@ -172,13 +199,6 @@
 .shell-header__views {
   align-items: flex-end;
   display: flex;
-  flex: 0 1 auto;
-  max-width: 100%;
-  min-width: 0;
-}
-
-/* The views and the preview mode menu share the header's end */
-.shell-header__end {
   flex: 0 1 auto;
   max-width: 100%;
   min-width: 0;

@@ -17,11 +17,20 @@
  * Each top-level field and message sits in a `shell-form__field` wrapper that carries the content inset,
  * so a field whose registered component declares `fullWidth` (the GridField) and the action bar reach
  * the edges of the content column. A headless form is already inside an inset field, so it adds none.
+ *
+ * When the section header carries a preview URL and the viewport has room for it, the bar ends with
+ * Share and the preview mode menu, after the host's controls. In preview mode the content is hidden, so
+ * the bar's right-hand group alone draws at the foot of the preview pane, through a portal.
  */
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import { useController, useForm } from 'react-hook-form';
 import { useGlobalStateContext } from 'piral-core';
+import { useSectionHeader } from '../header/state';
 import { useMeasuredHeight } from '../measure';
+import { usePreviewBarSlot } from '../preview/barSlot';
+import { usePreviewMode } from '../preview/mode';
+import { PreviewModeMenu } from '../preview/PreviewModeMenu';
 import { setUnsavedChanges, shellOwner } from '../unsaved';
 import { revealField, Stack } from '@silverstripe/admin-patterns';
 import { runBeforeSubmit } from './beforeSubmit';
@@ -218,6 +227,10 @@ const LoadedForm = ({
   const isDirty = React.useRef(false);
   isDirty.current = formState.isDirty;
   const barRef = useMeasuredHeight<HTMLDivElement>('--shell-form-actions-offset');
+  const preview = useSectionHeader()?.header.preview;
+  const { mode, available } = usePreviewMode();
+  const offersPreview = Boolean(preview) && available;
+  const previewBarSlot = usePreviewBarSlot();
   const formId = String(schema.attributes.id ?? schema.id);
   const dirtyListener = React.useRef(onDirtyChange);
   dirtyListener.current = onDirtyChange;
@@ -410,6 +423,13 @@ const LoadedForm = ({
     </div>
   ));
 
+  const actionsEndGroup = (actionsEnd || offersPreview) && (
+    <div className="shell-form__actions-end">
+      {actionsEnd}
+      {offersPreview && <PreviewModeMenu mode={mode} />}
+    </div>
+  );
+
   if (headless) {
     return (
       <FormRenderContext.Provider value={context}>
@@ -435,10 +455,14 @@ const LoadedForm = ({
       >
         {messages}
         {renderTopLevelFields(fields)}
-        <div className="shell-form__actions" ref={barRef}>
-          {renderFields(shownActions)}
-          {actionsEnd && <div className="shell-form__actions-end">{actionsEnd}</div>}
-        </div>
+        {offersPreview && mode === 'preview' ? (
+          previewBarSlot && createPortal(<div className="shell-form__actions">{actionsEndGroup}</div>, previewBarSlot)
+        ) : (
+          <div className="shell-form__actions" ref={barRef}>
+            {renderFields(shownActions)}
+            {actionsEndGroup}
+          </div>
+        )}
       </Stack>
     </FormRenderContext.Provider>
   );

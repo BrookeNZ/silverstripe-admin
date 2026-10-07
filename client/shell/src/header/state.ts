@@ -26,6 +26,8 @@ export interface SectionHeaderCrumb {
 export interface SectionHeader {
   /** Rendered as the page's h1 */
   title: string;
+  /** A short label drawn beside the title, such as a block's type; the title's accessible description */
+  badge?: string;
   /** The page's ancestors, nearest last, drawn as a breadcrumb above the title; the page itself is the title only */
   crumbs?: Array<SectionHeaderCrumb>;
   /** The document title's first part when it should differ from the h1; the title otherwise */

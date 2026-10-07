@@ -3,7 +3,7 @@ import * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Component as TreeDropdownField } from './TreeDropdownField';
+import { Component as TreeDropdownField, ConnectedTreeDropdownField } from './TreeDropdownField';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -64,7 +64,10 @@ function press(target: Element, key: string) {
   });
 }
 
-afterEach(() => container.remove());
+afterEach(() => {
+  container.remove();
+  vi.useRealTimers();
+});
 
 describe('TreeDropdownField', () => {
   it('steps into a node with Right, activating its first child and reading the level', () => {
@@ -119,5 +122,40 @@ describe('TreeDropdownField', () => {
     press(input(), 'Escape');
     expect(input().getAttribute('aria-expanded')).toBe('false');
     expect(input().placeholder).toBe('Documents/');
+  });
+
+  it('lists a search match below the top level with its place in the tree', async () => {
+    vi.useFakeTimers();
+    const top = { id: 0, title: null, count: 1, children: [{ id: 1, title: 'Contact us', count: 1, children: [] }] };
+    const matches = { id: 0, title: null, count: 1, children: [{ id: 2, title: 'Contact form', count: 0, contextString: 'Contact us/' }] };
+    const fetch = vi.fn((url: string) => Promise.resolve({
+      json: () => Promise.resolve(new URL(url).searchParams.has('search') ? matches : top),
+    }));
+    container = document.createElement('div');
+    document.body.append(container);
+    await act(async () => createRoot(container).render(
+      <ConnectedTreeDropdownField
+        id="Form_ParentID"
+        name="ParentID"
+        data={{ urlTree: 'admin/tree', showSearch: true }}
+        value={0}
+        fetch={fetch}
+        onChange={vi.fn()}
+      />,
+    ));
+    await act(async () => input().focus());
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input(), 'form');
+      input().dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(600);
+    });
+
+    const request = new URL(fetch.mock.calls[fetch.mock.calls.length - 1][0]);
+    expect(request.searchParams.get('search')).toBe('form');
+    expect(request.searchParams.get('flatList')).toBe('1');
+    const options = [...container.querySelectorAll('[role="option"]')].map((option) => option.textContent);
+    expect(options).toEqual(['Contact formContact us/']);
   });
 });

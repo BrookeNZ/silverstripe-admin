@@ -8,7 +8,8 @@
  * as tall as the pane, so a short form's action bar sits at the viewport bottom. The column has no
  * inline padding: the form insets its own fields, and the rest of the column's content takes the same
  * inset from `pages__inset`.
- * Only the layout and the alert colour are styled here; the pattern library step owns the look.
+ * The sidebar takes the design's pane inset, width and edges; beyond that only the layout and the alert
+ * colour are styled here, and the pattern library step owns the look.
  *
  * Below 1024px, where the shell's menu collapses into its top bar, the tree stacks above the form in a
  * pane of its own height and scrolls with the page. The design has no narrow pages layout (its Site
@@ -21,8 +22,11 @@
   --pages-pane-offset: calc(var(--shell-sticky-top) + var(--shell-header-offset));
   --pages-pane-height: calc(100vh - var(--pages-pane-offset));
   --pages-sidebar-height: 40vh;
+
+  /* Figma Site tree sidebar 2:3675: 20px toolbar and tree inset, 330px wide */
+  --pages-sidebar-inset: 2rem;
   --pages-sidebar-position: static;
-  --pages-sidebar-width: 32rem;
+  --pages-sidebar-width: 33rem;
 
   align-items: start;
   display: grid;
@@ -38,12 +42,16 @@
 }
 
 .pages__sidebar {
+  background-color: var(--admin-panel-bg-color);
+  border-inline: var(--admin-border) var(--admin-divider-color);
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: var(--admin-gap-sm);
+  gap: var(--pages-sidebar-inset);
   height: var(--pages-sidebar-height);
   inset-block-start: var(--pages-pane-offset);
   min-width: 0;
+  padding: var(--pages-sidebar-inset) var(--pages-sidebar-inset) 0;
   position: var(--pages-sidebar-position);
 }
 
@@ -63,4 +71,15 @@
 .pages__alert {
   color: var(--admin-error-fg-color);
   margin: 0;
+}
+
+.add-page__type {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--admin-gap-xs);
+}
+
+.add-page__description {
+  flex-basis: 100%;
+  padding-inline-start: calc(var(--admin-check-size) + var(--admin-gap-xs));
 }

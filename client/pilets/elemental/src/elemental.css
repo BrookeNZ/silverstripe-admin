@@ -122,3 +122,23 @@
   justify-content: flex-end;
   margin-block-start: var(--admin-gap-md);
 }
+
+/* No design; shown on hover like legacy elemental's hover bar, and on focus or where nothing can hover */
+.elemental-block__insert {
+  --elemental-block-insert-opacity: 0;
+
+  display: flex;
+  justify-content: center;
+  opacity: var(--elemental-block-insert-opacity);
+}
+
+.elemental-block__insert:hover,
+.elemental-block__insert:focus-within {
+  --elemental-block-insert-opacity: 1;
+}
+
+@media (hover: none) {
+  .elemental-block__insert {
+    --elemental-block-insert-opacity: 1;
+  }
+}

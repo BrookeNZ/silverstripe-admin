@@ -174,6 +174,11 @@ export class TreeStore {
     this.upsert(items.filter((item) => this.nodes.has(item.id)));
   }
 
+  /** Re-reads a parent's children and its own row after a page is created under it */
+  childAdded(parentId: number): Promise<void> {
+    return this.reloadParent(parentId);
+  }
+
   /** Re-reads the children a parent holds, replacing its list, and the parent's own row */
   private async reloadParent(parentId: number): Promise<void> {
     const rows = this.children(parentId).ids.length;

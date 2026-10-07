@@ -30,6 +30,12 @@ describe('pageSectionHeader', () => {
     expect(header.views?.find((view) => view.current)?.key).toBe('history');
   });
 
+  it('carries the preview URL when the page has one', () => {
+    const preview = 'https://example.test/about/?stage=Live&CMSPreview=1';
+    expect(pageSectionHeader('/pages', { id: 1, title: 'Home', view: 'edit', preview }).preview).toBe(preview);
+    expect(pageSectionHeader('/pages', { id: 1, title: 'Home', view: 'edit' })).not.toHaveProperty('preview');
+  });
+
   it('lists only the views the site has', () => {
     const header = pageSectionHeader('/pages', { id: 1, title: 'Home', view: 'settings' }, ['edit', 'settings']);
     expect(header.views?.map((view) => view.label)).toEqual(['Content', 'Settings']);

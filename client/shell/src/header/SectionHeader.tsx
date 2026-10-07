@@ -12,19 +12,15 @@
  */
 import * as React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BackIcon, Link as TextLink, Stack, TabStrip } from '@silverstripe/admin-patterns';
+import { BackIcon, Link as TextLink, TabStrip } from '@silverstripe/admin-patterns';
 import { announce } from '../announcer';
 import { useMeasuredHeight } from '../measure';
 import { routerLink } from '../routing';
-import { PreviewModeMenu } from '../preview/PreviewModeMenu';
-import { usePreviewMode } from '../preview/mode';
 import { useSectionHeader } from './state';
 import type { SectionHeaderCrumb, SectionHeader as SectionHeaderContent } from './state';
 import './header.css';
 
 export type SectionHeaderProps = Omit<SectionHeaderContent, 'documentTitle' | 'preview'> & {
-  /** Drawn after the views */
-  tools?: React.ReactNode;
   titleRef?: React.Ref<HTMLHeadingElement>;
   headerRef?: React.Ref<HTMLDivElement>;
 };
@@ -42,8 +38,9 @@ function back(backTo: string | undefined, backLabel: string | undefined, crumbs:
   return parent ? { to: parent.to, label: backLabel ?? `Back to ${parent.label}` } : null;
 }
 
-export const SectionHeader = ({ title, crumbs = [], backTo, backLabel, views = [], tools, titleRef, headerRef }: SectionHeaderProps) => {
+export const SectionHeader = ({ title, badge, crumbs = [], backTo, backLabel, views = [], titleRef, headerRef }: SectionHeaderProps) => {
   const backLink = back(backTo, backLabel, crumbs);
+  const badgeId = React.useId();
   const titleClass = crumbs.length > 0 ? 'shell-header__title shell-header__title--nested' : 'shell-header__title';
   return (
     <div className="shell-header" ref={headerRef}>
@@ -67,23 +64,25 @@ export const SectionHeader = ({ title, crumbs = [], backTo, backLabel, views = [
               </ol>
             </nav>
           )}
-          <h1 className={titleClass} ref={titleRef} tabIndex={-1}>
-            {title}
-          </h1>
+          <div className="shell-header__title-row">
+            <h1 className={titleClass} ref={titleRef} tabIndex={-1} aria-describedby={badge ? badgeId : undefined}>
+              {title}
+            </h1>
+            {badge && (
+              <span className="shell-header__badge" id={badgeId}>
+                {badge}
+              </span>
+            )}
+          </div>
         </div>
       </div>
-      {(views.length > 0 || tools) && (
-        <Stack className="shell-header__end" direction="row" spacing="lg" wrap={false}>
-          {views.length > 0 && (
-            <nav className="shell-header__views" aria-label={`${title} views`}>
-              <TabStrip
-                items={views.map((view) => ({ key: view.key, label: view.label, current: view.current, href: view.to }))}
-                renderLink={({ href, ...link }) => <Link {...link} to={href} />}
-              />
-            </nav>
-          )}
-          {tools}
-        </Stack>
+      {views.length > 0 && (
+        <nav className="shell-header__views" aria-label={`${title} views`}>
+          <TabStrip
+            items={views.map((view) => ({ key: view.key, label: view.label, current: view.current, href: view.to }))}
+            renderLink={({ href, ...link }) => <Link {...link} to={href} />}
+          />
+        </nav>
       )}
     </div>
   );
@@ -165,11 +164,5 @@ export const SectionHeaderBar = () => {
     return () => clearTimeout(timer);
   }, [entry, landings]);
 
-  const { mode, available } = usePreviewMode();
-  if (!entry) {
-    return null;
-  }
-  const { preview, ...header } = entry.header;
-  const tools = preview && available ? <PreviewModeMenu mode={mode} /> : undefined;
-  return <SectionHeader {...header} tools={tools} titleRef={titleRef} headerRef={headerRef} />;
+  return entry ? <SectionHeader {...entry.header} titleRef={titleRef} headerRef={headerRef} /> : null;
 };

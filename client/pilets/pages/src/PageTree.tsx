@@ -13,6 +13,7 @@ import { hotkeysCoreFeature, syncDataLoaderFeature } from '@headless-tree/core';
 import type { ItemInstance, TreeInstance } from '@headless-tree/core';
 import { useTree } from '@headless-tree/react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { CollapsedIcon, ExpandedIcon, PageTypeIcon } from '@silverstripe/admin-patterns';
 import { childItemIds, entryFor, entryName, pageItemId, rootItemId } from './treeEntries';
 import type { TreeEntry } from './treeEntries';
 import './PageTree.css';
@@ -29,7 +30,10 @@ export interface PageTreeProps {
 const typeaheadResetMs = 500;
 
 // Rows are measured once rendered; this only sizes the scrollbar before then
-const rowEstimatePx = 32;
+const rowEstimatePx = 30;
+
+// The design tints a page with unpublished changes; other flags keep the plain row
+const changedFlagKeys = new Set(['addedtodraft', 'modified']);
 
 function useTypeahead() {
   const buffer = React.useRef({ text: '', at: 0 });
@@ -84,14 +88,19 @@ const TreeRowContent = ({ item }: { item: ItemInstance<TreeEntry> }) => {
   return (
     <>
       <span className="pages-tree__toggle" aria-hidden="true" onClick={item.isFolder() ? toggle : undefined}>
-        {item.isFolder() ? (item.isExpanded() ? '▾' : '▸') : ''}
+        {item.isFolder() && (item.isExpanded() ? <ExpandedIcon /> : <CollapsedIcon />)}
       </span>
-      <span className="pages-tree__title">{entry.node.title}</span>
-      {entry.node.statusFlags.map((flag) => (
-        <span className="pages-tree__flag" key={flag.key} title={flag.title ?? undefined}>
-          {flag.text}
+      <span className="pages-tree__label">
+        <PageTypeIcon className="pages-tree__icon" />
+        <span className="pages-tree__text">
+          <span className="pages-tree__title">{entry.node.title}</span>
+          {entry.node.statusFlags.map((flag) => (
+            <span className="pages-tree__flag" key={flag.key} title={flag.title ?? undefined}>
+              {flag.text}
+            </span>
+          ))}
         </span>
-      ))}
+      </span>
     </>
   );
 };
@@ -220,6 +229,14 @@ export const PageTree = ({ store, currentId, onSelect, onRevealError, hidden }: 
           const { ref: registerItem, onClick: _toggleOnClick, ...itemProps } = item.getProps();
           const entry = item.getItemData();
           const current = entry?.kind === 'page' && entry.node.id === currentId;
+          const changed = entry?.kind === 'page' && entry.node.statusFlags.some((flag) => changedFlagKeys.has(flag.key));
+          const className = [
+            'pages-tree__item',
+            current && 'pages-tree__item--current',
+            changed && 'pages-tree__item--changed',
+          ]
+            .filter(Boolean)
+            .join(' ');
           return (
             <div
               {...itemProps}
@@ -230,7 +247,7 @@ export const PageTree = ({ store, currentId, onSelect, onRevealError, hidden }: 
               }}
               data-index={row.index}
               aria-selected={entry?.kind === 'page' ? current : undefined}
-              className={current ? 'pages-tree__item pages-tree__item--current' : 'pages-tree__item'}
+              className={className}
               style={
                 {
                   '--pages-tree-item-level': item.getItemMeta().level,

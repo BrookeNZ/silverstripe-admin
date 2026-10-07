@@ -1,5 +1,5 @@
 /**
- * The preview pane's mode, shared by the section header's mode menu and the layout's pane. The choice is
+ * The preview pane's mode, shared by the action bar's mode menu and the layout's pane. The choice is
  * the viewer's own and kept in localStorage, which can be missing or throw (private windows, blocked site
  * data), so every read and write falls back to edit mode in memory. Below 1024px, where the menu becomes
  * the top bar, there is no room beside the form and the effective mode is always edit.

@@ -29,6 +29,9 @@ export function setup(api: PiletApi) {
       pageClass: siteTree,
       // The url_segment of PageTreeController in the admin module
       treeUrl: new URL(`${section.url}/tree/`, document.baseURI).href,
+      // The url_segment of PageCreateController in the admin module
+      createUrl: new URL(`${section.url}/create/`, document.baseURI).href,
+      securityId: () => String(config.SecurityID ?? ''),
       loginUrl: adminUrl.href,
       schemaUrls: {
         edit: editFormSchemaUrl(editSection.url),

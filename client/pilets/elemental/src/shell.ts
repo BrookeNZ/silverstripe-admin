@@ -1,5 +1,5 @@
 /**
- * The Pilet API additions this pilet uses, `registerBeforeSubmit`, header crumbs and FormSchemaForm's headless mode,
+ * The Pilet API additions this pilet uses, `registerBeforeSubmit`, header crumbs and badge and FormSchemaForm's headless mode,
  * copied from `client/shell/src/forms/types.ts` and `api/silverstripe.ts` so the pilet builds against an
  * emulator that predates them. On a shell without the verb, page Save does not save dirty blocks first
  */
@@ -24,7 +24,7 @@ export interface FormSchemaFormHandle {
   isDirty(): boolean;
 }
 
-export type HeaderWithCrumbs = SectionHeader & { crumbs?: Array<{ label: string; to: string }> };
+export type HeaderWithCrumbs = SectionHeader & { crumbs?: Array<{ label: string; to: string }>; badge?: string };
 
 export type ElementalPiletApi = Omit<PiletApi, 'setSectionHeader'> & {
   registerBeforeSubmit?(formId: string, handler: BeforeSubmitHandler): () => void;

@@ -11,6 +11,10 @@
  *
  * The dialogs render into the document body, because Enter in a control inside the page form would submit it.
  *
+ * Every row but the last carries an add control that posts `insertAfterElementID`; the header button
+ * appends, so the last row has none. The design draws no insert control, so it follows legacy elemental's
+ * hover bar and shows on hover and on focus.
+ *
  * Create, duplicate and the other writes answer 204 with no id, so the list is re-read after each; a new
  * block is the id the re-read adds. Reordering is dnd-kit with a drag handle (pointer and keyboard) plus
  * Move up and Move down in the block menu.
@@ -25,7 +29,7 @@ import { AddIcon, Button, Dialog } from '@silverstripe/admin-patterns';
 import type { Block, ElementalApi } from './api';
 import { afterBlockId, blockTitle, blockType, moveBlock } from './blocks';
 import type { ElementType } from './blocks';
-import { BlockRow, handleId, menuId } from './BlockRow';
+import { BlockRow, handleId, insertId, menuId } from './BlockRow';
 import type { BlockAction } from './BlockRow';
 import { AddBlockDialog } from './AddBlockDialog';
 import { closestEdge, stepByRow } from './collision';
@@ -120,6 +124,7 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
     const [saving, setSaving] = React.useState<ReadonlySet<number>>(new Set());
     const [adding, setAdding] = React.useState<'closed' | 'open' | 'posting'>('closed');
     const [addError, setAddError] = React.useState<string | null>(null);
+    const [insertAfter, setInsertAfter] = React.useState<Block | null>(null);
     const creating = React.useRef(false);
     const root = React.useRef<HTMLDivElement>(null);
     const [areaTitle, setAreaTitle] = React.useState<string | null>(null);
@@ -328,7 +333,8 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
       focusLater(neighbour ? menuId(neighbour) : addButtonId);
     };
 
-    const openAddDialog = () => {
+    const openAddDialog = (after: Block | null) => {
+      setInsertAfter(after);
       setAddError(null);
       setAdding('open');
     };
@@ -343,7 +349,7 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
       setAdding('posting');
       const before = new Set((blocksRef.current ?? []).map((block) => block.id));
       try {
-        await client.create(type.class, areaId);
+        await (insertAfter ? client.create(type.class, areaId, insertAfter.id) : client.create(type.class, areaId));
       } catch (error) {
         setAdding('open');
         setAddError(`The block could not be added: ${error instanceof Error ? error.message : String(error)}`);
@@ -363,7 +369,7 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
         }
         focusLater(menuId(created));
       } else {
-        focusLater(addButtonId);
+        focusLater(insertAfter ? insertId(insertAfter) : addButtonId);
       }
     };
 
@@ -459,6 +465,7 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
                       setIn(setExpanded, block.id, !isExpanded);
                     }}
                     onAction={(action) => onAction(block, action)}
+                    onInsertAfter={addableTypes.length > 0 && index < blocks.length - 1 ? () => openAddDialog(block) : undefined}
                   >
                     {mounted.has(block.id) && (
                       <div className="elemental-block__panel" hidden={!isExpanded}>
@@ -496,7 +503,7 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
         <div className="elemental-area__header">
           <h2 className="elemental-area__title">{heading}</h2>
           {addableTypes.length > 0 && (
-            <Button id={addButtonId} variant="primary" icon={<AddIcon size="sm" />} aria-label={addLabel} onClick={openAddDialog}>
+            <Button id={addButtonId} variant="primary" icon={<AddIcon size="sm" />} aria-label={addLabel} onClick={() => openAddDialog(null)}>
               Add a block
             </Button>
           )}
@@ -506,7 +513,7 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
           <>
             <AddBlockDialog
               open={adding !== 'closed'}
-              header={addLabel}
+              header={insertAfter ? `Add a block after ${blockName(insertAfter)}` : addLabel}
               types={addableTypes}
               adding={adding === 'posting'}
               error={addError}

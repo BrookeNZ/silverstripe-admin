@@ -21,3 +21,7 @@ SilverStripe\Forms\FormField:
 SilverStripe\Control\RequestHandler:
   extensions:
     - SilverStripe\Admin\AdminErrorExtension
+
+SilverStripe\ORM\DataObject:
+  extensions:
+    - SilverStripe\Admin\Forms\TreeChildrenExtension

@@ -227,6 +227,26 @@ describe('ElementalArea', () => {
     expect(forms.has('/schema/elementForm/9')).toBe(true);
   });
 
+  it('inserts a block after the row whose add control was chosen', async () => {
+    client.create.mockImplementationOnce(async (_class: string, _area: number, after?: number) => {
+      const at = stored.findIndex((item) => item.id === after) + 1;
+      stored = [...stored.slice(0, at), block(9, 'New quote', 'App_Blocks_QuoteBlock', { isPublished: false }), ...stored.slice(at)];
+    });
+    await render();
+    expect(button('Add a block after Closing quote')).toBeUndefined();
+    await click(button('Add a block after Opening quote'));
+    expect(document.querySelector('dialog[open] .admin-dialog__title')?.textContent).toBe('Add a block after Opening quote');
+    const input = document.querySelector<HTMLInputElement>('dialog [role="combobox"]')!;
+    act(() => {
+      input.focus();
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    });
+    await click([...document.querySelectorAll<HTMLElement>('[role="option"]')].find((option) => option.textContent === 'Quote')!);
+    await click([...document.querySelectorAll<HTMLButtonElement>('dialog button')].find((candidate) => candidate.textContent === 'Add block')!);
+    expect(client.create).toHaveBeenCalledWith('App\\Blocks\\QuoteBlock', 21, 1);
+    expect([...container.querySelectorAll('.elemental-block__title')].map((title) => title.firstChild?.textContent)).toEqual(['Opening quote', 'New quote', 'Cards', 'Closing quote']);
+  });
+
   it('creates one block when Add block is pressed twice in one tick', async () => {
     await render();
     await click(button('Add a block'));

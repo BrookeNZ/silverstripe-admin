@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
-import { Button, CollapsedIcon, ExpandedIcon, Link, Menu, ReorderIcon } from '@silverstripe/admin-patterns';
+import { AddIcon, Button, CollapsedIcon, ExpandedIcon, Link, Menu, ReorderIcon } from '@silverstripe/admin-patterns';
 import type { Block } from './api';
 import { blockStatus, blockTitle, statusLabels } from './blocks';
 import type { ElementType } from './blocks';
@@ -21,6 +21,8 @@ export interface BlockRowProps {
   renderRouterLink(props: Record<string, unknown>): React.ReactElement;
   onToggle(): void;
   onAction(action: BlockAction): void;
+  /** Opens the add dialog to insert after this block; no control renders without it */
+  onInsertAfter?(): void;
   children?: React.ReactNode;
 }
 
@@ -45,8 +47,12 @@ export function handleId(block: Pick<Block, 'id'>): string {
   return `elemental-block-${block.id}-handle`;
 }
 
+export function insertId(block: Pick<Block, 'id'>): string {
+  return `elemental-block-${block.id}-insert`;
+}
+
 export const BlockRow = (props: BlockRowProps) => {
-  const { block, type, expanded, dirty, busy, editLink, renderRouterLink, onToggle, onAction, children } = props;
+  const { block, type, expanded, dirty, busy, editLink, renderRouterLink, onToggle, onAction, onInsertAfter, children } = props;
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: block.id,
     disabled: busy,
@@ -132,6 +138,19 @@ export const BlockRow = (props: BlockRowProps) => {
         </div>
       </div>
       {inline && children}
+      {onInsertAfter && (
+        <div className="elemental-block__insert">
+          <Button
+            id={insertId(block)}
+            variant="tertiary"
+            size="sm"
+            iconOnly
+            icon={<AddIcon size="sm" />}
+            aria-label={`Add a block after ${title}`}
+            onClick={onInsertAfter}
+          />
+        </div>
+      )}
     </li>
   );
 };
