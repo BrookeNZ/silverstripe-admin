@@ -20,3 +20,7 @@
   color: var(--admin-muted-fg-color);
   margin: 0;
 }
+
+.htmleditor-source__code {
+  font-family: var(--admin-font-family-mono);
+}

@@ -14,7 +14,7 @@
  * to focus after a server error; its `focus()` is pointed at the editor.
  *
  * Links go through the shell's link dialog (`LinkDialog`), opened from the toolbar, the context menu, a
- * link's context toolbar or Ctrl/Cmd+K.
+ * link's context toolbar or Ctrl/Cmd+K. The source code button opens the shell's `SourceCodeDialog`.
  */
 import * as React from 'react';
 import { describedBy, FieldHolder } from '@silverstripe/admin-patterns';
@@ -25,6 +25,8 @@ import { availableKinds, kindForHref } from './links';
 import type { LinkFormSection, LinkKind } from './links';
 import { applyLink, currentLink, linkAttributes, registerLinkUi } from './linkUi';
 import { loadTinyMce } from './loadTinyMce';
+import { SourceCodeDialog } from './SourceCodeDialog';
+import { applySourceCode, registerSourceCodeUi } from './sourceCodeUi';
 import { editorOptions, parseEditorConfig } from './settings';
 import type { HtmlEditorFieldProps, HtmlEditorPiletApi, SchemaFormDialogProps } from './shell';
 
@@ -101,6 +103,8 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
     const linkKinds = React.useMemo(() => (FormDialog ? linkKindsFromConfig(api) : []), []);
     const [linkRequest, setLinkRequest] = React.useState<LinkDialogRequest | null>(null);
     const linkBookmark = React.useRef<unknown>(null);
+    const [sourceCode, setSourceCode] = React.useState<string | null>(null);
+    const [sourceCodeKey, setSourceCodeKey] = React.useState(0);
 
     const report = React.useCallback(() => {
       clearTimeout(timer.current);
@@ -169,6 +173,24 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
       });
     };
 
+    const openSourceCode = React.useCallback(() => {
+      const editor = editorRef.current;
+      if (!editor || editor.mode.isReadOnly()) {
+        return;
+      }
+      setSourceCodeKey((key) => key + 1);
+      setSourceCode(editor.getContent({ source_view: true }));
+    }, []);
+
+    const saveSourceCode = (html: string) => {
+      const editor = editorRef.current;
+      setSourceCode(null);
+      if (editor) {
+        applySourceCode(editor, html);
+        report();
+      }
+    };
+
     React.useEffect(() => {
       const element = host.current;
       if (!element) {
@@ -204,6 +226,7 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
           latest.current.onBlur();
         });
         registerLinkUi(editor, () => latestOpenLinkDialog.current());
+        registerSourceCodeUi(editor, openSourceCode);
       };
 
       load(String(config.baseURL ?? ''))
@@ -236,7 +259,7 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
         textareaRef.current = null;
       };
       // Read-only state changes on the running editor below; a new config starts a new editor
-    }, [config, field.id, field.name, load, report]);
+    }, [config, field.id, field.name, load, report, openSourceCode]);
 
     React.useEffect(() => {
       editorRef.current?.mode.set(readOnly ? 'readonly' : 'design');
@@ -324,6 +347,7 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
           )}
           <div className={focused ? 'htmleditor-field htmleditor-field--focused' : 'htmleditor-field'} ref={host} aria-busy={status === 'loading'} />
         </FieldHolder>
+        <SourceCodeDialog key={sourceCodeKey} content={sourceCode} onCancel={() => setSourceCode(null)} onSave={saveSourceCode} />
         {FormDialog && (
           <LinkDialog request={linkRequest} kinds={linkKinds} FormDialog={FormDialog} onClose={cancelLink} onSubmit={insertLink} />
         )}

@@ -172,11 +172,11 @@
   --admin-success-fg-color: var(--admin-palette-button-primary);
   --admin-sunken-bg-color: var(--admin-palette-blue-100);
 
-  /* Grey 900 label 5.94:1 on it */
-  --admin-tertiary-action-hover-color: var(--admin-palette-grey-200);
-
   /* WCAG 2.5.8 target size */
   --admin-target-min-size: 2.4rem;
+
+  /* Grey 900 label 5.94:1 on it */
+  --admin-tertiary-action-hover-color: var(--admin-palette-grey-200);
   --admin-transition: background-color var(--admin-transition-duration) var(--admin-transition-easing),
     border-color var(--admin-transition-duration) var(--admin-transition-easing),
     color var(--admin-transition-duration) var(--admin-transition-easing);

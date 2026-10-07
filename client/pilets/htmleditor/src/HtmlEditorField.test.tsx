@@ -27,6 +27,9 @@ class FakeEditor {
     },
   };
   addShortcut = vi.fn();
+  commands = new Map<string, () => void>();
+  addCommand = (name: string, command: () => void) => this.commands.set(name, command);
+  nodeChanged = vi.fn();
   focus = vi.fn();
   execCommand = vi.fn();
   /** The anchor the cursor is in, if any */
@@ -40,6 +43,7 @@ class FakeEditor {
     isCollapsed: () => this.collapsed,
     setNode: vi.fn(),
     collapse: vi.fn(),
+    setCursorLocation: vi.fn(),
   };
   body = document.createElement('div');
   getBody() {
@@ -59,7 +63,7 @@ class FakeEditor {
     },
     encode: (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;'),
   };
-  undoManager = { clear: vi.fn(), add: vi.fn() };
+  undoManager = { clear: vi.fn(), add: vi.fn(), transact: vi.fn((change: () => void) => change()) };
   iframeElement = document.createElement('iframe');
   contentArea = document.createElement('div');
   setDirty = vi.fn();
@@ -422,7 +426,7 @@ describe('HtmlEditorField links', () => {
   const dialog = () => container.querySelector<HTMLElement>('[role="dialog"]');
   const press = (name: string) =>
     act(() => {
-      [...container.querySelectorAll('button')].find((button) => button.textContent === name)!.click();
+      [...dialog()!.querySelectorAll('button')].find((button) => button.textContent === name)!.click();
     });
 
   it('inserts a page link with its text where the selection was empty', async () => {
@@ -494,5 +498,47 @@ describe('HtmlEditorField links', () => {
     editor.readOnly = true;
     act(() => editor.buttons.get('sslink')!.onAction());
     expect(dialog()).toBeNull();
+  });
+});
+
+describe('HtmlEditorField source code', () => {
+  const dialog = () => container.querySelector<HTMLDialogElement>('dialog[open]');
+  const press = (name: string) =>
+    act(() => {
+      [...dialog()!.querySelectorAll('button')].find((button) => button.textContent === name)!.click();
+    });
+  const edit = (html: string) =>
+    act(() => {
+      const textarea = dialog()!.querySelector('textarea')!;
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(textarea, html);
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+  it('opens on the current content and writes the edited HTML back on Save', async () => {
+    const { editor } = await render('Hello');
+    editor.fire('PreInit');
+    act(() => editor.commands.get('mceCodeEditor')!());
+    expect(dialog()!.querySelector('h2')!.textContent).toBe('Source code');
+    expect(dialog()!.querySelector('label')!.textContent).toBe('Source code');
+    expect(dialog()!.querySelector('textarea')!.value).toBe('<p>Hello</p>');
+    edit('<p>Hello <strong>world</strong></p>');
+    press('Save');
+    expect(dialog()).toBeNull();
+    expect(editor.undoManager.transact).toHaveBeenCalled();
+    expect(editor.getContent()).toBe('<p>Hello <strong>world</strong></p>');
+    expect(changes).toEqual(['<p>Hello <strong>world</strong></p>']);
+    expect(dirty()).toBe('true');
+  });
+
+  it('discards the edit on Cancel and opens on the content again', async () => {
+    const { editor } = await render('Hello');
+    act(() => editor.buttons.get('code')!.onAction());
+    edit('<p>Gone</p>');
+    press('Cancel');
+    expect(dialog()).toBeNull();
+    expect(editor.undoManager.transact).not.toHaveBeenCalled();
+    expect(changes).toEqual([]);
+    act(() => editor.buttons.get('code')!.onAction());
+    expect(dialog()!.querySelector('textarea')!.value).toBe('<p>Hello</p>');
   });
 });

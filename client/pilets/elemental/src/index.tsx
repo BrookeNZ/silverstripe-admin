@@ -1,5 +1,6 @@
 import type { PiletApi } from '@silverstripe/admin-shell';
 import { createElementalApi } from './api';
+import { blockEditRoute, createBlockEditPage } from './BlockEditPage';
 import type { ElementType } from './blocks';
 import { createElementalAreaField } from './ElementalArea';
 import type { ElementalPiletApi } from './shell';
@@ -8,6 +9,8 @@ import './elemental.css';
 const areaController = 'DNADesign\\Elemental\\Controllers\\ElementalAreaController';
 const areaField = 'DNADesign\\Elemental\\Forms\\ElementalAreaField';
 const siteTree = 'SilverStripe\\CMS\\Model\\SiteTree';
+const cmsMain = 'SilverStripe\\CMS\\Controllers\\CMSMain';
+const cmsPageEdit = 'SilverStripe\\CMS\\Controllers\\CMSPageEditController';
 
 interface AreaSection {
   url: string;
@@ -45,4 +48,20 @@ export function setup(api: PiletApi) {
       pageClass: siteTree,
     }),
   );
+
+  const pagesSection = config.sections.find((candidate) => candidate.name === cmsMain);
+  const editSection = config.sections.find((candidate) => candidate.name === cmsPageEdit);
+  if (pagesSection?.reactRoutePath && editSection) {
+    const routePrefix = `/${pagesSection.reactRoutePath}`;
+    api.registerPage(
+      blockEditRoute(routePrefix),
+      createBlockEditPage({
+        api: api as ElementalPiletApi,
+        types: section.elementTypes ?? [],
+        pageClass: siteTree,
+        routePrefix,
+        editSectionUrl: new URL(editSection.url.replace(/\/$/, ''), document.baseURI).href,
+      }),
+    );
+  }
 }

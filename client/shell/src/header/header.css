@@ -176,3 +176,10 @@
   max-width: 100%;
   min-width: 0;
 }
+
+/* The views and the preview mode menu share the header's end */
+.shell-header__end {
+  flex: 0 1 auto;
+  max-width: 100%;
+  min-width: 0;
+}

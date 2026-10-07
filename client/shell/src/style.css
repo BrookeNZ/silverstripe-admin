@@ -249,10 +249,21 @@ body {
   min-width: 0;
 }
 
+/* The body beside the preview pane (preview/preview.css); a row whatever the mode, so the body stays mounted */
+.shell__workspace {
+  display: flex;
+  flex: 1;
+}
+
 .shell__body {
   display: flex;
   flex: 1;
   flex-direction: column;
+  min-width: 0;
+}
+
+.shell__body--hidden {
+  display: none;
 }
 
 /* Visually hidden; read by assistive technology only */

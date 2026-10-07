@@ -145,7 +145,8 @@ export const Combobox = <T,>({
   const visible = loadOptions ? loaded ?? [] : options.filter((option) => matches(option, inputValue));
   const enabled = visible.map((option, index) => (isOptionDisabled(option) ? -1 : index)).filter((index) => index >= 0);
   const keyedIndex = visible.findIndex((option) => keyOf(option) === activeKey);
-  const activeIndex = keyedIndex < 0 && activeKey !== null ? enabled[0] ?? -1 : keyedIndex;
+  const typed = editing && inputValue !== '';
+  const activeIndex = keyedIndex < 0 && (activeKey !== null || typed) ? enabled[0] ?? -1 : keyedIndex;
   const activeOption = activeIndex >= 0 ? visible[activeIndex] : undefined;
   const optionId = (index: number) => `${listboxId}-${index}`;
   useAnchoredLayer(open, control, popup, 'start', 'bottom');

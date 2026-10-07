@@ -136,10 +136,23 @@ describe('Combobox', () => {
     expect(onInputChange).toHaveBeenCalledWith('err');
     expect(input().getAttribute('aria-expanded')).toBe('true');
     expect(options().map((option) => option.textContent)).toEqual(['Cherry']);
-    expect(input().hasAttribute('aria-activedescendant')).toBe(false);
+    expect(active()).toBe('Cherry');
     type('zzz');
     expect(options()).toHaveLength(0);
     expect(container.querySelector('[role="status"]')?.textContent).toBe('No options');
+  });
+
+  it('chooses the first match with Enter after typing, without an arrow key', () => {
+    const onChange = vi.fn();
+    render({ onChange });
+    type('a');
+    const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    act(() => {
+      input().dispatchEvent(enter);
+    });
+    expect(enter.defaultPrevented).toBe(true);
+    expect(onChange).toHaveBeenCalledWith(fruit[0]);
+    expect(input().getAttribute('aria-expanded')).toBe('false');
   });
 
   it('follows a controlled value', () => {

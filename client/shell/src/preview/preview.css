@@ -1,0 +1,40 @@
+/**
+ * Preview pane
+ *
+ * The record's draft preview beside the section's content (split mode) or in its place (preview
+ * mode). The design's bottom bar variants (Figma 2:6892, 2:6906, 2:6921) draw only the mode menu, not
+ * the pane, so the even split and the divider are the shell's own: the divider repeats the section
+ * header's border. The pane sticks under the header and fills the rest of the viewport
+ */
+
+:root {
+  --shell-preview-border: var(--shell-header-border) var(--admin-divider-color);
+  --shell-preview-inline-size: 50%;
+  --shell-preview-top: calc(var(--shell-sticky-top) + var(--shell-header-offset));
+}
+
+.shell-preview {
+  block-size: calc(100vh - var(--shell-preview-top));
+  border-inline-start: var(--shell-preview-border);
+  box-sizing: border-box;
+  display: flex;
+  flex: 0 0 var(--shell-preview-inline-size);
+  inset-block-start: var(--shell-preview-top);
+  position: sticky;
+}
+
+/* In preview mode the pane is all there is */
+.shell-preview--full {
+  --shell-preview-border: none;
+  --shell-preview-inline-size: 100%;
+}
+
+.shell-preview__frame {
+  border: 0;
+  flex: 1;
+}
+
+/* The views' tabs sit on the header's divider; the menu centres in the bar */
+.shell-preview-tools {
+  align-self: center;
+}

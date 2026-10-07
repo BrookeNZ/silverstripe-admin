@@ -35,6 +35,8 @@ export interface SectionHeader {
   /** The back button's accessible name; "Back", or "Back to <last crumb>" when back goes there */
   backLabel?: string;
   views?: Array<SectionHeaderView>;
+  /** The record's draft preview URL; with it the header offers edit, split and preview modes */
+  preview?: string;
 }
 
 export interface SectionHeaderEntry {

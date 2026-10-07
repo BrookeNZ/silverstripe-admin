@@ -48,15 +48,18 @@ const SectionView = ({ route }: { route: SectionRoute }) => {
  * Builds the not_found view for the shell's menu; paths it does not render go to the fallback. A record
  * page reports its saves through `notify`
  */
-export function createSectionPage(menu: Array<SilverstripeMenuItem>, Fallback: React.ComponentType, notify: Notify) {
+export function createSectionPage(menu: Array<SilverstripeMenuItem>, Fallback: React.ComponentType<{ owned?: boolean }>, notify: Notify) {
   let sections: Array<ShellSection> | null = null;
   const SectionPage = () => {
     sections ??= menuSections(menu, window.ss?.config?.sections ?? []);
     const { pathname } = useLocation();
     const pages = useGlobalState((state) => state.registry.pages);
     const route = resolveSectionRoute(pathname, sections);
-    if (!route || piletOwnsSection(Object.keys(pages), route.section)) {
+    if (!route) {
       return <Fallback />;
+    }
+    if (piletOwnsSection(Object.keys(pages), route.section)) {
+      return <Fallback owned />;
     }
     const record = recordRoute(route);
     return record ? <RecordEditPage key={record.itemUrl} route={record} notify={notify} /> : <SectionView route={route} />;

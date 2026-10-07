@@ -4,14 +4,15 @@
  * lives in the page URL (see query.ts), so every change is a navigation the unsaved changes guard sees.
  *
  * Markup is a plain table: a caption names it, sortable headers are buttons with `aria-sort` on the
- * `th`, the first data column is the row header, and row actions name their row for screen readers.
+ * `th`, the first data column is the row header, and row actions name their row for screen readers:
+ * edit and view stay links, and the posted actions sit in one "..." Menu per row.
  * The grid sits inside the CMS form, so every button is `type="button"` and the search box has no
  * name and keeps Enter from submitting the form.
  */
 import * as React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useGlobalState, useGlobalStateContext } from 'piral-core';
-import { Button, Dialog, Link, SearchIcon, SortAscendingIcon, SortDescendingIcon, Stack } from '@silverstripe/admin-patterns';
+import { Button, Dialog, Link, Menu, SearchIcon, SortAscendingIcon, SortDescendingIcon, Stack } from '@silverstripe/admin-patterns';
 import { rowPaginationFeature, rowSortingFeature, tableFeatures, useTable } from '@tanstack/react-table';
 import type { ColumnDef, PaginationState, SortingState, Updater } from '@tanstack/react-table';
 import { componentSlotName, silverstripeComponent } from '../api/silverstripe';
@@ -162,7 +163,7 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
     const link = row.actions.find((action) => action.type === 'link' && (action.name === 'edit' || action.name === 'view'));
     const path = link ? routerPath(link.url) : null;
     const target = event.target as HTMLElement;
-    if (!path || target.closest('a, button, input, select, textarea, label') || window.getSelection()?.toString()) {
+    if (!path || target.closest('a, button, input, select, textarea, label, [role="menu"]') || window.getSelection()?.toString()) {
       return;
     }
     navigateTo(path);
@@ -259,7 +260,7 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
                       component={silverstripeComponent}
                     />
                     {column.actions && (
-                      <RowActions row={row.original} readonly={payload?.grid.readonly ?? true} onAction={(action) => (action.confirm ? setConfirming({ action, row: row.original }) : runAction(action, row.original))} />
+                      <RowActions gridId={id} row={row.original} readonly={payload?.grid.readonly ?? true} onAction={(action) => (action.confirm ? setConfirming({ action, row: row.original }) : runAction(action, row.original))} />
                     )}
                   </>
                 );
@@ -309,27 +310,32 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
 };
 
 export interface RowActionsProps {
+  gridId: string;
   row: GridRow;
   readonly: boolean;
   onAction(action: GridPostAction): void;
 }
 
-export const RowActions = ({ row, readonly, onAction }: RowActionsProps) => {
+export const RowActions = ({ gridId, row, readonly, onAction }: RowActionsProps) => {
   const label = rowLabel(row);
+  const links = row.actions.filter((action) => action.type === 'link');
+  const posted = readonly ? [] : row.actions.filter((action): action is GridPostAction => action.type === 'action');
   return (
     <span className="admin-grid__actions">
-      {row.actions.map((action) =>
-        action.type === 'link' ? (
-          <Link key={action.name} {...linkTarget(action.url)}>
-            {action.title}
-            <span className="admin-grid__hidden"> {label}</span>
-          </Link>
-        ) : readonly ? null : (
-          <Button key={action.name} variant="text" onClick={() => onAction(action)}>
-            {action.title}
-            <span className="admin-grid__hidden"> {label}</span>
-          </Button>
-        ),
+      {links.map((action) => (
+        <Link key={action.name} {...linkTarget(action.url)}>
+          {action.title}
+          <span className="admin-grid__hidden"> {label}</span>
+        </Link>
+      ))}
+      {posted.length > 0 && (
+        <Menu id={`${gridId}_Actions_${row.id}`} label={`Actions for ${label}`}>
+          {posted.map((action) => (
+            <Button key={action.name} variant="tertiary" tone={action.confirm ? 'danger' : undefined} onClick={() => onAction(action)}>
+              {action.title}
+            </Button>
+          ))}
+        </Menu>
       )}
     </span>
   );

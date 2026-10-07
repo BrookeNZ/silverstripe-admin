@@ -1,9 +1,9 @@
 /**
- * The Pilet API additions this pilet uses, `registerBeforeSubmit` and FormSchemaForm's headless mode,
+ * The Pilet API additions this pilet uses, `registerBeforeSubmit`, header crumbs and FormSchemaForm's headless mode,
  * copied from `client/shell/src/forms/types.ts` and `api/silverstripe.ts` so the pilet builds against an
  * emulator that predates them. On a shell without the verb, page Save does not save dirty blocks first
  */
-import type { FieldComponentProps, FormSchemaResponse, PiletApi } from '@silverstripe/admin-shell';
+import type { FieldComponentProps, FormSchemaResponse, PiletApi, SectionHeader } from '@silverstripe/admin-shell';
 
 export interface BeforeSubmitContext {
   action: string;
@@ -24,8 +24,11 @@ export interface FormSchemaFormHandle {
   isDirty(): boolean;
 }
 
-export type ElementalPiletApi = PiletApi & {
+export type HeaderWithCrumbs = SectionHeader & { crumbs?: Array<{ label: string; to: string }> };
+
+export type ElementalPiletApi = Omit<PiletApi, 'setSectionHeader'> & {
   registerBeforeSubmit?(formId: string, handler: BeforeSubmitHandler): () => void;
+  setSectionHeader(header: HeaderWithCrumbs): () => void;
 };
 
 export type AreaFieldProps = FieldComponentProps<unknown> & { formId?: string };
