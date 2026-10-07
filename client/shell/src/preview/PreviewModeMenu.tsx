@@ -30,7 +30,14 @@ export const PreviewModeMenu = ({ mode }: { mode: PreviewMode }) => {
       <Button variant="tertiary" icon={<ShareIcon />} disabled>
         Share
       </Button>
-      <Menu id={previewModeMenuId} label={`View: ${current.label}`} title={current.label} placement="top">
+      <Menu
+        id={previewModeMenuId}
+        label={`View: ${current.label}`}
+        title={current.label}
+        icon={modeIcons[current.mode]}
+        variant="tertiary"
+        placement="top"
+      >
         {previewModes.map((option) => (
           <Button
             key={option.mode}

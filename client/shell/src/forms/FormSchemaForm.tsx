@@ -19,8 +19,10 @@
  * the edges of the content column. A headless form is already inside an inset field, so it adds none.
  *
  * When the section header carries a preview URL and the viewport has room for it, the bar ends with
- * Share and the preview mode menu, after the host's controls. In preview mode the content is hidden, so
- * the bar's right-hand group alone draws at the foot of the preview pane, through a portal.
+ * Share and the preview mode menu. In split and preview modes the host's preview controls (the pages
+ * section's draft and published toggle) come first; edit mode leaves them out, as the design does. In
+ * preview mode the content is hidden, so the bar's right-hand group alone draws at the foot of the
+ * preview pane, through a portal.
  */
 import * as React from 'react';
 import { createPortal } from 'react-dom';
@@ -74,8 +76,8 @@ export interface FormSchemaFormProps {
   renderLoadError?(error: unknown): React.ReactNode;
   /** Reports unsaved changes even when the form state does not ask to, as legacy change tracking did for every CMS edit form */
   trackUnsavedChanges?: boolean;
-  /** Controls the host adds to the right-hand end of the action bar, such as the draft and published toggle */
-  actionsEnd?: React.ReactNode;
+  /** Controls for what the preview shows, such as the draft and published toggle; drawn before Share in split and preview modes only */
+  previewControls?: React.ReactNode;
   /** Called with the loaded response, for a host that shows what the endpoint sends beside the form */
   onLoad?(response: FormSchemaResponse): void;
   /** Asked before an action is submitted; false cancels it, as the legacy delete confirmation did */
@@ -204,7 +206,7 @@ const LoadedForm = ({
   onStateChange,
   omitFields = noFields,
   trackUnsavedChanges,
-  actionsEnd,
+  previewControls,
   confirmAction,
   headless,
   handleRef,
@@ -423,10 +425,10 @@ const LoadedForm = ({
     </div>
   ));
 
-  const actionsEndGroup = (actionsEnd || offersPreview) && (
+  const actionsEndGroup = offersPreview && (
     <div className="shell-form__actions-end">
-      {actionsEnd}
-      {offersPreview && <PreviewModeMenu mode={mode} />}
+      {mode !== 'edit' && previewControls}
+      <PreviewModeMenu mode={mode} />
     </div>
   );
 
@@ -480,7 +482,7 @@ export const FormSchemaForm = ({
   omitFields,
   renderLoadError,
   trackUnsavedChanges,
-  actionsEnd,
+  previewControls,
   onLoad,
   confirmAction,
   headless,
@@ -539,7 +541,7 @@ export const FormSchemaForm = ({
       onStateChange={onStateChange}
       omitFields={omitFields}
       trackUnsavedChanges={trackUnsavedChanges}
-      actionsEnd={actionsEnd}
+      previewControls={previewControls}
       confirmAction={confirmAction}
       headless={headless}
       handleRef={handleRef}

@@ -1,14 +1,16 @@
 /**
  * Page tree
  *
- * The tree scrolls inside its pane; rows are absolutely placed by the virtualiser, which writes each
+ * The tree scrolls with its pane (the sidebar is the scroll box, so the scrollbar sits on the pane's
+ * edge); rows are absolutely placed by the virtualiser, which writes each
  * row's offset and depth as inline custom properties (--pages-tree-item-start, --pages-tree-item-level)
  * and the canvas height as --pages-tree-canvas-height. Indentation is one step per level.
  *
  * Values follow the CMS Refresh "Site Tree Links" component (Figma 2:3533). Each row is the expander
  * slot plus a label holding the page icon, title and status tags; the current page tints the label,
- * in the modified ground when the page has unpublished changes. The focus ring is on the whole row and
- * sits inside it because the scroll box clips anything outside it.
+ * in the modified ground when the page has unpublished changes; the label fills the row so the tint
+ * reaches the pane edge. The focus ring is on the whole row and sits inside it because the scroll box
+ * clips anything outside it.
  */
 
 .pages-tree {
@@ -18,8 +20,8 @@
   /* Figma Grey 900 arrows and page icons */
   --pages-tree-icon-color: var(--admin-muted-fg-color);
 
-  /* Figma 10px tag, raised to the 14px floor */
-  --pages-tree-flag-font-size: var(--admin-font-size-md);
+  /* Figma 10px tag; the one place allowed under the 14px floor */
+  --pages-tree-flag-font-size: var(--admin-font-size-xs);
 
   /* Figma tag padding 1px 3px 2px, radius 2px */
   --pages-tree-flag-padding: 0.1rem 0.3rem 0.2rem;
@@ -50,11 +52,9 @@
 
   background-color: var(--admin-panel-bg-color);
   color: var(--admin-fg-color);
-  flex: 1 1 auto;
   font-size: var(--pages-tree-font-size);
   line-height: var(--pages-tree-line-height);
-  min-height: 0;
-  overflow: auto;
+  padding-inline-start: var(--pages-sidebar-inset);
 }
 
 .pages-tree__canvas {
@@ -120,6 +120,7 @@
   border-radius: var(--pages-tree-label-radius);
   color: var(--pages-tree-label-fg-color);
   display: inline-flex;
+  flex: 1 1 auto;
   gap: var(--pages-tree-label-gap);
   min-width: 0;
   padding: var(--pages-tree-label-padding);

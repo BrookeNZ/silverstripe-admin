@@ -2,9 +2,9 @@
  * Pages section
  *
  * Two panes: the tree and its search on the left, the edit form on the right. The left pane sits flush
- * against the menu, sticks to the viewport and gives the tree the full height below the shell's sticky
- * section header (whose height token the shell declares) to scroll in, which the virtualised tree
- * needs. The form column scrolls with the page so its sticky action bar keeps working; it is at least
+ * against the menu, sticks to the viewport and scrolls as one pane (toolbar and tree together, as the
+ * legacy tree panel did) in the full height below the shell's sticky section header (whose height
+ * token the shell declares); the virtualised tree measures from its offset inside the pane. The form column scrolls with the page so its sticky action bar keeps working; it is at least
  * as tall as the pane, so a short form's action bar sits at the viewport bottom. The column has no
  * inline padding: the form insets its own fields, and the rest of the column's content takes the same
  * inset from `pages__inset`.
@@ -51,8 +51,16 @@
   height: var(--pages-sidebar-height);
   inset-block-start: var(--pages-pane-offset);
   min-width: 0;
-  padding: var(--pages-sidebar-inset) var(--pages-sidebar-inset) 0;
+  overflow: auto;
   position: var(--pages-sidebar-position);
+}
+
+/* The pane inset sits on the toolbar, not the pane, so the scrollbar stays on the pane's edge */
+.pages__tools {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pages-sidebar-inset);
+  padding: var(--pages-sidebar-inset) var(--pages-sidebar-inset) 0;
 }
 
 .pages__main {

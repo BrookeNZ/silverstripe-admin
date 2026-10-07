@@ -2,6 +2,8 @@
 
 namespace SilverStripe\Admin\Tests\UserInterface;
 
+use SilverStripe\Admin\Tests\UserInterface\PageCreateControllerTest\RetitlingExtension;
+use SilverStripe\Admin\UserInterface\PageCreateController;
 use SilverStripe\CMS\Model\SiteTree;
 use SilverStripe\Control\HTTPResponse;
 use SilverStripe\Core\Config\Config;
@@ -62,6 +64,23 @@ class PageCreateControllerTest extends FunctionalTest
         $this->assertSame(201, $response->getStatusCode());
         $this->assertSame($open->ID, $body['parentId']);
         $this->assertSame('New Page', SiteTree::get()->byID($body['id'])->Title);
+    }
+
+    public function testCreatedPageHookChangesAreSaved(): void
+    {
+        $open = $this->objFromFixture(SiteTree::class, 'open');
+
+        PageCreateController::add_extension(RetitlingExtension::class);
+        try {
+            $response = $this->create(['parentId' => $open->ID, 'className' => SiteTree::class]);
+        } finally {
+            PageCreateController::remove_extension(RetitlingExtension::class);
+        }
+        $body = json_decode($response->getBody(), true);
+
+        $this->assertSame(201, $response->getStatusCode());
+        $this->assertSame('Retitled by extension', $body['title']);
+        $this->assertSame('Retitled by extension', SiteTree::get()->byID($body['id'])->Title);
     }
 
     public function testTypesCarryTheLegacyIconClassOrImage(): void

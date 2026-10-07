@@ -187,8 +187,10 @@ A section pilet renders a record edit form with the shell's renderer, registered
 `onStateChange(state)` (the loaded state, and each state a save brings back, for a host showing a record
 value such as the title in the section header), `omitFields` (names left out, for a host that shows
 them itself), `renderLoadError(error)`, `trackUnsavedChanges`, `onLoad(response)` (the loaded response, for a
-host reading what the endpoint sends beside the form) and `confirmAction(action)` (asked before an action is
-submitted; `false`, or a promise of it, cancels). For a form inside another form (a block's form inside the
+host reading what the endpoint sends beside the form), `confirmAction(action)` (asked before an action is
+submitted; `false`, or a promise of it, cancels) and `previewControls` (controls for what the preview shows,
+such as the draft and published toggle, drawn before Share only in split and preview modes and with the
+group at the foot of the preview pane in preview mode; edit mode leaves them out). For a form inside another form (a block's form inside the
 page form) `headless` renders the fields with no form element and no action bar, so forms never nest;
 Enter in one of its inputs posts it when dirty instead of submitting the outer form. Such a host takes
 `handleRef`, which receives `{submit(action?), isDirty()}` (`FormSchemaFormHandle`; `submit` resolves

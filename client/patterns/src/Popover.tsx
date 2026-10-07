@@ -8,11 +8,14 @@
  * it. `align` lines its start or end edge up with the button's (end suits a trailing "..." button), and
  * `placement` opens it below or above, flipping when only the other side has room. A menu follows the APG menu button pattern:
  * opening focuses the first item, arrows, Home and End move between items, Tab leaves and closes, and
- * the buttons inside become its `menuitem`s through MenuItemContext.
+ * the buttons inside become its `menuitem`s through MenuItemContext. A menu with a visible `title` is the
+ * design's dropdown trigger (Figma 2:6220): an optional decorative `icon` before the label and a caret after it.
+ * `variant` picks the trigger's Button style; the design's white trigger is `tertiary`.
  */
 import * as React from 'react';
 import { Button } from './Button';
-import { MoreOptionsIcon } from './icons';
+import type { ButtonVariant } from './Button';
+import { MoreOptionsIcon, ShowOptionsIcon } from './icons';
 import { useAnchoredLayer } from './anchoredLayer';
 import type { AnchorAlign, AnchorPlacement } from './anchoredLayer';
 import { MenuItemContext } from './menuContext';
@@ -37,7 +40,14 @@ export interface PopoverProps {
   children?: React.ReactNode;
 }
 
-interface PanelProps extends PopoverProps {
+export interface MenuProps extends PopoverProps {
+  /** Drawn before a visible `title`, hidden from assistive technology */
+  icon?: React.ReactNode;
+  /** The trigger's Button variant, by default secondary with a `title` and tertiary without */
+  variant?: ButtonVariant;
+}
+
+interface PanelProps extends MenuProps {
   role: 'group' | 'menu';
 }
 
@@ -56,6 +66,8 @@ const AnchoredPanel = ({
   disabled,
   holderId,
   role,
+  icon,
+  variant,
   children,
 }: PanelProps) => {
   const [open, setOpen] = React.useState(false);
@@ -64,6 +76,7 @@ const AnchoredPanel = ({
   const panel = React.useRef<HTMLDivElement>(null);
   const panelId = `${id}_Popover`;
   const isMenu = role === 'menu';
+  const isDropdown = isMenu && Boolean(title);
 
   const items = () => Array.from(panel.current?.querySelectorAll<HTMLElement>(itemSelector) ?? []);
 
@@ -148,7 +161,7 @@ const AnchoredPanel = ({
     <div className="admin-popover" id={holderId} ref={root} onKeyDown={onKeyDown} onBlur={onBlur} onPointerDown={onPointerDown}>
       <Button
         ref={button as React.Ref<HTMLButtonElement | HTMLAnchorElement>}
-        variant={title ? 'secondary' : 'tertiary'}
+        variant={variant ?? (title ? 'secondary' : 'tertiary')}
         id={id}
         aria-expanded={open}
         aria-controls={panelId}
@@ -156,9 +169,11 @@ const AnchoredPanel = ({
         disabled={disabled}
         onClick={() => setOpen(!open)}
         iconOnly={!title}
-        icon={!title && <MoreOptionsIcon />}
+        icon={title ? isDropdown && icon : <MoreOptionsIcon />}
+        className={isDropdown ? 'admin-popover__trigger' : undefined}
       >
         {title || label}
+        {isDropdown && <ShowOptionsIcon className="admin-popover__caret" />}
       </Button>
       <div
         ref={panel}
@@ -180,4 +195,4 @@ const AnchoredPanel = ({
 
 export const Popover = (props: PopoverProps) => <AnchoredPanel {...props} role="group" />;
 
-export const Menu = (props: PopoverProps) => <AnchoredPanel {...props} role="menu" />;
+export const Menu = (props: MenuProps) => <AnchoredPanel {...props} role="menu" />;

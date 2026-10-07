@@ -28,6 +28,9 @@ use Throwable;
  * The record is built by CMSMain::getNewItem() with the legacy `new-<ClassName>-<ParentID>` ID, so the title, sort
  * and updateNewItem extensions match a page added in the legacy CMS. Writes need the CSRF token in X-SecurityID.
  * Errors share PageTreeController's envelope.
+ *
+ * CMS 7 change: with no Form, CMSMain's updateDoAdd hook is not fired. Extensions adjust the new page through this
+ * controller's updateCreatedPage hook instead, which runs after the first write and saves any change it makes.
  */
 class PageCreateController extends AdminController
 {
@@ -149,6 +152,10 @@ class PageCreateController extends AdminController
         $record = Injector::inst()->get($this->config()->get('cms_controller'))
             ->getNewItem(sprintf('new-%s-%d', $className, $parentId), false);
         $record->write();
+        $this->extend('updateCreatedPage', $record);
+        if ($record->isChanged()) {
+            $record->write();
+        }
 
         return $this->jsonResponse(201, [
             'id' => (int) $record->ID,

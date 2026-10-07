@@ -5,11 +5,24 @@
  * (`popover="manual"`) at the place useAnchoredLayer measures from the button, passed in as
  * `--admin-anchor-top` and `--admin-anchor-left`; `--admin-z-popover-fallback` stacks it where the
  * popover API is missing. The margin is the gap to the button, which the placement reads back. A long
- * panel scrolls inside its maximum height, as the combobox list does
+ * panel scrolls inside its maximum height, as the combobox list does. A titled menu's trigger is the
+ * design's dropdown (Figma 2:6220): 10px between icon, label and caret, and a 6px caret in the label colour
  */
 
 .admin-popover {
   display: inline-flex;
+}
+
+.admin-popover__trigger {
+  --admin-button-gap: 1rem;
+}
+
+/* Inside the button's label, so the gap is a margin; 1.2rem draws the 14px frame's glyph 6px wide */
+.admin-popover__caret {
+  --admin-icon-size: 1.2rem;
+
+  margin-inline-start: var(--admin-button-gap);
+  vertical-align: middle;
 }
 
 .admin-popover__panel {

@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Button } from './Button';
+import { EditIcon } from './icons';
 import { placeLayer } from './anchoredLayer';
 import { Menu, Popover } from './Popover';
 
@@ -59,6 +60,37 @@ describe('Popover and Menu', () => {
     expect(panel().dataset.align).toBe('start');
     expect(panel().dataset.placement).toBe('top');
     expect(panel().getAttribute('role')).toBe('group');
+  });
+
+  it('draws a titled menu icon and caret hidden from assistive technology, leaving the title as its name', () => {
+    render(
+      <Menu id="options" label="View: Edit mode" title="Edit mode" icon={<EditIcon />}>
+        <Button>Split mode</Button>
+      </Menu>,
+    );
+    const icons = Array.from(trigger().querySelectorAll('svg'));
+    expect(icons).toHaveLength(2);
+    expect(icons.every((icon) => icon.getAttribute('aria-hidden') === 'true')).toBe(true);
+    expect(trigger().firstElementChild).toBe(icons[0]);
+    expect(trigger().getAttribute('aria-label')).toBeNull();
+    expect(trigger().textContent).toBe('Edit mode');
+  });
+
+  it('passes variant to the trigger, defaulting a titled menu to secondary', () => {
+    render(
+      <Menu id="options" label="View: Edit mode" title="Edit mode" variant="tertiary">
+        <Button>Split mode</Button>
+      </Menu>,
+    );
+    expect(trigger().classList.contains('admin-button--tertiary')).toBe(true);
+    act(() =>
+      root.render(
+        <Menu id="options" label="View: Edit mode" title="Edit mode">
+          <Button>Split mode</Button>
+        </Menu>,
+      ),
+    );
+    expect(trigger().classList.contains('admin-button--tertiary')).toBe(false);
   });
 
   it('opens a menu on the first item and moves with the arrow, Home and End keys', () => {

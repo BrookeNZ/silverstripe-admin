@@ -18,7 +18,8 @@
  * it), the page's ancestors as its breadcrumb and the page's views; the index has the section title and
  * no back button. A deep link shows the ancestors the tree has loaded and fills in as the tree loads.
  * It also carries the page's preview URL, read from the loaded form (see preview.ts) for the stage the
- * Draft/Published toggle picks, so switching stage reloads the preview pane.
+ * Draft/Published toggle picks, so switching stage reloads the preview pane. The form draws the toggle in
+ * split and preview modes only; the stage lives here, so it survives the toggle unmounting in edit mode.
  *
  * "Add page" above the tree creates a page under the open page, or at the top level from the index, through
  * PageCreateController, then re-reads the parent's children and lands on the new page's edit route.
@@ -257,7 +258,7 @@ export function createPagesSection(options: PagesSectionOptions): React.Componen
               onStateChange={onStateChange}
               omitFields={navigatorFields}
               trackUnsavedChanges
-              actionsEnd={
+              previewControls={
                 <Toggle<PageStage>
                   label="Stage"
                   options={stageOptions(store.node(opened.id)?.statusFlags)}
@@ -278,11 +279,13 @@ export function createPagesSection(options: PagesSectionOptions): React.Componen
     return (
       <div className="pages">
         <nav className="pages__sidebar" aria-label="Page tree">
-          <Button icon={<AddIcon />} onClick={() => setAdding(true)}>
-            Add page
-          </Button>
-          <PageSearch api={api} editPath={editPath} query={query} onQueryChange={setQuery} />
-          {sessionExpired && <SessionExpired loginUrl={options.loginUrl} />}
+          <div className="pages__tools">
+            <Button icon={<AddIcon />} onClick={() => setAdding(true)}>
+              Add page
+            </Button>
+            <PageSearch api={api} editPath={editPath} query={query} onQueryChange={setQuery} />
+            {sessionExpired && <SessionExpired loginUrl={options.loginUrl} />}
+          </div>
           <PageTree
             store={store}
             currentId={currentId}

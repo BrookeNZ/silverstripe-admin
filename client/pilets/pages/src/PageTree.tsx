@@ -157,9 +157,20 @@ export const PageTree = ({ store, currentId, onSelect, onRevealError, hidden }: 
   );
 
   const items = tree.getItems();
+  // The sidebar scrolls as one panel, so the virtualiser measures from the tree's offset inside it
+  const [scrollMargin, setScrollMargin] = React.useState(0);
+  React.useLayoutEffect(() => {
+    const tree = scrollRef.current;
+    const pane = tree?.parentElement;
+    if (!tree || !pane) {
+      return;
+    }
+    setScrollMargin(tree.getBoundingClientRect().top - pane.getBoundingClientRect().top + pane.scrollTop);
+  });
   const virtualizer = useVirtualizer({
     count: items.length,
-    getScrollElement: () => scrollRef.current,
+    getScrollElement: () => scrollRef.current?.parentElement ?? null,
+    scrollMargin,
     estimateSize: () => rowEstimatePx,
     overscan: 10,
     getItemKey: (index) => items[index]?.getId() ?? index,
@@ -251,7 +262,7 @@ export const PageTree = ({ store, currentId, onSelect, onRevealError, hidden }: 
               style={
                 {
                   '--pages-tree-item-level': item.getItemMeta().level,
-                  '--pages-tree-item-start': `${row.start}px`,
+                  '--pages-tree-item-start': `${row.start - scrollMargin}px`,
                 } as React.CSSProperties
               }
               onClick={() => {

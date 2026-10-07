@@ -28,7 +28,7 @@ export type { DialogProps } from './Dialog';
 export { FormAction } from './FormAction';
 export { MenuField, PopoverField } from './PopoverField';
 export { Menu, Popover } from './Popover';
-export type { PopoverAlign, PopoverPlacement, PopoverProps } from './Popover';
+export type { MenuProps, PopoverAlign, PopoverPlacement, PopoverProps } from './Popover';
 export { Combobox } from './Combobox';
 export type { ComboboxOptionState, ComboboxProps } from './Combobox';
 export { Toggle } from './Toggle';
