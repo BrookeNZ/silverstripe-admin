@@ -31,6 +31,10 @@ function toApiError(error: unknown): ApiError {
   return error instanceof ApiError ? error : new ApiError(error instanceof Error ? error.message : String(error), 0, 'network');
 }
 
+function pagesThrough(rows: number, limit: number): Array<number> {
+  return Array.from({ length: Math.max(1, Math.ceil(rows / limit)) }, (_, index) => index + 1);
+}
+
 export class TreeStore {
   readonly firstLimit: number;
   readonly moreLimit: number;
@@ -151,11 +155,33 @@ export class TreeStore {
     return items.map((item) => item.id);
   }
 
-  /** Re-reads a page's row (title, flags, children) from its parent's listing, after a save */
+  /**
+   * Re-reads a page's row (title, flags, children) from its parent's listing, after a save. A page that
+   * changed parent is moved instead: both parents' listings and rows are re-read, and its new ancestors held
+   */
   async refresh(id: number): Promise<void> {
-    const { node, pageSize } = await this.api.ancestors(id, this.firstLimit);
+    const previous = this.nodes.get(id);
+    const { items: ancestors, node, pageSize } = await this.api.ancestors(id, this.firstLimit);
+    if (previous && previous.parentId !== node.parentId) {
+      // Dropped before either listing is re-read: a page in two lists gives the tree a duplicate row key
+      const left = this.children(previous.parentId);
+      this.lists.set(previous.parentId, { ...left, ids: left.ids.filter((held) => held !== id) });
+      this.upsert([...ancestors, { ...previous, parentId: node.parentId }]);
+      await Promise.all([previous.parentId, node.parentId].map((parentId) => this.reloadParent(parentId)));
+      return;
+    }
     const { items } = await this.api.children(node.parentId, node.page ?? 1, pageSize);
     this.upsert(items.filter((item) => this.nodes.has(item.id)));
+  }
+
+  /** Re-reads the children a parent holds, replacing its list, and the parent's own row */
+  private async reloadParent(parentId: number): Promise<void> {
+    const rows = this.children(parentId).ids.length;
+    const limit = rows <= this.firstLimit ? this.firstLimit : this.moreLimit;
+    await Promise.all([
+      this.isLoaded(parentId) ? this.track(parentId, this.fetchPages(parentId, limit, pagesThrough(rows, limit), [])) : null,
+      parentId === rootId ? null : this.refresh(parentId),
+    ]);
   }
 
   private knownPath(id: number): Array<number> | null {
@@ -174,9 +200,14 @@ export class TreeStore {
     return null;
   }
 
-  private async fetchPages(parentId: number, limit: number, pages: Array<number>): Promise<void> {
+  private async fetchPages(
+    parentId: number,
+    limit: number,
+    pages: Array<number>,
+    held: ReadonlyArray<number> = this.children(parentId).ids,
+  ): Promise<void> {
     const responses = await Promise.all(pages.map((page) => this.api.children(parentId, page, limit)));
-    let ids = [...this.children(parentId).ids];
+    let ids = [...held];
     let total = this.children(parentId).total;
     for (const { items, pageInfo } of responses) {
       const offset = (pageInfo.page - 1) * pageInfo.pageSize;

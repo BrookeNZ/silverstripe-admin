@@ -23,8 +23,9 @@ server.
 | Shell bundle | `client/dist/shell/main.js` and `main.css` | admin |
 | Pilet API | `client/shell/src/api/silverstripe.ts`, documented in `PILET-API.md` | admin |
 
-A vendor module does the same with its own paths: the elemental pilet lives at
-`client/dist/pilets/elemental/index.js` in this repo and its feed entry sits in `_config/piral-elemental.yml`.
+The first-party pilets use the same parts inside this repo: the elemental pilet is built to
+`client/dist/pilets/elemental/index.js` and its feed entry sits in `_config/piral-elemental.yml`. The hello module
+is the vendor case, a separate package with its own `client/dist` and `_config`.
 
 ## From request to page
 
@@ -59,9 +60,9 @@ A vendor module does the same with its own paths: the elemental pilet lives at
    hook.
 
 3. **Piral loads each pilet.** The shell's Piral instance downloads every `link` and evaluates it with
-   SystemJS. The bundle's `System.register(["react", "react-router-dom"], ...)` header names the shared
-   dependencies it wants; SystemJS resolves those from the shell's import map, so a pilet never ships its own
-   React. The shared set is part of the Pilet API contract (`PILET-API.md`, **Versioning**).
+   SystemJS. The line after the `//@pilet` header, `System.register(["react"], ...)` in the hello bundle, names
+   the shared dependencies the pilet imports; SystemJS resolves those from the shell's import map, so a pilet
+   never ships its own React. The shared set is part of the Pilet API contract (`PILET-API.md`, **Versioning**).
 
 4. **The pilet's `setup()` runs** with the Pilet API. The section, its menu item, icon and permission come from
    the server, so the hello pilet only claims the section's route:
@@ -94,7 +95,11 @@ A vendor module does the same with its own paths: the elemental pilet lives at
    disposed (`registerSilverstripeComponent`).
 
 5. **The shell renders.** Layout, menu, section header and toasts are the shell's. The pilet's page renders in
-   the content column. A section URL no pilet has claimed shows "No pilet owns ... yet" instead.
+   the content column. A path no pilet page matches goes to the shell's section view: under a menu section with
+   no registered page, it renders that section's `EditForm` (see below), or a GridField item's edit form when
+   the path is a record URL; under a section with a registered page that does not match the path, or outside
+   every menu section, it shows "No pilet owns ... yet". The shell's own asset edit page counts as a registered
+   page, so Files shows that message until the asset-admin pilet lands.
 
 ## What a pilet can register
 
@@ -115,9 +120,9 @@ The full list and the props contracts are in `PILET-API.md`. In short:
 - **Config**: `getConfig()` is a frozen copy of `window.ss.config`.
 
 Server-side nothing changes for the module's PHP: `getCMSFields()`, FormSchema, permissions and
-`url_segment` are read by the shell the same way the legacy admin reads them. A `LeftAndMain` subclass with no
-pilet still gets a section, a menu item and its `EditForm` rendered by the shell's form renderer; a pilet is
-needed only for behaviour the schema cannot describe.
+`url_segment` are read by the shell the same way the legacy admin reads them. A `LeftAndMain` subclass that no
+pilet registers pages for still gets a section, a menu item and its `EditForm` rendered by the shell's form
+renderer; a pilet is needed only for behaviour the schema cannot describe.
 
 ## Writing one
 
@@ -139,11 +144,13 @@ needed only for behaviour the schema cannot describe.
 3. Build into the module's exposed `client/dist`:
 
    ```sh
-   npx pilet build --target ../dist/pilet/index.js --schema v2
+   npx pilet build --target ../dist/pilet/index.js --schema v2 --no-source-maps
    ```
 
-   Commit the output. Composer's `vendor-expose` publishes `client/dist` under `_resources`, which is what the
-   feed links to. A module must list `client/dist` in `extra.expose` in its `composer.json`.
+   Commit the output. Build without a source map, or commit the map beside the bundle: a committed bundle that
+   ends in `sourceMappingURL` with no map shipped 404s whenever devtools is open. Composer's `vendor-expose`
+   publishes `client/dist` under `_resources`, which is what the feed links to. A module must list `client/dist`
+   in `extra.expose` in its `composer.json`.
 
 4. Register it:
 
@@ -155,7 +162,11 @@ needed only for behaviour the schema cannot describe.
      pilets:
        mymodule-admin:
          link: 'vendor-name/module-name:client/dist/pilet/index.js'
+         permissions: CMS_ACCESS_MyModuleAdmin
    ```
+
+   `permissions` takes the section's `required_permission_codes` (one code or a list), so the feed skips the
+   pilet for members without access. Without the key, every member with `CMS_ACCESS` gets the pilet.
 
    `link` is `vendor/package:path` for a vendor module, a project-relative path (`app/client/dist/...`) for
    the project, or a URL. `version` defaults to the module's Composer version. Add `Only: moduleexists:` when

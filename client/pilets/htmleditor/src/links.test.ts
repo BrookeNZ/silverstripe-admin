@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { availableKinds, kindForHref, linkKinds, linkSchemaUrl, stateValues } from './links';
 
 const kind = (name: string) => linkKinds.find((entry) => entry.name === name)!;
@@ -62,6 +62,17 @@ describe('link kinds', () => {
     expect(kind('EditorPhoneLink').attributes({ Link: ' 123 ' }).href).toBe('tel:123');
     expect(kind('EditorFileLink').attributes({ FileID: '9', Description: 'PDF' })).toEqual({ href: '[file_link,id=9]', title: 'PDF', target: undefined });
     expect(kind('EditorFileLink').attributes({ FileID: '0' }).href).toBe('');
+  });
+
+  it('keep any URL scheme but a script one', () => {
+    vi.stubGlobal('window', { location: { protocol: 'https:' } });
+    const href = (Link: string) => kind('EditorExternalLink').attributes({ Link }).href;
+    expect(href('ftp://example.com/a')).toBe('ftp://example.com/a');
+    expect(href('sms:0211234567')).toBe('sms:0211234567');
+    expect(href('example.com:8080/x')).toBe('https://example.com:8080/x');
+    expect(href('JavaScript:alert(1)')).toBe('');
+    expect(href('VBScript:x')).toBe('');
+    vi.unstubAllGlobals();
   });
 
   it('offer only the kinds the server has a form for, in dialog order', () => {

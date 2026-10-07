@@ -292,8 +292,8 @@ menu, so a module with a section needs no menu registration. A pilet page with n
 its link with `registerMenuItem`:
 
 ```tsx
-api.registerPage('/reports/live/*', LiveReport);
-api.registerMenuItem({ code: 'live-report', label: 'Live report', to: '/reports/live', Icon: ReportsIcon });
+api.registerPage('/live-report/*', LiveReport);
+api.registerMenuItem({ code: 'live-report', label: 'Live report', to: '/live-report', Icon: ReportsIcon });
 ```
 
 | Key | |
@@ -302,6 +302,9 @@ api.registerMenuItem({ code: 'live-report', label: 'Live report', to: '/reports/
 | `label` | The link text: one line with an ellipsis and a `title`, visually hidden in the collapsed menu |
 | `to` | A router path relative to the admin base, as for `registerPage` |
 | `Icon` | Optional 18px `currentColor` glyph, decorative; `SectionIcon` when not given |
+
+`to` starts with `/`: a relative path resolves against whatever route is current and never reads as current
+itself. It sits outside every section's path, or the section and the item both read as current.
 
 The shell draws these after the CMS sections with the same link as a section: icon, label, `aria-current="page"`
 on `to` and its sub paths, and the collapse behaviour. Unloading the pilet removes them.

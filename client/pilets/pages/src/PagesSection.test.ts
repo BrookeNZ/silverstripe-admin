@@ -16,6 +16,14 @@ describe('pageSectionHeader', () => {
     ]);
   });
 
+  it('leaves back to the nearest ancestor when the page has one', () => {
+    const header = pageSectionHeader('/pages', {
+      id: 5, title: 'Team', view: 'edit', ancestors: [{ id: 2, title: 'About' }],
+    });
+    expect(header.crumbs).toEqual([{ label: 'About', to: '/pages/edit/show/2' }]);
+    expect([header.backTo, header.backLabel]).toEqual([undefined, undefined]);
+  });
+
   it('falls back to the page id until the tree has the page', () => {
     const header = pageSectionHeader('/pages', { id: 7, title: undefined, view: 'history' });
     expect(header.title).toBe('Page 7');

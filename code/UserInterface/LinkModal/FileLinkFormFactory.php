@@ -13,7 +13,6 @@ use SilverStripe\Forms\CheckboxField;
 use SilverStripe\Forms\FieldList;
 use SilverStripe\Forms\FormFactory;
 use SilverStripe\Forms\TextField;
-use SilverStripe\Forms\TreeDropdownField;
 use SilverStripe\Forms\Validation\RequiredFieldsValidator;
 use SilverStripe\Security\Permission;
 
@@ -47,7 +46,7 @@ class FileLinkFormFactory extends LinkFormFactory
     protected function getFormFields($controller, $name, $context)
     {
         $fields = FieldList::create([
-            TreeDropdownField::create('FileID', _t(__CLASS__ . '.SELECT_FILE', 'Select a file'), File::class)
+            ViewableTreeDropdownField::create('FileID', _t(__CLASS__ . '.SELECT_FILE', 'Select a file'), File::class)
                 ->setTitleField('Name')
                 ->setHasEmptyDefault(true)
                 ->setDisableFunction(fn ($node) => $node instanceof Folder)

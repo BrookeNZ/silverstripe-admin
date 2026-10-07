@@ -96,6 +96,25 @@ class LinkModalShellTest extends FunctionalTest
         $this->assertNotContains($hidden->Name, $titles);
     }
 
+    public function testSchemaLeavesOutAFileTheMemberMayNotView(): void
+    {
+        $hidden = $this->hiddenFolderForAFilesOnlyMember();
+
+        $body = $this->json($this->get("admin/modals/linkModalFormSchema/EditorFileLink/0?FileID={$hidden->ID}", null, static::SCHEMA));
+
+        $this->assertStringNotContainsString($hidden->Name, json_encode($body['state']));
+    }
+
+    public function testFileTreeRefusesToOpenAtAFolderTheMemberMayNotView(): void
+    {
+        $hidden = $this->hiddenFolderForAFilesOnlyMember();
+
+        $response = $this->get("admin/modals/linkModalForm/EditorFileLink/0/field/FileID/tree/{$hidden->ID}?format=json", null, static::SCHEMA);
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertStringNotContainsString($hidden->Name, (string) $response->getBody());
+    }
+
     public function testFileLinkNeedsFilesAccessAndTheShell(): void
     {
         $this->logOut();
@@ -186,6 +205,16 @@ class LinkModalShellTest extends FunctionalTest
 
         $this->assertNotSame(200, $response->getStatusCode());
         $this->assertStringNotContainsString('https://example.com', (string) $response->getBody());
+    }
+
+    private function hiddenFolderForAFilesOnlyMember(): Folder
+    {
+        $hidden = Folder::find_or_make('LinkModalShellTest-hidden');
+        $hidden->CanViewType = InheritedPermissions::ONLY_THESE_USERS;
+        $hidden->write();
+        $this->logOut();
+        $this->logInWithPermission(['CMS_ACCESS_AssetAdmin']);
+        return $hidden;
     }
 
     private function json(HTTPResponse $response): array

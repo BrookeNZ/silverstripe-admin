@@ -12,14 +12,6 @@ interface HistorySection {
   form?: { versionForm?: { schemaUrl?: string } };
 }
 
-// getConfig() is a snapshot taken once, so the token is read from the live window.ss.config at each revert
-function liveSecurityId(api: PiletApi): () => string {
-  return () => {
-    const live = (window as { ss?: { config?: { SecurityID?: unknown } } }).ss?.config?.SecurityID;
-    return String(live ?? api.getConfig().SecurityID ?? '');
-  };
-}
-
 export function setup(api: PiletApi) {
   const config = api.getConfig();
   const section = config.sections.find((candidate) => candidate.name === historyController) as HistorySection | undefined;
@@ -34,7 +26,7 @@ export function setup(api: PiletApi) {
     historyViewerComponent,
     createHistoryViewer({
       api,
-      client: createHistoryApi({ read: absolute(read), revert: absolute(revert) }, liveSecurityId(api)),
+      client: createHistoryApi({ read: absolute(read), revert: absolute(revert) }, () => String(config.SecurityID ?? '')),
       versionSchemaUrl: (recordClass, id, version) => {
         const url = new URL(absolute(versionSchemaUrl));
         url.searchParams.set('RecordClass', recordClass);

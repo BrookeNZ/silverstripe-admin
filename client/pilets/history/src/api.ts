@@ -61,7 +61,7 @@ async function failure(response: Response): Promise<HistoryApiError> {
   return new HistoryApiError(envelope.errors?.[0]?.value || `The history endpoint answered ${response.status}`, response.status);
 }
 
-/** `securityId` is read for each revert, so a token rotated by logging in again is used */
+/** `securityId` is called at each revert; nothing rotates the token yet, so it returns the page-load value */
 export function createHistoryApi(endpoints: HistoryEndpoints, securityId: () => string, fetcher: typeof fetch = fetch): HistoryApi {
   return {
     async read(recordClass, id, page, signal) {

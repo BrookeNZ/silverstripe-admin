@@ -68,6 +68,19 @@ describe('Button', () => {
     expect(button.querySelector('svg')?.getAttribute('focusable')).toBe('false');
   });
 
+  it('adds a class for each tone and size, composed with the variant', () => {
+    for (const tone of ['accent', 'danger', 'warning'] as const) {
+      expect(render(<Button tone={tone}>Edit</Button>).className).toBe(`admin-button admin-button--${tone}`);
+      container.remove();
+    }
+    const button = render(
+      <Button variant="tertiary" tone="accent" size="sm">
+        Select all
+      </Button>,
+    );
+    expect(button.className).toBe('admin-button admin-button--tertiary admin-button--accent admin-button--sm');
+  });
+
   it('draws a text button as a link while keeping it a button', () => {
     const button = render(<Button variant="text">Delete</Button>) as HTMLButtonElement;
     expect(button.tagName).toBe('BUTTON');

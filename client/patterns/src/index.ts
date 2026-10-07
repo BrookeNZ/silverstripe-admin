@@ -19,7 +19,7 @@ export type { DisclosureProps } from './Disclosure';
 export { TabStrip } from './TabStrip';
 export type { TabStripItem, TabStripLinkProps, TabStripProps } from './TabStrip';
 export { Button } from './Button';
-export type { ButtonProps, ButtonVariant } from './Button';
+export type { ButtonProps, ButtonSize, ButtonTone, ButtonVariant } from './Button';
 export * from './icons';
 export { Link } from './Link';
 export type { LinkProps, LinkRenderProps } from './Link';

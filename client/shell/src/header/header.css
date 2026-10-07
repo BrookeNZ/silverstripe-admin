@@ -24,6 +24,9 @@
   --shell-header-back-bg-color: var(--admin-hover-bg-color);
   --shell-header-back-fg-color: var(--admin-accent-color);
   --shell-header-back-gap: 1.1rem;
+
+  /* Figma back button hover 2:6307 fills Bright Blue 200; its chevron-to-arrow swap is left out */
+  --shell-header-back-hover-bg-color: var(--admin-accent-tint-color);
   --shell-header-back-icon-size: 1.3rem;
 
   /* Figma back button 2:1736: a 25px circle round the 13px chevron */
@@ -117,6 +120,8 @@
 .shell-header__crumb {
   display: flex;
   gap: var(--shell-header-crumb-gap);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* Empty alternative text: the list already tells a screen reader where one crumb ends */
@@ -134,6 +139,10 @@
   display: flex;
   flex-shrink: 0;
   padding: calc((var(--shell-header-back-size) - var(--shell-header-back-icon-size)) / 2);
+}
+
+.shell-header__back:hover {
+  --shell-header-back-bg-color: var(--shell-header-back-hover-bg-color);
 }
 
 .shell-header__back:focus-visible {

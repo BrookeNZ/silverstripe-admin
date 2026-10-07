@@ -26,14 +26,24 @@
   --admin-palette-blue-100: #f8fafc;
   --admin-palette-blue-200: #f1f5f9;
   --admin-palette-blue-300: #e6edf4;
+
+  /* Figma Border/Invalid */
+  --admin-palette-border-invalid: #da273b;
   --admin-palette-bright-blue: #005ae1;
   --admin-palette-bright-blue-100: #e5f0ff;
+  --admin-palette-bright-blue-200: #cce1ff;
   --admin-palette-button-primary: #008a00;
   --admin-palette-button-primary-hover: #006400;
 
   /* Figma node 2:6244 Save outline hover fill; no variable */
   --admin-palette-button-primary-tint: rgb(0 138 0 / 0.1);
+
+  /* Figma "Add a block" 2:6259 and its hover 2:6262; no Figma variable for any of the three */
+  --admin-palette-button-warning: #f6c445;
+  --admin-palette-button-warning-hover: #e0a800;
+  --admin-palette-button-warning-text: #3e464e;
   --admin-palette-grey-100: #f7f8f8;
+  --admin-palette-grey-200: #f1f3f3;
   --admin-palette-grey-400: #dcdee0;
   --admin-palette-grey-500: #c1c4c8;
 
@@ -42,6 +52,9 @@
   --admin-palette-grey-800: #71767f;
   --admin-palette-grey-900: #595d64;
   --admin-palette-line-grey: #dadee1;
+
+  /* Figma node 2:6270 Remove hover fill; no variable */
+  --admin-palette-red-100: #fbe5e7;
   --admin-palette-royal-blue: #003e94;
   --admin-palette-text-draft-modified: #cb3e00;
   --admin-palette-white: #fff;
@@ -55,6 +68,10 @@
   /* Roles */
   --admin-accent-color: var(--admin-palette-bright-blue);
   --admin-accent-fg-color: var(--admin-palette-white);
+  --admin-accent-hover-color: var(--admin-palette-royal-blue);
+
+  /* The Bright Blue label is 4.45:1 on it, under 4.5:1; kept as designed */
+  --admin-accent-tint-color: var(--admin-palette-bright-blue-200);
   --admin-backdrop-color: rgb(from var(--admin-palette-black) r g b / 0.5);
   --admin-bg-color: var(--admin-palette-white);
   --admin-border: 0.1rem solid;
@@ -63,6 +80,10 @@
   --admin-border-color: var(--admin-palette-grey-500);
   --admin-check-size: 1.8rem;
   --admin-control-min-height: 4rem;
+
+  /* 4.84:1 on white; on the tint the label is 4.03:1, under 4.5:1, kept as designed */
+  --admin-danger-color: var(--admin-palette-border-invalid);
+  --admin-danger-tint-color: var(--admin-palette-red-100);
   --admin-disabled-opacity: 0.6;
 
   /* Grey 400 is 1.35:1 on white, so decorative only */
@@ -88,6 +109,7 @@
   --admin-font-size-xl: 2rem;
   --admin-font-size-xxl: 2.4rem;
   --admin-font-weight-normal: 400;
+  --admin-font-weight-medium: 500;
   --admin-font-weight-bold: 600;
   --admin-gap-xs: 0.4rem;
   --admin-gap-sm: 0.8rem;
@@ -150,6 +172,9 @@
   --admin-success-fg-color: var(--admin-palette-button-primary);
   --admin-sunken-bg-color: var(--admin-palette-blue-100);
 
+  /* Grey 900 label 5.94:1 on it */
+  --admin-tertiary-action-hover-color: var(--admin-palette-grey-200);
+
   /* WCAG 2.5.8 target size */
   --admin-target-min-size: 2.4rem;
   --admin-transition: background-color var(--admin-transition-duration) var(--admin-transition-easing),
@@ -157,6 +182,11 @@
     color var(--admin-transition-duration) var(--admin-transition-easing);
   --admin-transition-duration: 0.2s;
   --admin-transition-easing: ease-in-out;
+  --admin-warning-action-color: var(--admin-palette-button-warning);
+
+  /* 5.89:1 on the fill, 4.46:1 on hover, under 4.5:1; kept as designed */
+  --admin-warning-action-fg-color: var(--admin-palette-button-warning-text);
+  --admin-warning-action-hover-color: var(--admin-palette-button-warning-hover);
   --admin-warning-bg-color: var(--admin-palette-yellow-100);
 
   /* 4.49:1 on the warning ground */

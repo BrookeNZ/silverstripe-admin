@@ -3,7 +3,12 @@
  * secondary (green outline on white, the default) and tertiary (white with a grey label, the design's
  * "white buttons"), plus text: a button drawn as a Link (Figma "Text link" 2:6274) for an action that sits
  * in a row of links, so the element stays a button while it reads like its neighbours.
- * The design has no destructive style, so there is no danger variant yet.
+ *
+ * `tone` recolours any variant but text: `accent` is the design's blue, `danger` its red "Remove" and
+ * `warning` the yellow "Add a block", designed only as a primary. `size="sm"` is the Plain button's
+ * tighter padding and medium weight, and brings no colour, so the design's Plain buttons are
+ * `size="sm"` with `tone="accent"` ("Edit") or `tone="danger"` ("Remove") on the default secondary.
+ * "Select all" is tertiary with accent, the "1 selected" chip primary with accent and its X at the end.
  *
  * Renders a `<button type="button">`, or an `<a>` when given `href`. An icon-only button needs a name:
  * `aria-label`, or children kept as visually hidden text; the type requires one and dev builds warn
@@ -21,9 +26,13 @@ import type { IconPosition } from './IconLabel';
 declare const process: { env: { NODE_ENV?: string } };
 
 export type ButtonVariant = 'primary' | 'secondary' | 'tertiary' | 'text';
+export type ButtonTone = 'accent' | 'danger' | 'warning';
+export type ButtonSize = 'sm';
 
 interface ButtonBaseProps {
   variant?: ButtonVariant;
+  tone?: ButtonTone;
+  size?: ButtonSize;
   icon?: React.ReactNode;
   iconPosition?: IconPosition;
   loading?: boolean;
@@ -41,8 +50,15 @@ type NativeAnchorProps = Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'ch
 
 export type ButtonProps = ButtonBaseProps & ButtonName & (NativeButtonProps | NativeAnchorProps);
 
-function buttonClassName(variant: ButtonVariant, iconOnly: boolean, className?: string): string {
-  return ['admin-button', variant !== 'secondary' && `admin-button--${variant}`, iconOnly && 'admin-button--icon-only', className]
+function buttonClassName(variant: ButtonVariant, tone: ButtonTone | undefined, size: ButtonSize | undefined, iconOnly: boolean, className?: string): string {
+  return [
+    'admin-button',
+    variant !== 'secondary' && `admin-button--${variant}`,
+    tone && `admin-button--${tone}`,
+    size && `admin-button--${size}`,
+    iconOnly && 'admin-button--icon-only',
+    className,
+  ]
     .filter(Boolean)
     .join(' ');
 }
@@ -57,11 +73,11 @@ function swallow(event: React.MouseEvent) {
 
 export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonProps>(
   (
-    { variant = 'secondary', icon, iconPosition = 'start', iconOnly = false, loading = false, className, children, 'aria-label': label, ...rest },
+    { variant = 'secondary', tone, size, icon, iconPosition = 'start', iconOnly = false, loading = false, className, children, 'aria-label': label, ...rest },
     ref,
   ) => {
     const menu = React.useContext(MenuItemContext);
-    const classes = buttonClassName(variant, iconOnly, className);
+    const classes = buttonClassName(variant, tone, size, iconOnly, className);
     if (process.env.NODE_ENV !== 'production' && iconOnly && !label?.trim() && !hasText(children)) {
       console.warn('An icon-only Button needs an aria-label or text children to name it');
     }

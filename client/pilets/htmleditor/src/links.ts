@@ -30,7 +30,9 @@ const shortcodePattern = (name: string) => new RegExp(`^\\[${name}[,\\s]+id=["']
 const pageShortcode = shortcodePattern('sitetree_link');
 const fileShortcode = shortcodePattern('file_link');
 
-const allowedScheme = /^(?:https?:|mailto:|tel:|[^:]*$)/i;
+const scriptScheme = /^[\x00-\x20]*(?:javascript|vbscript|data):/i;
+// A dotted name before the colon is a host with a port, not a scheme: `example.com:8080/x`
+const scheme = /^(?![a-z\d-]+(?:\.[a-z\d-]+)+:\d)[a-z][a-z\d+.-]*:/i;
 
 function text(value: unknown): string {
   return value == null || value === false ? '' : String(value).trim();
@@ -107,11 +109,10 @@ const external: LinkKind = {
   attributes: (values) => {
     let link = text(values.Link);
     // As the legacy plugin did: a URL typed without a scheme gets the admin's own
-    if (link && !/^[a-z][a-z\d+.-]*:/i.test(link)) {
+    if (link && !scheme.test(link)) {
       link = `${window.location.protocol}//${link}`;
     }
-    // Only web, mail and phone links; TinyMCE's own URL check on insert is the backstop
-    if (/:\/\/$/.test(link) || !allowedScheme.test(link)) {
+    if (/:\/\/$/.test(link) || scriptScheme.test(link)) {
       link = '';
     }
     return common(values, withAnchor(link, values.Anchor));

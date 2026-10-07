@@ -11,6 +11,8 @@ use SilverStripe\Core\Extension;
 use SilverStripe\Core\Validation\ValidationResult;
 use SilverStripe\Forms\Form;
 use SilverStripe\Forms\HasOneRelationFieldInterface;
+use SilverStripe\Forms\TreeDropdownField;
+use SilverStripe\ORM\DataObject;
 
 /**
  * What the shell's HTML editor needs from the link dialogs' forms (ModalController::linkModalForm()).
@@ -59,6 +61,13 @@ class LinkFormShellExtension extends Extension
             // A record id, as the record would give it; the tree field matches its selected node by type
             if ($fields[$name] instanceof HasOneRelationFieldInterface && is_numeric($value)) {
                 $values[$name] = (int) $value;
+            }
+            // The field's state names the record it holds, so a record the member may not view is not loaded
+            if ($fields[$name] instanceof TreeDropdownField && $values[$name]) {
+                $record = DataObject::get_by_id($fields[$name]->getSourceObject(), (int) $values[$name]);
+                if ($record && !$record->canView()) {
+                    unset($values[$name]);
+                }
             }
         }
         if ($values) {

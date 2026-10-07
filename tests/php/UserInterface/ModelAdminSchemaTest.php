@@ -20,6 +20,7 @@ class ModelAdminSchemaTest extends FunctionalTest
 
     public function testEditFormSchemaIsServedPerModelTab(): void
     {
+        Config::modify()->set(LeftAndMain::class, 'piral_shell', true);
         foreach (['users', 'groups', 'roles'] as $tab) {
             $response = $this->get(
                 "admin/security/{$tab}/schema/EditForm",

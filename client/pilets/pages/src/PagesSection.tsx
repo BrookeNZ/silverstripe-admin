@@ -11,7 +11,8 @@
  * The form is the shell's FormSchema renderer, fetched by name from the component registry. The page
  * edit form's state does not ask for change tracking (the legacy admin tracked every edit form), so the
  * section asks for it, and the shell's guard confirms before a tree selection navigates away. After a save
- * the section emits the records-changed event, and the tree re-reads the saved page's row.
+ * the section emits the records-changed event, and the tree re-reads the saved page's row, or moves it
+ * when the save changed its parent.
  *
  * The section header carries the page title (from the tree, so a save that renames the page retitles
  * it), the page's ancestors as its breadcrumb and the page's views; the index has the section title and
@@ -88,9 +89,7 @@ export function pageSectionHeader(
   const crumbs = (page.ancestors ?? []).map(({ id, title }) => ({ label: title, to: `${routePrefix}/edit/show/${id}` }));
   return {
     title: page.title ?? `Page ${page.id}`,
-    ...(crumbs.length > 0 && { crumbs }),
-    backTo: `${routePrefix}/`,
-    backLabel: 'Back to pages',
+    ...(crumbs.length > 0 ? { crumbs } : { backTo: `${routePrefix}/`, backLabel: 'Back to pages' }),
     views: pageViews.filter(({ view }) => available.includes(view)).map(({ view, label }) => ({
       key: view,
       label,

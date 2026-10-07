@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from './api';
 import type { AncestorsResponse, ChildrenResponse, PageNode, TreeApi } from './api';
+import { pageAncestors } from './PagesSection';
 import { childItemIds, entryFor, entryName, rootItemId } from './treeEntries';
 import { TreeStore } from './treeStore';
 
@@ -122,6 +123,43 @@ describe('TreeStore', () => {
     await store.refresh(1);
     expect(store.node(1)?.title).toBe('Alpha renamed');
     titles[1][0] = 'Alpha';
+  });
+
+  it('moves a page whose parent changed, to the top level and back, with its ancestors following', async () => {
+    const api = fakeApi();
+    const store = new TreeStore(api);
+    await store.revealPath(5);
+    const trail = () => pageAncestors(store, 5).map(({ title }) => title);
+    expect(trail()).toEqual(['Bravo', 'Deep 1']);
+    const respond = api.children.getMockImplementation();
+    api.children.mockImplementation(async (parentId, page, limit) => {
+      if (parentId === 4) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+      return respond!(parentId, page, limit);
+    });
+    let heldTwice = false;
+    store.subscribe(() => {
+      heldTwice ||= store.children(0).ids.includes(5) && store.children(4).ids.includes(5);
+    });
+    try {
+      titles[5][1] = 0;
+      await store.refresh(5);
+      expect(store.children(0).ids).toEqual([1, 2, 3, 5]);
+      expect(store.children(4).ids).toEqual([]);
+      expect(store.node(4)?.hasChildren).toBe(false);
+      expect(trail()).toEqual([]);
+
+      titles[5][1] = 4;
+      await store.refresh(5);
+      expect(store.children(0).ids).toEqual([1, 2, 3]);
+      expect(store.children(4).ids).toEqual([5]);
+      expect(store.node(4)?.hasChildren).toBe(true);
+      expect(trail()).toEqual(['Bravo', 'Deep 1']);
+      expect(heldTwice).toBe(false);
+    } finally {
+      titles[5][1] = 4;
+    }
   });
 
   it('keeps the error envelope and flags an expired session', async () => {
