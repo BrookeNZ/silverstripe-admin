@@ -10,10 +10,13 @@
  * - `DELETE delete/<id>?owner...` archives a versioned link or deletes it; 204
  * - `POST sort` with JSON `{newLinkIDs: [...]}` sets `Sort` 1..n; 204
  *
- * Both writes check the CSRF token in `X-SecurityID`.
+ * Both writes check the CSRF token in `X-SecurityID`, which the shell's fetch sends.
  */
 import Config from '../legacy/Config';
-import { CSRF_HEADER } from '../legacy/Backend';
+import { failedStatus, serverCache } from '../legacy/Backend';
+
+/** The class the link records are announced under */
+export const linkRecordClass = 'SilverStripe\\LinkField\\Models\\Link';
 
 export interface LinkData {
   title: string;
@@ -65,14 +68,6 @@ function ownerQuery(owner: LinkOwner): Record<string, string> {
   return { ownerID: String(owner.ownerID), ownerClass: owner.ownerClass, ownerRelation: owner.ownerRelation };
 }
 
-function writeHeaders(): Record<string, string> {
-  return {
-    Accept: 'application/json',
-    'X-Requested-With': 'XMLHttpRequest',
-    [CSRF_HEADER]: String(Config.get('SecurityID') ?? ''),
-  };
-}
-
 export function linkSchemaUrl(linkId: number, typeKey: string, owner: LinkOwner): string {
   const query: Record<string, string> = { typeKey, ...ownerQuery(owner) };
   if (owner.excludeLinkTextField) {
@@ -93,36 +88,19 @@ export async function fetchLinkData(ids: number[], signal?: AbortSignal): Promis
   for (const id of ids) {
     url.searchParams.append('itemIDs[]', String(id));
   }
-  const response = await fetch(url, {
-    credentials: 'same-origin',
-    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-    signal,
-  });
-  if (!response.ok) {
-    throw new Error(`The links could not be loaded (${response.status})`);
-  }
-  return response.json();
+  return (await serverCache().fetchJson<Record<number, LinkData> | null>(url.href, { signal })) ?? {};
+}
+
+/** What the field shows for a failed read of its links */
+export function linkDataError(error: Error): string {
+  const status = failedStatus(error);
+  return status === null ? error.message : `The links could not be loaded (${status})`;
 }
 
 export async function deleteLink(id: number, owner: LinkOwner): Promise<void> {
-  const response = await fetch(endpoint(linkFormConfig().deleteUrl, String(id), ownerQuery(owner)), {
-    method: 'DELETE',
-    credentials: 'same-origin',
-    headers: writeHeaders(),
-  });
-  if (!response.ok) {
-    throw new Error(`The link could not be deleted (${response.status})`);
-  }
+  await serverCache().fetchJson(endpoint(linkFormConfig().deleteUrl, String(id), ownerQuery(owner)).href, { method: 'DELETE' });
 }
 
 export async function sortLinks(ids: number[]): Promise<void> {
-  const response = await fetch(endpoint(linkFormConfig().sortUrl, ''), {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { ...writeHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ newLinkIDs: ids }),
-  });
-  if (!response.ok) {
-    throw new Error(`The links could not be reordered (${response.status})`);
-  }
+  await serverCache().fetchJson(endpoint(linkFormConfig().sortUrl, '').href, { method: 'POST', body: { newLinkIDs: ids } });
 }

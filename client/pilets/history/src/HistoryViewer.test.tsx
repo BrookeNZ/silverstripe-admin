@@ -26,6 +26,7 @@ let container: HTMLDivElement;
 let root: Root;
 let client: { read: ReturnType<typeof vi.fn>; revert: ReturnType<typeof vi.fn> };
 let emitted: Array<[string, unknown]>;
+let afterHooks: Array<[string, unknown]>;
 let toasts: Array<string>;
 let formUrls: Array<string>;
 let queryKeys: Array<string>;
@@ -112,6 +113,9 @@ async function render(data: Record<string, unknown> = {}) {
       },
       useServerQuery,
       useServerMutation,
+      runAfterHook: (name: string, context: unknown) => {
+        afterHooks.push([name, context]);
+      },
     } as never,
     client: client as unknown as HistoryApi,
     versionSchemaUrl: (recordClass, id, number) => `schema?${recordClass}/${id}/${number}`,
@@ -140,6 +144,7 @@ beforeEach(() => {
   document.body.append(container);
   root = createRoot(container);
   emitted = [];
+  afterHooks = [];
   toasts = [];
   formUrls = [];
   queryKeys = [];
@@ -187,7 +192,7 @@ describe('HistoryViewer', () => {
     expect(document.activeElement?.id).toBe('Form_EditForm_PageHistory_version_2');
   });
 
-  it('offers revert for an older version only, and reverts through the client', async () => {
+  it('offers revert for an older version only, reverts through the client and runs onAfterRevert', async () => {
     await render();
     await click('Version 3');
     expect(buttons().map((candidate) => candidate.textContent)).not.toContain('Revert to this version');
@@ -200,6 +205,7 @@ describe('HistoryViewer', () => {
     expect(client.revert).toHaveBeenCalledWith('Page', 1, 2);
     expect(toasts).toEqual(['Reverted to version 2']);
     expect(emitted).toEqual([['silverstripe:records-changed', { recordClass: 'Page', ids: [1] }]]);
+    expect(afterHooks).toEqual([['onAfterRevert', { recordClass: 'Page', id: 1, version: 2 }]]);
     expect(client.read).toHaveBeenCalledTimes(2);
     expect(container.querySelector('table')).not.toBeNull();
     expect(document.activeElement?.textContent).toBe('Versions');
@@ -221,6 +227,7 @@ describe('HistoryViewer', () => {
     expect(container.querySelector('[role="alert"]')?.textContent).toBe('You do not have permission');
     expect(button('Revert to this version')).toBeTruthy();
     expect(emitted).toEqual([]);
+    expect(afterHooks).toEqual([]);
   });
 
   it('shows a failed read as an alert', async () => {

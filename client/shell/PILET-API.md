@@ -13,6 +13,28 @@ these from the shell at runtime and never bundle their own; SystemJS resolves a 
 version check, so changing any of them in a breaking way (React 19, a components major) is a Pilet API
 major.
 
+## Changes
+
+The emulator is `@silverstripe/admin-shell` 1.0.0 throughout the proof of concept; the version is bumped when the
+API is first released. Until then this list is the changelog. A pilet picks up a rebuilt emulator with
+`npm install ../../shell/dist/emulator/silverstripe-admin-shell-1.0.0.tgz` in its own directory (a
+same-version tarball is reinstalled because its integrity changes); every pilet was reinstalled on
+2026-10-08 and typechecks clean, so a pilet no longer needs a local copy of shell types.
+
+- 2026-10-05 and 06: `registerPage`, `registerSilverstripeComponent`, `getSilverstripeComponent`,
+  `registerExtensionComponent`, `getConfig`, `showNotification`; the field props contract; component
+  resolution by `componentCandidates`; `setUnsavedChanges` and `hasUnsavedChanges`.
+- 2026-10-07: `setSectionHeader` (title, then `preview`, `crumbs`, `badge`, `sidebar`); `registerSectionIcon`;
+  `registerMenuItem`; GridField row actions and column contract; `registerBeforeSubmit` (since removed).
+- 2026-10-08: `registerSectionSidebar`; shared state (`useSharedState`, `subscribeSharedState`,
+  `setCurrentRecord`, `recordsChangedEvent`); server cache (`useServerQuery` with `records`,
+  `useServerMutation`, `invalidateRecords`, `fetchJson`; invalidation by class ancestry from
+  `config.recordClasses`); hooks (`registerHook`, `runUpdateHook`, `runBeforeHook`, `runAfterHook`, the
+  `HookPoints` augmentation, hook points `updateFormSchema`, `updateFormValues`, `updateFieldProps`,
+  `updateFormValidation`, `onBeforeFormAction`, `onBeforeFormSubmit`, `onAfterFormSubmit`,
+  `updateGridColumns`, plus elemental's `updateBlockActions` and history's `onAfterRevert`).
+  **Removed:** `registerBeforeSubmit`, replaced by `registerHook('onBeforeFormSubmit', …)` with no alias.
+
 ## Verbs
 
 On `PiletApi`, besides Piral's own (`registerPage`, `registerExtension`, `showNotification` from
@@ -28,7 +50,8 @@ piral-notifications, ...):
 | `setUnsavedChanges(key, dirty): Disposable` | Report unsaved changes this pilet owns; the shell confirms before navigating away. The disposer clears the key |
 | `hasUnsavedChanges(): boolean` | Whether anything in the shell is dirty |
 | `setSectionHeader(header): Disposable` | Show the section header above the content; see **Section header** |
-| `registerBeforeSubmit(formId, handler): Disposable` | Run `handler({action})` before the form with that element id posts; see **Before a form posts** |
+| `registerHook(name, handler, options?): Disposable` | Add a handler to a hook point (`updateX`, `onBeforeX`, `onAfterX`); see **Hooks** |
+| `runUpdateHook(name, value, context)`, `runBeforeHook(name, context): Promise<boolean>`, `runAfterHook(name, context)` | Run a hook point the pilet owns; see **Running a hook** |
 | `registerSectionIcon(sectionCode, Icon): Disposable` | Draw `Icon` beside a section's menu item; see **Section icons** |
 | `registerSectionSidebar(sectionCode, Sidebar): Disposable` | Fill the sidebar column a header's `sidebar` asks for; see **Section header** |
 | `registerMenuItem({ code, label, to, Icon? }): Disposable` | Add a menu link the shell draws like a section's; see **Menu items** |
@@ -251,10 +274,12 @@ use four verbs, and a records-changed event is what clears the cache, so emitter
   `X-Requested-With` on every request, `X-SecurityID` from the config on anything but a GET, credentials
   same-origin. `init` takes `method`, `query` (added to the query string), `body` (sent as JSON;
   `URLSearchParams` and `FormData` are sent as they are), `headers` and `signal`. It resolves to the parsed
-  body, or `null` for an empty one, and rejects with a `ServerRequestError`: `message` (the CMS envelope's
-  first error, or a generic one), `status`, and `sessionExpired`, set for a 401, a 403 with
-  `X-Reauthenticate` and a redirect to the login form, whose message asks the viewer to reload and log in.
-  A success whose body is not JSON (an HTML page) rejects too.
+  body, or `null` for an empty one, and rejects with a `ServerRequestError`: `message` (what the server
+  said, or a generic one), `status`, `serverMessage` (the CMS envelope's errors joined, or the first line
+  of a dev-mode plain-text error; `null` when the server said nothing worth showing) and `sessionExpired`,
+  set for a 401, a 403 with `X-Reauthenticate` and a redirect to the login form, whose message asks the
+  viewer to reload and log in. A success whose body is not JSON (an HTML page) rejects too, and so does a
+  200 that redirects by `X-ControllerURL` (a section the member cannot view), as a 403.
 - `useServerQuery<T>(key, fetcher, options?)` is a React hook. `fetcher({signal, request})` loads the data,
   `request` being `fetchJson`; the same key on screen twice fetches once. Options: `enabled` (false holds the
   read back), `staleTime` in milliseconds (0 by default, so a remount refetches behind the cached data) and
@@ -276,36 +301,154 @@ listens to records-changed and invalidates the keys an event matches:
 | Key | Matched by |
 |---|---|
 | `['schema', ...]` (form schemas), `['grid', ...]` (grid rows), `['blocks', ...]` (an area's blocks) | Every event, since any of them can show any record |
-| `[recordClass, id, ...]`, such as `['Page', 7, 'versions', 1]` for a record's versions | An event naming that class with `id` among its ids, or with no ids |
-| `[recordClass, 'list', ...]` or any non-numeric second part, a read over the class | Every event naming that class |
-| Any key whose `records(data)` returned an id the event names | That event; this is how the pages tree's `[SiteTree, parentId, 'children', ...]` listings follow a saved row |
+| `[recordClass, id, ...]`, such as `['Page', 7, 'versions', 1]` for a record's versions | An event naming a related class with `id` among its ids, or with no ids |
+| `[recordClass, 'list', ...]` or any non-numeric second part, a read over the class | Every event naming a related class |
+| Any key whose `records(data)` returned an id the event names | That event, for a related class; this is how the pages tree's `[SiteTree, parentId, 'children', ...]` listings follow a saved row |
+
+A related class is the key's class itself, an ancestor of it or a descendant of it. The shell reads the
+ancestry from the config's `recordClasses`, which maps every DataObject class with a table to its
+ancestors from its parent up to `DataObject`, as full class names. So an event for `Page` invalidates
+keys under `SiteTree` that may show the page, and an event for `SiteTree` invalidates keys under `Page`
+and every other subclass, as the legacy admin's full tree reload did. Two classes that only share an
+ancestor are not related. A class missing from the map (one without a table) matches only its own name.
 
 An invalidated read on screen refetches with its data still showing; one off screen is marked stale and
-refetches when next read. Class names must match exactly: an event for a base class (`SiteTree`) does
-not invalidate keys under a subclass (`Page`), though such a key still refetches on its next mount.
+refetches when next read.
 
 The pages pilet reads each tree level this way, keyed `[SiteTree, parentId, 'children', page, limit]` with
 `records` returning the child ids, and announces a save, a new child or a move as a SiteTree event instead of
-re-reading; an event for a page's own class is announced again as SiteTree, since class names must match.
+re-reading; an event for a page's own class, such as a history revert, reaches those listings by ancestry.
 
 The history pilet reads its version pages this way, keyed `[recordClass, id, 'versions', page]`, and
 reverts with `useServerMutation`, whose `changes` names the record.
 
-## Before a form posts
+What else is on the cache:
 
-`registerBeforeSubmit(formId, handler)` runs `handler({action})` after the form is valid and before it
-posts, where `formId` is the form element's id (`Form_EditForm`), which every field receives as `formId`.
-Handlers run one after another in registration order and are awaited; one that resolves `false` cancels
-the post and the rest, and should say why itself (a toast). A thrown error cancels too and its message
-shows on the form. The form posts its values as they are once the handlers finish, so a field that
-writes its pending value in a handler (the HTML editor flushing its content) is posted with it. The
-elemental area uses it to save dirty blocks before the page saves:
+| Read | Key | Writes that announce |
+|---|---|---|
+| A FormSchema form (shell) | `['schema', schemaUrl]` | A successful submit whose response carries `record` announces `[record.className, [record.id]]`; the save then waits for its own form's refetch, and a refetch resets the values only while the form is clean |
+| A GridField's rows (shell) | `['grid', rowsUrl, params]`, keeping the last page on screen while the next loads | A row action announces `[grid.modelClass, [row.id]]`, then waits for the rows' refetch |
+| A LinkField's links (fields) | `['SilverStripe\LinkField\Models\Link', 'data', ids]` | Delete, sort and a dialog save announce the links they changed under the Link class |
+| A UsedOnTable's usage list (fields) | `[recordClass, recordId, 'usage']` | None; a save of the record refetches it |
 
-```tsx
-React.useEffect(() => piral.registerBeforeSubmit(formId, async () => saveDirtyBlocks()), [piral, formId]);
+Two loaders stay imperative on `fetchJson`, uncached: SearchableDropdownField's search-as-you-type and
+TreeDropdownField's lazy tree levels, which keep their own stores. Shell components read through
+`useShellServerQuery` and `useShellServerMutation` in `state/serverCache.ts`, on the same client the
+Pilet API hands pilets. The elemental pilet's block list is not on the cache yet.
+
+## Hooks
+
+Hooks are how a pilet changes or reacts to what the shell does without replacing its components. They
+replace the legacy `Injector.transform`. **There is no Injector adapter**: a module that called
+`Injector.transform` ports each transformation by hand, using the table at the end of this section.
+
+```ts
+const dispose = piral.registerHook('onBeforeFormSubmit', async ({ formId, action, values }) => {
+  if (formId !== 'Form_EditForm') {
+    return true;
+  }
+  return saveDirtyBlocks();
+}, { id: 'save-blocks' });
 ```
 
-The disposer removes the handler; unloading a pilet removes all of its handlers.
+`registerHook(name, handler, options?)` returns a disposer; unloading the pilet removes all of its
+handlers. Handlers are global, not per form, so a handler for a form hook checks `formId` itself.
+
+### Running a hook
+
+A pilet that owns a hook point runs it with the verb for its kind, which the shell's own hook points
+use too, so order, isolation and the development freeze are the same:
+
+| Verb | Returns |
+|---|---|
+| `runUpdateHook(name, value, context)` | The value after every handler. Cheap enough to call during render; a handler registered later shows from the next render |
+| `runBeforeHook(name, context)` | `Promise<boolean>`: `false` as soon as a handler cancels; rejects with a handler's thrown error |
+| `runAfterHook(name, context)` | Nothing; handler errors and rejections are logged |
+
+Each verb takes only names of its kind (`runUpdateHook` an `updateX` name, and so on) and throws on
+another. The pilet declares its hook point's types by augmenting `HookPoints`, and a pilet registering
+a handler for it declares the shape it reads the same way:
+
+```ts
+declare module '@silverstripe/admin-shell' {
+  interface HookPoints {
+    updateBlockActions: { value: ReadonlyArray<BlockAction>; context: { block: Block; area: { id: number; pageId: number } } };
+  }
+}
+
+const actions = piral.runUpdateHook('updateBlockActions', builtIn, { block, area });
+```
+
+### Kinds
+
+The name decides the kind; a name that is none of these is refused.
+
+| Kind | Handler | Result |
+|---|---|---|
+| `updateX` | `(value, context) => value` | Each handler gets the previous handler's result and returns the next value. Return a new value; in development builds the input is a deep-frozen copy, so mutating it throws |
+| `onBeforeX` | `(context) => boolean \| void \| Promise<boolean \| void>` | Run one after another and awaited; the first to resolve `false` stops the rest and cancels. A handler that cancels says why itself (a toast) |
+| `onAfterX` | `(context) => void` | Told once it has happened; the return value is ignored |
+
+### Order
+
+`options.id` names the registration `<pilet>:<id>` (a counter when omitted; a pilet registering the same
+id twice for one hook is refused). `options.before` and `options.after` list other registrations by
+that name, and the shell's own handlers are `shell:<id>`. Handlers run in that constrained order; where
+the constraints leave a choice, the shell's handlers come first, then pilets in feed order, then
+registration order. A `before` or `after` naming nothing registered is ignored. A cycle is logged with
+the pilets in it and the hook's handlers run in feed order instead.
+
+### Failures
+
+Every handler runs on its own. An `updateX` handler that throws, or returns a promise (an update cannot
+be awaited), is logged with its pilet's name and the previous value passes on to the next handler. An
+`onBeforeX` handler that throws is logged and cancels, and the error reaches the caller: a form shows
+its message. An `onAfterX` handler that throws or rejects is logged. The legacy Injector let a throwing
+transformation break the whole form.
+
+### Hook points
+
+| Hook | Value | Context | Where |
+|---|---|---|---|
+| `updateFormSchema` | `FormSchemaTree` | `{formId}` | Every FormSchemaForm, over the schema as loaded and refetched after a save, and again when the handlers change |
+| `updateFormValues` | values keyed by posted field name | `{formId, action}` | First thing on every post, before validation. A field holding a value the form does not have yet (the HTML editor's unreported typing) returns it here; the form writes any changed name back, then validates and posts it |
+| `updateFieldProps` | `FieldComponentProps` | `{field, schema}` | Every field a FormSchemaForm renders, each render; keep it cheap |
+| `onBeforeFormAction` | | `{formId, action}` | An action button in a form's own action bar is pressed, before validation and before the host's `confirmAction`; for confirmations. A host posting through `handleRef` does not run it |
+| `updateFormValidation` | `FormValidationErrors` (messages keyed by posted field name) | `{values, schema}` | Before every post. The shell's own check (`shell:validation`, `required` only) runs first; any message left stops the post and shows on its field, or above the form when it names no field |
+| `onBeforeFormSubmit` | | `{formId, action, values}` | After validation, before every post, the handle's included; for work that must finish before the post (elemental saves dirty blocks here) or to cancel it. The form posts its values as they are once the handlers finish; `values` is the snapshot from before the handlers. A pending field value belongs in `updateFormValues`, or validation does not see it |
+| `onAfterFormSubmit` | | `{formId, action, response}` | The server answered a post, with errors or without |
+| `updateGridColumns` | `ReadonlyArray<GridColumn>` | `{name, rowsUrl}` | Each GridField's columns as the rows endpoint sends them; reorder or drop columns (rows carry no data for a column the server did not send) |
+| `updateBlockActions` | `ReadonlyArray<BlockAction>`, each `{id, label, onSelect(block), disabled?}` | `{block, area: {id, pageId}}` | Run by the elemental pilet over a block's menu, each render, after it drops the built-in actions the block does not allow. Built-in ids are `publish`, `unpublish`, `duplicate`, `moveUp`, `moveDown` and `archive`; add, reorder or drop entries. A disabled entry stays focusable and does nothing |
+| `onAfterRevert` | | `{recordClass, id, version}` | Run by the history pilet once a revert succeeds, before its toast; `version` is the version reverted to |
+
+`updateBlockActions` and `onAfterRevert` are declared by the pilets that run them, not the shell. Planned
+and not yet run: `updateUploadFieldProps`, for the pilet that will own `UploadField`.
+
+The value and context types are exported as `HookPoints`, with `HookHandler<N>`, `HookOptions`,
+`FormValidationErrors` and the handler types. A hook name not in `HookPoints` can still be registered;
+its value and context are then `unknown`.
+
+### From `Injector.transform`
+
+The ten transformations installed modules register today, and what replaces each:
+
+| Module | Transformation | What it did | Successor |
+|---|---|---|---|
+| admin | `admin` | `reducer('form', applyFormMiddleware)` | Gone: form state is per form; alter the schema with `updateFormSchema` |
+| admin | `field-holders` | Wraps `FieldGroup` in a holder | The shell's form layout owns holders; nothing to port |
+| admin | `form-action-changed` | Save and publish pristine state, the dirty indicator | Built in: `withPristineState` in `forms/schema.ts` |
+| admin | `schema-validation` | Client validation from the schema | `updateFormValidation`, after `shell:validation` |
+| asset-admin | `move-form-disabled` | Decorates `TreeDropdownField.AssetAdmin.MoveForm` | `registerSilverstripeComponent` under a context key, or `updateFieldProps` |
+| asset-admin | `owner-unpublishing` | Decorates `FormAction.AssetAdmin.EditForm.action_unpublish` with a confirmation | `onBeforeFormAction`, or the host's `confirmAction` prop |
+| elemental | `elemental-fieldgroup` | Historic block view in the history detail | The history pilet's `VersionDetail` slot, filled by elemental |
+| elemental | `blocks-history-revert` | Adds revert to a toolbar | The history pilet reverts through its API; `onAfterRevert` to react |
+| elemental | `element-actions` | Five block actions | Owned by the elemental pilet; `updateBlockActions` for third parties |
+| sortablefile | `enhance-uploadfield` | Replaces `UploadField`, transforms the `assetAdmin` reducer | `registerSilverstripeComponent('UploadField')` plus `updateUploadFieldProps` (planned) |
+
+In general: decorating a component (`updater.component`) becomes registering a component under the same
+name, or an `updateXProps` hook; `updater.form.alterSchema` becomes `updateFormSchema` (or
+`updateFieldProps` for one field); `updater.form.addValidation` becomes `updateFormValidation`; a reducer
+transform has no successor, since there is no Redux store.
 
 ## Section header
 

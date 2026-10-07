@@ -5,7 +5,16 @@ import type { Block } from './api';
 import { blockStatus, blockTitle, statusLabels } from './blocks';
 import type { ElementType } from './blocks';
 
-export type BlockAction = 'publish' | 'unpublish' | 'archive' | 'duplicate' | 'moveUp' | 'moveDown';
+export type BuiltInBlockAction = 'publish' | 'unpublish' | 'archive' | 'duplicate' | 'moveUp' | 'moveDown';
+
+/** An entry in a block's menu, as the `updateBlockActions` hook hands the list round */
+export interface BlockAction {
+  /** The built-in actions use their `BuiltInBlockAction` name, so a handler can find, reorder or drop one */
+  id: string;
+  label: string;
+  onSelect(block: Block): void | Promise<void>;
+  disabled?: boolean;
+}
 
 export interface BlockRowProps {
   block: Block;
@@ -20,13 +29,19 @@ export interface BlockRowProps {
   editLink: { to: string; inRouter: boolean } | null;
   renderRouterLink(props: Record<string, unknown>): React.ReactElement;
   onToggle(): void;
-  onAction(action: BlockAction): void;
+  actions: ReadonlyArray<BlockAction>;
   /** Opens the add dialog to insert after this block; no control renders without it */
   onInsertAfter?(): void;
   children?: React.ReactNode;
 }
 
-const menuItems: ReadonlyArray<{ action: BlockAction; label: string; allowed(row: BlockRowProps): boolean }> = [
+interface RowPlace {
+  block: Block;
+  index: number;
+  count: number;
+}
+
+const menuItems: ReadonlyArray<{ action: BuiltInBlockAction; label: string; allowed(row: RowPlace): boolean }> = [
   { action: 'publish', label: 'Publish', allowed: ({ block }) => block.canPublish && blockStatus(block) !== 'published' },
   { action: 'unpublish', label: 'Unpublish', allowed: ({ block }) => block.canUnpublish && block.isPublished },
   { action: 'duplicate', label: 'Duplicate', allowed: ({ block }) => block.canCreate },
@@ -34,6 +49,11 @@ const menuItems: ReadonlyArray<{ action: BlockAction; label: string; allowed(row
   { action: 'moveDown', label: 'Move down', allowed: ({ index, count }) => index < count - 1 },
   { action: 'archive', label: 'Archive', allowed: ({ block }) => block.canDelete },
 ];
+
+/** The built-in actions this row allows, each handing its name to `run` */
+export function builtInActions(row: RowPlace, run: (action: BuiltInBlockAction) => void): Array<BlockAction> {
+  return menuItems.filter((item) => item.allowed(row)).map((item) => ({ id: item.action, label: item.label, onSelect: () => run(item.action) }));
+}
 
 function reducedMotion(): boolean {
   return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -52,7 +72,7 @@ export function insertId(block: Pick<Block, 'id'>): string {
 }
 
 export const BlockRow = (props: BlockRowProps) => {
-  const { block, type, expanded, dirty, busy, editLink, renderRouterLink, onToggle, onAction, onInsertAfter, children } = props;
+  const { block, type, expanded, dirty, busy, editLink, renderRouterLink, onToggle, actions, onInsertAfter, children } = props;
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: block.id,
     disabled: busy,
@@ -73,8 +93,6 @@ export const BlockRow = (props: BlockRowProps) => {
         }
       : undefined
   ) as React.CSSProperties | undefined;
-
-  const items = menuItems.filter((item) => item.allowed(props));
 
   return (
     <li
@@ -105,11 +123,16 @@ export const BlockRow = (props: BlockRowProps) => {
           {block.blockSchema.content && <span className="elemental-block__summary">{block.blockSchema.content}</span>}
         </div>
         <div className="elemental-block__controls">
-          {items.length > 0 && (
+          {actions.length > 0 && (
             <Menu id={menuId(block)} label={`More options for ${title}`}>
-              {items.map((item) => (
-                <Button key={item.action} variant="tertiary" aria-disabled={busy || undefined} onClick={() => !busy && onAction(item.action)}>
-                  {item.label}
+              {actions.map((action) => (
+                <Button
+                  key={action.id}
+                  variant="tertiary"
+                  aria-disabled={busy || action.disabled || undefined}
+                  onClick={() => !busy && !action.disabled && action.onSelect(block)}
+                >
+                  {action.label}
                 </Button>
               ))}
             </Menu>

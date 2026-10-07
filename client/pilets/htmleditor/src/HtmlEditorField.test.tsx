@@ -6,7 +6,7 @@ import type { Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RawEditorOptions, TinyMCE } from 'tinymce';
 import { createHtmlEditorField } from './HtmlEditorField';
-import type { BeforeSubmitHandler, HtmlEditorFieldProps, HtmlEditorPiletApi, SchemaFormDialogProps } from './shell';
+import type { HtmlEditorFieldProps, HtmlEditorPiletApi, SchemaFormDialogProps, UpdateFormValuesHandler } from './shell';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -150,7 +150,7 @@ let root: Root;
 let editors: Array<FakeEditor>;
 let tinymce: { init: ReturnType<typeof vi.fn> };
 let load: ReturnType<typeof vi.fn>;
-let beforeSubmit: Map<string, BeforeSubmitHandler>;
+let hooks: Map<string, UpdateFormValuesHandler>;
 let disposed: Array<string>;
 let api: HtmlEditorPiletApi;
 let changes: Array<string>;
@@ -209,7 +209,7 @@ beforeEach(() => {
   changes = [];
   blurs = 0;
   disposed = [];
-  beforeSubmit = new Map();
+  hooks = new Map();
   tinymce = {
     init: vi.fn(async (options: RawEditorOptions) => {
       const editor = new FakeEditor(options);
@@ -221,11 +221,11 @@ beforeEach(() => {
   };
   load = vi.fn(async () => tinymce as unknown as TinyMCE);
   api = {
-    registerBeforeSubmit: (formId: string, handler: BeforeSubmitHandler) => {
-      beforeSubmit.set(formId, handler);
+    registerHook: (name: string, handler: UpdateFormValuesHandler) => {
+      hooks.set(name, handler);
       return () => {
-        disposed.push(formId);
-        beforeSubmit.delete(formId);
+        disposed.push(name);
+        hooks.delete(name);
       };
     },
   } as unknown as HtmlEditorPiletApi;
@@ -294,10 +294,12 @@ describe('HtmlEditorField', () => {
     expect(changes).toEqual(['<p>Blurred</p>']);
     expect(blurs).toBe(1);
     editor.type('<p>Posted</p>');
-    await act(async () => {
-      await beforeSubmit.get('Form_EditForm')!({ action: 'action_save' });
-    });
-    expect(changes).toEqual(['<p>Blurred</p>', '<p>Posted</p>']);
+    const flush = hooks.get('updateFormValues')!;
+    expect(flush({ Content: '<p>Blurred</p>' }, { formId: 'Form_Other', action: 'action_save' })).toEqual({ Content: '<p>Blurred</p>' });
+    expect(flush({ Content: '<p>Blurred</p>' }, { formId: 'Form_EditForm', action: 'action_save' })).toEqual({ Content: '<p>Posted</p>' });
+    // Already handed to the form through the hook, so the debounced report has nothing new to say
+    await settle();
+    expect(changes).toEqual(['<p>Blurred</p>']);
   });
 
   it('takes a value from outside as the new content and baseline', async () => {
@@ -340,11 +342,11 @@ describe('HtmlEditorField', () => {
     expect(changes).toEqual(['<p>Hello again</p>', '<p>Hello again and again</p>']);
   });
 
-  it('removes the editor and its before-submit handler on unmount', async () => {
+  it('removes the editor and its form values handler on unmount', async () => {
     const { editor } = await render();
     act(() => root.unmount());
     expect(editor.remove).toHaveBeenCalled();
-    expect(disposed).toEqual(['Form_EditForm']);
+    expect(disposed).toEqual(['updateFormValues']);
     expect(document.getElementById('Form_EditForm_Content')).toBeNull();
   });
 
@@ -407,7 +409,7 @@ const FakeFormDialog = ({ open, header, intro, schemaUrl, onClose, onSubmitted }
       <button type="button" onClick={onClose}>
         Cancel
       </button>
-      <button type="button" onClick={() => onSubmitted?.({ id: schemaUrl, state: { fields: submitState } } as never, {})}>
+      <button type="button" onClick={() => onSubmitted?.({ id: schemaUrl, state: { fields: submitState } } as never, {} as never)}>
         Insert link
       </button>
     </div>

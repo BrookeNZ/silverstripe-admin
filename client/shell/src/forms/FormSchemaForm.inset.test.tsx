@@ -4,7 +4,8 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FormSchemaForm } from './FormSchemaForm';
-import { fetchFormSchema } from './schema';
+import { FormSchemaRequestError, fetchFormSchema } from './schema';
+import { serverQueryClient } from '../state/serverCache';
 import type { FieldComponentProps } from './types';
 
 vi.mock('piral-core', () => ({
@@ -38,7 +39,11 @@ const field = (name: string, schemaType = 'Text') => ({
 
 let container: HTMLDivElement;
 
-afterEach(() => container.remove());
+afterEach(() => {
+  container.remove();
+  // Each test loads its own schema under the same key
+  serverQueryClient.clear();
+});
 
 async function render(element: React.ReactElement) {
   vi.mocked(fetchFormSchema).mockResolvedValue({
@@ -49,7 +54,13 @@ async function render(element: React.ReactElement) {
   container = document.createElement('div');
   document.body.append(container);
   await act(async () => createRoot(container).render(element));
+  await settle();
 }
+
+// The server cache hands results over on a timer
+const settle = () => act(async () => {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+});
 
 const wrapperOf = (id: string) => container.querySelector(`#${id}`)?.parentElement?.className;
 
@@ -78,12 +89,15 @@ describe('FormSchemaForm content inset', () => {
     expect(container.querySelector('.shell-form__status')?.parentElement?.className).toBe('shell-form__field');
 
     container.remove();
+    serverQueryClient.clear();
     container = document.createElement('div');
     document.body.append(container);
-    vi.mocked(fetchFormSchema).mockRejectedValue(new Error('Gone'));
+    // A status under 500, which the cache does not retry
+    vi.mocked(fetchFormSchema).mockRejectedValue(new FormSchemaRequestError(404, null, false));
     await act(async () =>
       createRoot(container).render(<FormSchemaForm schemaUrl="admin/form" headless renderLoadError={() => <p id="LoadError" />} />),
     );
+    await settle();
     expect(wrapperOf('LoadError')).toBe('shell-form__field');
     expect(container.querySelector('.shell-form')?.className).toBe('shell-form shell-form--nested');
   });

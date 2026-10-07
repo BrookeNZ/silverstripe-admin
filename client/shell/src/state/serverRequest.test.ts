@@ -90,4 +90,17 @@ describe('fetchJson', () => {
     fetchMock.mockResolvedValue(new Response('', { status: 403 }));
     await expect(fetchJson('https://example.test/admin/api/read')).rejects.toMatchObject({ status: 403, sessionExpired: false });
   });
+
+  it('reads a redirect by header to a section the member cannot view as a 403', async () => {
+    fetchMock.mockResolvedValue(new Response('', { status: 200, headers: { 'X-ControllerURL': 'admin/pages' } }));
+    await expect(fetchJson('https://example.test/admin/api/read')).rejects.toMatchObject({ status: 403, sessionExpired: false });
+  });
+
+  it('keeps the first line of a dev-mode plain-text error as what the server said', async () => {
+    fetchMock.mockResolvedValue(new Response('ERROR [Emergency]: Uncaught LogicException\nIN GET /admin', { status: 500, headers: { 'Content-Type': 'text/html' } }));
+    await expect(fetchJson('https://example.test/admin/api/read')).rejects.toMatchObject({
+      status: 500,
+      serverMessage: 'ERROR [Emergency]: Uncaught LogicException',
+    });
+  });
 });

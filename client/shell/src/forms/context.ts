@@ -1,10 +1,12 @@
 import * as React from 'react';
 import type { Control } from 'react-hook-form';
 import type { FormValues } from './schema';
-import type { FormField } from './types';
+import type { FormField, FormSchemaTree } from './types';
 
 export interface FormRenderContextValue {
   formId: string;
+  /** After `updateFormSchema` */
+  schema: FormSchemaTree;
   control: Control<FormValues>;
   submitting: boolean;
   dirty: boolean;

@@ -4,6 +4,7 @@ import type { ComboboxOptionState } from '@silverstripe/admin-patterns';
 import i18n from '../legacy/i18n';
 import fieldHolder from '../legacy/fieldHolder';
 import { connectTreeDropdownField } from '../legacy/treeDropdownFieldState';
+import { serverCache } from '../legacy/Backend';
 import { mapHighlight } from '../legacy/castStringToElement';
 import { findTreeByPath, findTreeByID, findTreePath, treeFetchUrl } from './treeUtils';
 import type { TreeDropdownFieldNode } from './treeUtils';
@@ -237,10 +238,7 @@ class TreeDropdownField extends Component<any, any> {
    */
   callFetch(path, search = '', props = this.props) {
     const fetchURLString = treeFetchUrl(props.data, path, search, props.value);
-    return this.props.fetch(fetchURLString, {
-      credentials: 'same-origin',
-    })
-      .then(response => response.json());
+    return this.props.fetch(fetchURLString);
   }
 
   /**
@@ -757,8 +755,7 @@ TreeDropdownField.defaultProps = {
   failed: [],
   findTreeByPath,
   findTreePath,
-  // Called as a method of props, which the browser's fetch rejects
-  fetch: (input, init) => window.fetch(input, init),
+  fetch: (url: string) => serverCache().fetchJson(url),
 };
 
 function mapStateToProps(field, ownProps) {

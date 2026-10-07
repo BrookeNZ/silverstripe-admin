@@ -1,16 +1,13 @@
 /**
- * Requests to the rows endpoint, with the headers of the admin JSON API convention: Accept JSON and
- * X-Requested-With on every request (so an expired session answers 401/403 rather than redirecting to
- * the login form), and the CSRF token from the client config in X-SecurityID on a POST.
+ * Requests to the rows endpoint through the shell's fetch, which sends the admin XHR headers and the
+ * CSRF token on a POST; a failure becomes a `GridRequestError` with the message the grid shows.
  */
+import { ServerRequestError, fetchJson } from '../state/serverRequest';
 import type { GridPayload } from './types';
 
-export class GridRequestError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-  ) {
-    super(message);
+export class GridRequestError extends ServerRequestError {
+  constructor(status: number, message: string) {
+    super(message, status);
   }
 }
 
@@ -38,21 +35,17 @@ export async function requestGrid(
   url: string,
   init: { method?: 'GET' | 'POST'; body?: unknown; signal?: AbortSignal } = {},
 ): Promise<GridPayload> {
-  const headers: Record<string, string> = { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
-  if (init.method === 'POST') {
-    headers['Content-Type'] = 'application/json';
-    headers['X-SecurityID'] = String(window.ss.config.SecurityID ?? '');
+  let body: GridPayload | null;
+  try {
+    body = await fetchJson<GridPayload | null>(url, init);
+  } catch (error) {
+    if (error instanceof ServerRequestError) {
+      throw new GridRequestError(error.status, error.serverMessage ?? errorMessage(null, error.status, error.sessionExpired));
+    }
+    throw error;
   }
-  const response = await fetch(url, {
-    method: init.method ?? 'GET',
-    credentials: 'same-origin',
-    headers,
-    body: init.body === undefined ? undefined : JSON.stringify(init.body),
-    signal: init.signal,
-  });
-  const body = await response.json().catch(() => null);
-  if (!response.ok || response.redirected || !body) {
-    throw new GridRequestError(response.status, errorMessage(body, response.status, response.headers.has('X-Reauthenticate')));
+  if (!body) {
+    throw new GridRequestError(200, errorMessage(null, 200));
   }
-  return body as GridPayload;
+  return body;
 }

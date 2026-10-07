@@ -4,9 +4,11 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { registerBeforeSubmit } from './beforeSubmit';
+import { registerHook, resetHooks } from '../hooks/registry';
+import { registerShellValidation } from './validation';
 import { FormSchemaForm } from './FormSchemaForm';
 import { fetchFormSchema, submitFormSchema } from './schema';
+import { serverQueryClient } from '../state/serverCache';
 import type { FieldComponentProps, FormSchemaFormHandle } from './types';
 
 vi.mock('piral-core', () => ({
@@ -102,9 +104,12 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // Each test loads its own schema under the same key
+  serverQueryClient.clear();
   act(() => root.unmount());
   container.remove();
   disposers.splice(0).forEach((dispose) => dispose());
+  resetHooks();
 });
 
 describe('FormSchemaForm headless mode', () => {
@@ -170,13 +175,15 @@ describe('FormSchemaForm headless mode', () => {
   });
 });
 
-describe('FormSchemaForm before-submit handlers', () => {
-  it('runs the handlers before posting and cancels when one answers false', async () => {
+describe('FormSchemaForm hooks', () => {
+  const submitForm = () => container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+
+  it('runs onBeforeFormSubmit before posting and cancels when a handler answers false', async () => {
     const order: Array<string> = [];
     let allow = false;
     disposers.push(
-      registerBeforeSubmit('Form_Block', 'test', async () => {
-        order.push('handler');
+      registerHook('test', 'onBeforeFormSubmit', async ({ formId, action, values }) => {
+        order.push(`handler ${formId} ${action} ${values.Title}`);
         return allow;
       }),
     );
@@ -187,24 +194,42 @@ describe('FormSchemaForm before-submit handlers', () => {
     await render(<FormSchemaForm schemaUrl="schema/Block" />);
     type('New');
     await flush();
-    const submitForm = () => container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await act(async () => {
       submitForm();
     });
     await flush();
-    expect(order).toEqual(['handler']);
+    expect(order).toEqual(['handler Form_Block action_save New']);
     allow = true;
     await act(async () => {
       submitForm();
     });
     await flush();
-    expect(order).toEqual(['handler', 'handler', 'post']);
+    expect(order).toEqual(['handler Form_Block action_save New', 'handler Form_Block action_save New', 'post']);
   });
 
-  it('posts what a handler writes into a field', async () => {
+  it('shows the message of an onBeforeFormSubmit handler that throws and does not post', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    disposers.push(
+      registerHook('test', 'onBeforeFormSubmit', () => {
+        throw new Error('Block failed');
+      }),
+    );
+    const handle = React.createRef<FormSchemaFormHandle>();
+    await render(<FormSchemaForm schemaUrl="schema/Block" headless handleRef={handle} />);
+    let result: unknown;
+    await act(async () => {
+      result = await handle.current!.submit();
+    });
+    expect(result).toMatchObject({ ok: false, message: 'Block failed' });
+    expect(submitFormSchema).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('Block failed');
+    vi.mocked(console.error).mockRestore();
+  });
+
+  it('posts what an onBeforeFormSubmit handler writes into a field', async () => {
     const handle = React.createRef<FormSchemaFormHandle>();
     disposers.push(
-      registerBeforeSubmit('Form_Block', 'test', () => {
+      registerHook('test', 'onBeforeFormSubmit', () => {
         type('Flushed');
       }),
     );
@@ -215,5 +240,120 @@ describe('FormSchemaForm before-submit handlers', () => {
     });
     const [, body] = vi.mocked(submitFormSchema).mock.calls[0];
     expect(String(body)).toContain('Title=Flushed');
+  });
+
+  it('validates and posts what an updateFormValues handler returns', async () => {
+    disposers.push(registerShellValidation());
+    const required = { ...response, schema: { ...response.schema, fields: [{ ...titleField, validation: { required: true } }] } };
+    vi.mocked(fetchFormSchema).mockResolvedValue(required as never);
+    let pending = 'Pending';
+    disposers.push(registerHook('test', 'updateFormValues', (values, { formId }) => (formId === 'Form_Block' ? { ...values, Title: pending } : values)));
+    const handle = React.createRef<FormSchemaFormHandle>();
+    await render(<FormSchemaForm schemaUrl="schema/Block" headless handleRef={handle} />);
+    type('');
+    await act(async () => {
+      await handle.current!.submit();
+    });
+    const [, body] = vi.mocked(submitFormSchema).mock.calls[0];
+    expect(String(body)).toContain('Title=Pending');
+
+    pending = '';
+    type('Typed');
+    await act(async () => {
+      await handle.current!.submit();
+    });
+    expect(submitFormSchema).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain('Title is required.');
+
+    // The fix arrives through the hook, not typing, so nothing re-validated the field: the next post must still go
+    pending = 'Fixed';
+    await act(async () => {
+      await handle.current!.submit();
+    });
+    expect(submitFormSchema).toHaveBeenCalledTimes(2);
+    expect(container.textContent).not.toContain('Title is required.');
+  });
+
+  it('renders the schema updateFormSchema returns, with the form id as context', async () => {
+    const contexts: Array<unknown> = [];
+    disposers.push(
+      registerHook('test', 'updateFormSchema', (schema, context) => {
+        contexts.push(context);
+        return { ...schema, fields: schema.fields.map((field) => ({ ...field, id: 'Form_Block_Renamed' })) };
+      }),
+    );
+    await render(<FormSchemaForm schemaUrl="schema/Block" headless />);
+    expect(container.querySelector('#Form_Block_Renamed')).not.toBeNull();
+    expect(contexts[0]).toEqual({ formId: 'Form_Block' });
+  });
+
+  it('applies an updateFormSchema handler registered after the form loaded', async () => {
+    await render(<FormSchemaForm schemaUrl="schema/Block" headless />);
+    expect(container.querySelector('#Form_Block_Title')).not.toBeNull();
+    act(() => {
+      disposers.push(registerHook('test', 'updateFormSchema', (schema) => ({ ...schema, fields: [] })));
+    });
+    expect(container.querySelector('#Form_Block_Title')).toBeNull();
+  });
+
+  it('hands each field the props updateFieldProps returns', async () => {
+    disposers.push(registerHook('test', 'updateFieldProps', (props, { field }) => (field.name === 'Title' ? { ...props, formId: 'Changed' } : props)));
+    await render(<FormSchemaForm schemaUrl="schema/Block" headless />);
+    expect(container.querySelector('#Form_Block_Title')?.getAttribute('data-form-id')).toBe('Changed');
+  });
+
+  it('stops a post the shell validator or an updateFormValidation handler finds invalid', async () => {
+    disposers.push(registerShellValidation());
+    const required = { ...response, schema: { ...response.schema, fields: [{ ...titleField, validation: { required: true } }] } };
+    vi.mocked(fetchFormSchema).mockResolvedValue(required as never);
+    const handle = React.createRef<FormSchemaFormHandle>();
+    await render(<FormSchemaForm schemaUrl="schema/Block" headless handleRef={handle} />);
+    type('');
+    await act(async () => {
+      await handle.current!.submit();
+    });
+    expect(submitFormSchema).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('Title is required.');
+
+    disposers.push(
+      registerHook('test', 'updateFormValidation', (errors, { values }) => (values.Title === 'Bad' ? { ...errors, Title: ['Not that one'] } : errors), {
+        after: ['shell:validation'],
+      }),
+    );
+    type('Bad');
+    await act(async () => {
+      await handle.current!.submit();
+    });
+    expect(submitFormSchema).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('Not that one');
+
+    type('Good');
+    await act(async () => {
+      await handle.current!.submit();
+    });
+    expect(submitFormSchema).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks onBeforeFormAction before a pressed action and tells onAfterFormSubmit the answer', async () => {
+    let allow = false;
+    const after = vi.fn();
+    disposers.push(
+      registerHook('test', 'onBeforeFormAction', ({ action }) => action === 'action_save' && allow),
+      registerHook('test', 'onAfterFormSubmit', after),
+    );
+    await render(<FormSchemaForm schemaUrl="schema/Block" />);
+    type('New');
+    await act(async () => {
+      submitForm();
+    });
+    await flush();
+    expect(submitFormSchema).not.toHaveBeenCalled();
+    allow = true;
+    await act(async () => {
+      submitForm();
+    });
+    await flush();
+    expect(submitFormSchema).toHaveBeenCalledTimes(1);
+    expect(after).toHaveBeenCalledWith(expect.objectContaining({ formId: 'Form_Block', action: 'action_save', response: expect.objectContaining({ errors: [] }) }));
   });
 });

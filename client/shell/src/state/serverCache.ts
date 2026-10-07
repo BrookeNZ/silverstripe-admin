@@ -16,9 +16,13 @@
  *
  * Invalidation refetches what is on screen and marks the rest stale. Emitters keep emitting the event;
  * `invalidateRecords` is the same emit under a name that says why.
+ *
+ * Shell components (the form, the grid) read through `useShellServerQuery` and `useShellServerMutation`,
+ * which use the same client the plugin hands pilets.
  */
 import { QueryClient, keepPreviousData, useMutation, useQuery } from '@tanstack/react-query';
 import type { QueryKey } from '@tanstack/react-query';
+import { useGlobalStateContext } from 'piral-core';
 import type { GlobalStateContext, PiralPlugin } from 'piral-core';
 import { recordsChangedEvent } from '../events';
 import type { RecordsChangedEvent } from '../events';
@@ -161,44 +165,86 @@ function announce(context: GlobalStateContext, changes: RecordsChangedEvent | Re
   events.forEach((event) => context.emit(recordsChangedEvent, event));
 }
 
-export function createServerCacheApi(queryClient: QueryClient = createServerQueryClient()): PiralPlugin<ServerCacheApi> {
+function useCachedQuery<T>(
+  queryClient: QueryClient,
+  key: ServerQueryKey,
+  fetcher: ServerQueryFetcher<T>,
+  options: ServerQueryOptions<T> = {},
+): ServerQueryResult<T> {
+  const query = useQuery(
+    {
+      queryKey: key,
+      queryFn: ({ signal }) => fetcher({ signal, request: fetchJson }),
+      enabled: options.enabled ?? true,
+      staleTime: options.staleTime,
+      placeholderData: options.keepPrevious ? keepPreviousData : undefined,
+      meta: options.records ? ({ records: options.records } as ServerQueryMeta) : undefined,
+    },
+    queryClient,
+  );
+  return {
+    status: query.status,
+    data: query.data,
+    error: query.error,
+    isFetching: query.isFetching,
+    refetch: async () => {
+      await query.refetch();
+    },
+  };
+}
+
+function useCachedMutation<V, R>(
+  queryClient: QueryClient,
+  context: GlobalStateContext,
+  mutation: ServerMutation<V, R>,
+  options: ServerMutationOptions<V, R> = {},
+): ServerMutationResult<V, R> {
+  const result = useMutation<R, Error, V>(
+    {
+      mutationFn: (variables) => mutation(variables, fetchJson),
+      onSuccess: (data, variables) => announce(context, options.changes?.(variables, data) ?? null),
+    },
+    queryClient,
+  );
+  return { mutate: result.mutateAsync, status: result.status, error: result.error, reset: result.reset };
+}
+
+/** The client the shell registers, so shell components and pilets share one cache */
+export const serverQueryClient = createServerQueryClient();
+
+export function useShellServerQuery<T>(key: ServerQueryKey, fetcher: ServerQueryFetcher<T>, options?: ServerQueryOptions<T>): ServerQueryResult<T> {
+  return useCachedQuery(serverQueryClient, key, fetcher, options);
+}
+
+export function useShellServerMutation<V, R>(mutation: ServerMutation<V, R>, options?: ServerMutationOptions<V, R>): ServerMutationResult<V, R> {
+  return useCachedMutation(serverQueryClient, useGlobalStateContext(), mutation, options);
+}
+
+/** Emits records-changed from a shell component, for a write made outside `useShellServerMutation` */
+export function announceRecords(context: GlobalStateContext, changes: RecordsChangedEvent | ReadonlyArray<RecordsChangedEvent>): void {
+  announce(context, changes);
+}
+
+/**
+ * Refetches the read under exactly `key` if it is on screen; a fetch already running (one an event just
+ * started) is joined rather than restarted
+ */
+export function refetchShellServerQuery(key: ServerQueryKey): Promise<void> {
+  return serverQueryClient.refetchQueries({ queryKey: key, exact: true, type: 'active' }, { cancelRefetch: false });
+}
+
+export function createServerCacheApi(queryClient: QueryClient = serverQueryClient): PiralPlugin<ServerCacheApi> {
   return (context) => {
     context.on(recordsChangedEvent, (event: RecordsChangedEvent) => {
       void invalidateRecordsChanged(queryClient, event);
     });
 
-    function useServerQuery<T>(key: ServerQueryKey, fetcher: ServerQueryFetcher<T>, options: ServerQueryOptions<T> = {}): ServerQueryResult<T> {
-      const query = useQuery(
-        {
-          queryKey: key,
-          queryFn: ({ signal }) => fetcher({ signal, request: fetchJson }),
-          enabled: options.enabled ?? true,
-          staleTime: options.staleTime,
-          placeholderData: options.keepPrevious ? keepPreviousData : undefined,
-          meta: options.records ? ({ records: options.records } as ServerQueryMeta) : undefined,
-        },
-        queryClient,
-      );
-      return {
-        status: query.status,
-        data: query.data,
-        error: query.error,
-        isFetching: query.isFetching,
-        refetch: async () => {
-          await query.refetch();
-        },
-      };
+    function useServerQuery<T>(key: ServerQueryKey, fetcher: ServerQueryFetcher<T>, options?: ServerQueryOptions<T>): ServerQueryResult<T> {
+      return useCachedQuery(queryClient, key, fetcher, options);
     }
 
-    function useServerMutation<V, R>(mutation: ServerMutation<V, R>, options: ServerMutationOptions<V, R> = {}): ServerMutationResult<V, R> {
-      const result = useMutation<R, Error, V>(
-        {
-          mutationFn: (variables) => mutation(variables, fetchJson),
-          onSuccess: (data, variables) => announce(context, options.changes?.(variables, data) ?? null),
-        },
-        queryClient,
-      );
-      return { mutate: result.mutateAsync, status: result.status, error: result.error, reset: result.reset };
+    function useServerMutation<V, R>(mutation: ServerMutation<V, R>, options?: ServerMutationOptions<V, R>): ServerMutationResult<V, R> {
+      return useCachedMutation(queryClient, context, mutation, options);
     }
 
     return () => ({

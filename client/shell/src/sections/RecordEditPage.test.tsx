@@ -16,6 +16,7 @@ import { initialUnsavedChanges } from '../unsaved';
 import { RecordEditPage } from './RecordEditPage';
 import { recordRoute } from './record';
 import { resolveSectionRoute } from './resolve';
+import { serverQueryClient } from '../state/serverCache';
 import type { ShellSection } from './resolve';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -186,6 +187,8 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+  // Each test serves its own schema under the same key
+  serverQueryClient.clear();
   vi.unstubAllGlobals();
 });
 

@@ -29,12 +29,12 @@ import { AddIcon, Button, Dialog } from '@silverstripe/admin-patterns';
 import type { Block, ElementalApi } from './api';
 import { afterBlockId, blockTitle, blockType, moveBlock } from './blocks';
 import type { ElementType } from './blocks';
-import { BlockRow, handleId, insertId, menuId } from './BlockRow';
-import type { BlockAction } from './BlockRow';
+import { BlockRow, builtInActions, handleId, insertId, menuId } from './BlockRow';
+import type { BlockAction, BuiltInBlockAction } from './BlockRow';
 import { AddBlockDialog } from './AddBlockDialog';
 import { closestEdge, stepByRow } from './collision';
 import { InlineBlockForm } from './InlineBlockForm';
-import type { AreaFieldProps, ElementalPiletApi, FormSchemaFormHandle, RecordsChangedEvent } from './shell';
+import type { AreaFieldProps, BlockActionsHookContext, ElementalPiletApi, FormSchemaFormHandle, RecordsChangedEvent } from './shell';
 
 export interface ElementalAreaOptions {
   api: ElementalPiletApi;
@@ -96,6 +96,8 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
   const renderRouterLink = ({ to, ...rest }: Record<string, unknown>) => <RouterLink {...(rest as object)} to={String(to)} />;
 
   const blockName = (block: Block) => blockTitle(block, blockType(block, types));
+  const updateBlockActions = (actions: ReadonlyArray<BlockAction>, context: BlockActionsHookContext) =>
+    api.runUpdateHook ? api.runUpdateHook('updateBlockActions', actions, context) : actions;
 
   const ElementalArea = (props: AreaFieldProps & { field: AreaProps }) => {
     const { field } = props;
@@ -231,10 +233,13 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
 
     // Page Save and Publish save every dirty block first and stop if one fails
     React.useEffect(() => {
-      if (!api.registerBeforeSubmit) {
+      if (!api.registerHook) {
         return undefined;
       }
-      return api.registerBeforeSubmit(formId, async () => {
+      return api.registerHook('onBeforeFormSubmit', async (context) => {
+        if (context.formId !== formId) {
+          return true;
+        }
         const dirtyBlocks = (blocksRef.current ?? []).filter((block) => handles.current.get(block.id)?.isDirty());
         for (const block of dirtyBlocks) {
           if (!(await saveBlock(block))) {
@@ -274,7 +279,7 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
       focusLater(focusId);
     };
 
-    const onAction = async (block: Block, action: BlockAction) => {
+    const onAction = async (block: Block, action: BuiltInBlockAction) => {
       const index = (blocksRef.current ?? []).findIndex((candidate) => candidate.id === block.id);
       const title = blockName(block);
       switch (action) {
@@ -457,7 +462,10 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
                       setIn(setMounted, block.id, true);
                       setIn(setExpanded, block.id, !isExpanded);
                     }}
-                    onAction={(action) => onAction(block, action)}
+                    actions={updateBlockActions(
+                      builtInActions({ block, index, count: blocks.length }, (action) => onAction(block, action)),
+                      { block, area: { id: areaId, pageId } },
+                    )}
                     onInsertAfter={addableTypes.length > 0 && index < blocks.length - 1 ? () => openAddDialog(block) : undefined}
                   >
                     {mounted.has(block.id) && (

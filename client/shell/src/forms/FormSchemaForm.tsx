@@ -5,12 +5,17 @@
  * this file and FormFieldSlot; field components only see FieldComponentProps.
  *
  * A form whose state asks for notifyUnsavedChanges reports its dirty state to the shell's unsaved-changes
- * registry. After a successful save the schema is fetched again, because actions change with the record
- * (publish adds unpublish), and focus goes back to the pressed action, which was disabled while saving.
+ * registry. The schema is a server cache read keyed `['schema', schemaUrl]`. A successful save announces
+ * the response's record as records-changed, which refetches every schema on screen, because actions
+ * change with the record (publish adds unpublish); the save waits for this form's refetch, and a refetch
+ * resets the values only while the form is clean. Focus then goes back to the pressed action, which was
+ * disabled while saving.
  * A server error on a field in a hidden tab asks the tabs to reveal it before the field is focused.
  *
- * Handlers registered with `registerBeforeSubmit` for the form's element id run before every post and
- * can cancel it. A headless form (a block's form inside the page form) renders no form element and no
+ * The form runs the shell's hooks: `updateFormSchema` over the schema as loaded and refetched,
+ * `updateFieldProps` for each field it renders, `onBeforeFormAction` when an action button is pressed,
+ * `updateFormValidation` (the shell's own required check first) before every post, then
+ * `onBeforeFormSubmit`, which can cancel it, and `onAfterFormSubmit` once the server answers. A headless form (a block's form inside the page form) renders no form element and no
  * action bar, so it never nests a form; its host posts it through `handleRef`, and Enter in one of its
  * inputs posts it (when dirty) instead of submitting the outer form.
  *
@@ -34,8 +39,11 @@ import { usePreviewBarSlot } from '../preview/barSlot';
 import { usePreviewMode } from '../preview/mode';
 import { PreviewModeMenu } from '../preview/PreviewModeMenu';
 import { setUnsavedChanges, shellOwner } from '../unsaved';
+import { announceRecords, refetchShellServerQuery, useShellServerQuery } from '../state/serverCache';
+import type { ServerQueryResult } from '../state/serverCache';
 import { revealField, Stack } from '@silverstripe/admin-patterns';
-import { runBeforeSubmit } from './beforeSubmit';
+import { runAfterHook, runBeforeHook, runUpdateHook, useUpdateHook } from '../hooks/registry';
+import type { FormValidationErrors } from '../hooks/types';
 import { FormRenderContext, useFormRenderContext } from './context';
 import { useFieldComponent, useFullWidthField } from './useFieldComponent';
 import {
@@ -78,7 +86,7 @@ export interface FormSchemaFormProps {
   trackUnsavedChanges?: boolean;
   /** Controls for what the preview shows, such as the draft and published toggle; drawn before Share in split and preview modes only */
   previewControls?: React.ReactNode;
-  /** Called with the loaded response, for a host that shows what the endpoint sends beside the form */
+  /** Called with each loaded response, the first and every refetch, for a host that shows what the endpoint sends beside the form */
   onLoad?(response: FormSchemaResponse): void;
   /** Asked before an action is submitted; false cancels it, as the legacy delete confirmation did */
   confirmAction?(action: FormField): boolean | Promise<boolean>;
@@ -103,42 +111,38 @@ const BoundField = ({
   field,
   Component,
 }: { field: FormField; Component: React.ComponentType<FieldComponentProps<any>> }) => {
-  const { control, submitting, renderFields, autofill, formId } = useFormRenderContext();
+  const { control, submitting, renderFields, autofill, formId, schema } = useFormRenderContext();
   const { field: binding, fieldState } = useController({ name: field.key, control });
-  return (
-    <Component
-      field={field}
-      value={binding.value}
-      onChange={binding.onChange}
-      onBlur={binding.onBlur}
-      error={fieldState.error?.message ?? field.message?.value}
-      submitting={submitting}
-      renderFields={renderFields}
-      autofill={autofill}
-      formId={formId}
-    />
+  const updateFieldProps = useUpdateHook('updateFieldProps');
+  const props = updateFieldProps(
+    {
+      field,
+      value: binding.value,
+      onChange: binding.onChange,
+      onBlur: binding.onBlur,
+      error: fieldState.error?.message ?? field.message?.value,
+      submitting,
+      renderFields,
+      autofill,
+      formId,
+    },
+    { field, schema },
   );
+  return <Component {...props} />;
 };
 
 export const FormFieldSlot = ({ field }: { field: FormField }) => {
   const Component = useFieldComponent(field);
-  const { submitting, renderFields, boundKeys, autofill, formId } = useFormRenderContext();
+  const { submitting, renderFields, boundKeys, autofill, formId, schema } = useFormRenderContext();
+  const updateFieldProps = useUpdateHook('updateFieldProps');
   if (boundKeys.has(field.key)) {
     return <BoundField field={field} Component={Component} />;
   }
-  return (
-    <Component
-      field={field}
-      value={field.value}
-      onChange={noop}
-      onBlur={noop}
-      error={field.message?.value}
-      submitting={submitting}
-      renderFields={renderFields}
-      autofill={autofill}
-      formId={formId}
-    />
+  const props = updateFieldProps(
+    { field, value: field.value, onChange: noop, onBlur: noop, error: field.message?.value, submitting, renderFields, autofill, formId },
+    { field, schema },
   );
+  return <Component {...props} />;
 };
 
 const renderFields = (fields: Array<FormField>) => fields.map((field) => <FormFieldSlot key={field.id} field={field} />);
@@ -171,7 +175,11 @@ function findAction(actions: Array<FormField>, name: string | undefined): FormFi
 interface LoadedFormProps extends FormSchemaFormProps {
   initialSchema: FormSchemaTree;
   initialState: FormSchemaState;
+  /** The cached schema response, which changes when the cache refetches it */
+  latest: FormSchemaResponse;
 }
+
+const schemaKey = (schemaUrl: string) => ['schema', schemaUrl] as const;
 
 function focusById(id: string | undefined): void {
   const element = id ? document.getElementById(id) : null;
@@ -184,6 +192,11 @@ const focusable = 'input:not([type="hidden"]), select, textarea, button, [tabind
 
 // Enter in these does not submit a form
 const buttonInputTypes = new Set(['button', 'submit', 'reset', 'image']);
+
+/** The messages an `updateFormValidation` run left, as the server's errors are shaped */
+function validationMessages(errors: FormValidationErrors): Array<SchemaMessage> {
+  return Object.entries(errors).flatMap(([field, messages]) => messages.map((value) => ({ type: 'error', value, field })));
+}
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -202,6 +215,7 @@ const LoadedForm = ({
   schemaUrl,
   initialSchema,
   initialState,
+  latest,
   onSubmitted,
   onStateChange,
   omitFields = noFields,
@@ -214,7 +228,11 @@ const LoadedForm = ({
   onActionsChange,
   onSubmittingChange,
 }: LoadedFormProps) => {
-  const [schema, setSchema] = React.useState(initialSchema);
+  const [loadedSchema, setSchema] = React.useState(initialSchema);
+  // From the schema as loaded, so a hook changing attributes cannot rename the form under its fields
+  const formId = String(loadedSchema.attributes.id ?? loadedSchema.id);
+  const updateFormSchema = useUpdateHook('updateFormSchema');
+  const schema = React.useMemo(() => updateFormSchema(loadedSchema, { formId }), [updateFormSchema, loadedSchema, formId]);
   const [state, setState] = React.useState(initialState);
   const stateListener = React.useRef(onStateChange);
   stateListener.current = onStateChange;
@@ -223,7 +241,7 @@ const LoadedForm = ({
   const fields = React.useMemo(() => withoutFields(mergeFields(schema.fields, state), omitFields), [schema, state, omitFields]);
   const actions = React.useMemo(() => mergeFields(schema.actions, state), [schema, state]);
   const valueFields = React.useMemo(() => collectValueFields(fields), [fields]);
-  const { control, getValues, handleSubmit, reset, setError, setValue, formState } = useForm<FormValues>({
+  const { clearErrors, control, getValues, handleSubmit, reset, setError, setValue, formState } = useForm<FormValues>({
     defaultValues: defaultValues(valueFields),
   });
   const isDirty = React.useRef(false);
@@ -233,7 +251,6 @@ const LoadedForm = ({
   const { mode, available } = usePreviewMode();
   const offersPreview = Boolean(preview) && available;
   const previewBarSlot = usePreviewBarSlot();
-  const formId = String(schema.attributes.id ?? schema.id);
   const dirtyListener = React.useRef(onDirtyChange);
   dirtyListener.current = onDirtyChange;
   React.useEffect(() => dirtyListener.current?.(formState.isDirty), [formState.isDirty]);
@@ -247,22 +264,20 @@ const LoadedForm = ({
     return setUnsavedChanges(globalState, shellOwner, `form:${schema.id}`, formState.isDirty);
   }, [globalState, notifyUnsavedChanges, schema.id, formState.isDirty]);
 
-  const refetchSchema = async () => {
-    let fresh: FormSchemaResponse;
-    try {
-      fresh = await fetchFormSchema(schemaUrl);
-    } catch {
+  const applied = React.useRef(latest);
+  React.useEffect(() => {
+    if (latest === applied.current || !latest.schema) {
       return;
     }
-    if (!fresh.schema) {
-      return;
+    applied.current = latest;
+    setSchema(latest.schema);
+    if (latest.state && !isDirty.current) {
+      setState(latest.state);
+      const freshFields = runUpdateHook('updateFormSchema', latest.schema, { formId }).fields;
+      reset(defaultValues(collectValueFields(mergeFields(freshFields, latest.state))));
     }
-    setSchema(fresh.schema);
-    if (fresh.state && !isDirty.current) {
-      setState(fresh.state);
-      reset(defaultValues(collectValueFields(mergeFields(fresh.schema.fields, fresh.state))));
-    }
-  };
+  }, [latest, formId, reset]);
+  const refetchSchema = () => refetchShellServerQuery(schemaKey(schemaUrl));
 
   const submittingListener = React.useRef(onSubmittingChange);
   submittingListener.current = onSubmittingChange;
@@ -275,12 +290,50 @@ const LoadedForm = ({
     }
   };
 
+  /** Writes into the form whatever `updateFormValues` handlers change, so validation and the post see it */
+  const flushPendingValues = (actionName: string) => {
+    const current = getValues();
+    const byName = Object.fromEntries(valueFields.map((field) => [field.name, current[field.key]]));
+    const updated = runUpdateHook('updateFormValues', byName, { formId, action: actionName });
+    for (const field of valueFields) {
+      if (field.name in updated && updated[field.name] !== current[field.key]) {
+        setValue(field.key, updated[field.name], { shouldDirty: true });
+      }
+    }
+  };
+
+  /** Marks the fields the errors name, shows the rest with `messages` above the form, and focuses the first invalid field */
+  const showErrors = (errors: Array<SchemaMessage>, messages: Array<SchemaMessage>) => {
+    const fieldErrors = errors.flatMap((error) => {
+      const field = errorField(valueFields, error.field);
+      return field ? [{ error, field }] : [];
+    });
+    for (const { error, field } of fieldErrors) {
+      setError(field.key, { type: 'server', message: error.value });
+    }
+    const inlineErrors = fieldErrors.map(({ error }) => error);
+    setFormMessages(uniqueMessages([...errors.filter((error) => !inlineErrors.includes(error)), ...messages], inlineErrors));
+    const firstInvalid = fieldErrors[0]?.field;
+    const invalidElement = firstInvalid ? fieldFocusTarget(firstInvalid) : null;
+    if (invalidElement) {
+      revealField(invalidElement);
+      invalidElement.focus();
+    }
+  };
+
   const post = async (actionName: string, focusedId: string | undefined): Promise<FormSchemaSubmitResult> => {
     setFormMessages([]);
     let response: FormSchemaResponse;
     let values: FormValues;
     try {
-      if (!(await runBeforeSubmit(formId, { action: actionName }))) {
+      flushPendingValues(actionName);
+      const invalid = validationMessages(runUpdateHook('updateFormValidation', {}, { values: getValues(), schema }));
+      if (invalid.length > 0) {
+        showErrors(invalid, []);
+        requestAnimationFrame(() => focusById(focusedId));
+        return { ok: false };
+      }
+      if (!(await runBeforeHook('onBeforeFormSubmit', { formId, action: actionName, values: getValues() }))) {
         requestAnimationFrame(() => focusById(focusedId));
         return { ok: false };
       }
@@ -303,33 +356,19 @@ const LoadedForm = ({
       // A success with no state to load (a deleted record): what was sent is saved, so the form is clean
       reset(values);
     }
+    const saved = response.record;
+    if (errors.length === 0 && saved) {
+      announceRecords(globalState, { recordClass: saved.className, ids: saved.id ? [saved.id] : [] });
+    }
     const refetched = errors.length === 0 && !response.deleted ? refetchSchema() : Promise.resolve();
 
-    const fieldErrors = errors.flatMap((error) => {
-      const field = errorField(valueFields, error.field);
-      return field ? [{ error, field }] : [];
-    });
-    for (const { error, field } of fieldErrors) {
-      setError(field.key, { type: 'server', message: error.value });
-    }
-    const inlineErrors = fieldErrors.map(({ error }) => error);
-    setFormMessages(
-      uniqueMessages(
-        [...errors.filter((error) => !inlineErrors.includes(error)), ...(response.state?.messages ?? [])],
-        inlineErrors,
-      ),
-    );
-    const firstInvalid = fieldErrors[0]?.field;
-    const invalidElement = firstInvalid ? fieldFocusTarget(firstInvalid) : null;
-    if (invalidElement) {
-      revealField(invalidElement);
-      invalidElement.focus();
-    }
+    showErrors(errors, response.state?.messages ?? []);
 
     const action = findAction(actions, actionName);
     if (errors.length === 0 && action) {
       onSubmitted?.(response, action);
     }
+    runAfterHook('onAfterFormSubmit', { formId, action: actionName, response });
 
     await refetched;
     // The pressed action was disabled while saving, which drops focus to the body
@@ -337,8 +376,11 @@ const LoadedForm = ({
     return { ok: errors.length === 0, response };
   };
 
+  // Errors from the last post or client check are set by hand, and handleSubmit would otherwise refuse
+  // the next post over them without a word; this post judges the values afresh
   const submitWith = (actionName: string, focusedId?: string) =>
     new Promise<FormSchemaSubmitResult>((resolve) => {
+      clearErrors();
       handleSubmit(
         () => submit(actionName, focusedId).then(resolve, (error) => resolve({ ok: false, message: errorMessage(error) })),
         () => resolve({ ok: false }),
@@ -379,13 +421,18 @@ const LoadedForm = ({
     const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
     const actionName = submitter?.name || 'action_save';
     const focusedId = document.activeElement?.id || submitter?.id;
-    const submitValues = handleSubmit(() => submit(actionName, focusedId));
+    const submitValues = () => {
+      clearErrors();
+      return handleSubmit(() => submit(actionName, focusedId))();
+    };
     const action = confirmAction && findAction(actions, actionName);
-    if (!action) {
-      return submitValues(event);
-    }
     event.preventDefault();
-    return Promise.resolve(confirmAction(action)).then((confirmed) => (confirmed ? submitValues() : undefined));
+    const confirmed = async () =>
+      (await runBeforeHook('onBeforeFormAction', { formId, action: actionName })) && (!action || (await confirmAction(action)));
+    return confirmed().then(
+      (go) => (go ? submitValues() : undefined),
+      (error) => setFormMessages([{ type: 'error', value: errorMessage(error) }]),
+    );
   };
 
   const shownActions = React.useMemo(() => barActions(actions, formState.isDirty), [actions, formState.isDirty]);
@@ -397,6 +444,7 @@ const LoadedForm = ({
     const boundKeys = new Set(valueFields.map((field) => field.key));
     return {
       formId,
+      schema,
       control,
       submitting: formState.isSubmitting,
       dirty: formState.isDirty,
@@ -409,7 +457,7 @@ const LoadedForm = ({
         }
       },
     };
-  }, [formId, control, formState.isSubmitting, formState.isDirty, valueFields, setValue]);
+  }, [formId, schema, control, formState.isSubmitting, formState.isDirty, valueFields, setValue]);
 
   const messages = formMessages.map((message, index) => (
     <div className="shell-form__field" key={index}>
@@ -473,7 +521,22 @@ const LoadedForm = ({
 type LoadState =
   | { status: 'loading' }
   | { status: 'failed'; error: unknown; message: string }
-  | { status: 'ready'; schema: FormSchemaTree; state: FormSchemaState };
+  | { status: 'ready'; response: FormSchemaResponse; schema: FormSchemaTree; state: FormSchemaState };
+
+/** Cached data wins over a failed refetch, so a form on screen stays there */
+function loadState(query: ServerQueryResult<FormSchemaResponse>): LoadState {
+  const response = query.data;
+  if (response?.schema && response.state) {
+    return { status: 'ready', response, schema: response.schema, state: response.state };
+  }
+  if (response) {
+    return { status: 'failed', error: new Error('The form endpoint sent no schema or state'), message: 'The form endpoint sent no schema or state' };
+  }
+  if (query.error) {
+    return { status: 'failed', error: query.error, message: query.error.message };
+  }
+  return { status: 'loading' };
+}
 
 export const FormSchemaForm = ({
   schemaUrl,
@@ -491,28 +554,17 @@ export const FormSchemaForm = ({
   onActionsChange,
   onSubmittingChange,
 }: FormSchemaFormProps) => {
-  const [load, setLoad] = React.useState<LoadState>({ status: 'loading' });
+  const query = useShellServerQuery(schemaKey(schemaUrl), ({ signal }) => fetchFormSchema(schemaUrl, signal));
+  const load = loadState(query);
   const loadListener = React.useRef(onLoad);
   loadListener.current = onLoad;
+  const loaded = load.status === 'ready' ? load.response : null;
 
   React.useEffect(() => {
-    const abort = new AbortController();
-    setLoad({ status: 'loading' });
-    fetchFormSchema(schemaUrl, abort.signal)
-      .then((response) => {
-        if (!response.schema || !response.state) {
-          throw new Error('The form endpoint sent no schema or state');
-        }
-        setLoad({ status: 'ready', schema: response.schema, state: response.state });
-        loadListener.current?.(response);
-      })
-      .catch((error) => {
-        if (!abort.signal.aborted) {
-          setLoad({ status: 'failed', error, message: error instanceof Error ? error.message : String(error) });
-        }
-      });
-    return () => abort.abort();
-  }, [schemaUrl]);
+    if (loaded) {
+      loadListener.current?.(loaded);
+    }
+  }, [loaded]);
 
   if (load.status !== 'ready') {
     return (
@@ -537,6 +589,7 @@ export const FormSchemaForm = ({
       schemaUrl={schemaUrl}
       initialSchema={load.schema}
       initialState={load.state}
+      latest={load.response}
       onSubmitted={onSubmitted}
       onStateChange={onStateChange}
       omitFields={omitFields}

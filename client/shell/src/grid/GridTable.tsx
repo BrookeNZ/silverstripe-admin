@@ -2,6 +2,8 @@
  * The grid itself: a headless TanStack Table over the rows endpoint, with sorting and pagination done
  * by the server (`manualSorting`, `manualPagination`) and the general search sent as a filter. State
  * lives in the page URL (see query.ts), so every change is a navigation the unsaved changes guard sees.
+ * Rows are a server cache read keyed `['grid', rowsUrl, params]`, which every records-changed event
+ * refetches; a row action announces its row's record.
  *
  * Markup is a plain table: a caption names it, sortable headers are buttons with `aria-sort` on the
  * `th`, the first data column is the row header, and row actions name their row for screen readers:
@@ -11,13 +13,14 @@
  */
 import * as React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useGlobalState, useGlobalStateContext } from 'piral-core';
+import { useGlobalState } from 'piral-core';
 import { Button, Dialog, Link, Menu, SearchIcon, SortAscendingIcon, SortDescendingIcon, Stack } from '@silverstripe/admin-patterns';
 import { rowPaginationFeature, rowSortingFeature, tableFeatures, useTable } from '@tanstack/react-table';
 import type { ColumnDef, PaginationState, SortingState, Updater } from '@tanstack/react-table';
 import { componentSlotName, silverstripeComponent } from '../api/silverstripe';
+import { useUpdateHook } from '../hooks/registry';
 import { routerLink, routerPath } from '../routing';
-import { recordsChangedEvent } from '../events';
+import { refetchShellServerQuery, useShellServerMutation, useShellServerQuery } from '../state/serverCache';
 import { GridCellContent, HtmlContent } from './cells';
 import { ariaSort, gridColumnDefs } from './columns';
 import { fromSorting, readGridQuery, rowsParams, toSorting, withParams, writeGridQuery } from './query';
@@ -70,45 +73,25 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryKey = rowsParams(readGridQuery(searchParams, name)).toString();
   const query = React.useMemo(() => readGridQuery(searchParams, name), [queryKey]);
-  const [payload, setPayload] = React.useState<GridPayload | null>(null);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+  const rowsKey = ['grid', rowsUrl, queryKey] as const;
+  const listing = useShellServerQuery(rowsKey, ({ signal }) => requestGrid(withParams(rowsUrl, rowsParams(query)), { signal }), {
+    keepPrevious: true,
+  });
+  const payload = listing.data ?? null;
+  const rowAction = useShellServerMutation(
+    ({ action }: { action: GridPostAction; row: GridRow }) =>
+      requestGrid(withParams(action.url, rowsParams(query)), { method: 'POST', body: action.args }),
+    { changes: ({ row }) => (payload?.grid.modelClass ? { recordClass: payload.grid.modelClass, ids: [row.id] } : null) },
+  );
+  const loading = listing.isFetching || rowAction.status === 'pending';
+  const [actionError, setActionError] = React.useState<string | null>(null);
+  React.useEffect(() => setActionError(null), [listing.data]);
+  const error = actionError ?? (listing.status === 'error' ? listing.error?.message ?? null : null);
   const [status, setStatus] = React.useState('');
   const [confirming, setConfirming] = React.useState<{ action: GridPostAction; row: GridRow } | null>(null);
   const region = React.useRef<HTMLDivElement>(null);
   const isRegistered = useRegistry();
-  const [revision, setRevision] = React.useState(0);
-  const context = useGlobalStateContext();
   const navigateTo = useNavigate();
-
-  React.useEffect(() => {
-    const reload = () => setRevision((current) => current + 1);
-    context.on(recordsChangedEvent, reload);
-    return () => {
-      context.off(recordsChangedEvent, reload);
-    };
-  }, [context]);
-
-  React.useEffect(() => {
-    const abort = new AbortController();
-    setLoading(true);
-    requestGrid(withParams(rowsUrl, rowsParams(query)), { signal: abort.signal })
-      .then((next) => {
-        setPayload(next);
-        setError(null);
-      })
-      .catch((reason: Error) => {
-        if (!abort.signal.aborted) {
-          setError(reason.message);
-        }
-      })
-      .finally(() => {
-        if (!abort.signal.aborted) {
-          setLoading(false);
-        }
-      });
-    return () => abort.abort();
-  }, [rowsUrl, query, revision]);
 
   const navigate = (next: GridQuery) => setSearchParams(writeGridQuery(searchParams, name, next), { preventScrollReset: true });
 
@@ -117,11 +100,13 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
     pageIndex: (payload?.pagination?.page ?? 1) - 1,
     pageSize: payload?.pagination?.pageSize ?? 1,
   };
-  const columns = React.useMemo(() => gridColumnDefs(payload?.columns ?? []), [payload?.columns]);
-  const columnsByName = React.useMemo(
-    () => new Map<string, GridColumn>((payload?.columns ?? []).map((column) => [column.name, column])),
-    [payload?.columns],
+  const updateGridColumns = useUpdateHook('updateGridColumns');
+  const gridColumns = React.useMemo(
+    () => (payload ? updateGridColumns(payload.columns, { name, rowsUrl }) : []),
+    [updateGridColumns, payload?.columns, name, rowsUrl],
   );
+  const columns = React.useMemo(() => gridColumnDefs(gridColumns), [gridColumns]);
+  const columnsByName = React.useMemo(() => new Map<string, GridColumn>(gridColumns.map((column) => [column.name, column])), [gridColumns]);
 
   const table = useTable({
     features,
@@ -142,18 +127,17 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
   const caption = title || payload?.grid.pluralName || name;
   const captionId = `${id}_caption`;
 
+  // The action's own answer carries the rows too, but the announced change refetches them for every grid
   const runAction = async (action: GridPostAction, row: GridRow) => {
     setConfirming(null);
-    setLoading(true);
+    setActionError(null);
     try {
-      const next = await requestGrid(withParams(action.url, rowsParams(query)), { method: 'POST', body: action.args });
-      setPayload(next);
-      setError(null);
+      const next = await rowAction.mutate({ action, row });
+      await refetchShellServerQuery(rowsKey);
       setStatus(actionStatus(action, row, next));
     } catch (reason) {
-      setError((reason as Error).message);
+      setActionError((reason as Error).message);
     } finally {
-      setLoading(false);
       region.current?.focus();
     }
   };
@@ -184,7 +168,7 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
   const otherSlots = Object.keys(payload?.slots ?? {}).filter((slot) => !slotsAbove.includes(slot));
   const headers = table.getHeaderGroups()[0]?.headers ?? [];
   const rows = table.getRowModel().rows;
-  const firstDataColumn = payload?.columns.find((column) => !column.actions)?.name;
+  const firstDataColumn = gridColumns.find((column) => !column.actions)?.name;
   const page = payload?.pagination;
 
   return (

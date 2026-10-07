@@ -8,7 +8,8 @@
  * `ownerClass`, `ownerRelation`, `excludeLinkTextField`, and for MultiLinkField `isMulti` and
  * `maximumLinks`. The value is the link id (0 for none) or, for a multi field, the ids in order.
  * Links are written by the module's endpoints as soon as their dialog saves (see linkApi.ts); the
- * owner form only posts the ids.
+ * owner form only posts the ids. The links' data is a server cache read keyed `[Link, 'data', ids]`, so
+ * a save, delete or sort announces the links it changed and the read follows.
  *
  * The edit dialog is the shell's `SchemaFormDialog` (the link form with its actions in the dialog footer),
  * passed in by the pilet's setup. The dialogs are portalled out of the page form and stop submit events
@@ -20,8 +21,9 @@ import * as React from 'react';
 import { createPortal } from 'react-dom';
 import { AddIcon, Button, describedBy, Dialog, FieldHolder, RemoveIcon } from '@silverstripe/admin-patterns';
 import type { FieldComponentProps, FormSchemaResponse } from '@silverstripe/admin-shell';
-import type { SchemaFormDialogProps } from '../shell';
-import { deleteLink, fetchLinkData, linkSchemaUrl, savedLinkId, sortLinks } from './linkApi';
+import type { SchemaFormDialogProps } from '@silverstripe/admin-shell';
+import { serverCache } from '../legacy/Backend';
+import { deleteLink, fetchLinkData, linkDataError, linkRecordClass, linkSchemaUrl, savedLinkId, sortLinks } from './linkApi';
 import type { LinkData, LinkOwner } from './linkApi';
 import './LinkField.css';
 
@@ -73,9 +75,20 @@ export function createLinkField(SchemaFormDialog: React.ComponentType<SchemaForm
     const labelId = `${field.id}_label`;
     const menuId = `${field.id}_types`;
 
-    const [links, setLinks] = React.useState<Record<number, LinkData>>({});
-    const [loading, setLoading] = React.useState(false);
-    const [reloads, setReloads] = React.useState(0);
+    const { useServerQuery, useServerMutation, invalidateRecords } = serverCache();
+    const linkData = useServerQuery(
+      [linkRecordClass, 'data', idsKey],
+      ({ signal }) => fetchLinkData(linkIds(idsKey.split(',')), signal),
+      { enabled: ids.length > 0, keepPrevious: true },
+    );
+    const links: Record<number, LinkData> = linkData.data ?? {};
+    const loading = linkData.isFetching;
+    const removing = useServerMutation((id: number) => deleteLink(id, owner), {
+      changes: (id) => ({ recordClass: linkRecordClass, ids: [id] }),
+    });
+    const sorting = useServerMutation((next: number[]) => sortLinks(next), {
+      changes: (next) => ({ recordClass: linkRecordClass, ids: next }),
+    });
     const [fieldError, setFieldError] = React.useState<string | null>(null);
     const [status, setStatus] = React.useState('');
     const [menuOpen, setMenuOpen] = React.useState(false);
@@ -83,26 +96,6 @@ export function createLinkField(SchemaFormDialog: React.ComponentType<SchemaForm
     const [confirming, setConfirming] = React.useState<number | null>(null);
     const [focusId, setFocusId] = React.useState<string | null>(null);
     const menuToggle = React.useRef<HTMLButtonElement>(null);
-
-    React.useEffect(() => {
-      if (ids.length === 0) {
-        return undefined;
-      }
-      const abort = new AbortController();
-      setLoading(true);
-      fetchLinkData(linkIds(idsKey.split(',')), abort.signal)
-        .then((data) => {
-          setLinks(data);
-          setFieldError(null);
-        })
-        .catch((failure) => {
-          if (!abort.signal.aborted) {
-            setFieldError(failure instanceof Error ? failure.message : String(failure));
-          }
-        })
-        .finally(() => setLoading(false));
-      return () => abort.abort();
-    }, [idsKey, reloads]);
 
     React.useEffect(() => {
       const target = focusId ? document.getElementById(focusId) : null;
@@ -120,7 +113,7 @@ export function createLinkField(SchemaFormDialog: React.ComponentType<SchemaForm
       .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
     const atMaximum = isMulti ? field.maximumLinks != null && ids.length >= field.maximumLinks : ids.length > 0;
     const canAdd = editable && !atMaximum && allowedTypes.length > 0;
-    const shownError = fieldError ?? error;
+    const shownError = fieldError ?? (linkData.status === 'error' && linkData.error ? linkDataError(linkData.error) : null) ?? error;
 
     const startAdding = (type: LinkType) => {
       setMenuOpen(false);
@@ -137,7 +130,7 @@ export function createLinkField(SchemaFormDialog: React.ComponentType<SchemaForm
       if (savedId > 0 && !ids.includes(savedId)) {
         commit([...ids, savedId]);
       }
-      setReloads((count) => count + 1);
+      invalidateRecords(linkRecordClass, savedId > 0 ? [savedId] : []);
       setStatus('Saved link');
       closeEditor(savedId > 0 ? editButtonId(savedId) : null);
     };
@@ -150,7 +143,7 @@ export function createLinkField(SchemaFormDialog: React.ComponentType<SchemaForm
       }
       const archive = archivedStates.includes(links[id]?.versionState ?? '');
       try {
-        await deleteLink(id, owner);
+        await removing.mutate(id);
       } catch {
         setFieldError(archive ? 'Failed to archive link' : 'Failed to delete link');
         return;
@@ -173,14 +166,14 @@ export function createLinkField(SchemaFormDialog: React.ComponentType<SchemaForm
       const next = [...ids];
       [next[index], next[target]] = [next[target], next[index]];
       try {
-        await sortLinks(next);
+        await sorting.mutate(next);
       } catch {
         setFieldError('Unable to sort links');
         return;
       }
+      setFieldError(null);
       commit(next);
       setStatus('Updated link sort order');
-      setReloads((count) => count + 1);
     };
 
     const confirmingLink = confirming === null ? undefined : links[confirming];

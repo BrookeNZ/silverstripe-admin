@@ -4,17 +4,14 @@
  * actions render in the bottom bar by the usual role rules; delete and archive ask first in the shared
  * Dialog.
  *
- * A save reports through `notify` and the records-changed event (the grid re-reads its rows on it). A
+ * A save reports through `notify`; the form announces the saved record, which refreshes the grid. A
  * new record's save replaces the URL with the record's edit URL; a delete, archive or save that takes the
  * record out of the grid's list goes back to the grid. Navigation waits until the form's unsaved state
  * has cleared and rendered, or the unsaved changes guard would stop it.
  */
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useGlobalStateContext } from 'piral-core';
 import { Button, Dialog, fieldTitle } from '@silverstripe/admin-patterns';
-import { recordsChangedEvent } from '../events';
-import type { RecordsChangedEvent } from '../events';
 import { FormSchemaForm } from '../forms/FormSchemaForm';
 import type { FormField, FormSchemaRecord, FormSchemaResponse } from '../forms/types';
 import { useSectionHeaderEffect } from '../header/state';
@@ -45,7 +42,6 @@ export interface RecordEditPageProps {
 
 export const RecordEditPage = ({ route, notify }: RecordEditPageProps) => {
   const navigate = useNavigate();
-  const context = useGlobalStateContext();
   const [record, setRecord] = React.useState<FormSchemaRecord | null>(null);
   const [confirming, setConfirming] = React.useState<Confirming | null>(null);
   const [leaving, setLeaving] = React.useState<Leaving | null>(null);
@@ -75,8 +71,6 @@ export const RecordEditPage = ({ route, notify }: RecordEditPageProps) => {
     if (!saved) {
       return;
     }
-    const changed: RecordsChangedEvent = { recordClass: saved.className, ids: saved.id ? [saved.id] : [] };
-    context.emit(recordsChangedEvent, changed);
     const path = saved.link ? routerPath(saved.link) : null;
     if (response.deleted || !path) {
       notify(response.deleted ? `${fieldTitle(action)} succeeded: ${title}` : response.message || `${fieldTitle(action)} succeeded`, 'success');

@@ -8,11 +8,11 @@ import {
   errorField,
   mergeFields,
   schemaText,
-  serverMessage,
   uniqueMessages,
   withChangedActions,
   withoutFields,
 } from './schema';
+import { serverMessage } from '../state/serverRequest';
 import type { FieldSchema, FormField } from './types';
 
 const schemaField = (name: string, id: string): FieldSchema => ({

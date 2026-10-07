@@ -6,6 +6,7 @@ import { createInstance, Piral } from 'piral-core';
 import { createSilverstripeApi } from './api/silverstripe';
 import { FileEditPage } from './assets';
 import { registerBuiltInFields } from './forms/fields';
+import { registerShellValidation } from './forms/validation';
 import { registerGridComponents } from './grid';
 import { initialSectionHeader } from './header/state';
 import { createLayout, createRouter, errors, Home, readMenu, SectionWithoutPilet } from './layout';
@@ -62,6 +63,7 @@ const instance = createInstance({
 });
 
 registerBuiltInFields(instance.root);
+registerShellValidation();
 registerGridComponents(instance.root);
 instance.root.registerPage('/assets/edit/:id', FileEditPage);
 

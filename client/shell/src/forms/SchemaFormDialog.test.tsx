@@ -6,6 +6,7 @@ import type { Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SchemaFormDialog } from './SchemaFormDialog';
 import { fetchFormSchema, submitFormSchema } from './schema';
+import { serverQueryClient } from '../state/serverCache';
 import type { FieldComponentProps } from './types';
 
 vi.mock('piral-core', () => ({
@@ -98,6 +99,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // Each test loads its own schema under the same key
+  serverQueryClient.clear();
   act(() => root.unmount());
   container.remove();
 });

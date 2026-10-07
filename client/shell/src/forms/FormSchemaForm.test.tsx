@@ -9,6 +9,7 @@ import { previewModeMenuId } from '../preview/PreviewModeMenu';
 import { resetPreviewMode, setPreviewMode } from '../preview/mode';
 import { FormSchemaForm } from './FormSchemaForm';
 import { fetchFormSchema } from './schema';
+import { serverQueryClient } from '../state/serverCache';
 
 const shellState = vi.hoisted(() => ({ sectionHeader: { current: null, entries: [] as Array<unknown> } }));
 
@@ -36,6 +37,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // Each test loads its own schema under the same key
+  serverQueryClient.clear();
   act(() => root.unmount());
   container.remove();
   vi.unstubAllGlobals();
@@ -51,6 +54,10 @@ async function renderWithMessages(messages: Array<{ type: string; value: string 
   document.body.append(container);
   root = createRoot(container);
   await act(async () => root.render(<FormSchemaForm schemaUrl="admin/form" previewControls={previewControls} />));
+  // The server cache hands results over on a timer
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
 }
 
 function withPreview() {

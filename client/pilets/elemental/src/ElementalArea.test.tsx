@@ -8,7 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Block, ElementalApi } from './api';
 import type { ElementType } from './blocks';
 import { createElementalAreaField, precedingHeading } from './ElementalArea';
-import type { BeforeSubmitHandler, ElementalPiletApi, FormSchemaFormHandle, FormSchemaSubmitResult } from './shell';
+import type { BeforeFormSubmitHandler, BlockActionsHookContext, ElementalPiletApi, FormSchemaFormHandle, FormSchemaSubmitResult } from './shell';
+import type { BlockAction } from './BlockRow';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -48,7 +49,7 @@ let container: HTMLDivElement;
 let root: Root;
 let stored: Array<Block>;
 let client: { [K in keyof ElementalApi]: ReturnType<typeof vi.fn> };
-let api: ElementalPiletApi & { emitted: Array<unknown>; beforeSubmit: Map<string, BeforeSubmitHandler>; toasts: Array<[string, unknown]> };
+let api: ElementalPiletApi & { emitted: Array<unknown>; hooks: Map<string, BeforeFormSubmitHandler>; toasts: Array<[string, unknown]> };
 let forms: Map<string, FakeForm>;
 let order: Array<string>;
 
@@ -79,7 +80,7 @@ function makeApi() {
   const fake = {
     emitted: [] as Array<unknown>,
     recordsChangedEvent: 'silverstripe:records-changed',
-    beforeSubmit: new Map<string, BeforeSubmitHandler>(),
+    hooks: new Map<string, BeforeFormSubmitHandler>(),
     toasts: [] as Array<[string, unknown]>,
     getSilverstripeComponent: () => FakeFormSchemaForm,
     showNotification: (content: string, options: unknown) => {
@@ -96,9 +97,9 @@ function makeApi() {
     off: (name: string, listener: (event: any) => void) => {
       listeners.get(name)?.delete(listener);
     },
-    registerBeforeSubmit: (formId: string, handler: BeforeSubmitHandler) => {
-      fake.beforeSubmit.set(formId, handler);
-      return () => fake.beforeSubmit.delete(formId);
+    registerHook: (name: string, handler: BeforeFormSubmitHandler) => {
+      fake.hooks.set(name, handler);
+      return () => fake.hooks.delete(name);
     },
   };
   return fake as unknown as typeof api;
@@ -344,6 +345,22 @@ describe('ElementalArea', () => {
     expect(container.textContent).not.toContain('Closing quote');
   });
 
+  it('draws the menu from the updateBlockActions hook, which can add, reorder and drop actions', async () => {
+    const copied: Array<[number, number]> = [];
+    api.runUpdateHook = ((name: string, actions: ReadonlyArray<BlockAction>, context: BlockActionsHookContext) => {
+      expect(name).toBe('updateBlockActions');
+      expect(context.area).toEqual({ id: 21, pageId: 7 });
+      const added = { id: 'copyLink', label: 'Copy link', onSelect: (target: Block) => void copied.push([target.id, context.block.id]) };
+      return [added, ...actions.filter((action) => action.id !== 'duplicate')];
+    }) as ElementalPiletApi['runUpdateHook'];
+    await render();
+    const labels = [...container.querySelectorAll<HTMLButtonElement>('#elemental-block-2-menu_Popover button')].map((candidate) => candidate.textContent);
+    expect(labels).toEqual(['Copy link', 'Publish', 'Unpublish', 'Move up', 'Move down', 'Archive']);
+
+    await click([...container.querySelectorAll<HTMLButtonElement>('#elemental-block-2-menu_Popover button')][0]);
+    expect(copied).toEqual([[2, 2]]);
+  });
+
   it('moves a block down and up through the sort endpoint', async () => {
     await render();
     const menuButton = (id: number, label: string) =>
@@ -387,10 +404,15 @@ describe('ElementalArea', () => {
       last.dirty = true;
       last.props.onDirtyChange(true);
     });
-    const handler = api.beforeSubmit.get('Form_EditForm')!;
+    const handler = api.hooks.get('onBeforeFormSubmit')!;
     let allowed: boolean | void = undefined;
     await act(async () => {
-      allowed = await handler({ action: 'action_save' });
+      allowed = await handler({ formId: 'Form_Other', action: 'action_save', values: {} });
+    });
+    expect(allowed).toBe(true);
+    expect(order).toEqual([]);
+    await act(async () => {
+      allowed = await handler({ formId: 'Form_EditForm', action: 'action_save', values: {} });
     });
     expect(allowed).toBe(true);
     expect(order).toEqual(['submit /schema/elementForm/1', 'submit /schema/elementForm/3']);
@@ -398,7 +420,7 @@ describe('ElementalArea', () => {
     last.dirty = true;
     last.submit.mockResolvedValueOnce({ ok: false });
     await act(async () => {
-      allowed = await handler({ action: 'action_publish' });
+      allowed = await handler({ formId: 'Form_EditForm', action: 'action_publish', values: {} });
     });
     expect(allowed).toBe(false);
     expect(lastToast()).toBe('The page was not saved because a block could not be saved');

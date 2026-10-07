@@ -5,8 +5,10 @@ import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Dialog } from '@silverstripe/admin-patterns';
 import type { PiletApi } from '@silverstripe/admin-shell';
-import type { SchemaFormDialogProps } from '../shell';
+import type { SchemaFormDialogProps } from '@silverstripe/admin-shell';
 import { connectConfig } from '../legacy/Config';
+import { connectServerCache } from '../legacy/Backend';
+import type { ServerCache } from '../legacy/Backend';
 import { createLinkField } from './LinkField';
 import type { LinkFieldValue } from './LinkField';
 import { deleteLink, fetchLinkData, linkSchemaUrl, savedLinkId, sortLinks } from './linkApi';
@@ -19,6 +21,59 @@ vi.mock('./linkApi', async (importOriginal) => ({
 }));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+/** The shell's cache in miniature: a read refetches on any announced change, as a Link key would */
+function fakeServerCache(): ServerCache {
+  const readers = new Set<() => void>();
+  const announce = () => readers.forEach((refetch) => refetch());
+  const request = (() => Promise.reject(new Error('No server in tests'))) as never;
+  return {
+    useServerQuery(key, fetcher, options = {}) {
+      const [revision, setRevision] = React.useState(0);
+      const [result, setResult] = React.useState<{ data?: unknown; error: Error | null; fetching: boolean }>({ error: null, fetching: false });
+      React.useEffect(() => {
+        const refetch = () => setRevision((count) => count + 1);
+        readers.add(refetch);
+        return () => {
+          readers.delete(refetch);
+        };
+      }, []);
+      const keyText = JSON.stringify(key);
+      React.useEffect(() => {
+        if (options.enabled === false) {
+          return undefined;
+        }
+        let current = true;
+        setResult((previous) => ({ ...previous, fetching: true }));
+        fetcher({ signal: new AbortController().signal, request }).then(
+          (data) => current && setResult({ data, error: null, fetching: false }),
+          (error) => current && setResult((previous) => ({ ...previous, error, fetching: false })),
+        );
+        return () => {
+          current = false;
+        };
+      }, [keyText, revision, options.enabled]);
+      const status = result.error ? 'error' : result.data === undefined ? 'pending' : 'success';
+      return { status, data: result.data, error: result.error, isFetching: result.fetching, refetch: async () => setRevision((count) => count + 1) } as never;
+    },
+    useServerMutation(mutation, options = {}) {
+      return {
+        mutate: async (variables: unknown) => {
+          const result = await mutation(variables as never, request);
+          if (options.changes?.(variables as never, result)) {
+            announce();
+          }
+          return result;
+        },
+        status: 'idle',
+        error: null,
+        reset: () => undefined,
+      } as never;
+    },
+    invalidateRecords: announce,
+    fetchJson: request,
+  };
+}
 
 const fetchData = vi.mocked(fetchLinkData);
 const removeLink = vi.mocked(deleteLink);
@@ -113,6 +168,7 @@ const click = (element: Element | null) => act(async () => (element as HTMLEleme
 
 beforeEach(() => {
   connectConfig({ getConfig: () => ({ SecurityID: 'token', sections: [] }) } as unknown as PiletApi);
+  connectServerCache(fakeServerCache());
   fetchData.mockReset();
   removeLink.mockReset();
   reorder.mockReset();

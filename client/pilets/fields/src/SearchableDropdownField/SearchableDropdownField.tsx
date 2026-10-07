@@ -1,4 +1,4 @@
-import backend, { CSRF_HEADER } from '../legacy/Backend';
+import { CSRF_HEADER, serverCache } from '../legacy/Backend';
 import classNames from 'classnames';
 import Config from '../legacy/Config';
 import debounce from 'debounce-promise';
@@ -67,9 +67,9 @@ const SearchableDropdownField = ({
     }
     const fetchUrl = new URL(optionUrl ?? '', document.baseURI);
     fetchUrl.searchParams.set('term', term);
+    // The search action checks the token on a GET, where the shell's fetch sends none
     const headers = { [CSRF_HEADER]: String(Config.get('SecurityID')) };
-    return backend.get(fetchUrl.href, headers)
-      .then(response => response.json())
+    return serverCache().fetchJson<SearchableOption[]>(fetchUrl.href, { headers })
       .then(responseJson => {
         fetchCache.current[term] = responseJson;
         return responseJson;

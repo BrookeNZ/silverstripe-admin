@@ -1,5 +1,6 @@
 import type { PiletApi } from '@silverstripe/admin-shell';
 import { connectConfig } from './legacy/Config';
+import { connectServerCache } from './legacy/Backend';
 import SearchableDropdownField from './SearchableDropdownField/SearchableDropdownField';
 import TreeDropdownField from './TreeDropdownField/TreeDropdownField';
 import UsedOnTable from './UsedOnTable/UsedOnTable';
@@ -10,6 +11,7 @@ import { createLinkField } from './LinkField/LinkField';
 
 export function setup(api: PiletApi) {
   connectConfig(api);
+  connectServerCache(api);
   api.registerSilverstripeComponent('SearchableDropdownField', SearchableDropdownField);
   api.registerSilverstripeComponent('TreeDropdownField', TreeDropdownField);
   api.registerSilverstripeComponent('UsedOnTable', UsedOnTable);

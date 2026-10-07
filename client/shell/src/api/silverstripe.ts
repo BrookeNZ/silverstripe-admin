@@ -12,8 +12,9 @@ import type { SilverstripeClientConfig } from '../silverstripe';
 import { clearSectionHeaderOf, setSectionHeader } from '../header/state';
 import type { SectionHeader } from '../header/state';
 import { clearUnsavedChangesOf, hasUnsavedChanges, setUnsavedChanges } from '../unsaved';
-import { clearBeforeSubmitOf, registerBeforeSubmit } from '../forms/beforeSubmit';
-import type { BeforeSubmitHandler } from '../forms/beforeSubmit';
+import { clearHooksOf, hookKind, registerHook, runAfterHook, runBeforeHook, runUpdateHook, setHookFeedOrder } from '../hooks/registry';
+import type { HookKind } from '../hooks/registry';
+import type { HookContext, HookHandler, HookOptions, HookPoints, HookValue } from '../hooks/types';
 import { sectionIconSlotName } from '../menu/sectionIcons';
 import { sectionSidebarSlotName } from '../header/SectionSidebar';
 import type { SectionSidebarSlotProps } from '../header/SectionSidebar';
@@ -45,6 +46,7 @@ import type {
 } from '../state/serverCache';
 import type { ServerRequest, ServerRequestError, ServerRequestInit, ServerRequestMethod } from '../state/serverRequest';
 
+export type { HookContext, HookHandler, HookOptions, HookPoints, HookValue };
 export type { CurrentRecord, MenuItemRegistration, RecordsChangedEvent, RecordsChangedEventName, SharedState, SharedStateListener, SharedStateSelector, SharedToast };
 export type {
   ServerMutation,
@@ -93,10 +95,20 @@ export interface SilverstripeApi {
    */
   setSectionHeader(header: SectionHeader): Disposable;
   /**
-   * Runs `handler` before the form with this element id posts, and cancels the post when it resolves
-   * false or throws; a field gets its form's id as the `formId` prop
+   * Adds a handler to a hook point. The name decides the kind: `updateX(value, context)` returns the
+   * value, `onBeforeX(context)` may resolve false to cancel, `onAfterX(context)` is told. The handler is
+   * known to other registrations' `before` and `after` as `<pilet>:<options.id>`
    */
-  registerBeforeSubmit(formId: string, handler: BeforeSubmitHandler): Disposable;
+  registerHook<N extends string>(name: N, handler: HookHandler<N>, options?: HookOptions): Disposable;
+  /**
+   * Runs a hook point the pilet owns: every handler, the shell's first, then pilets in feed order, each
+   * returning the value the next one gets. A pilet declares the value and context by augmenting `HookPoints`
+   */
+  runUpdateHook<N extends `update${string}`>(name: N, value: HookValue<N>, context: HookContext<N>): HookValue<N>;
+  /** Resolves false as soon as a handler cancels; a handler that throws rejects with its error */
+  runBeforeHook<N extends `onBefore${string}`>(name: N, context: HookContext<N>): Promise<boolean>;
+  /** Tells every handler; their errors are logged, not thrown */
+  runAfterHook<N extends `onAfter${string}`>(name: N, context: HookContext<N>): void;
   /**
    * Draws `Icon` beside the section's menu item in place of the icon its legacy `menu_icon_class`
    * picks. `sectionCode` is the menu item's code: the controller class with hyphens for backslashes
@@ -145,6 +157,13 @@ export function componentSlotName(name: string): string {
   return componentPrefix + name;
 }
 
+function requireKind<N extends string>(name: N, kind: HookKind): N {
+  if (hookKind(name) !== kind) {
+    throw new Error(`Hook "${name}" is not an ${kind}X name`);
+  }
+  return name;
+}
+
 const resolvedComponents = new Map<string, ComponentType<any>>();
 
 /**
@@ -173,11 +192,22 @@ export function createSilverstripeApi(): PiralPlugin<SilverstripeApi> {
 
     subscribePreviewMode(() => setViewMode(context, chosenPreviewMode()));
 
+    let feedModules: ReadonlyArray<{ name: string }> | null = null;
+    let feedNames: ReadonlyArray<string> = [];
+    setHookFeedOrder(() => {
+      const modules = context.readState((state) => state.modules ?? []);
+      if (modules !== feedModules) {
+        feedModules = modules;
+        feedNames = modules.map((pilet) => pilet.name);
+      }
+      return feedNames;
+    });
+
     context.on('unload-pilet', ({ name }) => {
       clearUnsavedChangesOf(context, name);
       clearSectionHeaderOf(context, name);
       clearCurrentRecordOf(context, name);
-      clearBeforeSubmitOf(name);
+      clearHooksOf(name);
       subscriptions.get(name)?.forEach((unsubscribe) => unsubscribe());
       subscriptions.delete(name);
     });
@@ -220,8 +250,17 @@ export function createSilverstripeApi(): PiralPlugin<SilverstripeApi> {
       setSectionHeader(header) {
         return setSectionHeader(context, meta.name, header);
       },
-      registerBeforeSubmit(formId, handler) {
-        return registerBeforeSubmit(formId, meta.name, handler);
+      registerHook(name, handler, options) {
+        return registerHook(meta.name, name, handler, options);
+      },
+      runUpdateHook(name, value, context) {
+        return runUpdateHook(requireKind(name, 'update'), value, context);
+      },
+      runBeforeHook(name, context) {
+        return runBeforeHook(requireKind(name, 'onBefore'), context);
+      },
+      runAfterHook(name, context) {
+        runAfterHook(requireKind(name, 'onAfter'), context);
       },
       registerSectionIcon(sectionCode, Icon) {
         return api.registerExtension(sectionIconSlotName(sectionCode), () => React.createElement(Icon));

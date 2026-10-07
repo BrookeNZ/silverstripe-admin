@@ -115,7 +115,7 @@ The full list and the props contracts are in `PILET-API.md`. In short:
 - **Slots**: `registerExtensionComponent(name, slot, Component)` for named slots. `menu.bottom` is legacy.
 - **Menu**: `registerMenuItem(item)` for a pilet-only link; a server section is already in the menu.
 - **Section header and icons**: `setSectionHeader(header)` and `registerSectionIcon(code, Icon)`.
-- **Form hooks and state**: `registerBeforeSubmit(formId, handler)`, `setUnsavedChanges(key, dirty)`, shared
+- **Hooks and state**: `registerHook(name, handler)` (replaces `Injector.transform`; see PILET-API.md), `setUnsavedChanges(key, dirty)`, shared
   state and the `silverstripe:records-changed` event.
 - **Config**: `getConfig()` is a frozen copy of `window.ss.config`.
 

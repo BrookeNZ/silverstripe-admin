@@ -43,6 +43,10 @@ export interface FieldSchema {
   disabled: boolean;
   autoFocus?: boolean;
   attributes?: SchemaData;
+  /** Client validation rules, such as `required`; the shell checks `required` only */
+  validation?: SchemaData | [];
+  /** Replaces the client validation message */
+  customValidationMessage?: string;
   source?: Array<SourceOption> | null;
   // PHP serialises an empty data map as []
   data: SchemaData | [];
@@ -137,7 +141,7 @@ export interface FormFieldActions {
 
 /** Where a field is rendered */
 export interface FormFieldContext {
-  /** The id of the form element the field is in (`Form_EditForm`), the key for `registerBeforeSubmit` */
+  /** The id of the form element the field is in (`Form_EditForm`), which the form hooks' context carries */
   formId?: string;
 }
 
@@ -155,7 +159,7 @@ export interface FormSchemaSubmitResult {
   /** True when the server accepted the submission with no errors */
   ok: boolean;
   response?: FormSchemaResponse;
-  /** Why it failed, when the request itself failed or a before-submit handler threw */
+  /** Why it failed, when the request itself failed or an `onBeforeFormSubmit` handler threw */
   message?: string;
 }
 
@@ -172,6 +176,6 @@ export interface SchemaFormDialogProps {
   onSubmitted?(response: FormSchemaResponse, action: FormField): void;
 }
 
-export type { BeforeSubmitContext, BeforeSubmitHandler } from './beforeSubmit';
+export type * from '../hooks/types';
 
 export type * from '../grid/types';

@@ -106,19 +106,28 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
     const [sourceCode, setSourceCode] = React.useState<string | null>(null);
     const [sourceCodeKey, setSourceCodeKey] = React.useState(0);
 
-    const report = React.useCallback(() => {
+    /** The value the form should hold now, or null when it already has it */
+    const pending = React.useCallback((): string | null => {
       clearTimeout(timer.current);
       const editor = editorRef.current;
       if (!editor) {
-        return;
+        return null;
       }
       const content = editor.getContent();
       const next = content === sync.current.baseline ? sync.current.stored : content;
-      if (next !== sync.current.reported) {
-        sync.current.reported = next;
+      if (next === sync.current.reported) {
+        return null;
+      }
+      sync.current.reported = next;
+      return next;
+    }, []);
+
+    const report = React.useCallback(() => {
+      const next = pending();
+      if (next !== null) {
         latest.current.onChange(next);
       }
-    }, []);
+    }, [pending]);
 
     const openLinkDialog = React.useCallback(() => {
       const editor = editorRef.current;
@@ -324,13 +333,18 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
     }, [status, readOnly, labelId, descriptionIds, error]);
 
     React.useEffect(() => {
-      if (!formId || !api.registerBeforeSubmit) {
+      if (!formId || !api.registerHook) {
         return undefined;
       }
-      return api.registerBeforeSubmit(formId, () => {
-        report();
+      // Runs before validation, so a post straight after typing is checked and sent with the latest content
+      return api.registerHook('updateFormValues', (values, context) => {
+        if (context.formId !== formId) {
+          return values;
+        }
+        const next = pending();
+        return next === null ? values : { ...values, [field.name]: next };
       });
-    }, [formId, report]);
+    }, [formId, field.name, pending]);
 
     return (
       <>

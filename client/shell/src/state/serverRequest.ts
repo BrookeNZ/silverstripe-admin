@@ -4,8 +4,10 @@
  * every request, so an ended session answers 401 or 403 with X-Reauthenticate instead of redirecting to
  * the login form, and the CSRF token from the client config in X-SecurityID on anything but a GET.
  *
- * Failures throw a `ServerRequestError` carrying the status, the first message of the CMS JSON error
- * envelope where there is one, and `sessionExpired`, which a login redirect also sets.
+ * Failures throw a `ServerRequestError` carrying the status, what the server said (the CMS JSON error
+ * envelope's messages, or the first line of the plain-text error a dev-mode site sends), and
+ * `sessionExpired`, which a login redirect also sets. A section the member cannot view answers an XHR
+ * with a 200 that redirects by header (AdminController::redirect), which counts as a 403.
  */
 import { sharedConfig } from './sharedState';
 
@@ -31,16 +33,28 @@ export class ServerRequestError extends Error {
     message: string,
     readonly status: number,
     readonly sessionExpired: boolean = false,
+    /** What the server said about the failure, when it said anything worth showing */
+    readonly serverMessage: string | null = null,
   ) {
     super(message);
     this.name = 'ServerRequestError';
   }
 }
 
-function envelopeMessage(body: unknown): string | null {
-  const errors = (body as { errors?: Array<{ value?: unknown }> } | null)?.errors;
-  const value = Array.isArray(errors) ? errors[0]?.value : undefined;
-  return typeof value === 'string' && value !== '' ? value : null;
+/**
+ * The message in an error body: a JSON error's texts, or the first line of the plain-text error a
+ * dev-mode site sends to XHR. HTML error pages carry nothing worth showing
+ */
+export function serverMessage(body: string, contentType: string | null): string | null {
+  const data = parsed(body) as { errors?: Array<{ value?: unknown }> } | null | undefined;
+  if (data !== undefined || contentType?.includes('application/json')) {
+    const texts = (Array.isArray(data?.errors) ? data.errors : [])
+      .map((error) => error?.value)
+      .filter((value): value is string => typeof value === 'string' && value !== '');
+    return texts.length > 0 ? texts.join(' ') : null;
+  }
+  const firstLine = body.trimStart().split('\n', 1)[0]?.trim() ?? '';
+  return firstLine && !firstLine.startsWith('<') ? firstLine.slice(0, 300) : null;
 }
 
 function requestBody(body: unknown, headers: Record<string, string>): BodyInit | undefined {
@@ -54,8 +68,7 @@ function requestBody(body: unknown, headers: Record<string, string>): BodyInit |
   return JSON.stringify(body);
 }
 
-async function readBody(response: Response): Promise<unknown> {
-  const text = await response.text().catch(() => '');
+function parsed(text: string): unknown {
   if (text === '') {
     return null;
   }
@@ -84,12 +97,17 @@ export const fetchJson: ServerRequest = async <T,>(url: string, init: ServerRequ
   if (response.redirected) {
     throw new ServerRequestError(sessionExpiredMessage, 401, true);
   }
-  const body = await readBody(response);
+  const text = await response.text().catch(() => '');
+  const said = response.ok ? null : serverMessage(text, response.headers.get('content-type'));
   if (response.status === 401 || (response.status === 403 && response.headers.has('X-Reauthenticate'))) {
-    throw new ServerRequestError(envelopeMessage(body) ?? sessionExpiredMessage, response.status, true);
+    throw new ServerRequestError(said ?? sessionExpiredMessage, response.status, true, said);
   }
+  if (response.headers.has('X-ControllerURL')) {
+    throw new ServerRequestError(`The server redirected ${target.pathname}`, 403);
+  }
+  const body = parsed(text);
   if (!response.ok || body === undefined) {
-    throw new ServerRequestError(envelopeMessage(body) ?? `The server answered ${response.status} from ${target.pathname}`, response.status);
+    throw new ServerRequestError(said ?? `The server answered ${response.status} from ${target.pathname}`, response.status, false, said);
   }
   return body as T;
 };

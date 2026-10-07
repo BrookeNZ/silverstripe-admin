@@ -11,6 +11,8 @@
  * Version pages are read through the shell's server cache under `[recordClass, id, 'versions', page]`, so a
  * records-changed event for the record, from a revert here or a save elsewhere, refetches them.
  *
+ * After a successful revert the viewer runs the `onAfterRevert` hook with the record and the version.
+ *
  * Gaps against legacy: no compare mode, no preview of a version, no author avatars.
  */
 import * as React from 'react';
@@ -26,8 +28,23 @@ interface HistoryViewerData {
   limit?: number;
 }
 
+export interface RevertHookContext {
+  recordClass: string;
+  id: number;
+  version: number;
+}
+
+declare module '@silverstripe/admin-shell' {
+  interface HookPoints {
+    onAfterRevert: { context: RevertHookContext };
+  }
+}
+
 export interface HistoryViewerOptions {
-  api: Pick<PiletApi, 'getSilverstripeComponent' | 'showNotification' | 'useServerQuery' | 'useServerMutation'>;
+  // Optional while the emulator predates the hook runners
+  api: Pick<PiletApi, 'getSilverstripeComponent' | 'showNotification' | 'useServerQuery' | 'useServerMutation'> & {
+    runAfterHook?(name: 'onAfterRevert', context: RevertHookContext): void;
+  };
   client: HistoryApi;
   versionSchemaUrl(recordClass: string, id: number, version: number): string;
 }
@@ -102,6 +119,7 @@ export function createHistoryViewer({ api, client, versionSchemaUrl }: HistoryVi
         setRevertError(error instanceof Error ? error.message : String(error));
         return;
       }
+      api.runAfterHook?.('onAfterRevert', { recordClass, id: recordId, version: version.version });
       api.showNotification(`Reverted to version ${version.version}`, { type: 'success' });
       returnFocusTo.current = 0;
       setSelected(null);

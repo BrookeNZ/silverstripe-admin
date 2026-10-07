@@ -128,9 +128,7 @@ describe('TreeDropdownField', () => {
     vi.useFakeTimers();
     const top = { id: 0, title: null, count: 1, children: [{ id: 1, title: 'Contact us', count: 1, children: [] }] };
     const matches = { id: 0, title: null, count: 1, children: [{ id: 2, title: 'Contact form', count: 0, contextString: 'Contact us/' }] };
-    const fetch = vi.fn((url: string) => Promise.resolve({
-      json: () => Promise.resolve(new URL(url).searchParams.has('search') ? matches : top),
-    }));
+    const fetch = vi.fn((url: string) => Promise.resolve(new URL(url).searchParams.has('search') ? matches : top));
     container = document.createElement('div');
     document.body.append(container);
     await act(async () => createRoot(container).render(

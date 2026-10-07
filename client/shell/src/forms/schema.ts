@@ -16,13 +16,10 @@ import type {
   SchemaMessage,
 } from './types';
 import { serverHtmlPosts } from './serverHtml';
+import { ServerRequestError, fetchJson } from '../state/serverRequest';
+import type { ServerRequestInit, ServerRequestMethod } from '../state/serverRequest';
 
 export type FormValues = Record<string, unknown>;
-
-const jsonHeaders = {
-  Accept: 'application/json',
-  'X-Requested-With': 'XMLHttpRequest',
-};
 
 export function fieldKey(name: string): string {
   return name.replace(/[.[\]]/g, (char) => `_x${char.charCodeAt(0).toString(16)}_`);
@@ -315,68 +312,34 @@ export function encodeSubmission(valueFields: Array<FormField>, values: FormValu
 }
 
 /** A form endpoint answer that is not a usable schema, with what the server said about it */
-export class FormSchemaRequestError extends Error {
+export class FormSchemaRequestError extends ServerRequestError {
   constructor(
-    readonly status: number,
-    readonly serverMessage: string | null,
+    status: number,
+    serverMessage: string | null,
     /** The CMS session has ended: LeftAndMain answers an XHR with 403 and `X-Reauthenticate` */
     readonly sessionEnded: boolean,
   ) {
-    super(`The form endpoint answered ${status}`);
+    super(`The form endpoint answered ${status}`, status, sessionEnded, serverMessage);
     this.name = 'FormSchemaRequestError';
   }
 }
 
-/**
- * The message in an error body: a JSON error's texts, or the first line of the plain-text error a
- * dev-mode site sends to XHR. HTML error pages carry nothing worth showing
- */
-export function serverMessage(body: string, contentType: string | null): string | null {
-  if (contentType?.includes('application/json')) {
-    try {
-      const data = JSON.parse(body);
-      const texts = (Array.isArray(data?.errors) ? data.errors : [])
-        .map((error: { value?: unknown }) => error?.value)
-        .filter((value: unknown): value is string => typeof value === 'string' && value !== '');
-      return texts.length > 0 ? texts.join(' ') : null;
-    } catch {
-      return null;
+async function formRequest(url: string, init: ServerRequestInit): Promise<FormSchemaResponse> {
+  try {
+    return await fetchJson<FormSchemaResponse>(url, init);
+  } catch (error) {
+    if (error instanceof ServerRequestError) {
+      throw new FormSchemaRequestError(error.status, error.serverMessage, error.sessionExpired);
     }
+    throw error;
   }
-  const firstLine = body.trimStart().split('\n', 1)[0]?.trim() ?? '';
-  return firstLine && !firstLine.startsWith('<') ? firstLine.slice(0, 300) : null;
 }
 
-async function readResponse(response: Response): Promise<FormSchemaResponse> {
-  const contentType = response.headers.get('content-type');
-  if (!response.ok || !contentType?.includes('application/json')) {
-    const body = await response.text().catch(() => '');
-    // A section the member cannot view redirects an XHR by header (AdminController::redirect) with a 200
-    const status = response.headers.get('x-controllerurl') ? 403 : response.status;
-    throw new FormSchemaRequestError(
-      status,
-      serverMessage(body, contentType),
-      response.status === 401 || response.headers.get('x-reauthenticate') === '1',
-    );
-  }
-  return response.json();
+export function fetchFormSchema(schemaUrl: string, signal?: AbortSignal): Promise<FormSchemaResponse> {
+  return formRequest(schemaUrl, { headers: { 'X-Formschema-Request': 'schema,state,errors' }, signal });
 }
 
-export async function fetchFormSchema(schemaUrl: string, signal?: AbortSignal): Promise<FormSchemaResponse> {
-  const response = await fetch(new URL(schemaUrl, document.baseURI), {
-    credentials: 'same-origin',
-    headers: { ...jsonHeaders, 'X-Formschema-Request': 'schema,state,errors' },
-    signal,
-  });
-  return readResponse(response);
-}
-
-export async function submitFormSchema(schema: FormSchemaTree, body: URLSearchParams): Promise<FormSchemaResponse> {
-  const response = await fetch(new URL(schema.action, document.baseURI), {
-    method: schema.method || 'POST',
-    credentials: 'same-origin',
-    headers: { ...jsonHeaders, 'X-Formschema-Request': 'state,errors' },
-    body,
-  });
-  return readResponse(response);
+export function submitFormSchema(schema: FormSchemaTree, body: URLSearchParams): Promise<FormSchemaResponse> {
+  const method = (schema.method || 'POST').toUpperCase() as ServerRequestMethod;
+  return formRequest(schema.action, { method, headers: { 'X-Formschema-Request': 'state,errors' }, body });
 }
