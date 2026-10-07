@@ -2,6 +2,7 @@
 
 namespace SilverStripe\Admin\UserInterface\GridField;
 
+use BadMethodCallException;
 use LogicException;
 use Psr\Log\LoggerInterface;
 use ReflectionMethod;
@@ -187,7 +188,15 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
             }
             $controllerResponse = $this->controllerResponse($gridField);
             $controllerResponse?->removeHeader('X-Message-Text');
-            $gridField->handleAlterAction($name, ['RecordID' => $recordID], []);
+            try {
+                $gridField->handleAlterAction($name, ['RecordID' => $recordID], []);
+            } catch (BadMethodCallException $exception) {
+                // GridFieldRestoreAction asks the form's controller for a response after restoring; nested in an
+                // item edit form that is a RequestHandler without one, so the restore has already happened
+                if ($name !== 'restore' || $controllerResponse) {
+                    throw $exception;
+                }
+            }
             $this->applyQuery($gridField, $request);
             $payload = $this->getPayload($gridField);
             $message = $controllerResponse?->getHeader('X-Message-Text');

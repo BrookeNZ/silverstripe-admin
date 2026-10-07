@@ -1,6 +1,7 @@
 /**
- * The CMS section menu: one link per menu item with its section icon, the
- * `SilverStripe\Admin\LeftAndMain.menu.bottom` extension slot, and the button that collapses the
+ * The CMS section menu: one link per menu item with its section icon, then the items pilets register with
+ * `registerMenuItem` drawn the same way, then the legacy `SilverStripe\Admin\LeftAndMain.menu.bottom`
+ * extensions (pilet markup, each in its own item), and the button that collapses the
  * desktop menu to an icon rail. The sidebar in layout.tsx owns the collapsed state, because the
  * sidebar's width changes with it; below 1024px the menu is the top bar's disclosure and never collapses
  * (menu.css).
@@ -8,10 +9,11 @@
 import * as React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ExtensionSlot } from 'piral-core';
-import { Button, CollapseMenuIcon, ExpandMenuIcon } from '@silverstripe/admin-patterns';
+import { Button, CollapseMenuIcon, ExpandMenuIcon, SectionIcon } from '@silverstripe/admin-patterns';
 import { extensionSlotName } from '../api/silverstripe';
 import type { SilverstripeMenuItem } from '../silverstripe';
 import { MenuSectionIcon } from './sectionIcons';
+import { usePiletMenuItems } from './menuItems';
 import './menu.css';
 
 const leftAndMain = 'SilverStripe\\Admin\\LeftAndMain';
@@ -25,32 +27,50 @@ function menuPath(link: string, adminPath: string): string | null {
   return url.pathname.slice(adminPath.length) || '/';
 }
 
-const MenuLinkContent = ({ item }: { item: SilverstripeMenuItem }) => (
+interface MenuLinkContentProps {
+  label: string;
+  icon: React.ReactNode;
+}
+
+const MenuLinkContent = ({ label, icon }: MenuLinkContentProps) => (
   <>
-    <span className="shell-menu__icon">
-      <MenuSectionIcon code={item.code} iconClass={item.iconClass} />
-    </span>
-    <span className="shell-menu__label">{item.title}</span>
+    <span className="shell-menu__icon">{icon}</span>
+    <span className="shell-menu__label">{label}</span>
   </>
 );
 
-export const MenuLink = ({ item, adminPath }: { item: SilverstripeMenuItem; adminPath: string }) => {
+interface MenuLinkProps extends MenuLinkContentProps {
+  /** A router path relative to the admin base */
+  to: string;
+}
+
+export const MenuLink = ({ to, label, icon }: MenuLinkProps) => {
   const { pathname } = useLocation();
-  const to = menuPath(item.link, adminPath);
-  if (to === null) {
-    return (
-      <a className="shell-menu__link" href={item.link} title={item.title}>
-        <MenuLinkContent item={item} />
-      </a>
-    );
-  }
   const section = to.replace(/\/$/, '');
   const current = section ? pathname === section || pathname.startsWith(`${section}/`) : pathname === '/';
   return (
-    <Link className="shell-menu__link" to={to} title={item.title} aria-current={current ? 'page' : undefined}>
-      <MenuLinkContent item={item} />
+    <Link className="shell-menu__link" to={to} title={label} aria-current={current ? 'page' : undefined}>
+      <MenuLinkContent label={label} icon={icon} />
     </Link>
   );
+};
+
+interface SectionLinkProps {
+  item: SilverstripeMenuItem;
+  adminPath: string;
+}
+
+const SectionLink = ({ item, adminPath }: SectionLinkProps) => {
+  const to = menuPath(item.link, adminPath);
+  const icon = <MenuSectionIcon code={item.code} iconClass={item.iconClass} />;
+  if (to === null) {
+    return (
+      <a className="shell-menu__link" href={item.link} title={item.title}>
+        <MenuLinkContent label={item.title} icon={icon} />
+      </a>
+    );
+  }
+  return <MenuLink to={to} label={item.title} icon={icon} />;
 };
 
 interface MenuProps {
@@ -63,17 +83,34 @@ interface MenuProps {
 }
 
 export const Menu = ({ id, menu, adminPath, open, collapsed, onCollapsedChange }: MenuProps) => {
+  const piletItems = usePiletMenuItems();
   const classes = ['shell-menu', open && 'shell-menu--open', collapsed && 'shell-menu--collapsed'].filter(Boolean).join(' ');
   return (
     <nav className={classes} id={id} aria-label="CMS sections">
       <ul className="shell-menu__list">
         {menu.map((item) => (
           <li className="shell-menu__item" key={item.code}>
-            <MenuLink item={item} adminPath={adminPath} />
+            <SectionLink item={item} adminPath={adminPath} />
           </li>
         ))}
+        {piletItems.map(({ code, label, to, Icon = SectionIcon }) => (
+          <li className="shell-menu__item" key={`pilet:${code}`}>
+            <MenuLink to={to} label={label} icon={<Icon />} />
+          </li>
+        ))}
+        <ExtensionSlot
+          name={extensionSlotName(leftAndMain, 'menu.bottom')}
+          render={(children: React.ReactNode[]) => (
+            <>
+              {children.map((child, index) => (
+                <li className="shell-menu__item" key={index}>
+                  {child}
+                </li>
+              ))}
+            </>
+          )}
+        />
       </ul>
-      <ExtensionSlot name={extensionSlotName(leftAndMain, 'menu.bottom')} />
       <div className="shell-menu__footer">
         <Button
           className="shell-menu__collapse"

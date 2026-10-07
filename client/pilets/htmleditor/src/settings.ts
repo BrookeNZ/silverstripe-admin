@@ -3,14 +3,15 @@
  * `SilverStripe\TinyMCE\TinyMCEConfig::getConfig()`) into the options this pilet passes to
  * `tinymce.init()`.
  *
- * The Silverstripe insert plugins (links, media, embeds) are dropped from `external_plugins`, the
- * toolbar and the context menu: they bind legacy admin globals (Injector, jQuery, the Redux modals) as
- * soon as they load, which the shell does not provide. They return as shell-aware rewrites in later
- * slices. Every other plugin, including a project's own, still loads from the URL the server gives.
+ * The Silverstripe insert plugins (links, media, embeds) are dropped from `external_plugins`: they bind
+ * legacy admin globals (Injector, jQuery, the Redux modals) as soon as they load, which the shell does not
+ * provide. The link button and menu item keep their `sslink` name, registered by this pilet (`linkUi.ts`);
+ * media and embeds leave the toolbar and the context menu until their shell rewrites exist. Every other
+ * plugin, including a project's own, still loads from the URL the server gives.
  */
 import type { RawEditorOptions } from 'tinymce';
 
-export const deferredPlugins: ReadonlyArray<string> = [
+export const legacyPlugins: ReadonlyArray<string> = [
   'sslink',
   'sslinkexternal',
   'sslinkemail',
@@ -21,6 +22,9 @@ export const deferredPlugins: ReadonlyArray<string> = [
   'ssmedia',
   'ssembed',
 ];
+
+/** Toolbar and context menu items nothing registers yet */
+export const deferredItems: ReadonlyArray<string> = legacyPlugins.filter((name) => name !== 'sslink');
 
 /** The settings JSON as sent, with the keys only the Silverstripe side reads */
 export interface ServerEditorConfig extends Record<string, unknown> {
@@ -54,7 +58,7 @@ function withoutItems(row: string, removed: ReadonlySet<string>): string {
     .join(' | ');
 }
 
-export function withoutDeferredItems<T extends string | Array<string> | undefined>(rows: T, removed: ReadonlyArray<string> = deferredPlugins): T {
+export function withoutDeferredItems<T extends string | Array<string> | undefined>(rows: T, removed: ReadonlyArray<string> = deferredItems): T {
   const names = new Set(removed);
   if (typeof rows === 'string') {
     return withoutItems(rows, names) as T;
@@ -83,7 +87,7 @@ export function editorOptions(config: ServerEditorConfig, { target, label, readO
     row_height: rowHeight,
     ...options
   } = config;
-  const plugins = Object.fromEntries(Object.entries(externalPlugins).filter(([name]) => !deferredPlugins.includes(name)));
+  const plugins = Object.fromEntries(Object.entries(externalPlugins).filter(([name]) => !legacyPlugins.includes(name)));
   return {
     ...(options as RawEditorOptions),
     base_url: baseURL,

@@ -211,7 +211,7 @@ describe('RecordEditPage', () => {
     await renderAt(`/notes/${model}/EditForm/field/${model}/item/4/edit/`);
 
     expect(container.querySelector<HTMLInputElement>('#Form_ItemEditForm_Title')?.value).toBe('Note 4');
-    expect(header()).toEqual({ title: 'Note 4', backTo: grid, backLabel: 'Back to notes' });
+    expect(header()).toEqual({ title: 'Note 4', crumbs: [{ label: 'Notes', to: grid }], backTo: grid, backLabel: 'Back to notes' });
 
     act(() => root.unmount());
     root = createRoot(container);

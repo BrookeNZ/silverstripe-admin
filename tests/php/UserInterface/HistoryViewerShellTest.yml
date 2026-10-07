@@ -1,0 +1,15 @@
+SilverStripe\Security\Group:
+  other:
+    Title: Other
+
+SilverStripe\CMS\Model\SiteTree:
+  open:
+    Title: Open
+    URLSegment: open
+  hidden:
+    Title: Hidden
+    URLSegment: hidden
+    CanViewType: OnlyTheseUsers
+    ViewerGroups: =>SilverStripe\Security\Group.other
+    CanEditType: OnlyTheseUsers
+    EditorGroups: =>SilverStripe\Security\Group.other

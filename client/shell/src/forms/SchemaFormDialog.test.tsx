@@ -100,6 +100,16 @@ afterEach(() => {
 });
 
 describe('SchemaFormDialog', () => {
+  // happy-dom ignores the form attribute when finding a form owner, which browsers honour (checked in Chrome)
+  it('leaves intro controls with no form owner, so Enter in one cannot submit an enclosing form', async () => {
+    await render(
+      <form id="outer">
+        <SchemaFormDialog open header="Add link" intro={<input type="radio" name="kind" aria-label="Page" />} schemaUrl="schema/LinkForm" onClose={() => undefined} />
+      </form>,
+    );
+    expect(container.querySelector('input[name="kind"]')!.getAttribute('form')).toBe('');
+  });
+
   it('renders the form headless in the body and Cancel then the schema actions in the footer', async () => {
     await render(<SchemaFormDialog open header="Add link" schemaUrl="schema/LinkForm" onClose={() => undefined} />);
     expect(container.querySelector('.admin-dialog__body form')).toBeNull();

@@ -2,7 +2,7 @@
  * Section header
  *
  * The bar at the top of the content area in the CMS Refresh design ("Section header", Figma node
- * 2:17570): back button and title on the left, the page's views on the right with the current one
+ * 2:17570; with a breadcrumb above the title, 2:1870): back button and title on the left, the page's views on the right with the current one
  * underlined, a divider below. It sticks to the top of the content area while the page scrolls.
  *
  * The tokens sit on :root because the content below reads the header's height: the shell's scroll
@@ -30,7 +30,18 @@
   --shell-header-back-size: 2.5rem;
   --shell-header-border: 0.1rem solid;
   --shell-header-column-gap: 5rem;
+
+  /* Figma New/Breadcrumbs is 11px; kept at the 14px body size, the smallest text the admin draws */
+  --shell-header-crumb-font-size: var(--admin-font-size-md);
+  --shell-header-crumb-gap: var(--admin-gap-xs);
+
+  /* Figma New/Breadcrumbs line height */
+  --shell-header-crumb-line-height: 1.1;
+  --shell-header-crumb-separator-color: var(--admin-fg-color);
   --shell-header-current-max-inline-size: 100%;
+
+  /* Figma 2:1873: 2px between the breadcrumb and the title */
+  --shell-header-heading-gap: 0.2rem;
   --shell-header-height: 10.4rem;
   --shell-header-offset: var(--shell-header-height);
   --shell-header-padding-block-start: 1.8rem;
@@ -85,6 +96,35 @@
   max-inline-size: var(--shell-header-current-max-inline-size);
 }
 
+.shell-header__heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--shell-header-heading-gap);
+  min-width: 0;
+}
+
+.shell-header__crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--shell-header-crumb-font-size);
+  gap: var(--shell-header-crumb-gap);
+  line-height: var(--shell-header-crumb-line-height);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.shell-header__crumb {
+  display: flex;
+  gap: var(--shell-header-crumb-gap);
+}
+
+/* Empty alternative text: the list already tells a screen reader where one crumb ends */
+.shell-header__crumb::after {
+  color: var(--shell-header-crumb-separator-color);
+  content: "/" / "";
+}
+
 .shell-header__back {
   --admin-icon-size: var(--shell-header-back-icon-size);
 
@@ -106,6 +146,12 @@
   font-weight: var(--shell-header-title-font-weight);
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+/* Figma 2:1876: the title under a breadcrumb is Inter Regular 16px */
+.shell-header__title--nested {
+  --shell-header-title-font-size: var(--admin-font-size-lg);
+  --shell-header-title-font-weight: var(--admin-font-weight-normal);
 }
 
 /* Focus lands here after a route change */

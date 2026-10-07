@@ -4,6 +4,10 @@
  * its own action through the form's handle, and Enter in a field posts the first action; the posting
  * action's button shows it is busy either way. Errors show in the body as on any form.
  *
+ * The dialog sits wherever the host renders it, often inside another form, whose implicit submission Enter
+ * in any of its controls would trigger. The headless form guards its own fields; controls in `intro` get
+ * `form=""`, which leaves them with no form owner at all.
+ *
  * The form is still loading when the dialog opens, so the heading takes focus first and the first field
  * once the schema has loaded, unless focus has moved on meanwhile.
  */
@@ -14,12 +18,17 @@ import type { FormField, FormSchemaFormHandle, SchemaFormDialogProps } from './t
 
 const firstField = 'input:not([type="hidden"]):not(:disabled), select:not(:disabled), textarea:not(:disabled), [contenteditable="true"]';
 
-export const SchemaFormDialog = ({ open, header, schemaUrl, onClose, onSubmitted }: SchemaFormDialogProps) => {
+export const SchemaFormDialog = ({ open, header, intro, schemaUrl, onClose, onSubmitted }: SchemaFormDialogProps) => {
   const handle = React.useRef<FormSchemaFormHandle>(null);
   const [actions, setActions] = React.useState<Array<FormField>>([]);
   const [pending, setPending] = React.useState<string | null>(null);
   const [loaded, setLoaded] = React.useState(false);
   const body = React.useRef<HTMLDivElement>(null);
+  const introHolder = React.useRef<HTMLDivElement>(null);
+
+  React.useLayoutEffect(() => {
+    introHolder.current?.querySelectorAll('input, select, textarea, button').forEach((control) => control.setAttribute('form', ''));
+  });
 
   React.useEffect(() => {
     if (!open) {
@@ -81,6 +90,7 @@ export const SchemaFormDialog = ({ open, header, schemaUrl, onClose, onSubmitted
         </>
       }
     >
+      {intro && <div ref={introHolder}>{intro}</div>}
       <div ref={body}>
         {open && (
           <FormSchemaForm

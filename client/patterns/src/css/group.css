@@ -36,3 +36,12 @@
 .admin-literal {
   color: var(--admin-muted-fg-color);
 }
+
+/* Server HTML scope: a literal's paragraphs arrive with the browser's default margins */
+.admin-literal p {
+  margin-block: 0;
+}
+
+.admin-literal p + p {
+  margin-block-start: var(--admin-gap-sm);
+}

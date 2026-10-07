@@ -1,5 +1,6 @@
 import type { PiletApi } from '@silverstripe/admin-shell';
-import { createHtmlEditorField } from './HtmlEditorField';
+import { createAnchorSelectorField } from './AnchorSelectorField';
+import { createHtmlEditorField, editorAnchors } from './HtmlEditorField';
 import type { HtmlEditorPiletApi } from './shell';
 import './htmleditor.css';
 
@@ -8,4 +9,5 @@ export const editorComponent = 'TinyMceHtmlEditorField';
 
 export function setup(api: PiletApi) {
   api.registerSilverstripeComponent(editorComponent, createHtmlEditorField({ api: api as HtmlEditorPiletApi }));
+  api.registerSilverstripeComponent('AnchorSelectorField', createAnchorSelectorField(() => editorAnchors.current));
 }

@@ -144,9 +144,10 @@
 
 .admin-grid__actions {
   align-items: center;
-  display: inline-flex;
-  white-space: nowrap;
+  display: flex;
   gap: var(--admin-gap-md);
+  justify-content: flex-end;
+  white-space: nowrap;
 }
 
 .admin-grid__pages {

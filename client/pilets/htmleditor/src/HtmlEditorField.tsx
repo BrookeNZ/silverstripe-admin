@@ -7,14 +7,26 @@
  * right after init is the baseline: while the editor still holds that content the field reports the
  * stored value unchanged, and the form stays clean. Edits reach the form after typing pauses, on blur
  * and before the form posts. A value from outside (the state a save brings back) replaces the content
- * and becomes the new baseline.
+ * and becomes the new baseline. The first edit after a clean state reaches the form at once, so the form is
+ * dirty (and leaving asks first) from the first keystroke.
+ *
+ * The field id stays on the hidden textarea TinyMCE replaces, where the shell's form looks for the control
+ * to focus after a server error; its `focus()` is pointed at the editor.
+ *
+ * Links go through the shell's link dialog (`LinkDialog`), opened from the toolbar, the context menu, a
+ * link's context toolbar or Ctrl/Cmd+K.
  */
 import * as React from 'react';
 import { describedBy, FieldHolder } from '@silverstripe/admin-patterns';
 import type { Editor, TinyMCE } from 'tinymce';
+import { LinkDialog } from './LinkDialog';
+import type { LinkDialogRequest } from './LinkDialog';
+import { availableKinds, kindForHref } from './links';
+import type { LinkFormSection, LinkKind } from './links';
+import { applyLink, currentLink, linkAttributes, registerLinkUi } from './linkUi';
 import { loadTinyMce } from './loadTinyMce';
 import { editorOptions, parseEditorConfig } from './settings';
-import type { HtmlEditorFieldProps, HtmlEditorPiletApi } from './shell';
+import type { HtmlEditorFieldProps, HtmlEditorPiletApi, SchemaFormDialogProps } from './shell';
 
 export interface HtmlEditorFieldOptions {
   api: HtmlEditorPiletApi;
@@ -44,7 +56,32 @@ function rawConfig(field: HtmlEditorFieldProps['field']): unknown {
   return attributes['data-config'] ?? dataAttributes['data-config'];
 }
 
+const linkFormSection = 'SilverStripe\\Admin\\LeftAndMain';
+const currentPageKey = 'silverstripe:pages:current-page-id';
+
+/** The anchors in the content of the editor whose link dialog is open, for the dialog's anchor field */
+export const editorAnchors: { current: ReadonlyArray<string> } = { current: [] };
+
+function anchorsIn(editor: Editor): Array<string> {
+  const elements = [...editor.getBody().querySelectorAll('[id], a[name]')].filter((element) => !element.hasAttribute('data-mce-type'));
+  const names = elements.map((element) => element.id || element.getAttribute('name') || '');
+  // TinyMCE's own ids (bookmarks, selection markers) start with mce
+  return [...new Set(names.filter((name) => name !== '' && !name.startsWith('mce')))];
+}
+
+function linkKindsFromConfig(api: HtmlEditorPiletApi) {
+  const sections = (api.getConfig?.().sections ?? []) as ReadonlyArray<{ name?: string } & LinkFormSection>;
+  return availableKinds(sections.find((section) => section.name === linkFormSection));
+}
+
+function currentPageId(api: HtmlEditorPiletApi): number {
+  const id = Number((api.getData as ((name: string) => unknown) | undefined)?.(currentPageKey));
+  return Number.isFinite(id) ? id : 0;
+}
+
 export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300 }: HtmlEditorFieldOptions) {
+  const FormDialog = api.getSilverstripeComponent?.('SchemaFormDialog') as React.ComponentType<SchemaFormDialogProps> | undefined;
+
   const HtmlEditorField = ({ field, value, onChange, onBlur, error, formId }: HtmlEditorFieldProps) => {
     const configText = textValue(rawConfig(field));
     const config = React.useMemo(() => parseEditorConfig(configText), [configText]);
@@ -61,6 +98,9 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
     const readOnly = Boolean(field.readOnly || field.disabled);
     const labelId = `${field.id}_label`;
     const descriptionIds = describedBy(field, error);
+    const linkKinds = React.useMemo(() => (FormDialog ? linkKindsFromConfig(api) : []), []);
+    const [linkRequest, setLinkRequest] = React.useState<LinkDialogRequest | null>(null);
+    const linkBookmark = React.useRef<unknown>(null);
 
     const report = React.useCallback(() => {
       clearTimeout(timer.current);
@@ -75,6 +115,59 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
         latest.current.onChange(next);
       }
     }, []);
+
+    const openLinkDialog = React.useCallback(() => {
+      const editor = editorRef.current;
+      if (!editor || linkKinds.length === 0 || editor.mode.isReadOnly()) {
+        return;
+      }
+      const link = currentLink(editor);
+      if (link) {
+        editor.selection.select(link);
+      }
+      const attributes = link ? linkAttributes(link) : null;
+      const kind = kindForHref(attributes?.href ?? '', linkKinds.map((entry) => entry.kind)) ?? linkKinds[0].kind;
+      editorAnchors.current = anchorsIn(editor);
+      linkBookmark.current = editor.selection.getBookmark(2, true);
+      setLinkRequest({
+        kind: link ? kind.name : linkKinds[0].kind.name,
+        values: attributes ? kind.values(attributes) : {},
+        editing: link !== null,
+        requireText: link === null && editor.selection.isCollapsed(),
+        itemId: currentPageId(api),
+      });
+    }, [linkKinds]);
+    const latestOpenLinkDialog = React.useRef(openLinkDialog);
+    latestOpenLinkDialog.current = openLinkDialog;
+
+    const insertLink = (kind: LinkKind, values: Record<string, unknown>) => {
+      const editor = editorRef.current;
+      const request = linkRequest;
+      setLinkRequest(null);
+      editorAnchors.current = [];
+      if (!editor || !request) {
+        return;
+      }
+      editor.focus();
+      if (linkBookmark.current) {
+        editor.selection.moveToBookmark(linkBookmark.current as never);
+      }
+      applyLink(editor, kind.attributes(values), request.requireText ? String(values.Text ?? '') : '');
+      report();
+    };
+
+    // The control that opened the dialog (a context toolbar button) may be gone, so focus goes back to the editor
+    const cancelLink = () => {
+      editorAnchors.current = [];
+      setLinkRequest(null);
+      requestAnimationFrame(() => {
+        const editor = editorRef.current;
+        editor?.focus();
+        if (editor && linkBookmark.current) {
+          editor.selection.moveToBookmark(linkBookmark.current as never);
+        }
+      });
+    };
 
     React.useEffect(() => {
       const element = host.current;
@@ -98,7 +191,11 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
         });
         editor.on('input change undo redo', () => {
           clearTimeout(timer.current);
-          timer.current = setTimeout(report, syncDelay);
+          if (sync.current.reported === sync.current.stored) {
+            report();
+          } else {
+            timer.current = setTimeout(report, syncDelay);
+          }
         });
         editor.on('focus', () => setFocused(true));
         editor.on('blur', () => {
@@ -106,6 +203,7 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
           report();
           latest.current.onBlur();
         });
+        registerLinkUi(editor, () => latestOpenLinkDialog.current());
       };
 
       load(String(config.baseURL ?? ''))
@@ -120,6 +218,7 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
             throw new Error('The editor did not start');
           }
           editorRef.current = editor;
+          textarea.focus = () => editor.focus();
           setStatus('ready');
         })
         .catch(() => {
@@ -130,7 +229,7 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
 
       return () => {
         cancelled = true;
-        clearTimeout(timer.current);
+        report();
         editorRef.current?.remove();
         editorRef.current = null;
         textarea.remove();
@@ -146,6 +245,9 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
     React.useEffect(() => {
       const editor = editorRef.current;
       const text = textValue(value);
+      if (status === 'failed' && textareaRef.current && textareaRef.current.value !== text) {
+        textareaRef.current.value = text;
+      }
       if (!editor || text === sync.current.reported) {
         return;
       }
@@ -181,13 +283,22 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
       textarea.readOnly = readOnly;
       textarea.rows = 10;
       textarea.setAttribute('aria-labelledby', labelId);
-      if (descriptionIds) {
-        textarea.setAttribute('aria-describedby', descriptionIds);
+      for (const [name, attribute] of [['aria-describedby', descriptionIds], ['aria-invalid', error ? 'true' : undefined]] as const) {
+        if (attribute) {
+          textarea.setAttribute(name, attribute);
+        } else {
+          textarea.removeAttribute(name);
+        }
       }
       const input = () => latest.current.onChange(textarea.value);
+      const blur = () => latest.current.onBlur();
       textarea.addEventListener('input', input);
-      return () => textarea.removeEventListener('input', input);
-    }, [status, readOnly, labelId, descriptionIds]);
+      textarea.addEventListener('blur', blur);
+      return () => {
+        textarea.removeEventListener('input', input);
+        textarea.removeEventListener('blur', blur);
+      };
+    }, [status, readOnly, labelId, descriptionIds, error]);
 
     React.useEffect(() => {
       if (!formId || !api.registerBeforeSubmit) {
@@ -199,19 +310,24 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
     }, [formId, report]);
 
     return (
-      <FieldHolder field={field} error={error} labelId={labelId}>
-        {status === 'loading' && (
-          <p className="htmleditor-field__status" role="status">
-            Loading the editor
-          </p>
+      <>
+        <FieldHolder field={field} error={error} labelId={labelId}>
+          {status === 'loading' && (
+            <p className="htmleditor-field__status" role="status">
+              Loading the editor
+            </p>
+          )}
+          {status === 'failed' && (
+            <p className="htmleditor-field__status" role="alert">
+              The editor could not be loaded. You can still edit the HTML below.
+            </p>
+          )}
+          <div className={focused ? 'htmleditor-field htmleditor-field--focused' : 'htmleditor-field'} ref={host} aria-busy={status === 'loading'} />
+        </FieldHolder>
+        {FormDialog && (
+          <LinkDialog request={linkRequest} kinds={linkKinds} FormDialog={FormDialog} onClose={cancelLink} onSubmit={insertLink} />
         )}
-        {status === 'failed' && (
-          <p className="htmleditor-field__status" role="alert">
-            The editor could not be loaded. You can still edit the HTML below.
-          </p>
-        )}
-        <div className={focused ? 'htmleditor-field htmleditor-field--focused' : 'htmleditor-field'} ref={host} aria-busy={status === 'loading'} />
-      </FieldHolder>
+      </>
     );
   };
   return HtmlEditorField;

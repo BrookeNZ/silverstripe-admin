@@ -60,24 +60,6 @@
   padding-inline: var(--shell-inset);
 }
 
-.pages__breadcrumb-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--admin-gap-xs);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.pages__breadcrumb::after {
-  content: "/";
-  padding-inline-start: var(--admin-gap-xs);
-}
-
-.pages__breadcrumb:last-child::after {
-  content: none;
-}
-
 .pages__alert {
   color: var(--admin-error-fg-color);
   margin: 0;

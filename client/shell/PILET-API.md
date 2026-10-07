@@ -22,7 +22,7 @@ piral-notifications, ...):
 |---|---|
 | `registerSilverstripeComponent(name, Component): Disposable` | Register a component under a registry name. The latest registration of a name wins; unloading the pilet restores the previous one. Field components register here too |
 | `getSilverstripeComponent(name): ComponentType` | A stable component that renders the latest registration of `name` |
-| `registerExtensionComponent(name, slot, Component): Disposable` | Fill the slot `<name>.<slot>`, for example `SilverStripe\Admin\LeftAndMain` / `menu.bottom` |
+| `registerExtensionComponent(name, slot, Component): Disposable` | Fill the slot `<name>.<slot>`. `SilverStripe\Admin\LeftAndMain` / `menu.bottom` is legacy; use `registerMenuItem` |
 | `getConfig(): Readonly<SilverstripeClientConfig>` | A deep-frozen copy of `window.ss.config` |
 | `showNotification(content, options?)` | From piral-notifications |
 | `setUnsavedChanges(key, dirty): Disposable` | Report unsaved changes this pilet owns; the shell confirms before navigating away. The disposer clears the key |
@@ -30,6 +30,7 @@ piral-notifications, ...):
 | `setSectionHeader(header): Disposable` | Show the section header above the content; see **Section header** |
 | `registerBeforeSubmit(formId, handler): Disposable` | Run `handler({action})` before the form with that element id posts; see **Before a form posts** |
 | `registerSectionIcon(sectionCode, Icon): Disposable` | Draw `Icon` beside a section's menu item; see **Section icons** |
+| `registerMenuItem({ code, label, to, Icon? }): Disposable` | Add a menu link the shell draws like a section's; see **Menu items** |
 
 No `registerFormField`: binding a field to the form is decided by the schema (`schemaType`, read-only
 state, the posted set), not by the registration; holders are a component (`FieldHolder` in
@@ -198,7 +199,7 @@ event itself; the pilet that knows the record class emits it from `onSubmitted`.
 its rows on every records-changed event.
 
 A form in a dialog is the shell's `SchemaFormDialog` (`getSilverstripeComponent('SchemaFormDialog')`,
-props `SchemaFormDialogProps`: `open`, `header`, `schemaUrl`, `onClose()`, `onSubmitted(response, action)`):
+props `SchemaFormDialogProps`: `open`, `header`, `intro` (controls above the form, such as the HTML editor's choice of link kind), `schemaUrl`, `onClose()`, `onSubmitted(response, action)`):
 the shared Dialog with the form headless in its body and Cancel, then the form's actions, in its footer.
 Each action button posts its own action and shows `loading` while it runs; errors show in the body.
 `onClose` is Cancel and Escape, and the host closes the dialog from `onSubmitted` as well.
@@ -222,7 +223,7 @@ The disposer removes the handler; unloading a pilet removes all of its handlers.
 ## Section header
 
 The shell draws one header at the top of the content area for every route (the "Section header" of
-the CMS Refresh design): a back button, the page title, and the page's views on the right with the
+the CMS Refresh design): a back button, the page's ancestors as a breadcrumb, the page title, and the page's views on the right with the
 current one underlined. It sticks to the top while the page scrolls. A page sets it with
 `setSectionHeader(header)` from an effect and returns the disposer as the cleanup, so it clears on
 unmount:
@@ -234,8 +235,9 @@ React.useEffect(() => piral.setSectionHeader({ title, backTo: '/pages/', backLab
 | Field | |
 |---|---|
 | `title: string` | Rendered as the page's `h1`, so a page that sets a header renders no `h1` of its own |
-| `backTo?: string` | A router path; no back button without it |
-| `backLabel?: string` | The back button's accessible name, "Back" when omitted |
+| `crumbs?: {label, to}[]` | The page's ancestors, nearest last, as router paths. Drawn above the title as a `nav` named "Breadcrumb" holding an ordered list of links, each followed by a " / " the list hides from screen readers. The page itself is the `title` only, never a crumb. Pass what is known and set the header again as more loads (a deep link before its tree has the ancestors) |
+| `backTo?: string` | A router path; the last crumb's when omitted, and no back button without either |
+| `backLabel?: string` | The back button's accessible name: "Back to <last crumb label>" when back falls to the last crumb, "Back" otherwise |
 | `views?: {key, label, to, current?}[]` | Route links in a `nav` named "<title> views", `aria-current="page"` on the current one. Views are routes; for panels inside one page use the patterns package's `Tabs` |
 | `documentTitle?: string` | The first part of the browser tab title when it should differ from `title`; the shell writes "<documentTitle or title> - <application name>" |
 
@@ -281,10 +283,34 @@ api.registerSectionIcon('SilverStripe-Blog-Admin-BlogAdmin', BlogIcon);
 ```
 
 The latest registration wins and unloading the pilet restores the default. The icon is decorative:
-the label names the link, including in the collapsed menu, where the label is visually hidden. A
-component in the `SilverStripe\Admin\LeftAndMain` / `menu.bottom` slot looks like a menu item when it is
-an anchor with the `shell-menu__link` class whose text is in a `shell-menu__label` span; that label
-hides with the rest when the menu collapses.
+the label names the link, including in the collapsed menu, where the label is visually hidden.
+
+## Menu items
+
+A section the server knows (a `LeftAndMain` subclass with a `url_segment` and a menu title) is already in the
+menu, so a module with a section needs no menu registration. A pilet page with no server section behind it adds
+its link with `registerMenuItem`:
+
+```tsx
+api.registerPage('/reports/live/*', LiveReport);
+api.registerMenuItem({ code: 'live-report', label: 'Live report', to: '/reports/live', Icon: ReportsIcon });
+```
+
+| Key | |
+|---|---|
+| `code` | Identifies the item; a later registration with the same code replaces it in place |
+| `label` | The link text: one line with an ellipsis and a `title`, visually hidden in the collapsed menu |
+| `to` | A router path relative to the admin base, as for `registerPage` |
+| `Icon` | Optional 18px `currentColor` glyph, decorative; `SectionIcon` when not given |
+
+The shell draws these after the CMS sections with the same link as a section: icon, label, `aria-current="page"`
+on `to` and its sub paths, and the collapse behaviour. Unloading the pilet removes them.
+
+**Legacy:** components in the `SilverStripe\Admin\LeftAndMain` / `menu.bottom` slot still render, each as its own
+`<li>` after the registered items, but the pilet supplies the markup: an anchor (or router `Link`) with the
+`shell-menu__link` class, an optional `<span class="shell-menu__icon">` holding an 18px `currentColor` icon,
+and the text in a `<span class="shell-menu__label">`. The shell does not mark it current. **Breaking:** the class
+was `shell__link` before 2026-10-07; a pilet still using it renders unstyled.
 
 ## Patterns package
 

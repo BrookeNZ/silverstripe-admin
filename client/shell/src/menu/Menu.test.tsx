@@ -7,14 +7,32 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PagesIcon, SectionIcon, SecurityIcon } from '@silverstripe/admin-patterns';
 import type { SilverstripeMenuItem } from '../silverstripe';
+import { createSilverstripeApi } from '../api/silverstripe';
 import { menuCollapsedKey, useMenuCollapsed } from './collapse';
 import { Menu } from './Menu';
 import { legacySectionIcon } from './sectionIcons';
 
+// Piral's own registry needs the app codegen a piral build produces, so a map stands in for it
+const extensions = vi.hoisted((): Record<string, Array<{ reference: unknown }>> => ({}));
+
 vi.mock('piral-core', async (original) => ({
   ...(await original<typeof import('piral-core')>()),
   ExtensionSlot: ({ empty }: { empty?: () => React.ReactNode }) => <>{empty?.()}</>,
+  useGlobalState: (select: (state: unknown) => unknown) => select({ registry: { extensions: { ...extensions } } }),
 }));
+
+function piletApi() {
+  const context = { on() {}, readState: () => [] };
+  const shellApi = {
+    registerExtension(slot: string, reference: unknown) {
+      extensions[slot] = [...(extensions[slot] ?? []), { reference }];
+      return () => {
+        extensions[slot] = extensions[slot].filter((registration) => registration.reference !== reference);
+      };
+    },
+  };
+  return (createSilverstripeApi() as any)(context)(shellApi, { name: 'hello' });
+}
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -25,10 +43,10 @@ const menu: Array<SilverstripeMenuItem> = [
 let container: HTMLDivElement;
 let root: Root;
 
-const Harness = () => {
+const Harness = ({ path = '/pages/' }: { path?: string }) => {
   const [collapsed, setCollapsed] = useMenuCollapsed();
   return (
-    <MemoryRouter initialEntries={['/pages/']}>
+    <MemoryRouter initialEntries={[path]}>
       <Menu id="menu" menu={menu} adminPath="/admin" open={false} collapsed={collapsed} onCollapsedChange={setCollapsed} />
     </MemoryRouter>
   );
@@ -71,5 +89,22 @@ describe('Menu', () => {
     act(() => button().click());
     expect(nav().classList.contains('shell-menu--collapsed')).toBe(false);
     expect(window.localStorage.getItem(menuCollapsedKey)).toBeNull();
+  });
+
+  it('draws a pilet menu item like a section item, current on its sub paths, until it is disposed', () => {
+    const dispose = piletApi().registerMenuItem({ code: 'hello', label: 'Hello', to: '/hello' });
+    act(() => root.render(<Harness path="/hello/greeting" />));
+    const links = () => [...container.querySelectorAll<HTMLAnchorElement>('.shell-menu__item > .shell-menu__link')];
+    const [section, hello] = links();
+    expect(hello.getAttribute('href')).toBe('/hello');
+    expect(hello.getAttribute('aria-current')).toBe('page');
+    expect(section.getAttribute('aria-current')).toBeNull();
+    expect(hello.title).toBe('Hello');
+    expect(hello.querySelector('.shell-menu__icon svg')).not.toBeNull();
+    expect(hello.querySelector('.shell-menu__label')?.textContent).toBe('Hello');
+
+    dispose();
+    act(() => root.render(<Harness path="/pages/" />));
+    expect(links()).toHaveLength(1);
   });
 });

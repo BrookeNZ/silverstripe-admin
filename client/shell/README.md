@@ -2,7 +2,8 @@
 
 The Piral app shell for the Silverstripe CMS admin. `LeftAndMain` renders `templates/SilverStripe/Admin/PiralShell.ss`
 with the real `window.ss.config`, `data-menu`, `data-admin-url` and `data-feed-url`, and requires the shell bundle.
-The Pilet API is described in [PILET-API.md](PILET-API.md).
+The Pilet API is described in [PILET-API.md](PILET-API.md); how a module ships a pilet, from the feed entry to
+the rendered page, is in [MODULES.md](MODULES.md).
 
 ## Development
 

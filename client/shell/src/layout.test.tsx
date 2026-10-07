@@ -8,7 +8,11 @@ import type { NavigateFunction } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mainId, menuId, Sidebar, SkipLink } from './layout';
 
-vi.mock('piral-core', async (original) => ({ ...(await original<typeof import('piral-core')>()), ExtensionSlot: () => null }));
+vi.mock('piral-core', async (original) => ({
+  ...(await original<typeof import('piral-core')>()),
+  ExtensionSlot: () => null,
+  useGlobalState: (select: (state: unknown) => unknown) => select({ registry: { extensions: {} } }),
+}));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 

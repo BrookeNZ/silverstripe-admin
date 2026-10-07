@@ -15,6 +15,7 @@
  */
 
 .shell-menu {
+  --shell-menu-bg-color: var(--admin-sunken-bg-color);
   --shell-menu-collapse-bg-color: var(--admin-panel-bg-color);
   --shell-menu-collapse-fg-color: var(--admin-accent-color);
   --shell-menu-collapse-hover-shadow: var(--admin-raised-hover-shadow);
@@ -26,6 +27,7 @@
   --shell-menu-current-icon-color: var(--admin-nav-fg-color);
   --shell-menu-current-indicator-color: var(--admin-nav-fg-color);
   --shell-menu-display: none;
+  --shell-menu-flex: 0 1 auto;
   --shell-menu-footer-display: none;
   --shell-menu-footer-justify: flex-end;
   --shell-menu-footer-padding-block-end: 2rem;
@@ -48,30 +50,35 @@
   --shell-menu-link-line-height: 1.4;
   --shell-menu-link-padding-block: 1.5rem;
   --shell-menu-link-padding-inline: 2.2rem;
+  --shell-menu-max-height: calc(100dvh - var(--shell-sticky-top));
+  --shell-menu-overflow-y: auto;
+  --shell-menu-position: absolute;
+  --shell-menu-shadow: 0 var(--admin-gap-xs) var(--admin-gap-sm) var(--admin-shadow-color);
 
   background-color: var(--shell-menu-bg-color);
-  box-shadow: 0 var(--admin-gap-xs) var(--admin-gap-sm) var(--admin-shadow-color);
+  box-shadow: var(--shell-menu-shadow);
   display: var(--shell-menu-display);
+  flex: var(--shell-menu-flex);
   flex-direction: column;
   inset-block-start: 100%;
   inset-inline: 0;
-  max-height: calc(100dvh - var(--shell-sticky-top));
+  max-height: var(--shell-menu-max-height);
   min-height: 0;
-  overflow-y: auto;
-  position: absolute;
+  overflow-y: var(--shell-menu-overflow-y);
+  position: var(--shell-menu-position);
 }
 
+/* The sidebar (style.css) paints the ground from here */
 @media (width >= 1024px) {
   .shell-menu {
+    --shell-menu-bg-color: transparent;
     --shell-menu-display: flex;
+    --shell-menu-flex: 1;
     --shell-menu-footer-display: flex;
-
-    background-color: transparent;
-    box-shadow: none;
-    flex: 1;
-    max-height: none;
-    overflow-y: visible;
-    position: static;
+    --shell-menu-max-height: none;
+    --shell-menu-overflow-y: visible;
+    --shell-menu-position: static;
+    --shell-menu-shadow: none;
   }
 }
 
@@ -172,6 +179,7 @@
   padding-inline-end: var(--shell-menu-footer-padding-inline-end);
 }
 
+/* Wins over .admin-button--tertiary on the same element because menu.css loads after the component stylesheet */
 .shell-menu__collapse {
   --admin-button-bg-color: var(--shell-menu-collapse-bg-color);
   --admin-button-border-color: var(--shell-menu-collapse-bg-color);

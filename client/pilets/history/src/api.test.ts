@@ -12,7 +12,7 @@ const json = (status: number, body: unknown) =>
 describe('createHistoryApi', () => {
   it('reads a page of versions with the record class and id', async () => {
     const fetcher = vi.fn(async () => json(200, { pageInfo: { totalCount: 31 }, versions: [{ version: 31 }] }));
-    const result = await createHistoryApi(endpoints, 'token', fetcher).read('Page', 7, 2);
+    const result = await createHistoryApi(endpoints, () => 'token', fetcher).read('Page', 7, 2);
 
     expect(result).toEqual({ totalCount: 31, versions: [{ version: 31 }] });
     const [url, init] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
@@ -22,7 +22,7 @@ describe('createHistoryApi', () => {
 
   it('posts a revert as JSON with the CSRF token', async () => {
     const fetcher = vi.fn(async () => new Response(null, { status: 204 }));
-    await createHistoryApi(endpoints, 'token', fetcher).revert('Page', 7, 4);
+    await createHistoryApi(endpoints, () => 'token', fetcher).revert('Page', 7, 4);
 
     const [url, init] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe(endpoints.revert);
@@ -32,9 +32,9 @@ describe('createHistoryApi', () => {
   });
 
   it('raises the envelope message, or a generic one for an empty answer', async () => {
-    const forbidden = createHistoryApi(endpoints, 't', async () => json(403, { errors: [{ value: 'Nope' }] }));
+    const forbidden = createHistoryApi(endpoints, () => 't', async () => json(403, { errors: [{ value: 'Nope' }] }));
     await expect(forbidden.revert('Page', 7, 4)).rejects.toEqual(new HistoryApiError('Nope', 403));
-    const empty = createHistoryApi(endpoints, 't', async () => new Response('', { status: 404 }));
+    const empty = createHistoryApi(endpoints, () => 't', async () => new Response('', { status: 404 }));
     await expect(empty.read('Page', 7, 1)).rejects.toThrow('The history endpoint answered 404');
   });
 });

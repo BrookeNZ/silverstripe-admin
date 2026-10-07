@@ -148,3 +148,36 @@ describe('SectionHeaderBar', () => {
     expect(document.activeElement).toBe(title());
   });
 });
+
+describe('SectionHeader crumbs', () => {
+  it('lists the ancestors as links above the title, without the current page', async () => {
+    await act(async () => {
+      setSectionHeader(context, 'pages', {
+        title: 'Careers',
+        crumbs: [
+          { label: 'Home', to: '/pages/edit/show/1' },
+          { label: 'About us', to: '/pages/edit/show/2' },
+        ],
+      });
+    });
+    const nav = container.querySelector('nav[aria-label="Breadcrumb"]');
+    const links = [...(nav?.querySelectorAll('ol > li > a') ?? [])];
+    expect(links.map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
+      ['Home', '/pages/edit/show/1'],
+      ['About us', '/pages/edit/show/2'],
+    ]);
+    expect(nav?.textContent).not.toContain('Careers');
+    expect(title()?.textContent).toBe('Careers');
+    const back = container.querySelector('.shell-header__back');
+    expect(back?.getAttribute('href')).toBe('/pages/edit/show/2');
+    expect(back?.getAttribute('aria-label')).toBe('Back to About us');
+  });
+
+  it('draws no breadcrumb without crumbs', async () => {
+    await act(async () => {
+      setSectionHeader(context, 'pages', { title: 'Pages' });
+    });
+    expect(container.querySelector('nav[aria-label="Breadcrumb"]')).toBeNull();
+    expect(container.querySelector('.shell-header__back')).toBeNull();
+  });
+});

@@ -17,14 +17,22 @@ export interface SectionHeaderView {
   current?: boolean;
 }
 
+export interface SectionHeaderCrumb {
+  label: string;
+  /** A router path, as for react-router's Link */
+  to: string;
+}
+
 export interface SectionHeader {
   /** Rendered as the page's h1 */
   title: string;
+  /** The page's ancestors, nearest last, drawn as a breadcrumb above the title; the page itself is the title only */
+  crumbs?: Array<SectionHeaderCrumb>;
   /** The document title's first part when it should differ from the h1; the title otherwise */
   documentTitle?: string;
-  /** A router path; no back button without it */
+  /** A router path; the last crumb's when not given, and no back button without either */
   backTo?: string;
-  /** The back button's accessible name; "Back" when not given */
+  /** The back button's accessible name; "Back", or "Back to <last crumb>" when back goes there */
   backLabel?: string;
   views?: Array<SectionHeaderView>;
 }

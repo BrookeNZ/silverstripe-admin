@@ -3,16 +3,22 @@
  * the tree stays mounted while the tail of the URL changes; the tail keeps the legacy shape
  * (`edit/show/<id>`) so CMSEditLink() and bookmarks still land here.
  *
+ * A page has three views, as in legacy CMSMain: Content (`edit`), Settings (`settings`, the settings
+ * controller's form, posted the same way) and History (`history`, a form whose only field is
+ * versioned-admin's HistoryViewer, which the history pilet renders; headless, since it posts nothing).
+ * A view whose controller the site lacks is left out of the header and its tail shows the empty state.
+ *
  * The form is the shell's FormSchema renderer, fetched by name from the component registry. The page
  * edit form's state does not ask for change tracking (the legacy admin tracked every edit form), so the
  * section asks for it, and the shell's guard confirms before a tree selection navigates away. After a save
  * the section emits the records-changed event, and the tree re-reads the saved page's row.
  *
  * The section header carries the page title (from the tree, so a save that renames the page retitles
- * it) and the page's views; the index has the section title and no back button.
+ * it), the page's ancestors as its breadcrumb and the page's views; the index has the section title and
+ * no back button. A deep link shows the ancestors the tree has loaded and fills in as the tree loads.
  */
 import * as React from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import type { PageComponentProps, SectionHeader } from '@silverstripe/admin-shell';
 import { fieldTitle, Toggle } from '@silverstripe/admin-patterns';
 import { ApiError, createTreeApi } from './api';
@@ -29,13 +35,13 @@ export interface PagesSectionOptions {
   pageClass: string;
   treeUrl: string;
   loginUrl: string;
-  schemaUrl(id: number): string;
+  /** The schema URL of each view's form, for the views whose controller the site has */
+  schemaUrls: Partial<Record<PageView, (id: number) => string>>;
 }
 
-const editTail = /^edit\/show\/(\d+)\/?$/;
-const otherViewTail = /^(settings|history)\/show\/(\d+)\/?$/;
-
 export type PageView = 'edit' | 'settings' | 'history';
+
+const viewTail = /^(edit|settings|history)\/show\/([1-9]\d*)\/?$/;
 
 const pageViews: Array<{ view: PageView; label: string }> = [
   { view: 'edit', label: 'Content' },
@@ -43,19 +49,49 @@ const pageViews: Array<{ view: PageView; label: string }> = [
   { view: 'history', label: 'History' },
 ];
 
+/** The view and page a route tail names, when the site has that view */
+export function parsePageTail(tail: string, available: ReadonlyArray<PageView>): { view: PageView; id: number } | null {
+  const match = viewTail.exec(tail);
+  const id = match ? Number(match[2]) : 0;
+  if (!match || !available.includes(match[1] as PageView) || !Number.isSafeInteger(id)) {
+    return null;
+  }
+  return { view: match[1] as PageView, id };
+}
+
+export interface PageAncestor {
+  id: number;
+  title: string;
+}
+
+/** The page's ancestors the tree has loaded, root first; the chain stops at the first one it has not */
+export function pageAncestors(store: Pick<TreeStore, 'node'>, id: number): Array<PageAncestor> {
+  const ancestors: Array<PageAncestor> = [];
+  for (let node = store.node(id); node?.parentId; ) {
+    node = store.node(node.parentId);
+    if (node) {
+      ancestors.unshift({ id: node.id, title: node.title });
+    }
+  }
+  return ancestors;
+}
+
 /** The header for a page view, or for the section index when no page is open */
 export function pageSectionHeader(
   routePrefix: string,
-  page: { id: number; title: string | undefined; view: PageView } | null,
+  page: { id: number; title: string | undefined; view: PageView; ancestors?: ReadonlyArray<PageAncestor> } | null,
+  available: ReadonlyArray<PageView> = pageViews.map(({ view }) => view),
 ): SectionHeader {
   if (!page) {
     return { title: 'Pages' };
   }
+  const crumbs = (page.ancestors ?? []).map(({ id, title }) => ({ label: title, to: `${routePrefix}/edit/show/${id}` }));
   return {
     title: page.title ?? `Page ${page.id}`,
+    ...(crumbs.length > 0 && { crumbs }),
     backTo: `${routePrefix}/`,
     backLabel: 'Back to pages',
-    views: pageViews.map(({ view, label }) => ({
+    views: pageViews.filter(({ view }) => available.includes(view)).map(({ view, label }) => ({
       key: view,
       label,
       to: `${routePrefix}/${view}/show/${page.id}`,
@@ -74,33 +110,9 @@ const SessionExpired = ({ loginUrl }: { loginUrl: string }) => (
   </p>
 );
 
-const Breadcrumbs = ({ store, id, editPath }: { store: TreeStore; id: number; editPath(id: number): string }) => {
-  const trail = [];
-  for (let node = store.node(id); node; node = node.parentId ? store.node(node.parentId) : undefined) {
-    trail.unshift(node);
-  }
-  if (trail.length < 2) {
-    return null;
-  }
-  return (
-    <nav className="pages__breadcrumbs pages__inset" aria-label="Breadcrumb">
-      <ol className="pages__breadcrumb-list">
-        {trail.map((node, index) => (
-          <li className="pages__breadcrumb" key={node.id}>
-            {index === trail.length - 1 ? (
-              <span aria-current="page">{node.title}</span>
-            ) : (
-              <Link to={editPath(node.id)}>{node.title}</Link>
-            )}
-          </li>
-        ))}
-      </ol>
-    </nav>
-  );
-};
-
 export function createPagesSection(options: PagesSectionOptions): React.ComponentType<PageComponentProps> {
   const editPath = (id: number) => `${options.routePrefix}/edit/show/${id}`;
+  const availableViews = pageViews.map(({ view }) => view).filter((view) => options.schemaUrls[view]);
 
   const PagesSection = ({ piral }: PageComponentProps) => {
     const api = React.useMemo(() => createTreeApi(options.treeUrl), []);
@@ -108,9 +120,8 @@ export function createPagesSection(options: PagesSectionOptions): React.Componen
     useStoreVersion(store);
     const navigate = useNavigate();
     const tail = useParams()['*'] ?? '';
-    const editMatch = editTail.exec(tail);
-    const otherView = otherViewTail.exec(tail);
-    const currentId = editMatch ? Number(editMatch[1]) : null;
+    const opened = parsePageTail(tail, availableViews);
+    const currentId = opened?.id ?? null;
     const [query, setQuery] = React.useState('');
     const [revealError, setRevealError] = React.useState<ApiError | null>(null);
     const [stage, setStage] = React.useState<PageStage>('draft');
@@ -128,7 +139,7 @@ export function createPagesSection(options: PagesSectionOptions): React.Componen
 
     React.useEffect(() => {
       const refresh = ({ recordClass, ids }: RecordsChangedEvent) => {
-        if (recordClass === options.pageClass) {
+        if (recordClass === options.pageClass || ids.some((id) => store.node(id)?.className === recordClass)) {
           for (const id of ids) {
             store.refresh(id).catch(() => undefined);
           }
@@ -151,12 +162,10 @@ export function createPagesSection(options: PagesSectionOptions): React.Componen
       [piral, currentId],
     );
 
-    const viewId = currentId ?? (otherView ? Number(otherView[2]) : null);
     const header = pageSectionHeader(
       options.routePrefix,
-      viewId === null
-        ? null
-        : { id: viewId, title: store.node(viewId)?.title, view: otherView ? (otherView[1] as PageView) : 'edit' },
+      opened ? { id: opened.id, title: store.node(opened.id)?.title, view: opened.view, ancestors: pageAncestors(store, opened.id) } : null,
+      availableViews,
     );
     const headerKey = JSON.stringify(header);
     React.useEffect(() => piral.setSectionHeader(header), [piral, headerKey]);
@@ -164,36 +173,36 @@ export function createPagesSection(options: PagesSectionOptions): React.Componen
     const sessionExpired = store.sessionExpired || Boolean(revealError?.sessionExpired);
 
     let main: React.ReactNode;
-    if (currentId !== null) {
+    if (opened) {
+      const schemaUrl = options.schemaUrls[opened.view]?.(opened.id) ?? '';
       main = (
         <>
-          <Breadcrumbs store={store} id={currentId} editPath={editPath} />
           {revealError && !revealError.sessionExpired && (
             <p className="pages__alert pages__inset" role="alert">
               This page could not be found in the tree: {revealError.message}
             </p>
           )}
-          <FormSchemaForm
-            schemaUrl={options.schemaUrl(currentId)}
-            onSubmitted={onSubmitted}
-            trackUnsavedChanges
-            actionsEnd={
-              <Toggle<PageStage>
-                label="Stage"
-                options={stageOptions(store.node(currentId)?.statusFlags)}
-                value={stage}
-                onChange={setStage}
-              />
-            }
-          />
+          {opened.view === 'history' ? (
+            <div className="pages__inset">
+              <FormSchemaForm key={schemaUrl} schemaUrl={schemaUrl} headless />
+            </div>
+          ) : (
+            <FormSchemaForm
+              key={schemaUrl}
+              schemaUrl={schemaUrl}
+              onSubmitted={onSubmitted}
+              trackUnsavedChanges
+              actionsEnd={
+                <Toggle<PageStage>
+                  label="Stage"
+                  options={stageOptions(store.node(opened.id)?.statusFlags)}
+                  value={stage}
+                  onChange={setStage}
+                />
+              }
+            />
+          )}
         </>
-      );
-    } else if (otherView) {
-      main = (
-        <p className="pages__inset">
-          The page {otherView[1]} view is not in the shell yet; it still belongs to the legacy admin.{' '}
-          <Link to={editPath(Number(otherView[2]))}>Edit the page content instead</Link>.
-        </p>
       );
     } else {
       main = (

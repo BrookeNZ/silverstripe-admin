@@ -4,7 +4,8 @@
  * The legacy admin bundle is not loaded when the shell is. Shared tokens (--admin-*) and component
  * styles come from @silverstripe/admin-patterns, imported before this file; the chrome tokens here
  * cover what only the shell draws: the sidebar, the content area and notifications. The menu inside
- * the sidebar is styled in menu/menu.css.
+ * the sidebar is styled in menu/menu.css, which owns the --shell-menu-* tokens; the sidebar's own
+ * (--shell-sidebar-*, including its width and the toggle) stay here because the layout reads them.
  *
  * Below 1024px the menu collapses behind a toggle in a top bar, after the design's mobile top bar
  * (Figma "Top bar" Mobile v2 2:1909, Hamburger 2:1921) and opens over the content under it. The design
@@ -38,28 +39,29 @@
   --shell-logo-fg-color: var(--shell-link-fg-color);
   --shell-logo-font-size: var(--admin-font-size-xl);
   --shell-logo-font-weight: 700;
-  --shell-menu-bg-color: var(--admin-sunken-bg-color);
-
-  /* Figma Hamburger 2:1921: Royal Blue square, Bright Blue on hover (2:1926), 20px glyph */
-  --shell-menu-toggle-bg-color: var(--admin-nav-fg-color);
-  --shell-menu-toggle-fg-color: var(--admin-inverse-fg-color);
-  --shell-menu-toggle-hover-bg-color: var(--admin-accent-color);
-  --shell-menu-toggle-icon-size: 2rem;
-  --shell-menu-toggle-ring-color: var(--admin-focus-outline-color);
-  --shell-menu-toggle-size: 5rem;
-
-  /* Figma "Sidebar" 2:1931: 200px, 62px collapsed (2:1960) */
-  --shell-menu-collapsed-width: 6.2rem;
-  --shell-menu-width: 20rem;
   --shell-notification-bg-color: var(--admin-inverse-bg-color);
   --shell-notification-border: none;
   --shell-notification-fg-color: var(--admin-inverse-fg-color);
   --shell-notifications-z-index: var(--admin-z-toast);
   --shell-sidebar-bg-color: var(--admin-bg-color);
   --shell-sidebar-border-width: 0.1rem;
+
+  /* Figma "Sidebar" 2:1960, collapsed */
+  --shell-sidebar-collapsed-width: 6.2rem;
+
+  /* Figma Hamburger 2:1921: Royal Blue square, Bright Blue on hover (2:1926), 20px glyph */
+  --shell-sidebar-toggle-bg-color: var(--admin-nav-fg-color);
+  --shell-sidebar-toggle-fg-color: var(--admin-inverse-fg-color);
+  --shell-sidebar-toggle-hover-bg-color: var(--admin-accent-color);
+  --shell-sidebar-toggle-icon-size: 2rem;
+  --shell-sidebar-toggle-ring-color: var(--admin-focus-outline-color);
+  --shell-sidebar-toggle-size: 5rem;
+
+  /* Figma "Sidebar" 2:1931 */
+  --shell-sidebar-width: 20rem;
   --shell-sidebar-z-index: var(--admin-z-overlay);
   --shell-skip-link-z-index: var(--admin-z-skip-link);
-  --shell-sticky-top: calc(var(--shell-menu-toggle-size) + var(--shell-sidebar-border-width));
+  --shell-sticky-top: calc(var(--shell-sidebar-toggle-size) + var(--shell-sidebar-border-width));
 }
 
 @media (width >= 1024px) {
@@ -141,15 +143,15 @@ body {
     --shell-logo-fg-color: var(--admin-inverse-fg-color);
     --shell-logo-font-size: var(--admin-font-size-lg);
     --shell-logo-font-weight: var(--admin-font-weight-bold);
-    --shell-menu-toggle-icon-size: 1.6rem;
-    --shell-menu-toggle-ring-color: var(--admin-inverse-fg-color);
-    --shell-sidebar-bg-color: var(--shell-menu-toggle-bg-color);
+    --shell-sidebar-toggle-icon-size: 1.6rem;
+    --shell-sidebar-toggle-ring-color: var(--admin-inverse-fg-color);
+    --shell-sidebar-bg-color: var(--shell-sidebar-toggle-bg-color);
   }
 }
 
 @media (width >= 1024px) {
   .shell__sidebar {
-    --shell-sidebar-bg-color: var(--shell-menu-bg-color);
+    --shell-sidebar-bg-color: var(--admin-sunken-bg-color);
 
     border-block-end: 0;
     border-inline-end: var(--shell-sidebar-border-width) solid var(--admin-divider-color);
@@ -157,7 +159,7 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    inline-size: var(--shell-menu-width);
+    inline-size: var(--shell-sidebar-width);
   }
 }
 
@@ -165,7 +167,7 @@ body {
 @media (width >= 1024px) {
   .shell__sidebar--collapsed {
     --shell-banner-display: none;
-    --shell-menu-width: var(--shell-menu-collapsed-width);
+    --shell-sidebar-width: var(--shell-sidebar-collapsed-width);
   }
 }
 
@@ -186,15 +188,15 @@ body {
 }
 
 .shell__menu-toggle {
-  --admin-button-bg-color: var(--shell-menu-toggle-bg-color);
-  --admin-button-border-color: var(--shell-menu-toggle-bg-color);
+  --admin-button-bg-color: var(--shell-sidebar-toggle-bg-color);
+  --admin-button-border-color: var(--shell-sidebar-toggle-bg-color);
   --admin-button-border-radius: 0;
-  --admin-button-fg-color: var(--shell-menu-toggle-fg-color);
-  --admin-button-hover-bg-color: var(--shell-menu-toggle-hover-bg-color);
-  --admin-button-padding-block: calc((var(--shell-menu-toggle-size) - var(--shell-menu-toggle-icon-size)) / 2);
+  --admin-button-fg-color: var(--shell-sidebar-toggle-fg-color);
+  --admin-button-hover-bg-color: var(--shell-sidebar-toggle-hover-bg-color);
+  --admin-button-padding-block: calc((var(--shell-sidebar-toggle-size) - var(--shell-sidebar-toggle-icon-size)) / 2);
   --admin-button-padding-inline: var(--admin-button-padding-block);
-  --admin-focus-outline-color: var(--shell-menu-toggle-ring-color);
-  --admin-icon-size: var(--shell-menu-toggle-icon-size);
+  --admin-focus-outline-color: var(--shell-sidebar-toggle-ring-color);
+  --admin-icon-size: var(--shell-sidebar-toggle-icon-size);
 }
 
 @media (width >= 1024px) {

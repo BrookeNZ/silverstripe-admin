@@ -362,6 +362,23 @@ class GridFieldRowsEndpointTest extends FunctionalTest
         $this->assertArrayNotHasKey('message', $body);
     }
 
+    public function testRestoreWorksOnAGridNestedInAnItemEditForm(): void
+    {
+        $this->logInWithPermission('ADMIN');
+        $this->session()->set('SecurityID', 'valid-token');
+        $endeavour = $this->idFromFixture(Ship::class, 'endeavour');
+        Ship::get()->byID($endeavour)->doArchive();
+        $nested = GridFieldRowsEndpointTest::GRID . 'item/' . $this->idFromFixture(Team::class, 'alpha') . '/ItemEditForm/field/ArchivedShips/';
+
+        $response = $this->postAction('restore', ['RecordID' => $endeavour], ['X-SecurityID' => 'valid-token'], $nested);
+        $this->assertSame(200, $response->getStatusCode(), $response->getBody());
+        $this->assertArrayNotHasKey('message', json_decode($response->getBody(), true));
+        Versioned::withVersionedMode(function () use ($endeavour) {
+            Versioned::set_stage(Versioned::DRAFT);
+            $this->assertSame('Endeavour', Ship::get()->byID($endeavour)?->Name);
+        });
+    }
+
     public function testWrongMethodsGetJsonErrors(): void
     {
         $rows = $this->post(GridFieldRowsEndpointTest::GRID . 'rows', [], GridFieldRowsEndpointTest::JSON);

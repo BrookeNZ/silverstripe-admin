@@ -55,6 +55,18 @@ class CMSPageSettingsSubmissionTest extends FunctionalTest
         $this->assertSame('Alpha', $saved->Title);
     }
 
+    public function testTopLevelLocationClearsTheParent(): void
+    {
+        $page = $this->objFromFixture(SiteTree::class, 'alpha');
+        $parent = $this->objFromFixture(SiteTree::class, 'locked');
+        $page->ParentID = $parent->ID;
+        $page->write();
+
+        $this->json($this->submit($page, 'save', ['ParentType' => 'root', 'ParentID' => $parent->ID]), 200);
+
+        $this->assertSame(0, (int) SiteTree::get()->byID($page->ID)->ParentID);
+    }
+
     public function testPermissionDeniedAnswersAJsonForbidden(): void
     {
         $this->logInWithPermission('CMS_ACCESS_CMSMain');

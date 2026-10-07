@@ -15,6 +15,10 @@ import { clearUnsavedChangesOf, hasUnsavedChanges, setUnsavedChanges } from '../
 import { clearBeforeSubmitOf, registerBeforeSubmit } from '../forms/beforeSubmit';
 import type { BeforeSubmitHandler } from '../forms/beforeSubmit';
 import { sectionIconSlotName } from '../menu/sectionIcons';
+import { menuItemReference, menuItemSlot } from '../menu/menuItems';
+import type { MenuItemRegistration } from '../menu/menuItems';
+
+export type { MenuItemRegistration };
 
 /**
  * A field component with `fullWidth` set renders edge to edge in a form, without the inset every other
@@ -29,6 +33,10 @@ export function isFullWidth(component: unknown): boolean {
 export interface SilverstripeApi {
   registerSilverstripeComponent(name: string, Component: SilverstripeComponent): Disposable;
   getSilverstripeComponent(name: string): ComponentType<any>;
+  /**
+   * Fills the slot `<name>.<slot>`. For `SilverStripe\Admin\LeftAndMain` / `menu.bottom` this is the legacy
+   * way to add a menu link, with the pilet's own markup; prefer `registerMenuItem`
+   */
   registerExtensionComponent(name: string, slot: string, Component: ComponentType<any>): Disposable;
   getConfig(): Readonly<SilverstripeClientConfig>;
   /**
@@ -52,6 +60,11 @@ export interface SilverstripeApi {
    * picks. `sectionCode` is the menu item's code: the controller class with hyphens for backslashes
    */
   registerSectionIcon(sectionCode: string, Icon: ComponentType): Disposable;
+  /**
+   * Adds a link after the CMS sections that the shell draws like a section's, for a page with no server
+   * section behind it. A section the server knows already has its menu item
+   */
+  registerMenuItem(item: MenuItemRegistration): Disposable;
 }
 
 declare module 'piral-core/lib/types/custom' {
@@ -153,6 +166,9 @@ export function createSilverstripeApi(): PiralPlugin<SilverstripeApi> {
       },
       registerSectionIcon(sectionCode, Icon) {
         return api.registerExtension(sectionIconSlotName(sectionCode), () => React.createElement(Icon));
+      },
+      registerMenuItem(item) {
+        return api.registerExtension(menuItemSlot, menuItemReference(item));
       },
     });
   };

@@ -1,7 +1,8 @@
 /**
  * A GridField record's edit form (the ModelAdmin detail form) at its legacy URL, under the section
- * header with the record's title and a back button to its grid. The actions render in the bottom bar
- * by the usual role rules; delete and archive ask first in the shared Dialog.
+ * header with the record's title, its model list as the breadcrumb and a back button to its grid. The
+ * actions render in the bottom bar by the usual role rules; delete and archive ask first in the shared
+ * Dialog.
  *
  * A save reports through `notify` and the records-changed event (the grid re-reads its rows on it). A
  * new record's save replaces the URL with the record's edit URL; a delete, archive or save that takes the

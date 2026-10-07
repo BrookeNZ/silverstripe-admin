@@ -6,7 +6,7 @@ import type { Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RawEditorOptions, TinyMCE } from 'tinymce';
 import { createHtmlEditorField } from './HtmlEditorField';
-import type { BeforeSubmitHandler, HtmlEditorFieldProps, HtmlEditorPiletApi } from './shell';
+import type { BeforeSubmitHandler, HtmlEditorFieldProps, HtmlEditorPiletApi, SchemaFormDialogProps } from './shell';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -15,8 +15,51 @@ const normalise = (html: string) => (html === '' || html.startsWith('<p>') ? htm
 
 class FakeEditor {
   handlers = new Map<string, Array<() => void>>();
-  mode = { set: vi.fn() };
-  undoManager = { clear: vi.fn() };
+  readOnly = false;
+  mode = { set: vi.fn(), isReadOnly: () => this.readOnly };
+  buttons = new Map<string, { onAction(): void }>();
+  menuItems = new Map<string, { onAction(): void }>();
+  ui = {
+    registry: {
+      addButton: (name: string, spec: { onAction(): void }) => this.buttons.set(name, spec),
+      addMenuItem: (name: string, spec: { onAction(): void }) => this.menuItems.set(name, spec),
+      addContextToolbar: vi.fn(),
+    },
+  };
+  addShortcut = vi.fn();
+  focus = vi.fn();
+  execCommand = vi.fn();
+  /** The anchor the cursor is in, if any */
+  link: HTMLAnchorElement | null = null;
+  collapsed = true;
+  selection = {
+    getNode: () => this.link ?? document.createElement('p'),
+    select: vi.fn(),
+    getBookmark: vi.fn(() => 'bookmark'),
+    moveToBookmark: vi.fn(),
+    isCollapsed: () => this.collapsed,
+    setNode: vi.fn(),
+    collapse: vi.fn(),
+  };
+  body = document.createElement('div');
+  getBody() {
+    return this.body;
+  }
+  dom = {
+    getParent: (node: Node, selector: string) => (node instanceof Element ? node.closest(selector) : null),
+    create: (name: string, attributes: Record<string, string | null>, html: string) => {
+      const element = document.createElement(name);
+      for (const [key, value] of Object.entries(attributes)) {
+        if (value !== null) {
+          element.setAttribute(key, value);
+        }
+      }
+      element.innerHTML = html;
+      return element;
+    },
+    encode: (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;'),
+  };
+  undoManager = { clear: vi.fn(), add: vi.fn() };
   iframeElement = document.createElement('iframe');
   contentArea = document.createElement('div');
   setDirty = vi.fn();
@@ -190,14 +233,14 @@ afterEach(() => {
 });
 
 describe('HtmlEditorField', () => {
-  it('starts TinyMCE with the server settings minus the insert plugins', async () => {
+  it('starts TinyMCE with the server settings minus the legacy insert plugins', async () => {
     const { editor } = await render();
     expect(load).toHaveBeenCalledWith(serverConfig.baseURL);
     const options = tinymce.init.mock.calls[0][0] as RawEditorOptions;
     expect(options.base_url).toBe(serverConfig.baseURL);
     expect(options.external_plugins).toEqual({ lists: serverConfig.external_plugins.lists, myplugin: serverConfig.external_plugins.myplugin });
-    expect(options.toolbar).toEqual(['bold italic | bullist', 'blocks | table anchor unlink | code']);
-    expect(options.contextmenu).toBe('searchreplace | anchor inserttable');
+    expect(options.toolbar).toEqual(['bold italic | bullist', 'blocks | table sslink anchor unlink | code']);
+    expect(options.contextmenu).toBe('searchreplace | sslink anchor inserttable');
     expect(options.content_css).toEqual(serverConfig.content_css);
     expect(options.convert_urls).toBe(false);
     expect(options.relative_urls).toBe(true);
@@ -221,13 +264,15 @@ describe('HtmlEditorField', () => {
     expect(dirty()).toBe('false');
   });
 
-  it('writes edits into the form after typing pauses and reports the stored value again on revert', async () => {
+  it('marks the form dirty on the first edit, then writes edits after typing pauses and reports the stored value again on revert', async () => {
     const { editor } = await render('Hello');
+    editor.type('<p>Hello <strong>w</strong></p>');
+    expect(changes).toEqual(['<p>Hello <strong>w</strong></p>']);
     editor.type('<p>Hello <strong>world</strong></p>');
     await settle(5);
-    expect(changes).toEqual([]);
+    expect(changes).toHaveLength(1);
     await settle(40);
-    expect(changes).toEqual(['<p>Hello <strong>world</strong></p>']);
+    expect(changes).toEqual(['<p>Hello <strong>w</strong></p>', '<p>Hello <strong>world</strong></p>']);
     expect(dirty()).toBe('true');
     editor.type('<p>Hello</p>');
     await settle(40);
@@ -277,6 +322,20 @@ describe('HtmlEditorField', () => {
     expect(container.querySelector('#Form_EditForm_Content_message')!.textContent).toBe('"Content" is required');
   });
 
+  it('points the field id at the editor, so a server error on the field focuses it', async () => {
+    const { editor } = await render();
+    document.getElementById('Form_EditForm_Content')!.focus();
+    expect(editor.focus).toHaveBeenCalled();
+  });
+
+  it('writes typing still waiting for the pause into the form on unmount', async () => {
+    const { editor } = await render('Hello');
+    editor.type('<p>Hello again</p>');
+    editor.type('<p>Hello again and again</p>');
+    act(() => root.unmount());
+    expect(changes).toEqual(['<p>Hello again</p>', '<p>Hello again and again</p>']);
+  });
+
   it('removes the editor and its before-submit handler on unmount', async () => {
     const { editor } = await render();
     act(() => root.unmount());
@@ -308,5 +367,132 @@ describe('HtmlEditorField', () => {
       textarea.dispatchEvent(new Event('input'));
     });
     expect(changes).toEqual(['<p>Typed</p>']);
+    act(() => {
+      textarea.dispatchEvent(new Event('blur'));
+    });
+    expect(blurs).toBe(1);
+    act(() => setOuterValue('<p>Saved</p>'));
+    expect(textarea.value).toBe('<p>Saved</p>');
+  });
+
+  it('marks the fallback textarea invalid with the error', async () => {
+    load.mockRejectedValue(new Error('offline'));
+    await render('Hello', makeField(), '"Content" is required');
+    const textarea = container.querySelector<HTMLTextAreaElement>('textarea')!;
+    expect(textarea.getAttribute('aria-invalid')).toBe('true');
+    expect(textarea.getAttribute('aria-describedby')).toBe('Form_EditForm_Content_description Form_EditForm_Content_message');
+  });
+});
+
+const linkSection = {
+  name: 'SilverStripe\\Admin\\LeftAndMain',
+  form: {
+    editorInternalLink: { schemaUrl: 'admin/modals/linkModalFormSchema/editorInternalLink/:pageid' },
+    EditorExternalLink: { schemaUrl: 'admin/modals/linkModalFormSchema/EditorExternalLink/:pageid' },
+    EditorEmailLink: { schemaUrl: 'admin/modals/linkModalFormSchema/EditorEmailLink/:pageid' },
+  },
+};
+
+let submitState: Array<{ name: string; value: unknown }>;
+
+const FakeFormDialog = ({ open, header, intro, schemaUrl, onClose, onSubmitted }: SchemaFormDialogProps) =>
+  open ? (
+    <div role="dialog" data-schema-url={schemaUrl}>
+      <h2>{header}</h2>
+      {intro}
+      <button type="button" onClick={onClose}>
+        Cancel
+      </button>
+      <button type="button" onClick={() => onSubmitted?.({ id: schemaUrl, state: { fields: submitState } } as never, {})}>
+        Insert link
+      </button>
+    </div>
+  ) : null;
+
+describe('HtmlEditorField links', () => {
+  beforeEach(() => {
+    submitState = [];
+    Object.assign(api, {
+      getSilverstripeComponent: (name: string) => (name === 'SchemaFormDialog' ? FakeFormDialog : () => null),
+      getConfig: () => ({ sections: [linkSection] }),
+      getData: () => 7,
+    });
+  });
+
+  const dialog = () => container.querySelector<HTMLElement>('[role="dialog"]');
+  const press = (name: string) =>
+    act(() => {
+      [...container.querySelectorAll('button')].find((button) => button.textContent === name)!.click();
+    });
+
+  it('inserts a page link with its text where the selection was empty', async () => {
+    const { editor } = await render('Hello');
+    act(() => editor.buttons.get('sslink')!.onAction());
+    expect(dialog()!.dataset.schemaUrl).toBe('admin/modals/linkModalFormSchema/editorInternalLink/7?requireLinkText=1');
+    submitState = [
+      { name: 'PageID', value: 4 },
+      { name: 'Text', value: 'About <us>' },
+      { name: 'TargetBlank', value: true },
+    ];
+    editor.content = '<p>Hello <a href="[sitetree_link,id=4]">About us</a></p>';
+    press('Insert link');
+    expect(dialog()).toBeNull();
+    expect(editor.selection.moveToBookmark).toHaveBeenCalledWith('bookmark');
+    const inserted = editor.selection.setNode.mock.calls[0][0] as HTMLAnchorElement;
+    expect(inserted.outerHTML).toBe('<a href="[sitetree_link,id=4]" target="_blank">About &lt;us&gt;</a>');
+    expect(editor.undoManager.add).toHaveBeenCalled();
+    expect(changes).toEqual(['<p>Hello <a href="[sitetree_link,id=4]">About us</a></p>']);
+  });
+
+  it('switches kind in the dialog and links the selected text', async () => {
+    const { editor } = await render('Hello');
+    editor.collapsed = false;
+    act(() => editor.buttons.get('sslink')!.onAction());
+    act(() => {
+      dialog()!.querySelector<HTMLInputElement>('input[value="EditorExternalLink"]')!.click();
+    });
+    expect(dialog()!.dataset.schemaUrl).toBe('admin/modals/linkModalFormSchema/EditorExternalLink/7');
+    submitState = [{ name: 'Link', value: 'example.com' }, { name: 'Description', value: 'Example' }, { name: 'Anchor', value: 'top' }];
+    press('Insert link');
+    expect(editor.execCommand).toHaveBeenCalledWith('mceInsertLink', false, {
+      href: `${window.location.protocol}//example.com#top`,
+      title: 'Example',
+      target: null,
+    });
+  });
+
+  it('opens an existing link on its own kind with its values', async () => {
+    const { editor } = await render('Hello');
+    const link = document.createElement('a');
+    link.setAttribute('href', 'mailto:someone@example.com?subject=Hi%20there');
+    link.setAttribute('title', 'Write');
+    editor.link = link;
+    act(() => editor.buttons.get('sslink-edit')!.onAction());
+    expect(editor.selection.select).toHaveBeenCalledWith(link);
+    expect(dialog()!.dataset.schemaUrl).toBe(
+      'admin/modals/linkModalFormSchema/EditorEmailLink/7?Link=someone%40example.com&Subject=Hi+there&Description=Write&editing=1',
+    );
+    press('Cancel');
+    expect(dialog()).toBeNull();
+    expect(editor.execCommand).not.toHaveBeenCalled();
+  });
+
+  it('removes the link at the cursor', async () => {
+    const { editor } = await render('Hello');
+    const paragraph = document.createElement('p');
+    const link = document.createElement('a');
+    link.setAttribute('href', '#top');
+    paragraph.append(link);
+    editor.link = link;
+    act(() => editor.buttons.get('unlink')!.onAction());
+    expect(editor.selection.select).toHaveBeenCalledWith(link);
+    expect(editor.execCommand).toHaveBeenCalledWith('unlink');
+  });
+
+  it('opens nothing while read-only', async () => {
+    const { editor } = await render('Hello');
+    editor.readOnly = true;
+    act(() => editor.buttons.get('sslink')!.onAction());
+    expect(dialog()).toBeNull();
   });
 });

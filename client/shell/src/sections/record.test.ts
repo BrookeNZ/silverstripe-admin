@@ -85,6 +85,10 @@ describe('nested recordRoute', () => {
     const summary = { id: 7, className: 'TaxonomyTerm', title: 'Red', singularName: 'Taxonomy term', link: 'x', parentTitle: 'Colours' };
     expect(recordHeader(nested, summary)).toEqual({
       title: 'Red',
+      crumbs: [
+        { label: 'Taxonomy terms', to: `/taxonomy/${term}/` },
+        { label: 'Colours', to: `/taxonomy/${term}/EditForm/field/${term}/item/3/edit/` },
+      ],
       backTo: `/taxonomy/${term}/EditForm/field/${term}/item/3/edit/`,
       backLabel: 'Back to Colours',
     });
@@ -101,6 +105,7 @@ describe('recordHeader', () => {
   it('titles the record and goes back to its grid tab', () => {
     expect(recordHeader(saved, summary)).toEqual({
       title: '#49',
+      crumbs: [{ label: 'Redirected URLs', to: `/redirects/${model}/` }],
       backTo: `/redirects/${model}/`,
       backLabel: 'Back to redirected URLs',
     });

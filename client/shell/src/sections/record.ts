@@ -10,7 +10,7 @@
  * class.
  */
 import type { FormSchemaRecord } from '../forms/types';
-import type { SectionHeader } from '../header/state';
+import type { SectionHeader, SectionHeaderCrumb } from '../header/state';
 import { midSentence, modelTabPath } from './resolve';
 import type { ModelTab, SectionRoute, ShellSection } from './resolve';
 
@@ -94,5 +94,12 @@ export function recordHeader(route: RecordRoute, record: FormSchemaRecord | null
   const backLabel = route.parent
     ? `Back to ${record?.parentTitle || 'parent record'}`
     : `Back to ${midSentence(route.tab?.title ?? route.section.title)}`;
-  return { title: recordTitle(route, record), backTo: recordBackPath(route), backLabel };
+  return { title: recordTitle(route, record), crumbs: recordCrumbs(route, record), backTo: recordBackPath(route), backLabel };
+}
+
+/** The model's list, then the record holding this record's grid; records further up are not known here */
+export function recordCrumbs(route: RecordRoute, record: FormSchemaRecord | null): Array<SectionHeaderCrumb> {
+  const { section, tab, parent } = route;
+  const list = { label: tab?.title ?? section.title, to: tab ? modelTabPath(section, tab) : `/${section.route}/` };
+  return parent ? [list, { label: record?.parentTitle || 'Parent record', to: recordBackPath(route) }] : [list];
 }

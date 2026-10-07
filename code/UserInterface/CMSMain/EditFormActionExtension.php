@@ -37,6 +37,20 @@ class EditFormActionExtension extends Extension
     {
         if ($this->handles($request, $vars, $form, $subject)) {
             $request->addHeader(static::PJAX_HEADER, 'ValidationResult');
+            $this->clearParentForRootLocation($form);
+        }
+    }
+
+    /**
+     * SiteTree has no setParentType(), so a settings post of "Top-level page" saves nothing unless ParentID
+     * is cleared; legacy cleared it in the browser, this does it on the server
+     */
+    private function clearParentForRootLocation(Form $form): void
+    {
+        $parentType = $form->Fields()->dataFieldByName('ParentType');
+        $parentId = $form->Fields()->dataFieldByName('ParentID');
+        if ($parentType && $parentId && $parentType->dataValue() === 'root') {
+            $parentId->setValue(0);
         }
     }
 

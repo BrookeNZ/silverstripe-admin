@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { parseEditorConfig, withoutDeferredItems } from './settings';
 
 describe('withoutDeferredItems', () => {
-  it('drops the insert buttons and the groups they leave empty', () => {
+  it('drops the insert buttons nothing registers yet and the groups they leave empty', () => {
     expect(
       withoutDeferredItems([
         'bold italic underline removeformat | alignleft aligncenter | bullist numlist outdent indent',
@@ -11,7 +11,7 @@ describe('withoutDeferredItems', () => {
       ]),
     ).toEqual([
       'bold italic underline removeformat | alignleft aligncenter | bullist numlist outdent indent',
-      'blocks | pastetext | table anchor unlink | code visualblocks',
+      'blocks | pastetext | table sslink anchor unlink | code visualblocks',
     ]);
   });
 

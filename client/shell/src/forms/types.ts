@@ -163,6 +163,8 @@ export interface FormSchemaSubmitResult {
 export interface SchemaFormDialogProps {
   open: boolean;
   header: ReactNode;
+  /** Controls above the form, such as a choice of which form to show; the first field still takes focus on load */
+  intro?: ReactNode;
   schemaUrl: string;
   /** Cancel or Escape; the dialog stays open until the host sets `open` false */
   onClose(): void;
