@@ -3,6 +3,7 @@
 namespace SilverStripe\Admin;
 
 use InvalidArgumentException;
+use SilverStripe\Admin\UserInterface\ShellSubmission;
 use SilverStripe\Control\Controller;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Control\HTTPResponse;
@@ -159,6 +160,15 @@ abstract class ModelAdmin extends LeftAndMain
             } elseif ($this->shellOwnsRequest()) {
                 // The shell renders whatever the path, and names a segment it cannot resolve itself
                 $this->modelTab = null;
+            } elseif ($this->modelTab === 'schema') {
+                // A schema URL without a model tab, which would read "schema" as a model class
+                $this->modelTab = null;
+                if (!$this->getResponse()->isFinished()) {
+                    throw new HTTPResponse_Exception(ShellSubmission::jsonError(404, _t(
+                        __CLASS__ . '.SCHEMA_NEEDS_TAB',
+                        'This schema URL needs a model tab, as in <section>/<tab>/schema/EditForm.'
+                    )));
+                }
             } else {
                 // if it fails to match the string exactly, try reverse-engineering a classname
                 $this->modelTab = $this->unsanitiseClassName($this->modelTab);

@@ -12,10 +12,19 @@ const redirects: ShellSection = {
   modelTabs: [{ tab: model, title: 'Redirected URLs' }],
 };
 
+const term = 'SilverStripe-Taxonomy-TaxonomyTerm';
+
+const taxonomy: ShellSection = {
+  route: 'taxonomy',
+  title: 'Taxonomies',
+  url: 'admin/taxonomy',
+  modelTabs: [{ tab: term, title: 'Taxonomy terms' }],
+};
+
 const settings: ShellSection = { route: 'settings', title: 'Settings', url: 'admin/settings', modelTabs: [] };
 
 const route = (path: string) => {
-  const section = resolveSectionRoute(path, [redirects, settings]);
+  const section = resolveSectionRoute(path, [redirects, taxonomy, settings]);
   return section ? recordRoute(section) : null;
 };
 
@@ -47,7 +56,40 @@ describe('recordRoute', () => {
     expect(route(`/redirects/${model}/EditForm/field/${model}/item/abc/edit`)).toBeNull();
     expect(route(`/redirects/${model}/EditForm/field/${model}/item/0/edit`)).toBeNull();
     expect(route(`/redirects/${model}/EditForm/field/${model}/item/4/delete`)).toBeNull();
-    expect(route(`/redirects/${model}/EditForm/field/${model}/item/4/ItemEditForm/field/Other/item/2`)).toBeNull();
+    expect(route(`/redirects/${model}/EditForm/field/${model}/item/4/EditForm/field/Other/item/2`)).toBeNull();
+    expect(route(`/redirects/${model}/EditForm/field/${model}/item/new/ItemEditForm/field/Other/item/2`)).toBeNull();
+    expect(route(`/redirects/${model}/EditForm/field/${model}/item/4/ItemEditForm/field/Other/item`)).toBeNull();
+  });
+});
+
+describe('nested recordRoute', () => {
+  const two = `/taxonomy/${term}/EditForm/field/${term}/item/3/ItemEditForm/field/Children/item/7`;
+
+  it('reads a record in a grid inside a record form, two and three levels deep', () => {
+    const nested = route(`${two}/edit`);
+    expect(nested?.id).toBe(7);
+    expect(nested?.grid).toBe('Children');
+    expect(nested?.itemUrl).toBe(`admin/taxonomy/${term}/EditForm/field/${term}/item/3/ItemEditForm/field/Children/item/7`);
+    expect(nested?.parent?.id).toBe(3);
+    expect(nested?.parent?.parent).toBeNull();
+
+    const deeper = route(`${two}/ItemEditForm/field/Children/item/new/edit/`);
+    expect(deeper?.id).toBeNull();
+    expect(deeper && recordSchemaUrl(deeper)).toBe(`${nested?.itemUrl}/ItemEditForm/field/Children/item/new/schema`);
+    expect(deeper?.parent?.id).toBe(7);
+    expect(deeper?.parent?.parent?.id).toBe(3);
+  });
+
+  it('goes back to the parent record and titles the nested one', () => {
+    const nested = route(two)!;
+    const summary = { id: 7, className: 'TaxonomyTerm', title: 'Red', singularName: 'Taxonomy term', link: 'x', parentTitle: 'Colours' };
+    expect(recordHeader(nested, summary)).toEqual({
+      title: 'Red',
+      backTo: `/taxonomy/${term}/EditForm/field/${term}/item/3/edit/`,
+      backLabel: 'Back to Colours',
+    });
+    expect(recordHeader(nested, null).backLabel).toBe('Back to parent record');
+    expect(recordBackPath(nested.parent!)).toBe(`/taxonomy/${term}/`);
   });
 });
 

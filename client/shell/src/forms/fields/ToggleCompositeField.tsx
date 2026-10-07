@@ -1,9 +1,9 @@
 /**
  * The framework's ToggleCompositeField as a Disclosure. Its schema names the plain CompositeField
  * component, so the shell registers this under the PHP class name, the first of the field's
- * `componentCandidates`. The schema carries no `startClosed` or `headingLevel`: the open state is read
- * from the `ss-toggle-start-closed` class its getAttributes() adds, and the heading level is
- * `data.headingLevel` when a server sends one, else the PHP default of 3.
+ * `componentCandidates`. The admin module sends `data.startClosed` and `data.headingLevel`; a schema
+ * without them (a server lacking the admin decoration) falls back to the `ss-toggle-start-closed` class
+ * its getAttributes() adds, and to the PHP default heading level of 3.
  */
 import * as React from 'react';
 import { Disclosure, fieldTitle } from '@silverstripe/admin-patterns';

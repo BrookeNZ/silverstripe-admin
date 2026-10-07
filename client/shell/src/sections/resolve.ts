@@ -90,9 +90,19 @@ export function editFormSchemaUrl({ section, tab }: Pick<SectionRoute, 'section'
   return [section.url, tab?.tab, 'schema/EditForm'].filter(Boolean).join('/');
 }
 
-/** A title as it reads mid-sentence in sentence case: `Back to site banners`, but `Back to SEO reports` */
+/** Product names that keep their capital mid-sentence */
+const properNames = ['Facebook', 'Google', 'LinkedIn', 'Markdown', 'Silverstripe', 'TinyMCE'];
+
+/**
+ * A title as it reads mid-sentence in sentence case: `Back to site banners`, but `Back to SEO reports`,
+ * `Back to X posts` and `Back to Google sitemaps`
+ */
 export function midSentence(title: string): string {
-  return /^\p{Lu}{2}/u.test(title) ? title : title.charAt(0).toLocaleLowerCase() + title.slice(1);
+  const firstWord = title.split(/[\s/-]/u)[0];
+  if (/^\p{Lu}(\p{Lu}|$)/u.test(firstWord) || properNames.includes(firstWord)) {
+    return title;
+  }
+  return title.charAt(0).toLocaleLowerCase() + title.slice(1);
 }
 
 export function modelTabPath(section: ShellSection, tab: ModelTab): string {

@@ -151,6 +151,17 @@
   /* 4.49:1 on the warning ground */
   --admin-warning-border-color: var(--admin-palette-yellow-800);
 
+  /*
+   * Stacking layers, lowest first: popovers (menus, combobox lists) under the sticky header and action
+   * bar, which sit under the narrow-screen menu overlay, then toasts, then the skip link. Dialogs are
+   * native modals in the top layer and need none
+   */
+  --admin-z-popover: 10;
+  --admin-z-sticky: 20;
+  --admin-z-overlay: 30;
+  --admin-z-toast: 40;
+  --admin-z-skip-link: 50;
+
   color-scheme: light;
 }
 

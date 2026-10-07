@@ -228,8 +228,8 @@ describe('actionBarFields', () => {
     expect(group).toMatchObject({ name: 'MajorActions', component: 'FieldGroup', componentCandidates: ['FieldGroup'] });
     expect(menu).toMatchObject({
       name: 'MoreOptions',
-      component: 'PopoverField',
-      componentCandidates: ['PopoverField'],
+      component: 'MenuField',
+      componentCandidates: ['MenuField'],
       title: null,
       buttonLabel: 'More options',
       placement: 'top',

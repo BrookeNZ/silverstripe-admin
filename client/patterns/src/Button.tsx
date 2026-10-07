@@ -8,10 +8,12 @@
  * `aria-label`, or children kept as visually hidden text; the type requires one and dev builds warn
  * when it is empty. `loading` marks the button busy and `aria-disabled` without the disabled attribute,
  * so it keeps focus, and swallows clicks. An anchor cannot be disabled, so a disabled or loading link
- * drops its `href`, leaves the tab order, says so with `aria-disabled` and swallows clicks.
+ * drops its `href`, leaves the tab order, says so with `aria-disabled` and swallows clicks. Inside an
+ * open Menu a button is one of its `menuitem`s (see menuContext).
  */
 import * as React from 'react';
 import { IconLabel } from './IconLabel';
+import { MenuItemContext } from './menuContext';
 import type { IconPosition } from './IconLabel';
 
 // The bundler replaces this, as it does for React's own development checks
@@ -57,6 +59,7 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
     { variant = 'secondary', icon, iconPosition = 'start', iconOnly = false, loading = false, className, children, 'aria-label': label, ...rest },
     ref,
   ) => {
+    const menu = React.useContext(MenuItemContext);
     const classes = buttonClassName(variant, iconOnly, className);
     if (process.env.NODE_ENV !== 'production' && iconOnly && !label?.trim() && !hasText(children)) {
       console.warn('An icon-only Button needs an aria-label or text children to name it');
@@ -88,15 +91,20 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
     }
 
     const { type = 'button', disabled, onClick, ...button } = rest as NativeButtonProps;
+    const onMenuItemClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+      onClick?.(event);
+      menu?.close();
+    };
     return (
       <button
         type={type}
+        {...(menu ? { role: 'menuitem', tabIndex: -1 } : {})}
         {...button}
         ref={ref as React.Ref<HTMLButtonElement>}
         className={classes}
         aria-label={label}
         disabled={disabled}
-        onClick={loading ? swallow : onClick}
+        onClick={loading ? swallow : menu ? onMenuItemClick : onClick}
         aria-disabled={loading || button['aria-disabled'] || undefined}
         aria-busy={loading || undefined}
       >

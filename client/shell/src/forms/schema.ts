@@ -136,7 +136,7 @@ export function barActions(actions: Array<FormField>, dirty: boolean): Array<For
 /**
  * The actions laid out for the action bar: a top-level group becomes a row (the legacy MajorActions
  * button group), and each tab of a top-level tab set (the page form's "More options") becomes a
- * popover opened by an icon button, the design's options menu
+ * menu opened by an icon button, the design's options menu
  */
 export function actionBarFields(actions: Array<FormField>): Array<FormField> {
   return actions.flatMap((action): Array<FormField> => {
@@ -146,8 +146,8 @@ export function actionBarFields(actions: Array<FormField>): Array<FormField> {
     if (action.component === 'Tabs') {
       return action.children.map((tab) => ({
         ...tab,
-        component: 'PopoverField',
-        componentCandidates: ['PopoverField'],
+        component: 'MenuField',
+        componentCandidates: ['MenuField'],
         title: null,
         buttonLabel: typeof tab.title === 'string' ? tab.title : null,
         placement: 'top',

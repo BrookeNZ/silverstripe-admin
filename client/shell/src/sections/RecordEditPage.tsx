@@ -107,7 +107,7 @@ export const RecordEditPage = ({ route, notify }: RecordEditPageProps) => {
         body={confirming ? `Are you sure you want to ${verb.toLowerCase()} this record?` : null}
         footer={
           <>
-            <Button autoFocus onClick={() => settle(false)}>
+            <Button data-autofocus onClick={() => settle(false)}>
               Cancel
             </Button>
             <Button variant="primary" onClick={() => settle(true)}>

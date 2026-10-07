@@ -32,6 +32,19 @@ class ModelAdminSchemaTest extends FunctionalTest
         }
     }
 
+    public function testSchemaUrlWithoutAModelTabIsAJson404(): void
+    {
+        $response = $this->get(
+            'admin/security/schema/EditForm',
+            null,
+            ['Accept' => 'application/json', 'X-Formschema-Request' => 'schema,state']
+        );
+
+        $this->assertSame(404, $response->getStatusCode(), $response->getBody());
+        $this->assertSame('application/json', $response->getHeader('Content-Type'));
+        $this->assertStringContainsString('needs a model tab', json_decode($response->getBody(), true)['errors'][0]['value']);
+    }
+
     public function testClientConfigListsModelTabsInOrder(): void
     {
         $config = SecurityAdmin::singleton()->getClientConfig();

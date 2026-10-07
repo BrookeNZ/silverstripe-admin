@@ -13,7 +13,9 @@ export interface DialogProps {
 
 /**
  * A native modal dialog: `showModal()` traps focus and closing returns focus to the element that had it.
- * Clicking the backdrop does nothing, as in the dialogs this replaced
+ * Clicking the backdrop does nothing, as in the dialogs this replaced. Opening focuses the control marked
+ * `data-autofocus` (such as Cancel before a destructive action), else the first control; React's
+ * `autoFocus` cannot do it, because it runs while the dialog is still closed
  */
 export const Dialog = ({ open, onClose, header, body, children, footer }: DialogProps) => {
   const dialog = React.useRef<HTMLDialogElement>(null);
@@ -23,6 +25,7 @@ export const Dialog = ({ open, onClose, header, body, children, footer }: Dialog
     const element = dialog.current;
     if (open && element && !element.open) {
       element.showModal();
+      element.querySelector<HTMLElement>('[data-autofocus]')?.focus();
     } else if (!open && element?.open) {
       element.close();
     }

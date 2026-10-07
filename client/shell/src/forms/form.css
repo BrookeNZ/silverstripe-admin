@@ -95,6 +95,7 @@
   min-block-size: var(--shell-form-actions-min-height);
   padding: calc(var(--shell-form-actions-padding-block) - var(--shell-form-actions-border-width)) var(--shell-form-actions-padding-inline) var(--shell-form-actions-padding-block);
   position: sticky;
+  z-index: var(--admin-z-sticky);
 }
 
 .shell-form__actions:empty {

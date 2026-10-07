@@ -22,6 +22,7 @@ use SilverStripe\Forms\FormField;
 use SilverStripe\Forms\SearchableMultiDropdownField;
 use SilverStripe\Forms\Schema\FormSchema;
 use SilverStripe\Forms\TextField;
+use SilverStripe\Forms\ToggleCompositeField;
 use SilverStripe\Forms\TreeDropdownField;
 use SilverStripe\Forms\TreeMultiselectField;
 use SilverStripe\Security\Group;
@@ -115,6 +116,21 @@ class FieldComponentCandidatesTest extends SapphireTest
             $decorated['actions'][0]['componentCandidates']
         );
         $this->assertArrayNotHasKey('componentCandidates', end($decorated['fields']));
+    }
+
+    public function testToggleCompositeFieldSendsItsHeadingLevelAndStartState(): void
+    {
+        $closed = ToggleCompositeField::create('Metadata', 'Metadata', [TextField::create('MetaTitle')])
+            ->setHeadingLevel(4);
+        $open = ToggleCompositeField::create('Extra', 'Extra', [TextField::create('Note')])->setStartClosed(false);
+        $form = Form::create(null, 'TestForm', FieldList::create($closed, $open), FieldList::create());
+
+        $decorated = FieldComponentCandidates::singleton()->addToSchema(FormSchema::singleton()->getSchema($form), $form);
+
+        $this->assertSame(4, $decorated['fields'][0]['data']['headingLevel']);
+        $this->assertTrue($decorated['fields'][0]['data']['startClosed']);
+        $this->assertSame(3, $decorated['fields'][1]['data']['headingLevel']);
+        $this->assertFalse($decorated['fields'][1]['data']['startClosed']);
     }
 
     public function testSchemaResponseCarriesCandidatesOnlyForTheShell(): void

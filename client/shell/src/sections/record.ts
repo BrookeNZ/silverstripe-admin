@@ -2,7 +2,8 @@
  * The record edit route of a section: a GridField detail form at the legacy URL, which is what
  * GridFieldEditButton, GridFieldAddNewButton, `CMSEditLink()` and ModelAdmin's
  * `getCMSEditLinkForManagedDataObject()` produce, so bookmarks and stored links keep working:
- * `<section>[/<tab>]/EditForm/field/<grid>/item/<id|new>[/edit|/view]`.
+ * `<section>[/<tab>]/EditForm/field/<grid>/item/<id|new>[/edit|/view]`. A grid inside a record form
+ * nests another `ItemEditForm/field/<grid>/item/<id|new>` before the action, to any depth.
  *
  * The form comes from `<item link>/schema` (GridFieldItemSchemaExtension in the admin module). The item
  * link always names the model tab for a ModelAdmin, because the server reads an unnamed one as a model
@@ -21,37 +22,53 @@ export interface RecordRoute {
   id: number | null;
   /** The item link relative to the site base, without a trailing slash */
   itemUrl: string;
+  /** The record whose form holds this record's grid; null for a record in a section's own grid */
+  parent: RecordRoute | null;
 }
 
 const itemActions = ['edit', 'view'];
 
+const recordId = /^[1-9]\d*$/;
+
 export function recordRoute({ section, tab, unhandled }: SectionRoute): RecordRoute | null {
-  const [form, field, grid, item, id, action, ...rest] = unhandled;
-  if (form !== 'EditForm' || field !== 'field' || !grid || item !== 'item' || rest.length > 0) {
+  const segments = [...unhandled];
+  if (segments.length % 5 === 1) {
+    const action = segments.pop();
+    if (!itemActions.includes(action ?? '')) {
+      return null;
+    }
+  }
+  if (segments.length < 5 || segments.length % 5 !== 0) {
     return null;
   }
-  if (action !== undefined && !itemActions.includes(action)) {
-    return null;
+
+  let route: RecordRoute | null = null;
+  let itemUrl = [section.url, tab?.tab].filter(Boolean).join('/');
+  for (let start = 0; start < segments.length; start += 5) {
+    const [form, field, grid, item, id] = segments.slice(start, start + 5);
+    const isLast = start + 5 === segments.length;
+    const isNew = id === 'new' && isLast;
+    if (form !== (route ? 'ItemEditForm' : 'EditForm') || field !== 'field' || !grid || item !== 'item') {
+      return null;
+    }
+    if (!isNew && !recordId.test(id)) {
+      return null;
+    }
+    itemUrl = [itemUrl, form, 'field', grid, 'item', id].join('/');
+    route = { section, tab, grid, id: isNew ? null : Number(id), itemUrl, parent: route };
   }
-  const isNew = id === 'new';
-  if (!isNew && !/^[1-9]\d*$/.test(id ?? '')) {
-    return null;
-  }
-  return {
-    section,
-    tab,
-    grid,
-    id: isNew ? null : Number(id),
-    itemUrl: [section.url, tab?.tab, 'EditForm/field', grid, 'item', id].filter(Boolean).join('/'),
-  };
+  return route;
 }
 
 export function recordSchemaUrl(route: RecordRoute): string {
   return `${route.itemUrl}/schema`;
 }
 
-/** The grid the record belongs to: its model tab, or the section for a grid on a section's own form */
-export function recordBackPath({ section, tab }: RecordRoute): string {
+/** Where the record's grid is: the parent record's form, its model tab, or the section's own form */
+export function recordBackPath({ section, tab, parent }: RecordRoute): string {
+  if (parent) {
+    return `/${section.route}${parent.itemUrl.slice(section.url.length)}/edit/`;
+  }
   return tab ? modelTabPath(section, tab) : `/${section.route}/`;
 }
 
@@ -74,6 +91,8 @@ export function recordTitle(route: RecordRoute, record: FormSchemaRecord | null)
 }
 
 export function recordHeader(route: RecordRoute, record: FormSchemaRecord | null): SectionHeader {
-  const backTitle = route.tab?.title ?? route.section.title;
-  return { title: recordTitle(route, record), backTo: recordBackPath(route), backLabel: `Back to ${midSentence(backTitle)}` };
+  const backLabel = route.parent
+    ? `Back to ${record?.parentTitle || 'parent record'}`
+    : `Back to ${midSentence(route.tab?.title ?? route.section.title)}`;
+  return { title: recordTitle(route, record), backTo: recordBackPath(route), backLabel };
 }

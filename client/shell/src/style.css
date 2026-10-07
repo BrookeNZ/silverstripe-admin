@@ -47,12 +47,11 @@
   --shell-notification-bg-color: var(--admin-inverse-bg-color);
   --shell-notification-border: none;
   --shell-notification-fg-color: var(--admin-inverse-fg-color);
+  --shell-notifications-z-index: var(--admin-z-toast);
   --shell-sidebar-bg-color: var(--admin-bg-color);
   --shell-sidebar-border-width: 0.1rem;
-
-  /* Above the sticky section header */
-  --shell-sidebar-z-index: 3;
-  --shell-skip-link-z-index: 4;
+  --shell-sidebar-z-index: var(--admin-z-overlay);
+  --shell-skip-link-z-index: var(--admin-z-skip-link);
   --shell-sticky-top: calc(var(--shell-menu-toggle-size) + var(--shell-sidebar-border-width));
 }
 
@@ -347,7 +346,7 @@ body {
   inset-inline-end: var(--admin-gap-md);
   max-inline-size: calc(100% - 2 * var(--admin-gap-md));
   position: fixed;
-  z-index: var(--shell-header-z-index);
+  z-index: var(--shell-notifications-z-index);
 }
 
 .piral-notification {

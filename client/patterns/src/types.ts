@@ -36,6 +36,8 @@ export interface FieldDescriptor {
   buttonLabel?: string | null;
   panelTitle?: string | null;
   placement?: 'top' | 'bottom' | null;
+  /** Which edge of a popover's panel lines up with its button */
+  align?: 'start' | 'end' | null;
 }
 
 export interface FieldProps<V = unknown, F extends FieldDescriptor = FieldDescriptor> {

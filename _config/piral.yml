@@ -27,3 +27,7 @@ SilverStripe\Forms\FormRequestHandler:
 SilverStripe\Control\RequestHandler:
   extensions:
     - SilverStripe\Admin\UserInterface\SchemaRequestErrorExtension
+
+SilverStripe\Admin\LeftAndMain:
+  extensions:
+    - SilverStripe\Admin\UserInterface\ShellPermissionFailureExtension

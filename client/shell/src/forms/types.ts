@@ -91,6 +91,8 @@ export interface FormSchemaRecord {
   singularName: string | null;
   /** The record's edit link; null for a new record, or once the record has left the grid's list */
   link: string | null;
+  /** For a record in a grid on another record's form, that record's title */
+  parentTitle?: string | null;
 }
 
 export interface FormSchemaResponse {

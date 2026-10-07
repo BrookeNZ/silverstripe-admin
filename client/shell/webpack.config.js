@@ -1,5 +1,6 @@
 const path = require('path');
 const { BannerPlugin } = require('webpack');
+const bindHotModuleServerToLoopback = require('./loopback-hmr');
 
 // Unhashed output names, so LeftAndMain can require client/dist/shell/main.js and main.css by path;
 // Requirements adds its own mtime query string for cache busting. Shared dependency bundles keep
@@ -23,6 +24,7 @@ module.exports = function (config) {
     // LeftAndMain serves the dev bundle from SS_PIRAL_SHELL_DEV_URL on another origin, so chunks
     // resolve against the script's own URL rather than the page
     config.output.publicPath = 'auto';
+    bindHotModuleServerToLoopback();
 
     const piletApi = process.env.PIRAL_DEV_PILET_API;
     if (piletApi) {

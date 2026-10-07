@@ -1,12 +1,14 @@
 /**
  * Popover
  *
- * A disclosure button with a panel of secondary fields or actions anchored to it. --top opens the
- * panel above the button
+ * A button with a panel of secondary fields or a menu of actions anchored to it. --top opens the panel
+ * above the button and --end lines its end edge up with the button's. The panel sits on the popover
+ * layer, so a host must not make itself a stacking context (a transform or z-index) around it
  */
 
 .admin-popover {
   --admin-popover-panel-inset-block: 100% auto;
+  --admin-popover-panel-inset-inline: 0 auto;
   --admin-popover-panel-min-width: 24rem;
   --admin-popover-panel-shadow: 0 0.4rem 1.6rem var(--admin-shadow-color);
 
@@ -23,16 +25,20 @@
   flex-direction: column;
   gap: var(--admin-gap-sm);
   inset-block: var(--admin-popover-panel-inset-block);
-  inset-inline-start: 0;
+  inset-inline: var(--admin-popover-panel-inset-inline);
   margin-block: var(--admin-gap-xs);
   min-width: var(--admin-popover-panel-min-width);
   padding: var(--admin-gap-sm);
   position: absolute;
-  z-index: 1;
+  z-index: var(--admin-z-popover);
 }
 
 .admin-popover__panel--top {
   --admin-popover-panel-inset-block: auto 100%;
+}
+
+.admin-popover__panel--end {
+  --admin-popover-panel-inset-inline: auto 0;
 }
 
 .admin-popover__panel[hidden] {

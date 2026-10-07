@@ -381,7 +381,7 @@ export const ConfirmDialog = ({ confirming, onCancel, onConfirm }: ConfirmDialog
     body={confirming?.action.confirm}
     footer={
       <>
-        <Button autoFocus onClick={onCancel}>
+        <Button data-autofocus onClick={onCancel}>
           Cancel
         </Button>
         <Button variant="primary" onClick={onConfirm}>

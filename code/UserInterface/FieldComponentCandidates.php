@@ -6,6 +6,7 @@ use ReflectionClass;
 use SilverStripe\Core\Injector\Injectable;
 use SilverStripe\Forms\Form;
 use SilverStripe\Forms\FormField;
+use SilverStripe\Forms\ToggleCompositeField;
 
 /**
  * Adds `componentCandidates` to each field of a FormSchema schema: the ordered list of registry names
@@ -26,6 +27,9 @@ use SilverStripe\Forms\FormField;
  * finished schema array instead, matching schema entries to form fields by id. A schema entry with no
  * matching form field (one a field's own getSchemaData() invented) gets no candidates and resolves by
  * `component` and `schemaType` alone.
+ *
+ * The same walk gives a ToggleCompositeField `data.headingLevel` and `data.startClosed`, which its schema
+ * leaves out (the start state is only in its class attribute).
  */
 class FieldComponentCandidates
 {
@@ -91,6 +95,12 @@ class FieldComponentCandidates
             $field = $fieldsById[$entry['id'] ?? ''] ?? null;
             if ($field) {
                 $entries[$index]['componentCandidates'] = $this->forField($field);
+            }
+            if ($field instanceof ToggleCompositeField) {
+                $entries[$index]['data'] = array_merge((array) ($entry['data'] ?? []), [
+                    'headingLevel' => (int) $field->getHeadingLevel(),
+                    'startClosed' => (bool) $field->getStartClosed(),
+                ]);
             }
             if (isset($entry['children']) && is_array($entry['children'])) {
                 $entries[$index]['children'] = $this->decorate($entry['children'], $fieldsById);

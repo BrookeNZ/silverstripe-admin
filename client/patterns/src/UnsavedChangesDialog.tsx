@@ -20,7 +20,7 @@ export const UnsavedChangesDialog = ({ open, onStay, onLeave }: UnsavedChangesDi
     body="Your changes have not been saved. If you leave this page now, they will be lost."
     footer={
       <>
-        <Button variant="primary" autoFocus onClick={onStay}>
+        <Button variant="primary" data-autofocus onClick={onStay}>
           Stay on this page
         </Button>
         <Button onClick={onLeave}>Leave without saving</Button>

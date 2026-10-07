@@ -22,6 +22,26 @@ afterEach(() => container.remove());
 const noop = () => undefined;
 
 describe('Dialog', () => {
+  it('focuses the control marked data-autofocus when it opens', () => {
+    const root = render(
+      <Dialog
+        open
+        onClose={noop}
+        header="Archive block?"
+        footer={
+          <>
+            <button type="button">Archive</button>
+            <button type="button" data-autofocus>
+              Cancel
+            </button>
+          </>
+        }
+      />,
+    );
+    expect(root.querySelector('dialog')?.open).toBe(true);
+    expect(document.activeElement?.textContent).toBe('Cancel');
+  });
+
   it('renders each slot in its region and is labelled by the header', () => {
     const root = render(<Dialog open onClose={noop} header="Delete page?" body="It goes for good." footer={<button type="button">Delete</button>} />);
     const dialog = root.querySelector('dialog')!;

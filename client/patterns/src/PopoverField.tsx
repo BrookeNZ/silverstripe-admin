@@ -1,85 +1,27 @@
 import * as React from 'react';
-import { Button } from './Button';
 import { fieldTitle } from './FieldHolder';
-import { MoreOptionsIcon } from './icons';
+import { Menu, Popover } from './Popover';
+import type { PopoverProps } from './Popover';
 import type { FieldProps } from './types';
 
-/**
- * A disclosure button that shows its child fields in a panel beside it, for secondary actions. The
- * panel closes on Escape (focus returns to the button), on a pointer press outside it and when focus
- * leaves it; its fields stay mounted while it is closed. Without a visible title the button is the
- * design's "..." options button, its label kept as hidden text
- */
-export const PopoverField = ({ field, renderFields }: FieldProps) => {
-  const [open, setOpen] = React.useState(false);
-  const root = React.useRef<HTMLDivElement>(null);
-  const button = React.useRef<HTMLButtonElement>(null);
-  const panelId = `${field.id}_Popover`;
+function popoverProps({ field }: FieldProps): PopoverProps {
   const title = fieldTitle(field);
-  const label = title || field.buttonLabel || 'More actions';
-
-  React.useEffect(() => {
-    if (!open) {
-      return undefined;
-    }
-    const closeOutside = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('pointerdown', closeOutside);
-    return () => document.removeEventListener('pointerdown', closeOutside);
-  }, [open]);
-
-  const onKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === 'Escape' && open) {
-      event.stopPropagation();
-      setOpen(false);
-      button.current?.focus();
-    }
+  return {
+    id: field.id,
+    holderId: field.holderId,
+    label: title || field.buttonLabel || 'More actions',
+    title: title || undefined,
+    panelTitle: field.panelTitle || undefined,
+    align: field.align ?? undefined,
+    placement: field.placement ?? undefined,
+    disabled: field.disabled,
   };
+}
 
-  // A press on a non-focusable part of the panel also blurs with no related target, so it must not close
-  const pressedInside = React.useRef(false);
-  const onPointerDown = () => {
-    pressedInside.current = true;
-    setTimeout(() => {
-      pressedInside.current = false;
-    });
-  };
+/** A schema PopoverField: its child fields in a Popover */
+export const PopoverField = (props: FieldProps) => (
+  <Popover {...popoverProps(props)}>{props.renderFields(props.field.children)}</Popover>
+);
 
-  const onBlur = (event: React.FocusEvent) => {
-    const next = event.relatedTarget as Node | null;
-    if (open && (next ? !root.current?.contains(next) : !pressedInside.current)) {
-      setOpen(false);
-    }
-  };
-
-  return (
-    <div className="admin-popover" id={field.holderId} ref={root} onKeyDown={onKeyDown} onBlur={onBlur} onPointerDown={onPointerDown}>
-      <Button
-        ref={button as React.Ref<HTMLButtonElement | HTMLAnchorElement>}
-        variant={title ? 'secondary' : 'tertiary'}
-        id={field.id}
-        aria-expanded={open}
-        aria-controls={panelId}
-        disabled={field.disabled}
-        onClick={() => setOpen(!open)}
-        iconOnly={!title}
-        icon={!title && <MoreOptionsIcon />}
-      >
-        {label}
-      </Button>
-      <div
-        className={field.placement === 'top' ? 'admin-popover__panel admin-popover__panel--top' : 'admin-popover__panel'}
-        id={panelId}
-        role="group"
-        aria-label={field.panelTitle || label}
-        hidden={!open}
-      >
-        {field.panelTitle && <p className="admin-popover__title">{field.panelTitle}</p>}
-        {renderFields(field.children)}
-      </div>
-    </div>
-  );
-};
+/** Child actions in a Menu, such as the action bar's "More options" */
+export const MenuField = (props: FieldProps) => <Menu {...popoverProps(props)}>{props.renderFields(props.field.children)}</Menu>;

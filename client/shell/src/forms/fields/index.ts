@@ -8,6 +8,7 @@ import {
   HeaderField,
   HiddenField,
   LiteralField,
+  MenuField,
   OptionsetField,
   PopoverField,
   ReadonlyField,
@@ -41,6 +42,7 @@ export const builtInFields: Readonly<Record<string, ComponentType<FieldComponent
   TabItem,
   FormAction: ShellFormAction,
   PopoverField,
+  MenuField,
   UnsavedChangesIndicator: UnsavedChangesIndicatorField,
   [serverHtmlComponent]: ServerHtmlField,
 };

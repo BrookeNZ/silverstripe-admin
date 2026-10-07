@@ -148,7 +148,7 @@
   max-height: var(--admin-combobox-popup-max-height);
   overflow-y: auto;
   position: absolute;
-  z-index: 1;
+  z-index: var(--admin-z-popover);
 }
 
 .admin-combobox__popup[hidden] {

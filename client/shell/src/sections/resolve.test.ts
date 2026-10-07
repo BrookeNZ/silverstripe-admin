@@ -136,6 +136,14 @@ describe('midSentence', () => {
     expect(midSentence('Site banners')).toBe('site banners');
     expect(midSentence('SEO reports')).toBe('SEO reports');
   });
+
+  it('keeps a leading single capital letter and a product name', () => {
+    expect(midSentence('X posts')).toBe('X posts');
+    expect(midSentence('Google sitemaps')).toBe('Google sitemaps');
+    expect(midSentence('Silverstripe modules')).toBe('Silverstripe modules');
+    expect(midSentence('TinyMCE settings')).toBe('TinyMCE settings');
+    expect(midSentence('Googled pages')).toBe('googled pages');
+  });
 });
 
 describe('piletOwnsSection', () => {

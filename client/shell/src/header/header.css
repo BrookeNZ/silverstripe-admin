@@ -41,9 +41,7 @@
   /* Figma: Inter Medium 15px */
   --shell-header-title-font-size: 1.5rem;
   --shell-header-title-font-weight: 500;
-
-  /* Above the patterns package's popover, which is z-index 1 */
-  --shell-header-z-index: 2;
+  --shell-header-z-index: var(--admin-z-sticky);
 }
 
 @media (width >= 576px) {

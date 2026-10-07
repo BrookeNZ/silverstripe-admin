@@ -25,7 +25,7 @@ Node 24.21.0 for everything under `client/` (`nvm use 24.21.0`).
 
    ```sh
    cd client/shell
-   npm start   # piral debug --port 1234 --strict-port --hmr-port 61234 --public-url /shell-dev/
+   npm start   # piral debug --port 1234 --strict-port --hmr-port 61234 --public-url /shell-dev/ --krasrc debug.krasrc
    ```
 
 3. Browse `https://<site>/admin/` as usual.
@@ -34,6 +34,11 @@ Node 24.21.0 for everything under `client/` (`nvm use 24.21.0`).
 |---|---|
 | 1234 | `/shell-dev/main.js` and its chunks (`output.publicPath` is `auto` in dev, so chunks load from this origin) |
 | 61234 | webpack HMR event stream |
+
+Both listen on 127.0.0.1 only: `debug.krasrc` sets the dev server's `host`, and `loopback-hmr.js` (required from
+`webpack.config.js` in dev) patches piral-cli-webpack5's `HotModuleServerPlugin`, which has no host option and
+otherwise listens on every interface. Recheck the patch after a piral-cli upgrade with
+`lsof -nP -iTCP -sTCP:LISTEN | grep node`.
 
 - CSS changes apply in place without a reload. TypeScript changes reload the page (about half a second to rebuild),
   because the shell has no React Fast Refresh and no module accepts the update.
@@ -64,7 +69,7 @@ replaces feed items with the same name by the local pilets, and re-injects a pil
 when it rebuilds. The pilet's own HMR client can reload the page first, so a change shows either in place or after
 a fast reload.
 
-- `debug.krasrc` sets the pilet server's asset URL. Without it the re-inject message links the pilet bundle to the
+- `../debug.krasrc` binds the pilet server to 127.0.0.1 and sets its asset URL. Without it the re-inject message links the pilet bundle to the
   page origin, which 404s. Keep its port in step with `--port`.
 - Keep HMR on: `pilet debug --hmr false` never reports ready in piral-cli 1.12.4, and its pilet API hangs.
 - **Never run `pilet debug --feed` against the admin feed** (`/admin/pilets/`). The debug server forwards the session
@@ -73,15 +78,25 @@ a fast reload.
 
 ### Emulator
 
-`pilet new` and `pilet debug` read the shell from the emulator tarball. Rebuild it after shell API changes:
+`pilet new` and `pilet debug` read the shell from the emulator tarball. It is gitignored, so a clean checkout builds
+it before installing a pilet:
+
+```sh
+cd client/pilets/pages   # or fields
+npm run setup            # shell npm ci, shell build:emulator, then the pilet's npm ci
+```
+
+Rebuild it after shell API changes:
 
 ```sh
 cd client/shell
 npm run build:emulator   # dist/emulator/silverstripe-admin-shell-1.0.0.tgz, gitignored
 ```
 
-The pilets install it through a `file:` dependency. To refresh an installed copy without touching the lockfile
-integrity, unpack the tarball over `node_modules/@silverstripe/admin-shell`.
+The pilets install it through a `file:` dependency whose lockfile entry carries no `integrity`: the tarball embeds
+the checkout's absolute path, so its hash differs per machine and per build. `npm install` in a pilet writes the hash
+back; delete that `integrity` line before committing the lockfile. To refresh an installed copy without reinstalling,
+unpack the tarball over `node_modules/@silverstripe/admin-shell`.
 
 ### Before committing
 

@@ -19,7 +19,7 @@
     "react-router-dom": "^6"
   },
   "scripts": {
-    "start": "piral debug --port 1234 --strict-port --hmr-port 61234 --public-url /shell-dev/",
+    "start": "piral debug --port 1234 --strict-port --hmr-port 61234 --public-url /shell-dev/ --krasrc debug.krasrc",
     "prebuild": "npm --prefix ../patterns run build",
     "build": "piral build --type release --public-url /_resources/vendor/silverstripe/admin/client/dist/shell/ && rm -rf ../dist/shell && cp -R dist/release ../dist/shell",
     "preinstall": "npm --prefix ../patterns ci && npm --prefix ../patterns run build",
