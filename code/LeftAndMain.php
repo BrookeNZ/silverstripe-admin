@@ -34,6 +34,7 @@ use SilverStripe\Forms\FormAction;
 use SilverStripe\Forms\HiddenField;
 use SilverStripe\Forms\LiteralField;
 use SilverStripe\Forms\PrintableTransformation;
+use SilverStripe\Forms\Schema\FormSchema;
 use SilverStripe\i18n\i18n;
 use SilverStripe\Model\ArrayData;
 use SilverStripe\Model\List\ArrayList;
@@ -229,6 +230,19 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
     private static bool $piral_shell = false;
 
     /**
+     * Whether a shell page load preloads the section's EditForm schema, which the shell renders for a section no
+     * pilet owns. Off for sections a pilet draws, which read other schemas or none
+     */
+    private static bool $piral_section_form_preload = true;
+
+    /**
+     * The query flag a GET may carry in place of the `X-Formschema-Request` header, because a preload link cannot
+     * send headers. It asks for the full read the shell makes, `schema,state,errors`, as an XHR, and only on a
+     * schema URL
+     */
+    public const PIRAL_SCHEMA_QUERY = 'formSchema';
+
+    /**
      * Value of X-Frame-Options header
      *
      * @config
@@ -360,15 +374,15 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
                 $this->extend('accessedCMS');
             }
 
+            // Under the shell only the shell page reads the config, and renderPiralShell() builds it for that page
+            if ($this->config()->get('piral_shell')) {
+                return;
+            }
+
             Requirements::customScript("
                 window.ss = window.ss || {};
                 window.ss.config = " . $this->getCombinedClientConfig() . ";
             ");
-
-            // The shell's own requirements are added in index(), after the legacy ones are cleared
-            if ($this->config()->get('piral_shell')) {
-                return;
-            }
 
             Requirements::javascript('silverstripe/admin: client/dist/js/vendor.js');
             Requirements::javascript('silverstripe/admin: client/dist/js/bundle.js');
@@ -493,6 +507,7 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
      */
     public function handleRequest(HTTPRequest $request): HTTPResponse
     {
+        $this->applyPiralSchemaQuery($request);
         try {
             $response = $this->handleRequestWithHeaders($request);
         } catch (Throwable $exception) {
@@ -505,6 +520,29 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
         }
         $this->extend('updateRequestResponse', $request, $response);
         return $response;
+    }
+
+    private function applyPiralSchemaQuery(HTTPRequest $request): void
+    {
+        if (!$this->config()->get('piral_shell')
+            || !$request->isGET()
+            || $request->getVar(LeftAndMain::PIRAL_SCHEMA_QUERY) === null
+            || $request->getHeader(FormSchema::SCHEMA_HEADER)
+            || !LeftAndMain::isSchemaPath($request->getURL())
+        ) {
+            return;
+        }
+        $request->addHeader(FormSchema::SCHEMA_HEADER, 'schema,state,errors');
+        $request->addHeader('X-Requested-With', 'XMLHttpRequest');
+    }
+
+    /**
+     * The shapes getPiralFirstSchemaUrl() and its extensions build: `.../schema/<FormName>[/...]`, or a GridField
+     * item's `.../schema`, so the flag cannot turn another GET action into an XHR read
+     */
+    private static function isSchemaPath(string $path): bool
+    {
+        return (bool) preg_match('#/schema(/[A-Za-z_][A-Za-z0-9_]*(/.*)?)?$#', '/' . trim($path, '/'));
     }
 
     private function handleRequestWithHeaders(HTTPRequest $request): HTTPResponse
@@ -647,8 +685,84 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
     public function getPiralPreloads(): array
     {
         $urls = array_column($this->piralPiletItems() ?? [], 'link');
+        $schemaUrl = $this->getPiralFirstSchemaUrl();
+        if ($schemaUrl !== null) {
+            array_unshift($urls, $schemaUrl . '?' . LeftAndMain::PIRAL_SCHEMA_QUERY . '=1');
+        }
         $this->extend('updatePiralPreloads', $urls);
         return array_values(array_unique($urls));
+    }
+
+    /**
+     * The schema URL the shell reads first on this page load, relative to the site base and without the query
+     * flag, or null when it reads none. It mirrors client/shell/src/sections (resolve.ts and record.ts): a GridField
+     * item path reads the item's schema, any other path in a section no pilet owns reads the section's EditForm.
+     * A section a pilet draws names its own through `updatePiralFirstSchemaUrl`, given the path segments under the
+     * section. A mismatch with the client costs one wasted request, not a broken page
+     */
+    public function getPiralFirstSchemaUrl(): ?string
+    {
+        $request = $this->getRequest();
+        $segment = $this->config()->get('url_segment');
+        if (!$request || !$segment || !$this->config()->get('piral_shell') || !$this->isPiralNavigation($request)) {
+            return null;
+        }
+        $section = trim(Director::makeRelative(Controller::join_links(AdminRootController::admin_url(), $segment)), '/');
+        $path = trim($request->getURL(), '/');
+        if ($path !== $section && !str_starts_with($path, $section . '/')) {
+            return null;
+        }
+        $segments = array_values(array_filter(explode('/', substr($path, strlen($section))), 'strlen'));
+        $url = $this->config()->get('piral_section_form_preload') ? $this->sectionSchemaUrl($section, $segments) : null;
+        $this->extend('updatePiralFirstSchemaUrl', $url, $segments);
+        return $url;
+    }
+
+    /**
+     * The URL segments of a ModelAdmin's model tabs, in order; none for other sections
+     */
+    protected function getPiralModelTabs(): array
+    {
+        return [];
+    }
+
+    private function sectionSchemaUrl(string $section, array $segments): string
+    {
+        $tabs = $this->getPiralModelTabs();
+        $tab = null;
+        if ($tabs) {
+            $tab = in_array($segments[0] ?? null, $tabs, true) ? array_shift($segments) : $tabs[0];
+        }
+        $base = implode('/', array_filter([$section, $tab]));
+        return $this->recordSchemaUrl($base, $segments) ?? $base . '/schema/EditForm';
+    }
+
+    /**
+     * `<base>/EditForm/field/<grid>/item/<id>`, nested through `ItemEditForm/field/<grid>/item/<id>`, then an
+     * optional `edit` or `view`; `new` only as the last ID
+     */
+    private function recordSchemaUrl(string $base, array $segments): ?string
+    {
+        $action = null;
+        if (count($segments) % 5 === 1) {
+            $action = array_pop($segments);
+            if (!in_array($action, ['edit', 'view'], true)) {
+                return null;
+            }
+        }
+        if (count($segments) < 5 || count($segments) % 5 !== 0) {
+            return null;
+        }
+        $url = $base;
+        foreach (array_chunk($segments, 5) as $index => [$form, $field, $grid, $item, $id]) {
+            $isLast = ($index + 1) * 5 === count($segments);
+            $validId = preg_match('/^[1-9][0-9]*$/', $id) || ($id === 'new' && $isLast);
+            if ($form !== ($index === 0 ? 'EditForm' : 'ItemEditForm') || $field !== 'field' || $item !== 'item' || !$validId) {
+                return null;
+            }
+            $url .= "/$form/field/$grid/item/$id";
+        }
+        return $url . ($action === 'view' ? '/view/schema' : '/schema');
     }
 
     /**

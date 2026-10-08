@@ -179,7 +179,7 @@ const UploadField = ({ field, value, onChange, error }: FieldComponentProps<Uplo
               return (
                 <li className="upload-field__file" key={id}>
                   {thumbnail ? (
-                    <img className="upload-field__thumbnail" src={thumbnail} alt="" />
+                    <img className="upload-field__thumbnail" src={thumbnail} alt="" loading="lazy" decoding="async" />
                   ) : (
                     <span className="upload-field__thumbnail" />
                   )}

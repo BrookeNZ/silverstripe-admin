@@ -18,7 +18,7 @@ describe('createTreeApi', () => {
   });
 
   it('turns the shell request error into an ApiError that keeps the session expiry', async () => {
-    const expired = Object.assign(new Error('Your session may have expired'), { status: 403, sessionExpired: true });
+    const expired = Object.assign(new Error('Your session may have expired'), { name: 'ServerRequestError', status: 403, sessionExpired: true });
     const api = createTreeApi('https://example.test/admin/pages/tree/', (async () => {
       throw expired;
     }) as JsonRequest);
@@ -31,13 +31,13 @@ describe('createTreeApi', () => {
 describe('toApiError', () => {
   it('keeps the reason and field of the endpoint\'s envelope', () => {
     const error = toApiError(
-      Object.assign(new Error('q needs at least 2 characters'), { status: 400, sessionExpired: false, reason: 'tooShort', field: 'q' }),
+      Object.assign(new Error('q needs at least 2 characters'), { name: 'ServerRequestError', status: 400, sessionExpired: false, reason: 'tooShort', field: 'q' }),
     );
     expect([error.status, error.reason, error.field, error.message]).toEqual([400, 'tooShort', 'q', 'q needs at least 2 characters']);
   });
 
   it('names an ended session and a failure with no status', () => {
-    expect(toApiError(Object.assign(new Error('expired'), { status: 403, sessionExpired: true }))).toMatchObject({
+    expect(toApiError(Object.assign(new Error('expired'), { name: 'ServerRequestError', status: 403, sessionExpired: true }))).toMatchObject({
       reason: 'notLoggedIn',
       sessionExpired: true,
     });

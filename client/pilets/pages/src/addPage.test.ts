@@ -27,7 +27,7 @@ describe('addPage', () => {
 
   it('does not land when the server refuses', async () => {
     const fetchJson = vi.fn(async () => {
-      throw Object.assign(new Error('This page type cannot be created here'), { status: 403, sessionExpired: false, reason: 'forbidden' });
+      throw Object.assign(new Error('This page type cannot be created here'), { name: 'ServerRequestError', status: 403, sessionExpired: false, reason: 'forbidden' });
     });
     const client = createPageApi('https://cms.test/admin/pages/create/', fetchJson as unknown as JsonRequest);
     const land = vi.fn();

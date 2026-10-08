@@ -21,7 +21,13 @@ import type { FieldComponentProps } from '../types';
 import { FormSchemaForm } from '../FormSchemaForm';
 import { SchemaFormDialog } from '../SchemaFormDialog';
 import { serverHtmlComponent } from '../resolve';
+import { DateField } from './DateField';
+import { HtmlReadonlyField } from './HtmlReadonlyField';
+import { LabelField } from './LabelField';
+import { ListboxField } from './ListboxField';
+import { LookupField } from './LookupField';
 import { NumberField } from './NumberField';
+import { ProportionConstraintField } from './ProportionConstraintField';
 import { ServerHtmlField } from './ServerHtmlField';
 import { ShellFormAction } from './ShellFormAction';
 import { SudoModePasswordField } from './SudoModePasswordField';
@@ -35,12 +41,18 @@ export const builtInFields: Readonly<Record<string, ComponentType<FieldComponent
   CheckboxField,
   SingleSelectField,
   OptionsetField,
+  DateField,
   DatetimeField,
+  ListboxField,
   ReadonlyField,
+  LookupField,
+  HtmlReadonlyField,
   LiteralField,
   HeaderField,
+  LabelField,
   CompositeField,
   FieldGroup,
+  ProportionConstraintField,
   [toggleCompositeFieldClass]: ToggleCompositeField,
   Tabs,
   TabItem,

@@ -34,13 +34,13 @@ describe('hook order', () => {
     expect(runUpdateHook('updateList', [], undefined)).toEqual(['pages']);
   });
 
-  it('logs a cycle with the pilets in it and falls back to feed order', () => {
+  it('logs a cycle with the pilets in it and runs only its handlers last, in feed order', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     setHookFeedOrder(() => ['pages', 'elemental', 'history']);
     registerHook('history', 'updateList', appendAs('history'));
     registerHook('elemental', 'updateList', appendAs('elemental'), { id: 'a', after: ['pages:b'] });
     registerHook('pages', 'updateList', appendAs('pages'), { id: 'b', after: ['elemental:a'] });
-    expect(runUpdateHook('updateList', [], undefined)).toEqual(['pages', 'elemental', 'history']);
+    expect(runUpdateHook('updateList', [], undefined)).toEqual(['history', 'pages', 'elemental']);
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0][0]).toContain('"pages", "elemental"');
     expect(warn.mock.calls[0][0]).not.toContain('history');

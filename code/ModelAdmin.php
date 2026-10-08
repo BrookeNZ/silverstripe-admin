@@ -118,6 +118,12 @@ abstract class ModelAdmin extends LeftAndMain
     public $showSearchForm = true;
 
     /**
+     * The client config built for the current request and member, which the combined client config and
+     * getPiralModelTabs() both read on a page load
+     */
+    private ?array $clientConfigBuild = null;
+
+    /**
      * List of all {@link DataObject}s which can be imported through
      * a subclass of {@link BulkLoader} (mostly CSV data).
      * By default {@link CsvBulkLoader} is used, assuming a standard mapping
@@ -219,13 +225,34 @@ abstract class ModelAdmin extends LeftAndMain
     /**
      * Adds `modelTabs`, a list of `['tab' => URL segment, 'title' => tab title]` in managed_models order, so a
      * client can name the landing tab and link every tab before it requests a form. The list is empty for a member
-     * who cannot view the section, since the combined client config reaches every CMS member
+     * who cannot view the section, since the combined client config reaches every CMS member. An extension may
+     * name the tabs instead through `updateShellModelTabs`
      */
     public function getClientConfig(): array
+    {
+        $request = Controller::curr()?->getRequest();
+        $memberID = Security::getCurrentUser()?->ID;
+        $built = $this->clientConfigBuild;
+        if ($request && $built && $built['request'] === $request && $built['memberID'] === $memberID) {
+            return $built['config'];
+        }
+        $config = $this->buildClientConfig();
+        $this->clientConfigBuild = $request ? ['request' => $request, 'memberID' => $memberID, 'config' => $config] : null;
+        return $config;
+    }
+
+    private function buildClientConfig(): array
     {
         $this->beforeExtending('updateClientConfig', function (array &$clientConfig): void {
             $clientConfig['modelTabs'] = [];
             if (!$this->canView()) {
+                return;
+            }
+            // An extension that names the tabs itself (ArchiveAdminShellExtension) saves building the managed models
+            $tabs = null;
+            $this->extend('updateShellModelTabs', $tabs);
+            if ($tabs !== null) {
+                $clientConfig['modelTabs'] = $tabs;
                 return;
             }
             foreach ($this->getManagedModels() as $tab => $options) {
@@ -236,6 +263,15 @@ abstract class ModelAdmin extends LeftAndMain
             }
         });
         return parent::getClientConfig();
+    }
+
+    /**
+     * The tabs the shell resolves paths with, from the same `modelTabs` the client config sends it. Read from the
+     * instance getCombinedClientConfig() asks, so a page load builds the section's client config once
+     */
+    protected function getPiralModelTabs(): array
+    {
+        return array_column(Injector::inst()->get(static::class)->getClientConfig()['modelTabs'] ?? [], 'tab');
     }
 
     /**

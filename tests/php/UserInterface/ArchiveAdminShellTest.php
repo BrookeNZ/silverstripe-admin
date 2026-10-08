@@ -5,11 +5,14 @@ namespace SilverStripe\Admin\Tests\UserInterface;
 use ReflectionProperty;
 use SilverStripe\Admin\LeftAndMain;
 use SilverStripe\Admin\UserInterface\ArchiveAdminShellExtension;
+use SilverStripe\Assets\AssetControlExtension;
+use SilverStripe\Assets\File;
 use SilverStripe\CMS\Model\SiteTree;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Control\Session;
 use SilverStripe\Core\Config\Config;
 use SilverStripe\Dev\FunctionalTest;
+use SilverStripe\i18n\i18n;
 use SilverStripe\VersionedAdmin\ArchiveAdmin;
 
 class ArchiveAdminShellTest extends FunctionalTest
@@ -23,6 +26,37 @@ class ArchiveAdminShellTest extends FunctionalTest
             $this->markTestSkipped('Needs silverstripe/versioned-admin and silverstripe/cms');
         }
         $this->logInWithPermission('ADMIN');
+        ArchiveAdminShellExtension::flush();
+    }
+
+    public function testArchiveTabsAreCachedUntilFlush(): void
+    {
+        $built = ArchiveAdmin::create()->getArchiveTabs();
+        // Changes what a rebuild gives (the Files tab) without changing the cache key
+        $keepArchived = !Config::inst()->get(File::class, 'keep_archived_assets');
+        Config::modify()->set(File::class, 'keep_archived_assets', $keepArchived);
+        Config::modify()->set(AssetControlExtension::class, 'keep_archived_assets', $keepArchived);
+
+        ArchiveAdminShellExtension::resetMemo();
+        $this->assertSame($built, ArchiveAdmin::create()->getArchiveTabs(), 'A later request serves the cached tabs');
+
+        $this->logInWithPermission('CMS_ACCESS_' . ArchiveAdmin::class);
+        ArchiveAdminShellExtension::resetMemo();
+        $this->assertSame($built, ArchiveAdmin::create()->getArchiveTabs(), 'Another member shares them');
+
+        $locale = i18n::get_locale();
+        i18n::set_locale('de_DE');
+        try {
+            ArchiveAdminShellExtension::resetMemo();
+            $this->assertNotSame($built, ArchiveAdmin::create()->getArchiveTabs(), 'Another locale misses the cache');
+        } finally {
+            i18n::set_locale($locale);
+        }
+
+        ArchiveAdminShellExtension::flush();
+        $rebuilt = ArchiveAdmin::create()->getArchiveTabs();
+        $this->assertNotSame($built, $rebuilt, 'A flush clears the cache');
+        $this->assertSame($keepArchived, in_array(File::class, array_column($rebuilt['tabs'], 'class'), true));
     }
 
     public function testModelTabsAreTheLegacyViewsWithOtherOnTheFirstOtherType(): void

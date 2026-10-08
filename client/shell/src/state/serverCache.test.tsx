@@ -58,7 +58,7 @@ async function render(element: React.ReactElement) {
 beforeEach(() => {
   context = fakeGlobalContext();
   queryClient = createServerQueryClient();
-  api = (createServerCacheApi(queryClient)(context) as () => ServerCacheApi)();
+  api = (createServerCacheApi(queryClient)(context) as (piral: unknown, meta: { name: string }) => ServerCacheApi)({}, { name: 'test-pilet' });
   container = document.createElement('div');
   root = createRoot(container);
   resetSharedConfig();
@@ -162,7 +162,7 @@ describe('useServerQuery', () => {
     const fetcher = vi.fn(async () => ['fetched']);
     const seen: Array<ServerQueryResult<Array<string>>> = [];
     await render(
-      <Reader queryKey={['blocks', 3]} fetcher={fetcher} seen={seen} options={{ initialData: ['initial'], initialDataUpdatedAt: Date.now(), staleTime: 30_000 }} />,
+      <Reader queryKey={['shared:blocks', 3]} fetcher={fetcher} seen={seen} options={{ initialData: ['initial'], initialDataUpdatedAt: Date.now(), staleTime: 30_000 }} />,
     );
     expect(fetcher).not.toHaveBeenCalled();
 
@@ -179,7 +179,7 @@ describe('useServerQuery', () => {
     const fetcher = vi.fn(async () => ['fetched']);
     const seen: Array<ServerQueryResult<Array<string>>> = [];
     await render(
-      <Reader queryKey={['blocks', 3]} fetcher={fetcher} seen={seen} options={{ initialData: ['initial'], initialDataUpdatedAt: Date.now() - 30_001, staleTime: 30_000 }} />,
+      <Reader queryKey={['shared:blocks', 3]} fetcher={fetcher} seen={seen} options={{ initialData: ['initial'], initialDataUpdatedAt: Date.now() - 30_001, staleTime: 30_000 }} />,
     );
 
     expect(seen[0]).toMatchObject({ status: 'success', data: ['initial'] });
@@ -209,7 +209,7 @@ describe('useServerQuery', () => {
       <>
         <Reader queryKey={['Page', 7, 'versions', 1]} fetcher={versions} seen={[]} />
         <Reader queryKey={['Page', 8, 'versions', 1]} fetcher={otherPage} seen={[]} />
-        <Reader queryKey={['schema', 'admin/pages/EditForm/7']} fetcher={schema} seen={[]} />
+        <Reader queryKey={['shared:schema', 'admin/pages/EditForm/7']} fetcher={schema} seen={[]} />
       </>,
     );
 
@@ -309,7 +309,7 @@ describe('useServerMutation', () => {
 
   const Writer = ({ changes = true }: { changes?: boolean }) => {
     mutation = api.useServerMutation(
-      (toVersion: number, request) => request<null>('https://example.test/admin/revert', { method: 'POST', body: { id: 7, toVersion } }),
+      (toVersion: number, request) => request<null>('/admin/revert', { method: 'POST', body: { id: 7, toVersion } }),
       changes ? { changes: () => ({ recordClass: 'Page', ids: [7] }) } : {},
     );
     return null;

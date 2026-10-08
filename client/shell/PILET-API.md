@@ -2,7 +2,10 @@
 
 What a pilet can rely on from the Silverstripe admin shell. Types reach pilets through the emulator
 (`npm run build:emulator`, then install the tarball as `@silverstripe/admin-shell`); the form types come
-from `src/forms/types.ts` via `extraTypes` in `package.json`.
+from `src/forms/types.ts` and `ServerRequestError` from `src/state/errorTypes.ts`, both via `extraTypes`
+in `package.json`. Import the package for types only (`import type`): it carries no runtime code, so a
+value imported from it is undefined at runtime. Values come from the Pilet API, such as
+`api.recordsChangedEvent`.
 
 ## Versioning
 
@@ -23,9 +26,12 @@ same-version tarball is reinstalled because its integrity changes); every pilet 
 
 - 2026-10-05 and 06: `registerPage`, `registerSilverstripeComponent`, `getSilverstripeComponent`,
   `registerExtensionComponent`, `getConfig`, `showNotification`; the field props contract; component
-  resolution by `componentCandidates`; `setUnsavedChanges` and `hasUnsavedChanges`.
-- 2026-10-07: `setSectionHeader` (title, then `preview`, `crumbs`, `badge`, `sidebar`); `registerSectionIcon`;
-  `registerMenuItem`; GridField row actions and column contract; `registerBeforeSubmit` (since removed).
+  resolution by `componentCandidates`; `setUnsavedChanges` and `hasUnsavedChanges`; `setSectionHeader`
+  (back button, title and views).
+- 2026-10-07: section header `crumbs`, then `preview`, `badge` and `sidebar`; `registerSectionIcon`;
+  `registerMenuItem`; GridField row actions and column contract; `registerBeforeSubmit` (since removed);
+  the static `fullWidth` flag on a field component, and the `fullWidth` getter on the component
+  `getSilverstripeComponent` returns, which reports the current registration's flag (see **Form layout**).
 - 2026-10-08: `registerSectionSidebar`; shared state (`useSharedState`, `subscribeSharedState`,
   `setCurrentRecord`, `recordsChangedEvent`); server cache (`useServerQuery` with `records`,
   `useServerMutation`, `invalidateRecords`, `fetchJson`; invalidation by class ancestry from
@@ -46,11 +52,35 @@ same-version tarball is reinstalled because its integrity changes); every pilet 
   only a component with its props, and `getSilverstripeComponent` returns a component with them. The
   built-in field components in `@silverstripe/admin-patterns` are generic over the field descriptor, so
   they take `FieldComponentProps` without a cast, and `FieldProps['renderFields']` takes a read-only array.
-  `registerExtensionComponent` takes Piral's extension component type rather than `any`.
+  **Breaking (types):** for a name `SilverstripeComponents` does not list, `getSilverstripeComponent`
+  returns a component taking `Record<string, unknown>` (was `any`), so a caller passing typed props to it
+  names them by augmenting the interface; `SilverstripeComponent`'s props parameter defaults to `object`
+  (was `any`); `registerExtensionComponent` takes Piral's `AnyExtensionComponent` rather than `any`.
   `useServerQuery` takes `initialData` and `initialDataUpdatedAt`, and its `refetch()` resolves to the fetched data (`Promise<T | undefined>`,
   was `Promise<void>`).
   `@silverstripe/admin-patterns` requires React `^19` (was `^18 || ^19`); `Button`, `Link` and `Stack`
   take `ref` as a prop rather than through `forwardRef`, with the same element types.
+- 2026-10-09: built-in fields `ListboxField`, `DateField`, `LookupField`, `LabelField` and
+  `ProportionConstraintField`, registered and listed in `SilverstripeComponents` under their legacy
+  FormSchema names, so a pilet registering one of those names replaces the shell's.
+- 2026-10-09: built-in field `HtmlReadonlyField`, registered and listed in `SilverstripeComponents`
+  under its legacy FormSchema name.
+- 2026-10-09: `ServerRequestError` (and `ServerRequestErrorShape`) are exported types, and
+  `ServerQueryResult.error` and `ServerMutationResult.error` are typed with them; a pilet recognises one by
+  `error.name === 'ServerRequestError'`. **Breaking:** a pilet's `useServerQuery` keys are stored under the
+  pilet's name, so pilets no longer share an entry by accident; `shared:<scope>` keys are shared on
+  purpose, and a pilet key in a reserved scope (`schema`, `grid`, `blocks`) throws in development (the
+  elemental pilet moved to `['shared:blocks', areaId]`). **Breaking:** `sessionExpired` is set only for a
+  redirect to the login form; another followed redirect is an ordinary `ServerRequestError`.
+  **Breaking:** `fetchJson` sends `X-SecurityID` only to the page's own origin, and reads it from
+  `window.ss.config` at request time. A malformed records-changed event is dropped with a warning, and
+  numeric-string ids are read as numbers; a throwing `records` or `changes` option is logged; an
+  `AbortError` while reading the body passes through; only a request that got no answer, or a 5xx, is
+  retried. **Breaking:** hooks: an `updateX` handler returning `undefined` is a logged failure; the
+  context is deep-frozen in development as the value is; a cycle leaves only its own handlers unordered;
+  counter ids are `#<n>`; a handler running its own update or after hook is not run again; hook names in
+  the run verbs and `HookHandler` must be `update`, `onBefore` or `onAfter` then a capital; a pilet named
+  `shell` is refused.
 
 ## Verbs
 
@@ -62,7 +92,7 @@ piral-notifications, ...):
 | `registerSilverstripeComponent(name, Component): Disposable` | Register a component under a registry name. The latest registration of a name wins; unloading the pilet restores the previous one. Field components register here too. Typed by name; see **Typed components** |
 | `getSilverstripeComponent(name): ComponentType<props>` | A stable component that renders the latest registration of `name`, with the props `SilverstripeComponents` lists for it |
 | `registerExtensionComponent(name, slot, Component): Disposable` | Fill the slot `<name>.<slot>`. `SilverStripe\Admin\LeftAndMain` / `menu.bottom` is legacy; use `registerMenuItem` |
-| `getConfig(): Readonly<SilverstripeClientConfig>` | A deep-frozen copy of `window.ss.config` |
+| `getConfig(): Readonly<SilverstripeClientConfig>` | A deep-frozen copy of `window.ss.config`, taken once at first use, so a later change to `window.ss.config` does not show in it. `fetchJson` reads `SecurityID` live instead |
 | `showNotification(content, options?)` | From piral-notifications |
 | `setUnsavedChanges(key, dirty): Disposable` | Report unsaved changes this pilet owns; the shell confirms before navigating away. The disposer clears the key |
 | `hasUnsavedChanges(): boolean` | Whether anything in the shell is dirty |
@@ -80,7 +110,7 @@ piral-notifications, ...):
 | `useServerMutation(mutation, options?): ServerMutationResult<V, R>` | Run a write and announce the records it changed; see **Server cache** |
 | `invalidateRecords(recordClass, ids): void` | Emit records-changed, which refetches every cached read of those records; see **Server cache** |
 | `fetchJson(url, init?): Promise<T>` | The shell's fetch for admin JSON endpoints, with the session and CSRF handling; see **Server cache** |
-| `routerPath(url): string \| null` | The shell router's path for a server link under the admin URL (`admin/pages/edit/show/7` becomes `/pages/edit/show/7`), or null for a link that leaves the admin |
+| `routerPath(url): string \| null` | The shell router's path for a server link under the admin URL (`admin/pages/edit/show/7` becomes `/pages/edit/show/7`), keeping its query and hash; the bare admin URL gives `/`. Null for another origin or a link outside the admin, which needs a page load |
 
 No `registerFormField`: binding a field to the form is decided by the schema (`schemaType`, read-only
 state, the posted set), not by the registration; holders are a component (`FieldHolder` in
@@ -92,7 +122,7 @@ and other components. A field component is typed by annotating it with `FieldCom
 `SilverstripeComponents` maps each registry name to the props its component takes: `FormSchemaForm`,
 `SchemaFormDialog`, the built-in fields (`FieldComponentProps`) and the grid's components. A listed name
 only accepts a component taking those props, and `getSilverstripeComponent` returns one that requires
-them. A name not listed takes any component and returns one taking any props. A pilet whose component
+them. A name not listed takes any component and returns one taking `Record<string, unknown>`. A pilet whose component
 other pilets read lists it by augmenting the interface, as with `HookPoints`:
 
 ```ts
@@ -265,7 +295,7 @@ The view (`SharedState`) is frozen:
 
 | Key | Value | Written by |
 |---|---|---|
-| `config` | The deep-frozen config `getConfig` returns | Nothing; fixed at load |
+| `config` | The deep-frozen config `getConfig` returns | Nothing; copied once at first use |
 | `toasts` | `{id, options}[]`, the open toasts oldest first | `showNotification` and dismissing |
 | `unsavedChanges` | `boolean`, whether anything has reported unsaved changes | `setUnsavedChanges` |
 | `viewMode` | `'edit' \| 'split' \| 'preview'`, the preview mode the viewer chose and kept in their browser; a viewport under 1024px still draws edit | The shell's mode menu |
@@ -279,7 +309,11 @@ Records-changed is the one event the shell defines. Its name is `api.recordsChan
 (`silverstripe:records-changed`); the shell package publishes types only, so a pilet reads the name from
 the API rather than importing or repeating it. Its value is `RecordsChangedEvent`,
 `{recordClass: string, ids: number[]}`, emitted with `emit` after a save, publish or other change to
-those records; a view listing them (the page tree, the grid, the block list) re-reads them on `on`.
+those records; a view listing them (the page tree, the grid, the block list) re-reads them on `on`. The
+ids must be numbers (a numeric string such as `'7'` is read as `7`), and `ids: []` names every record of
+the class, so it invalidates every cached key of the class. Any pilet can emit the event, so the shell
+checks it before acting: one without a `recordClass` string, without an `ids` array, or with an id that
+is not a number is dropped with a console warning, and other listeners still receive it as sent.
 
 Piral's own data store (`setData`/`getData`) still carries `silverstripe:pages:current-page-id`, the page
 the Pages section is editing or `null`, owned by the pages pilet. It is superseded by `currentRecord` and
@@ -315,16 +349,24 @@ Server reads are cached by the shell in one TanStack Query client. Pilets never 
 use four verbs, and a records-changed event is what clears the cache, so emitters stay as they are.
 
 - `fetchJson<T>(url, init?)` requests an admin JSON endpoint: `Accept: application/json` and
-  `X-Requested-With` on every request, `X-SecurityID` from the config on anything but a GET, credentials
-  same-origin. `init` takes `method`, `query` (added to the query string), `body` (sent as JSON;
-  `URLSearchParams` and `FormData` are sent as they are), `headers` and `signal`. It resolves to the parsed
-  body, or `null` for an empty one, and rejects with a `ServerRequestError`: `message` (what the server
-  said, or a generic one), `status`, `serverMessage` (the CMS envelope's errors joined, or the first line
-  of a dev-mode plain-text error; `null` when the server said nothing worth showing), `reason` and `field`
-  (the envelope's first error's, when it names them) and `sessionExpired`,
-  set for a 401, a 403 with `X-Reauthenticate` and a redirect to the login form, whose message asks the
-  viewer to reload and log in. A success whose body is not JSON (an HTML page) rejects too, and so does a
-  200 that redirects by `X-ControllerURL` (a section the member cannot view), as a 403.
+  `X-Requested-With` on every request, and `X-SecurityID` on anything but a GET when the URL is on the
+  page's own origin (never to another origin). The token is read from `window.ss.config.SecurityID` at
+  request time, not from the `getConfig` snapshot; the shell has no re-login event yet, so a page that
+  replaces the token writes it there. Credentials are same-origin. `init` takes `method`, `query` (added
+  to the query string), `body` (sent as JSON; `URLSearchParams` and `FormData` are sent as they are),
+  `headers` and `signal`. It resolves to the parsed body, or `null` for an empty one. An abort, including
+  one while the body is read, rejects with the `AbortError` itself. Otherwise it rejects with a
+  `ServerRequestError` (an exported type; pilets have no class to `instanceof`, so they check
+  `error.name === 'ServerRequestError'`): `message` (what the server said, or a generic one), `status`,
+  `serverMessage` (the CMS envelope's errors joined, or the first line of a dev-mode plain-text error;
+  `null` when the server said nothing worth showing), `reason` and `field` (the envelope's first error's,
+  when it names them) and `sessionExpired`, set for a 401, a 403 with `X-Reauthenticate`, and a followed
+  redirect that lands under the login form's path (`Security/login` under the config's `baseUrl`, or the
+  config's `loginUrl` when it sends one), whose message asks the viewer to reload and log in. Any other
+  followed redirect rejects as a `ServerRequestError` with the final response's status and
+  `sessionExpired` false. A success whose body is not JSON (an HTML page) rejects too, and so does a 200
+  that redirects by `X-ControllerURL` (a section the member cannot view), as a 403. A request that got
+  no answer rejects with the browser's own `TypeError`.
 - `useServerQuery<T>(key, fetcher, options?)` is a React hook. `fetcher({signal, request})` loads the data,
   `request` being `fetchJson`; the same key on screen twice fetches once. Options: `enabled` (false holds the
   read back), `staleTime` in milliseconds (0 by default, so a remount refetches behind the cached data) and
@@ -335,24 +377,37 @@ use four verbs, and a records-changed event is what clears the cache, so emitter
   returns the ids of the key's class that the result shows (the rows of a listing), so an event naming any
   of them refetches the listing even when the key itself names none. It returns
   `{status: 'pending' | 'error' | 'success', data, error, isFetching, refetch()}`, where `refetch()` resolves to the
-  data once the fetch settles (a failed fetch leaves the previous data, if any). A failure with a status
-  under 500 is not retried; anything else is retried once. Window focus does not refetch.
+  data once the fetch settles (a failed fetch leaves the previous data, if any). `error` is a
+  `ServerRequestError`, or whatever else the fetcher threw. A read is retried once only when `fetch` got
+  no answer (its `TypeError`) or the server answered 5xx; a 4xx, an ended session or an error the fetcher
+  throws itself (a `TypeError` while parsing included) is not. Window focus does not refetch.
 - `useServerMutation<V, R>(mutation, options?)` is a React hook for a write: `mutation(variables, request)`.
   It returns `{mutate(variables), status: 'idle' | 'pending' | 'error' | 'success', error, reset()}`;
   `mutate` resolves with the result or rejects with the error. On success, `options.changes(variables,
   result)` names the records changed (one `RecordsChangedEvent`, a list, or `null`), and each is emitted
-  as records-changed.
+  as records-changed. A `changes` that throws is logged and announces nothing; the write has happened, so
+  `mutate` still resolves with its result and `status` is `success`.
 - `invalidateRecords(recordClass, ids)` emits records-changed for those records.
 
-Keys are arrays, `[scope, ...parts]` with parts that are strings, numbers, booleans or `null`. The shell
-listens to records-changed and invalidates the keys an event matches:
+Keys are arrays, `[scope, ...parts]` with parts that are strings, numbers, booleans or `null`. A
+pilet's key is its own: the shell stores it as `['pilet:<pilet name>', ...key]`, so two pilets (or a
+pilet and the shell) using the same key read separate entries with their own fetchers. A key whose scope
+starts `shared:` is stored as written and shared by every pilet that reads it, for data pilets share on
+purpose; it matches events as the scope after the prefix (`['shared:Page', 7]` as `['Page', 7]`), and
+the reader that fetches is whichever one the cache holds, so sharing readers fetch the same data. The
+scopes `schema`, `grid` and `blocks` are reserved to the shell: a pilet key starting with one throws in
+development builds and, in production, warns and is stored under the pilet's name like any other. A
+pilet that wants one of their every-change matching uses `shared:<scope>`.
+
+The shell listens to records-changed and invalidates the keys an event matches, matching on the key as
+its owner wrote it:
 
 | Key | Matched by |
 |---|---|
-| `['schema', ...]` (form schemas), `['grid', ...]` (grid rows), `['blocks', ...]` (an area's blocks) | Every event, since any of them can show any record |
+| `['schema', ...]` (form schemas), `['grid', ...]` (grid rows), `['blocks', ...]` (reserved), and their `shared:` forms | Every event, since any of them can show any record |
 | `[recordClass, id, ...]`, such as `['Page', 7, 'versions', 1]` for a record's versions | An event naming a related class with `id` among its ids, or with no ids |
 | `[recordClass, 'list', ...]` or any non-numeric second part, a read over the class | Every event naming a related class |
-| Any key whose `records(data)` returned an id the event names | That event, for a related class; this is how the pages tree's `[SiteTree, parentId, 'children', ...]` listings follow a saved row |
+| Any key whose `records(data)` returned an id the event names | That event, for a related class; this is how the pages tree's `[SiteTree, parentId, 'children', ...]` listings follow a saved row. A `records` that throws is logged and its key matches as a list over the class, so it is invalidated; other keys are unaffected |
 
 A related class is the key's class itself, an ancestor of it or a descendant of it. The shell reads the
 ancestry from the config's `recordClasses`, which maps every DataObject class with a table to its
@@ -379,11 +434,12 @@ What else is on the cache:
 | A GridField's rows (shell) | `['grid', rowsUrl, params]`, keeping the last page on screen while the next loads | A row action announces `[grid.modelClass, [row.id]]`, then waits for the rows' refetch |
 | A LinkField's links (fields) | `['SilverStripe\LinkField\Models\Link', 'data', ids]` | Delete, sort and a dialog save announce the links they changed under the Link class |
 | A UsedOnTable's usage list (fields) | `[recordClass, recordId, 'usage']` | None; a save of the record refetches it |
+| An elemental area's blocks (elemental) | `['shared:blocks', areaId]`, seeded from the schema's `data.blocks` | Block actions announce the blocks and their page |
 
 Two loaders stay imperative on `fetchJson`, uncached: SearchableDropdownField's search-as-you-type and
 TreeDropdownField's lazy tree levels, which keep their own stores. Shell components read through
 `useShellServerQuery` and `useShellServerMutation` in `state/serverCache.ts`, on the same client the
-Pilet API hands pilets. The elemental pilet's block list is not on the cache yet.
+Pilet API hands pilets.
 
 ## Hooks
 
@@ -410,12 +466,18 @@ use too, so order, isolation and the development freeze are the same:
 
 | Verb | Returns |
 |---|---|
-| `runUpdateHook(name, value, context)` | The value after every handler. Cheap enough to call during render; a handler registered later shows from the next render |
-| `runBeforeHook(name, context)` | `Promise<boolean>`: `false` as soon as a handler cancels; rejects with a handler's thrown error |
-| `runAfterHook(name, context)` | Nothing; handler errors and rejections are logged |
+| `runUpdateHook(name, value, context)` | The value after every handler. Cheap enough to call during render. It reads the handlers registered at the time of the call and does not subscribe, so a handler registered later shows only when the calling component next renders for another reason. The shell's render-time hook points (`updateFormSchema`, `updateFieldProps`, `updateGridColumns`) do subscribe |
+| `runBeforeHook(name, context)` | `Promise<boolean>`: `false` as soon as a handler resolves the literal `false` (`0`, `null` or `undefined` let it go ahead); rejects with a handler's thrown error |
+| `runAfterHook(name, context)` | Nothing, at once: an async handler is not awaited, so async handlers settle in their own time and order; handler errors and rejections are logged |
 
 Each verb takes only names of its kind (`runUpdateHook` an `updateX` name, and so on) and throws on
-another. The pilet declares its hook point's types by augmenting `HookPoints`, and a pilet registering
+another. The kind is `update`, `onBefore` or `onAfter` followed by a capital letter; the types say so too
+(`` `update${Capitalize<string>}` ``), so `updatefoo` or `onbeforeSave` fails to compile in the run
+verbs and leaves `registerHook` with no handler type to accept.
+
+A handler that runs the update or after hook it is a handler of is not run again: the inner run logs a
+warning and hands back the value it was given (nothing, for an after hook). Before hooks have no such
+guard, since they are awaited and two runs of one can overlap legitimately. The pilet declares its hook point's types by augmenting `HookPoints`, and a pilet registering
 a handler for it declares the shape it reads the same way:
 
 ```ts
@@ -434,23 +496,30 @@ The name decides the kind; a name that is none of these is refused.
 
 | Kind | Handler | Result |
 |---|---|---|
-| `updateX` | `(value, context) => value` | Each handler gets the previous handler's result and returns the next value. Return a new value; in development builds the input is a deep-frozen copy, so mutating it throws |
-| `onBeforeX` | `(context) => boolean \| void \| Promise<boolean \| void>` | Run one after another and awaited; the first to resolve `false` stops the rest and cancels. A handler that cancels says why itself (a toast) |
-| `onAfterX` | `(context) => void` | Told once it has happened; the return value is ignored |
+| `updateX` | `(value, context) => value` | Each handler gets the previous handler's result and returns the next value. Return a new value. Returning `undefined` counts as a failure: it is logged and the previous value passes on |
+| `onBeforeX` | `(context) => boolean \| void \| Promise<boolean \| void>` | Run one after another and awaited; the first to resolve the literal `false` stops the rest and cancels. A handler that cancels says why itself (a toast) |
+| `onAfterX` | `(context) => void` | Told once it has happened; the return value is ignored, and a returned promise is not awaited |
+
+In development builds every handler gets deep-frozen copies of the value and the context, so mutating a
+plain object or array in either throws (and is logged as that handler's failure). Class instances such
+as a `Map`, and functions, are passed as they are. Production builds pass the live objects, so a mutation
+there changes the caller's state; never rely on it.
 
 ### Order
 
-`options.id` names the registration `<pilet>:<id>` (a counter when omitted; a pilet registering the same
-id twice for one hook is refused). `options.before` and `options.after` list other registrations by
-that name, and the shell's own handlers are `shell:<id>`. Handlers run in that constrained order; where
-the constraints leave a choice, the shell's handlers come first, then pilets in feed order, then
-registration order. A `before` or `after` naming nothing registered is ignored. A cycle is logged with
-the pilets in it and the hook's handlers run in feed order instead.
+`options.id` names the registration `<pilet>:<id>` (`<pilet>:#<n>` from a counter when omitted, so a
+counter id never collides with one a pilet chooses; a pilet registering the same id twice for one hook is
+refused). `options.before` and `options.after` list other registrations by that name, and the shell's
+own handlers are `shell:<id>`; a pilet cannot be named `shell`. Handlers run in that constrained order;
+where the constraints leave a choice, the shell's handlers come first, then pilets in feed order, then
+registration order. A `before` or `after` naming nothing registered is ignored. A cycle is logged naming
+the pilets whose handlers form it; every constraint outside it still holds, and the handlers it leaves
+unordered (the cycle's, and any constrained to follow them) run after the rest, in feed order.
 
 ### Failures
 
-Every handler runs on its own. An `updateX` handler that throws, or returns a promise (an update cannot
-be awaited), is logged with its pilet's name and the previous value passes on to the next handler. An
+Every handler runs on its own. An `updateX` handler that throws, returns a promise (an update cannot
+be awaited) or returns `undefined` is logged with its pilet's name and the previous value passes on to the next handler. An
 `onBeforeX` handler that throws is logged and cancels, and the error reaches the caller: a form shows
 its message. An `onAfterX` handler that throws or rejects is logged. The legacy Injector let a throwing
 transformation break the whole form.
@@ -514,6 +583,7 @@ React.useEffect(() => piral.setSectionHeader({ title, backTo: '/pages/', backLab
 | Field | |
 |---|---|
 | `title: string` | Rendered as the page's `h1`, so a page that sets a header renders no `h1` of its own |
+| `badge?: string` | A short label drawn beside the title, such as a block's type; it is the title's accessible description |
 | `crumbs?: {label, to}[]` | The page's ancestors, nearest last, as router paths. Drawn above the title as a `nav` named "Breadcrumb" holding an ordered list of links, each followed by a " / " the list hides from screen readers. The page itself is the `title` only, never a crumb. Pass what is known and set the header again as more loads (a deep link before its tree has the ancestors) |
 | `backTo?: string` | A router path; the last crumb's when omitted, and no back button without either |
 | `backLabel?: string` | The back button's accessible name: "Back to <last crumb label>" when back falls to the last crumb, "Back" otherwise |
@@ -631,6 +701,8 @@ used at runtime and its stylesheet is loaded by the shell, so pilets ship neithe
 
 - The shell and pilet builds read the `browserslist` in the fork root `package.json`; building a copy
   outside the fork tree produces different output.
+- A pilet's `tsconfig.json` needs `skipLibCheck: true`: the emulator's declaration file is generated and
+  does not check cleanly on its own.
 - `npm install`/`npm ci` in `client/shell` installs and builds `client/patterns` first (preinstall),
   because the `piral declaration` postinstall needs its built types.
 - `npm run build`, `build:emulator` and `typecheck` build `client/patterns` first. The emulator lists the

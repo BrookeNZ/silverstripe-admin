@@ -4,7 +4,7 @@
  * `useServerMutation`, and the imperative loaders (search-as-you-type, the tree dropdown's lazy levels)
  * through `fetchJson`, which sends the admin XHR headers and the CSRF token on anything but a GET.
  */
-import type { PiletApi } from '@silverstripe/admin-shell';
+import type { PiletApi, ServerRequestError } from '@silverstripe/admin-shell';
 
 export const CSRF_HEADER = 'X-SecurityID';
 
@@ -23,8 +23,12 @@ export function serverCache(): ServerCache {
   return connected;
 }
 
+/** The shell's request failure; pilets get its type but not its class, so it is recognised by name */
+export function isServerRequestError(error: unknown): error is ServerRequestError {
+  return error instanceof Error && error.name === 'ServerRequestError';
+}
+
 /** The status of a failed request, which the shell's fetch puts on its error */
 export function failedStatus(error: unknown): number | null {
-  const status = (error as { status?: unknown } | null)?.status;
-  return typeof status === 'number' ? status : null;
+  return isServerRequestError(error) ? error.status : null;
 }

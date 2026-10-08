@@ -4,18 +4,20 @@
  * `api.recordsChangedEvent` instead of importing this module.
  */
 
-/** Emitted after a save, publish, delete or other change to records; a view listing them re-reads them */
-export const recordsChangedEvent = 'silverstripe:records-changed';
+// Spelled out rather than `typeof recordsChangedEvent`, so the emulator's declarations name no runtime value
+export type RecordsChangedEventName = 'silverstripe:records-changed';
 
-export type RecordsChangedEventName = typeof recordsChangedEvent;
+/** Emitted after a save, publish, delete or other change to records; a view listing them re-reads them */
+export const recordsChangedEvent: RecordsChangedEventName = 'silverstripe:records-changed';
 
 export interface RecordsChangedEvent {
   recordClass: string;
+  /** Numbers; an empty list names every record of the class */
   ids: Array<number>;
 }
 
 declare module 'piral-core/lib/types/custom' {
   interface PiralCustomEventMap {
-    [recordsChangedEvent]: RecordsChangedEvent;
+    'silverstripe:records-changed': RecordsChangedEvent;
   }
 }

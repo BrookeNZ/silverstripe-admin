@@ -97,6 +97,14 @@ describe('UploadField', () => {
     expect(root.querySelector('.upload-field__dropzone')).toBeNull();
   });
 
+  it('loads the thumbnail lazily, as decoration, so a closed tab does not fetch it', () => {
+    const root = render(<Harness initial={{ Files: [5] }} schema={field({ files: [existing] })} />);
+    const img = root.querySelector('.upload-field__file img')!;
+    expect(img.getAttribute('loading')).toBe('lazy');
+    expect(img.getAttribute('decoding')).toBe('async');
+    expect(img.getAttribute('alt')).toBe('');
+  });
+
   it('uploads a chosen file to the field endpoint, busy while it runs, and posts its id', async () => {
     let finish: (file: any) => void = () => undefined;
     upload.mockImplementation((_url, _file, _token, onProgress) => {

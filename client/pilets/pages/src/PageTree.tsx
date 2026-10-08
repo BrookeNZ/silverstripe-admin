@@ -12,7 +12,9 @@
  * from the keyboard on any focused row with Control+Shift+D, then the arrow keys, Enter to drop and Escape
  * to cancel, announced through a status region. A drop is offered only where move.ts's rules allow it, and
  * between siblings only when the parent's children are all loaded, since the server renumbers the siblings
- * it is sent. The row moves at once and goes back if the server refuses.
+ * it is sent. The row moves at once and goes back if the server refuses. Those rules (the move hints) are
+ * fetched when the pointer first enters the tree or the tree first takes focus, not with the page, and the
+ * handle shows only once they have arrived.
  */
 import * as React from 'react';
 import {
@@ -206,24 +208,40 @@ export const PageTree = ({
   const moveClient = mover?.client;
   const [loadedHints, setLoadedHints] = React.useState<{ client: MoveApi; hints: MoveHints } | null>(null);
   const hints = loadedHints && loadedHints.client === moveClient ? loadedHints.hints : null;
-  React.useEffect(() => {
-    if (!moveClient) {
-      return undefined;
+  const hintsRequestedFor = React.useRef<MoveApi | null>(null);
+  // A keyboard drag needs a drop target to start, so one begun before the hints arrive is started again with them
+  const keyboardDragAwaitingHints = React.useRef<Array<ItemInstance<TreeEntry>> | null>(null);
+  // Deferred until the member reaches for the tree, so a page load does not wait on them; until they arrive nothing is a drop target
+  const requestHints = () => {
+    const client = moveClient;
+    if (!client || hints || hintsRequestedFor.current === client) {
+      return;
     }
-    let cancelled = false;
-    moveClient
+    hintsRequestedFor.current = client;
+    client
       .hints()
-      .then((loaded) => !cancelled && setLoadedHints({ client: moveClient, hints: loaded }))
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [moveClient]);
-  const dragEnabled = Boolean(mover && hints?.canOrganise) && !dragDisabled;
+      .then((loaded) => setLoadedHints({ client, hints: loaded }))
+      .catch(() => {
+        if (hintsRequestedFor.current === client) {
+          hintsRequestedFor.current = null;
+        }
+        if (keyboardDragAwaitingHints.current) {
+          keyboardDragAwaitingHints.current = null;
+          tree.stopKeyboardDrag();
+        }
+      });
+  };
+  const dragEnabled = Boolean(mover) && (hints === null || hints.canOrganise) && !dragDisabled;
+  // A drag begun before the hints load may start on any page the member can edit; the hints then narrow it
+  const canDragNode = (node: PageNode) => (hints ? canDragPage(hints, node) : node.canEdit);
 
   const canDrag = (items: Array<ItemInstance<TreeEntry>>) => {
     const node = pageOf(items[0]);
-    return dragEnabled && items.length === 1 && node !== null && canDragPage(hints, node);
+    if (!dragEnabled || items.length !== 1 || node === null || !canDragNode(node)) {
+      return false;
+    }
+    requestHints();
+    return true;
   };
 
   const canDrop = (items: Array<ItemInstance<TreeEntry>>, target: DragTarget<TreeEntry>) => {
@@ -295,8 +313,26 @@ export const PageTree = ({
     canDrag,
     canDrop,
     onDrop: drop,
+    onStartKeyboardDrag: (dragged) => {
+      if (!hints) {
+        keyboardDragAwaitingHints.current = dragged;
+      }
+    },
     features: [syncDataLoaderFeature, hotkeysCoreFeature, dragAndDropFeature, keyboardDragAndDropFeature],
   });
+
+  React.useEffect(() => {
+    const awaiting = keyboardDragAwaitingHints.current;
+    if (hints && awaiting) {
+      keyboardDragAwaitingHints.current = null;
+      // A refused restart leaves the first start's drag state behind, so the tree would stay in drag mode
+      if (tree.getConfig().canDrag?.(awaiting) === false) {
+        tree.stopKeyboardDrag();
+      } else {
+        tree.startKeyboardDrag(awaiting);
+      }
+    }
+  }, [hints, tree]);
 
   React.useEffect(
     () =>
@@ -411,7 +447,14 @@ export const PageTree = ({
 
   return (
     <>
-      <div {...containerProps} ref={setContainer} className="pages-tree" hidden={hidden}>
+      <div
+        {...containerProps}
+        ref={setContainer}
+        className="pages-tree"
+        hidden={hidden}
+        onPointerEnter={requestHints}
+        onFocus={requestHints}
+      >
         {/* Inline custom properties carry measured positions and levels; the stylesheet does the styling */}
         <div
           className="pages-tree__canvas"
@@ -462,7 +505,7 @@ export const PageTree = ({
               >
                 <TreeRowContent
                   item={item}
-                  showHandle={current && entry.kind === 'page' && dragEnabled && canDragPage(hints, entry.node)}
+                  showHandle={current && entry.kind === 'page' && hints !== null && dragEnabled && canDragPage(hints, entry.node)}
                   rowStart={rowStart}
                 />
               </div>

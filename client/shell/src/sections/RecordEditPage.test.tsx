@@ -182,7 +182,7 @@ function serve(post: (url: string, body: URLSearchParams) => Response) {
         posts.push({ url, body });
         return post(url, body);
       }
-      const id = /item\/(new|\d+)\/schema$/.exec(url)?.[1];
+      const id = /item\/(new|\d+)\/schema\?formSchema=1$/.exec(url)?.[1];
       return id ? json(schemaResponse(id, id === 'new' ? null : `Note ${id}`)) : json({}, 404);
     }),
   );

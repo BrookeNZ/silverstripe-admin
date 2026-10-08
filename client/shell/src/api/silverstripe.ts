@@ -12,9 +12,9 @@ import type { SilverstripeClientConfig } from '../silverstripe';
 import { clearSectionHeaderOf, setSectionHeader } from '../header/state';
 import type { SectionHeader } from '../header/state';
 import { clearUnsavedChangesOf, hasUnsavedChanges, setUnsavedChanges } from '../unsaved';
-import { clearHooksOf, hookKind, registerHook, runAfterHook, runBeforeHook, runUpdateHook, setHookFeedOrder } from '../hooks/registry';
+import { clearHooksOf, hookKind, registerHook, runAfterHook, runBeforeHook, runUpdateHook, setHookFeedOrder, shellHookOwner } from '../hooks/registry';
 import type { HookKind } from '../hooks/registry';
-import type { HookContext, HookHandler, HookOptions, HookPoints, HookValue } from '../hooks/types';
+import type { AfterHookName, BeforeHookName, HookContext, HookHandler, HookOptions, HookPoints, HookValue, UpdateHookName } from '../hooks/types';
 import { sectionIconSlotName } from '../menu/sectionIcons';
 import { sectionSidebarSlotName } from '../header/SectionSidebar';
 import type { SectionSidebarSlotProps } from '../header/SectionSidebar';
@@ -45,13 +45,14 @@ import type {
   ServerQueryOptions,
   ServerQueryResult,
 } from '../state/serverCache';
-import type { ServerRequest, ServerRequestError, ServerRequestInit, ServerRequestMethod } from '../state/serverRequest';
+import type { ServerRequest, ServerRequestInit, ServerRequestMethod } from '../state/serverRequest';
+import type { ServerRequestError, ServerRequestErrorShape } from '../state/errorTypes';
 import type { FieldComponentProps, SchemaFormDialogProps } from '../forms/types';
 import type { FormSchemaFormProps } from '../forms/FormSchemaForm';
 import type { AddNewButtonProps } from '../grid/AddNewButton';
 import type { GridCellProps } from '../grid/types';
 
-export type { HookContext, HookHandler, HookOptions, HookPoints, HookValue };
+export type { AfterHookName, BeforeHookName, HookContext, HookHandler, HookOptions, HookPoints, HookValue, UpdateHookName };
 export type { CurrentRecord, MenuItemRegistration, RecordsChangedEvent, RecordsChangedEventName, SharedState, SharedStateListener, SharedStateSelector, SharedToast };
 export type {
   ServerMutation,
@@ -65,6 +66,7 @@ export type {
   ServerQueryResult,
   ServerRequest,
   ServerRequestError,
+  ServerRequestErrorShape,
   ServerRequestInit,
   ServerRequestMethod,
 };
@@ -88,12 +90,18 @@ export interface SilverstripeComponents {
   CheckboxField: FieldComponentProps;
   SingleSelectField: FieldComponentProps;
   OptionsetField: FieldComponentProps;
+  DateField: FieldComponentProps;
   DatetimeField: FieldComponentProps;
+  ListboxField: FieldComponentProps;
   ReadonlyField: FieldComponentProps;
+  LookupField: FieldComponentProps;
+  HtmlReadonlyField: FieldComponentProps;
   LiteralField: FieldComponentProps;
   HeaderField: FieldComponentProps;
+  LabelField: FieldComponentProps;
   CompositeField: FieldComponentProps;
   FieldGroup: FieldComponentProps;
+  ProportionConstraintField: FieldComponentProps;
   'SilverStripe\\Forms\\ToggleCompositeField': FieldComponentProps;
   Tabs: FieldComponentProps;
   TabItem: FieldComponentProps;
@@ -129,6 +137,7 @@ export interface SilverstripeApi {
    * way to add a menu link, with the pilet's own markup; prefer `registerMenuItem`
    */
   registerExtensionComponent: (name: string, slot: string, Component: AnyExtensionComponent<string>) => Disposable;
+  /** A deep-frozen copy of `window.ss.config` taken at first use; `fetchJson` reads the CSRF token live instead */
   getConfig: () => Readonly<SilverstripeClientConfig>;
   /**
    * Reports whether something this pilet owns (a form, an editor) has unsaved changes, which makes the
@@ -151,11 +160,11 @@ export interface SilverstripeApi {
    * Runs a hook point the pilet owns: every handler, the shell's first, then pilets in feed order, each
    * returning the value the next one gets. A pilet declares the value and context by augmenting `HookPoints`
    */
-  runUpdateHook: <N extends `update${string}`>(name: N, value: HookValue<N>, context: HookContext<N>) => HookValue<N>;
+  runUpdateHook: <N extends UpdateHookName>(name: N, value: HookValue<N>, context: HookContext<N>) => HookValue<N>;
   /** Resolves false as soon as a handler cancels; a handler that throws rejects with its error */
-  runBeforeHook: <N extends `onBefore${string}`>(name: N, context: HookContext<N>) => Promise<boolean>;
-  /** Tells every handler; their errors are logged, not thrown */
-  runAfterHook: <N extends `onAfter${string}`>(name: N, context: HookContext<N>) => void;
+  runBeforeHook: <N extends BeforeHookName>(name: N, context: HookContext<N>) => Promise<boolean>;
+  /** Tells every handler; their errors are logged, not thrown, and async handlers are not awaited */
+  runAfterHook: <N extends AfterHookName>(name: N, context: HookContext<N>) => void;
   /**
    * Draws `Icon` beside the section's menu item in place of the icon its legacy `menu_icon_class`
    * picks. `sectionCode` is the menu item's code: the controller class with hyphens for backslashes
@@ -190,7 +199,8 @@ export interface SilverstripeApi {
   readonly recordsChangedEvent: RecordsChangedEventName;
   /**
    * The shell router's path for a server link under the admin URL (`admin/pages/edit/show/7` becomes
-   * `/pages/edit/show/7`), or null for a link that leaves the admin and needs a page load
+   * `/pages/edit/show/7`), keeping its query and hash; the bare admin URL gives `/`. Null for another
+   * origin or a link outside the admin, which needs a page load
    */
   routerPath: (url: string) => string | null;
 }
@@ -268,86 +278,91 @@ export function createSilverstripeApi(): PiralPlugin<SilverstripeApi> {
       subscriptions.delete(name);
     });
 
-    return (api, meta) => ({
-      registerSilverstripeComponent<K extends string, P extends object>(name: K, Component: SilverstripeComponent<SilverstripeComponentProps<K, P>>) {
-        const slot = componentSlotName(name);
-        const existing = context.readState((state) => state.registry.extensions[slot] ?? []);
-        if (existing.length > 0) {
-          console.info(`Silverstripe component "${name}" is overridden; the latest registration is used`);
-        }
-        const Registered = ({ params }: { params: Record<string, unknown> }) => React.createElement(Component as ComponentType<object>, params);
-        return api.registerExtension(slot, Object.assign(Registered, { fullWidth: isFullWidth(Component) }));
-      },
-      getSilverstripeComponent<K extends string>(name: K) {
-        const Resolved = silverstripeComponent<SilverstripeComponentProps<K>>(name);
-        if (!Object.prototype.hasOwnProperty.call(Resolved, 'fullWidth')) {
-          // Read at access time, so a decorator copying the flag gets the current registration's answer
-          Object.defineProperty(Resolved, 'fullWidth', {
-            get: () => {
-              const registrations = context.readState((state) => state.registry.extensions[componentSlotName(name)] ?? []);
-              return isFullWidth(registrations[registrations.length - 1]?.reference);
-            },
-          });
-        }
-        return Resolved;
-      },
-      registerExtensionComponent(name, slot, Component) {
-        return api.registerExtension(extensionSlotName(name, slot), Component);
-      },
-      getConfig() {
-        return sharedConfig();
-      },
-      setUnsavedChanges(key, dirty) {
-        return setUnsavedChanges(context, meta.name, key, dirty);
-      },
-      hasUnsavedChanges() {
-        return hasUnsavedChanges(context);
-      },
-      setSectionHeader(header) {
-        return setSectionHeader(context, meta.name, header);
-      },
-      registerHook(name, handler, options) {
-        return registerHook(meta.name, name, handler, options);
-      },
-      runUpdateHook(name, value, context) {
-        return runUpdateHook(requireKind(name, 'update'), value, context);
-      },
-      runBeforeHook(name, context) {
-        return runBeforeHook(requireKind(name, 'onBefore'), context);
-      },
-      runAfterHook(name, context) {
-        runAfterHook(requireKind(name, 'onAfter'), context);
-      },
-      registerSectionIcon(sectionCode, Icon) {
-        return api.registerExtension(sectionIconSlotName(sectionCode), () => React.createElement(Icon));
-      },
-      registerSectionSidebar(sectionCode, Sidebar) {
-        return api.registerExtension(sectionSidebarSlotName(sectionCode), ({ params }) =>
-          React.createElement(Sidebar, params as SectionSidebarSlotProps),
-        );
-      },
-      registerMenuItem(item) {
-        return api.registerExtension(menuItemSlot, menuItemReference(item));
-      },
-      useSharedState,
-      subscribeSharedState(selector, listener) {
-        const owned = subscriptions.get(meta.name) ?? new Set<Disposable>();
-        subscriptions.set(meta.name, owned);
-        const unsubscribe = subscribeSharedState(context, selector, listener);
-        const dispose = () => {
-          unsubscribe();
-          owned.delete(dispose);
-        };
-        owned.add(dispose);
-        return dispose;
-      },
-      setCurrentRecord(record) {
-        return setCurrentRecord(context, meta.name, record);
-      },
-      recordsChangedEvent,
-      routerPath(url) {
-        return routerPath(url, sharedConfig().adminUrl);
-      },
-    });
+    return (api, meta) => {
+      if (meta.name === shellHookOwner) {
+        throw new Error(`A pilet cannot be named "${shellHookOwner}": the name is the shell's own in hook order and ownership`);
+      }
+      return {
+        registerSilverstripeComponent<K extends string, P extends object>(name: K, Component: SilverstripeComponent<SilverstripeComponentProps<K, P>>) {
+          const slot = componentSlotName(name);
+          const existing = context.readState((state) => state.registry.extensions[slot] ?? []);
+          if (existing.length > 0) {
+            console.info(`Silverstripe component "${name}" is overridden; the latest registration is used`);
+          }
+          const Registered = ({ params }: { params: Record<string, unknown> }) => React.createElement(Component as ComponentType<object>, params);
+          return api.registerExtension(slot, Object.assign(Registered, { fullWidth: isFullWidth(Component) }));
+        },
+        getSilverstripeComponent<K extends string>(name: K) {
+          const Resolved = silverstripeComponent<SilverstripeComponentProps<K>>(name);
+          if (!Object.prototype.hasOwnProperty.call(Resolved, 'fullWidth')) {
+            // Read at access time, so a decorator copying the flag gets the current registration's answer
+            Object.defineProperty(Resolved, 'fullWidth', {
+              get: () => {
+                const registrations = context.readState((state) => state.registry.extensions[componentSlotName(name)] ?? []);
+                return isFullWidth(registrations[registrations.length - 1]?.reference);
+              },
+            });
+          }
+          return Resolved;
+        },
+        registerExtensionComponent(name, slot, Component) {
+          return api.registerExtension(extensionSlotName(name, slot), Component);
+        },
+        getConfig() {
+          return sharedConfig();
+        },
+        setUnsavedChanges(key, dirty) {
+          return setUnsavedChanges(context, meta.name, key, dirty);
+        },
+        hasUnsavedChanges() {
+          return hasUnsavedChanges(context);
+        },
+        setSectionHeader(header) {
+          return setSectionHeader(context, meta.name, header);
+        },
+        registerHook(name, handler, options) {
+          return registerHook(meta.name, name, handler, options);
+        },
+        runUpdateHook(name, value, context) {
+          return runUpdateHook(requireKind(name, 'update'), value, context);
+        },
+        runBeforeHook(name, context) {
+          return runBeforeHook(requireKind(name, 'onBefore'), context);
+        },
+        runAfterHook(name, context) {
+          runAfterHook(requireKind(name, 'onAfter'), context);
+        },
+        registerSectionIcon(sectionCode, Icon) {
+          return api.registerExtension(sectionIconSlotName(sectionCode), () => React.createElement(Icon));
+        },
+        registerSectionSidebar(sectionCode, Sidebar) {
+          return api.registerExtension(sectionSidebarSlotName(sectionCode), ({ params }) =>
+            React.createElement(Sidebar, params as SectionSidebarSlotProps),
+          );
+        },
+        registerMenuItem(item) {
+          return api.registerExtension(menuItemSlot, menuItemReference(item));
+        },
+        useSharedState,
+        subscribeSharedState(selector, listener) {
+          const owned = subscriptions.get(meta.name) ?? new Set<Disposable>();
+          subscriptions.set(meta.name, owned);
+          const unsubscribe = subscribeSharedState(context, selector, listener);
+          const dispose = () => {
+            unsubscribe();
+            owned.delete(dispose);
+          };
+          owned.add(dispose);
+          return dispose;
+        },
+        setCurrentRecord(record) {
+          return setCurrentRecord(context, meta.name, record);
+        },
+        recordsChangedEvent,
+        routerPath(url) {
+          return routerPath(url, sharedConfig().adminUrl);
+        },
+      };
+    };
   };
 }

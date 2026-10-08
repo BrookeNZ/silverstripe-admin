@@ -5,20 +5,25 @@
  *
  * Order: `before`/`after` constraints first (a topological sort), then the owner's place in the feed
  * (the shell ahead of every pilet), then registration order. A cycle in the constraints is logged with
- * the pilets involved and the handlers run in feed order instead.
+ * the pilets in it; the handlers it leaves unordered run after the rest, in feed order.
  *
- * Every handler runs in isolation. An `updateX` handler that throws (or returns a promise, which an
- * update cannot wait for) is logged and the previous value passes on; in development builds each
- * handler gets a deep-frozen copy of its input, so a handler that mutates instead of returning fails
- * loudly there. An `onBeforeX` handler that throws is logged and the error rejects the run, which
- * cancels whatever was about to happen and lets the caller show why. `onAfterX` errors are logged.
+ * Every handler runs in isolation. An `updateX` handler that throws, returns a promise (which an
+ * update cannot wait for) or returns undefined is logged and the previous value passes on; in
+ * development builds each handler gets deep-frozen copies of the plain objects and arrays in its value
+ * and context, so a handler that mutates instead of returning fails loudly there. An `onBeforeX`
+ * handler that throws is logged and the error rejects the run, which cancels whatever was about to
+ * happen and lets the caller show why. `onAfterX` errors are logged.
+ *
+ * A handler that runs the update or after hook it belongs to is not run again: the inner run warns and
+ * hands back the value it was given. Before hooks are left out because they are awaited, so two runs of
+ * one may overlap legitimately (two forms saving).
  *
  * The registry is module state rather than Piral global state, so shell components can run hooks
  * without a Piral context; the Pilet API plugin supplies the feed order and clears a pilet's handlers
  * when it unloads.
  */
 import * as React from 'react';
-import type { HookContext, HookHandler, HookOptions, HookValue } from './types';
+import type { AfterHookName, BeforeHookName, HookContext, HookHandler, HookOptions, HookValue, UpdateHookName } from './types';
 
 export type HookKind = 'update' | 'onBefore' | 'onAfter';
 
@@ -38,6 +43,7 @@ export interface HookRegistration {
 
 const registrations = new Map<string, ReadonlyArray<HookRegistration>>();
 const listeners = new Set<() => void>();
+const running = new Map<string, number>();
 const orderCache = new Map<string, { source: ReadonlyArray<HookRegistration>; feed: ReadonlyArray<string>; ordered: ReadonlyArray<HookRegistration> }>();
 const noRegistrations: ReadonlyArray<HookRegistration> = [];
 const noPilets: ReadonlyArray<string> = [];
@@ -66,6 +72,7 @@ function store(name: string, list: ReadonlyArray<HookRegistration>): void {
     registrations.set(name, list);
   } else {
     registrations.delete(name);
+    orderCache.delete(name);
   }
 }
 
@@ -74,7 +81,8 @@ export function registerHook<N extends string>(owner: string, name: N, handler: 
     throw new Error(`Hook "${name}" from "${owner}" is not an updateX, onBeforeX or onAfterX name`);
   }
   sequence += 1;
-  const key = `${owner}:${options.id ?? sequence}`;
+  // The `#` keeps a counter id apart from any id a pilet chooses, numeric ones included
+  const key = `${owner}:${options.id ?? `#${sequence}`}`;
   const existing = registrations.get(name) ?? noRegistrations;
   if (existing.some((registration) => registration.key === key)) {
     throw new Error(`Hook "${name}" already has a handler registered as "${key}"`);
@@ -115,6 +123,7 @@ export function clearHooksOf(owner: string): void {
 export function resetHooks(): void {
   registrations.clear();
   orderCache.clear();
+  running.clear();
   readFeedOrder = () => noPilets;
   notify();
 }
@@ -168,11 +177,29 @@ function settleOrder(name: string, list: ReadonlyArray<HookRegistration>, feed: 
   if (ordered.length === base.length) {
     return ordered;
   }
-  const looped = [...new Set(base.filter((registration) => !ordered.includes(registration)).map((registration) => registration.owner))];
+  const unordered = base.filter((registration) => !ordered.includes(registration));
+  const inCycle = unordered.filter((registration) => reachesItself(registration, following));
+  const looped = [...new Set(inCycle.map((registration) => registration.owner))];
   console.warn(
-    `The before and after options of hook "${name}" form a cycle between ${looped.map((owner) => `"${owner}"`).join(', ')}; its handlers run in feed order`,
+    `The before and after options of hook "${name}" form a cycle between ${looped.map((owner) => `"${owner}"`).join(', ')}; the handlers it leaves unordered run last, in feed order`,
   );
-  return base;
+  return [...ordered, ...unordered];
+}
+
+function reachesItself(start: HookRegistration, following: Map<HookRegistration, Array<HookRegistration>>): boolean {
+  const seen = new Set<HookRegistration>();
+  const pending = [...following.get(start)!];
+  while (pending.length > 0) {
+    const next = pending.pop()!;
+    if (next === start) {
+      return true;
+    }
+    if (!seen.has(next)) {
+      seen.add(next);
+      pending.push(...following.get(next)!);
+    }
+  }
+  return false;
 }
 
 /** The handlers of a hook in the order they run; the same array until a registration or the feed changes */
@@ -202,19 +229,45 @@ function isPlain(value: unknown): value is Record<string, unknown> | Array<unkno
   return prototype === Object.prototype || prototype === null;
 }
 
-// A copy, because the input may be state the shell or the form library still mutates
+const frozenCopies = new WeakSet<object>();
+
+// A copy, because the input may be state the shell or the form library still mutates. A frozen input is
+// copied too, since its children may not be; only a copy made here is known to be frozen all the way down
 function frozenCopy<T>(value: T): T {
-  if (!isPlain(value) || Object.isFrozen(value)) {
+  if (!isPlain(value) || frozenCopies.has(value)) {
     return value;
   }
+  let copy: object;
   if (Array.isArray(value)) {
-    return Object.freeze(value.map(frozenCopy)) as T;
+    copy = Object.freeze(value.map(frozenCopy));
+  } else {
+    const entries: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(value)) {
+      entries[key] = frozenCopy(entry);
+    }
+    copy = Object.freeze(entries);
   }
-  const copy: Record<string, unknown> = {};
-  for (const [key, entry] of Object.entries(value)) {
-    copy[key] = frozenCopy(entry);
+  frozenCopies.add(copy);
+  return copy as T;
+}
+
+function isolated<T>(value: T): T {
+  return freezeInputs ? frozenCopy(value) : value;
+}
+
+/** Runs `run` unless `name` is already running further up the stack, in which case `reentered` answers */
+function guarded<R>(name: string, run: () => R, reentered: () => R): R {
+  const depth = running.get(name) ?? 0;
+  if (depth > 0) {
+    console.warn(`Hook "${name}" was run by one of its own handlers; the inner run is skipped`);
+    return reentered();
   }
-  return Object.freeze(copy) as T;
+  running.set(name, depth + 1);
+  try {
+    return run();
+  } finally {
+    running.delete(name);
+  }
 }
 
 function isThenable(value: unknown): value is PromiseLike<unknown> {
@@ -226,19 +279,32 @@ function logFailure(name: string, registration: HookRegistration, error: unknown
 }
 
 function applyUpdates<V>(name: string, handlers: ReadonlyArray<HookRegistration>, value: V, context: unknown): V {
-  let current = value;
-  for (const registration of handlers) {
-    try {
-      const next = registration.handler(freezeInputs ? frozenCopy(current) : current, context);
-      if (isThenable(next)) {
-        throw new Error('an update handler must return its value, not a promise');
-      }
-      current = next as V;
-    } catch (error) {
-      logFailure(name, registration, error, 'the previous value passes on');
-    }
+  if (handlers.length === 0) {
+    return value;
   }
-  return current;
+  return guarded(
+    name,
+    () => {
+      const given = isolated(context);
+      let current = value;
+      for (const registration of handlers) {
+        try {
+          const next = registration.handler(isolated(current), given);
+          if (isThenable(next)) {
+            throw new Error('an update handler must return its value, not a promise');
+          }
+          if (next === undefined) {
+            throw new Error('an update handler must return its value, not undefined');
+          }
+          current = next as V;
+        } catch (error) {
+          logFailure(name, registration, error, 'the previous value passes on');
+        }
+      }
+      return current;
+    },
+    () => value,
+  );
 }
 
 export function runUpdateHook<N extends string>(name: N, value: HookValue<N>, context: HookContext<N>): HookValue<N> {
@@ -247,9 +313,11 @@ export function runUpdateHook<N extends string>(name: N, value: HookValue<N>, co
 
 /** Whether to go ahead: false as soon as a handler resolves false. A thrown error is logged and rejects */
 export async function runBeforeHook<N extends string>(name: N, context: HookContext<N>): Promise<boolean> {
-  for (const registration of orderedHooks(name)) {
+  const handlers = orderedHooks(name);
+  const given = handlers.length > 0 ? isolated(context) : context;
+  for (const registration of handlers) {
     try {
-      if ((await registration.handler(context)) === false) {
+      if ((await registration.handler(given)) === false) {
         return false;
       }
     } catch (error) {
@@ -260,26 +328,34 @@ export async function runBeforeHook<N extends string>(name: N, context: HookCont
   return true;
 }
 
+/** Async handlers are not awaited, so they settle in their own time and order */
 export function runAfterHook<N extends string>(name: N, context: HookContext<N>): void {
-  for (const registration of orderedHooks(name)) {
-    try {
-      const result = registration.handler(context);
-      if (isThenable(result)) {
-        Promise.resolve(result).catch((error) => logFailure(name, registration, error, 'ignored'));
-      }
-    } catch (error) {
-      logFailure(name, registration, error, 'ignored');
-    }
+  const handlers = orderedHooks(name);
+  if (handlers.length === 0) {
+    return;
   }
+  guarded(
+    name,
+    () => {
+      const given = isolated(context);
+      for (const registration of handlers) {
+        try {
+          const result = registration.handler(given);
+          if (isThenable(result)) {
+            Promise.resolve(result).catch((error) => logFailure(name, registration, error, 'ignored'));
+          }
+        } catch (error) {
+          logFailure(name, registration, error, 'ignored');
+        }
+      }
+    },
+    () => undefined,
+  );
 }
 
-type HookRunArguments<N extends string> = N extends `update${string}` ? [value: HookValue<N>, context: HookContext<N>] : [context: HookContext<N>];
+type HookRunArguments<N extends string> = N extends UpdateHookName ? [value: HookValue<N>, context: HookContext<N>] : [context: HookContext<N>];
 
-type HookRunResult<N extends string> = N extends `update${string}`
-  ? HookValue<N>
-  : N extends `onBefore${string}`
-    ? Promise<boolean>
-    : void;
+type HookRunResult<N extends string> = N extends UpdateHookName ? HookValue<N> : N extends BeforeHookName ? Promise<boolean> : N extends AfterHookName ? void : never;
 
 /** Runs a hook of any kind, decided by its name */
 export function runHook<N extends string>(name: N, ...args: HookRunArguments<N>): HookRunResult<N> {

@@ -17,5 +17,7 @@ class PiralShellController extends LeftAndMain
 
     private static bool $skip_permission_generation = true;
 
+    private static bool $piral_section_form_preload = false;
+
     private static string|array $required_permission_codes = 'CMS_ACCESS_LeftAndMain';
 }

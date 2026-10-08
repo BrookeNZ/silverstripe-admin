@@ -1,6 +1,7 @@
 /**
- * The area's blocks, read through the shell's server cache under `['blocks', areaId]`, and the
- * records-changed announcement for blocks this area changed.
+ * The area's blocks, read through the shell's server cache under `['shared:blocks', areaId]`, and the
+ * records-changed announcement for blocks this area changed. The key is in the shared scope because
+ * `blocks` is reserved to the shell, and the shared scope keeps its every-change matching.
  *
  * The field's schema carries the same list as `data.blocks`, which seeds the first result. It counts as
  * fetched at mount, as the schema loaded just before, so a fresh mount makes no read and a remount after
@@ -45,7 +46,7 @@ export const SCHEMA_BLOCKS_FRESH_MS = 30_000;
 
 export function useBlockList({ api, client, types, pageClass, areaId, pageId, schemaBlocks }: BlockListOptions): BlockList {
   const [mountedAt] = React.useState(() => Date.now());
-  const query = api.useServerQuery(['blocks', areaId], ({ signal }) => client.readElements(areaId, signal), {
+  const query = api.useServerQuery(['shared:blocks', areaId], ({ signal }) => client.readElements(areaId, signal), {
     initialData: schemaBlocks ?? undefined,
     initialDataUpdatedAt: mountedAt,
     staleTime: SCHEMA_BLOCKS_FRESH_MS,

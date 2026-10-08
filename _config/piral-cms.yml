@@ -4,6 +4,7 @@ Only:
   moduleexists: silverstripe/cms
 ---
 SilverStripe\CMS\Controllers\CMSMain:
+  piral_section_form_preload: false
   extensions:
     - SilverStripe\Admin\UserInterface\CMSMain\EditFormSubmissionExtension
     - SilverStripe\Admin\UserInterface\CMSMain\ShellPreloadExtension

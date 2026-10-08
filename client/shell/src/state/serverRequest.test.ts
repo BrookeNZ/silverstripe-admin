@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetSharedConfig } from './sharedState';
-import { ServerRequestError, fetchJson, sessionExpiredMessage } from './serverRequest';
+import { ServerRequestError, fetchJson, isNetworkFailure, sessionExpiredMessage } from './serverRequest';
 
 const fetchMock = vi.fn<typeof fetch>();
 
@@ -40,7 +40,7 @@ describe('fetchJson', () => {
 
   it('sends the CSRF token and a JSON body on a write', async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
-    await expect(fetchJson('https://example.test/admin/api/revert', { method: 'POST', body: { id: 7 } })).resolves.toBeNull();
+    await expect(fetchJson('/admin/api/revert', { method: 'POST', body: { id: 7 } })).resolves.toBeNull();
 
     const { init, headers } = sent();
     expect(headers['X-SecurityID']).toBe('csrf-token');
@@ -86,6 +86,7 @@ describe('fetchJson', () => {
     fetchMock.mockResolvedValueOnce(new Response('', { status: 403, headers: { 'X-Reauthenticate': '1' } }));
     const redirected = json(200, {});
     Object.defineProperty(redirected, 'redirected', { value: true });
+    Object.defineProperty(redirected, 'url', { value: `${location.origin}/Security/login?BackURL=%2Fadmin%2Fapi%2Fread` });
     fetchMock.mockResolvedValueOnce(redirected);
 
     for (const expected of [401, 403, 401]) {
@@ -95,6 +96,32 @@ describe('fetchJson', () => {
         sessionExpired: true,
       });
     }
+  });
+
+  it('reads the login form under the configured base URL', async () => {
+    window.ss.config.baseUrl = '/site/';
+    const redirected = json(200, {});
+    Object.defineProperty(redirected, 'redirected', { value: true });
+    Object.defineProperty(redirected, 'url', { value: `${location.origin}/site/security/login` });
+    fetchMock.mockResolvedValueOnce(redirected);
+    await expect(fetchJson('/site/admin/api/read')).rejects.toMatchObject({ status: 401, sessionExpired: true });
+  });
+
+  it('marks a request that got no answer as a network failure, and nothing else', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    const unanswered = await fetchJson('/admin/api/read').catch((caught: unknown) => caught);
+    fetchMock.mockResolvedValueOnce(new Response('', { status: 500 }));
+    const failed = await fetchJson('/admin/api/read').catch((caught: unknown) => caught);
+
+    expect(unanswered).toBeInstanceOf(TypeError);
+    expect(isNetworkFailure(unanswered)).toBe(true);
+    expect(isNetworkFailure(failed)).toBe(false);
+    expect(isNetworkFailure(new TypeError('cannot read rows of undefined'))).toBe(false);
+  });
+
+  it('names its failures so a pilet can recognise them without the class', async () => {
+    fetchMock.mockResolvedValue(new Response('', { status: 404 }));
+    await expect(fetchJson('/admin/api/read')).rejects.toMatchObject({ name: 'ServerRequestError' });
   });
 
   it('rejects a success whose body is not JSON', async () => {

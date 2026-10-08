@@ -5,7 +5,7 @@
  * page is in move.ts. Every request goes through the shell's `fetchJson`, which sends the XHR and CSRF
  * headers and reports an ended session; its failures become an ApiError carrying the endpoint's reason.
  */
-import type { PiletApi } from '@silverstripe/admin-shell';
+import type { PiletApi, ServerRequestError } from '@silverstripe/admin-shell';
 
 export interface StatusFlag {
   key: string;
@@ -67,30 +67,21 @@ export class ApiError extends Error {
   }
 }
 
-/** Keeps what the shell's ServerRequestError carries; pilets see it only as a type, so it is read by shape */
+/** The shell's request failure; pilets get its type but not its class, so it is recognised by name */
+export function isServerRequestError(error: unknown): error is ServerRequestError {
+  return error instanceof Error && error.name === 'ServerRequestError';
+}
+
+/** Keeps what the shell's ServerRequestError carries; anything else is a request that got no answer */
 export function toApiError(error: unknown): ApiError {
   if (error instanceof ApiError) {
     return error;
   }
-  const { message, status, sessionExpired, reason, field } = (error ?? {}) as {
-    message?: unknown;
-    status?: unknown;
-    sessionExpired?: unknown;
-    reason?: unknown;
-    field?: unknown;
-  };
-  const text = typeof message === 'string' ? message : String(error);
-  if (typeof status !== 'number') {
-    return new ApiError(text, 0, 'network');
+  if (!isServerRequestError(error)) {
+    return new ApiError(error instanceof Error ? error.message : String(error), 0, 'network');
   }
-  const expired = sessionExpired === true;
-  return new ApiError(
-    text,
-    status,
-    typeof reason === 'string' ? reason : expired ? 'notLoggedIn' : 'http',
-    typeof field === 'string' ? field : null,
-    expired,
-  );
+  const { message, status, sessionExpired, reason, field } = error;
+  return new ApiError(message, status, reason ?? (sessionExpired ? 'notLoggedIn' : 'http'), field ?? null, sessionExpired);
 }
 
 /** The shell's `fetchJson` */

@@ -1,0 +1,19 @@
+---
+Name: adminpiralassets
+Only:
+  moduleexists: silverstripe/asset-admin
+---
+SilverStripe\AssetAdmin\Controller\AssetAdmin:
+  piral_section_form_preload: false
+  extensions:
+    - SilverStripe\Admin\UserInterface\AssetAdmin\ShellPreloadExtension
+---
+Name: adminpiralassetthumbnails
+After:
+  - '#assetadminthumbnails'
+Only:
+  moduleexists: silverstripe/asset-admin
+---
+SilverStripe\Core\Injector\Injector:
+  SilverStripe\AssetAdmin\Model\ThumbnailGenerator.assetadmin:
+    class: SilverStripe\Admin\UserInterface\AssetAdmin\ShellThumbnailGenerator

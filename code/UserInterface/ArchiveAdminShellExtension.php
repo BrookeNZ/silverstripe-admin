@@ -2,11 +2,18 @@
 
 namespace SilverStripe\Admin\UserInterface;
 
+use Psr\SimpleCache\CacheInterface;
 use SilverStripe\Admin\LeftAndMain;
 use SilverStripe\Control\Controller;
 use SilverStripe\Control\Director;
+use SilverStripe\Core\Cache\CacheFactory;
+use SilverStripe\Core\ClassInfo;
 use SilverStripe\Core\Extension;
+use SilverStripe\Core\Flushable;
+use SilverStripe\Core\Injector\Injector;
 use SilverStripe\Forms\Form;
+use SilverStripe\i18n\i18n;
+use SilverStripe\ORM\DataObject;
 use SilverStripe\VersionedAdmin\ArchiveAdmin;
 
 /**
@@ -21,32 +28,99 @@ use SilverStripe\VersionedAdmin\ArchiveAdmin;
  *
  * @extends Extension<ArchiveAdmin>
  */
-class ArchiveAdminShellExtension extends Extension
+class ArchiveAdminShellExtension extends Extension implements Flushable
 {
     // The schemaComponent the archive pilet registers
     public const TYPE_FIELD_COMPONENT = 'ArchiveTypeField';
 
-    protected function updateClientConfig(array &$clientConfig): void
-    {
-        $admin = $this->getOwner();
-        $clientConfig['modelTabs'] = [];
-        if (!$admin->canView()) {
-            return;
-        }
-        $mainClasses = array_keys($admin->getVersionedModels('main', true));
-        $otherClasses = array_keys($admin->getVersionedModels('other', true));
-        $requested = $this->requestedClass();
-        $otherClass = in_array($requested, $otherClasses, true) ? $requested : ($otherClasses[0] ?? null);
+    private const CACHE_NAMESPACE = 'ArchiveAdminShellTabs';
 
-        foreach ($admin->getManagedModelTabs() as $tab) {
-            $class = in_array($tab->ClassName, $mainClasses, true) ? $tab->ClassName : $otherClass;
+    /**
+     * The archive tabs read in this process, by cache key
+     */
+    private static array $memo = [];
+
+    public static function flush()
+    {
+        static::$memo = [];
+        static::cache()->clear();
+    }
+
+    /**
+     * Names the model tabs for ModelAdmin's client config; it runs only for a member who can view the section
+     */
+    protected function updateShellModelTabs(?array &$tabs): void
+    {
+        $archive = $this->getArchiveTabs();
+        $requested = $this->requestedClass();
+        $otherClass = in_array($requested, $archive['otherClasses'], true) ? $requested : ($archive['otherClasses'][0] ?? null);
+
+        $tabs = [];
+        foreach ($archive['tabs'] as ['class' => $tabClass, 'title' => $title]) {
+            $class = in_array($tabClass, $archive['mainClasses'], true) ? $tabClass : $otherClass;
             if ($class) {
-                $clientConfig['modelTabs'][] = [
-                    'tab' => str_replace('\\', '-', $class),
-                    'title' => $tab->Title,
-                ];
+                $tabs[] = ['tab' => str_replace('\\', '-', $class), 'title' => $title];
             }
         }
+    }
+
+    /**
+     * The archive's main and other classes and its tabs, which ArchiveAdmin rebuilds from every DataObject class on
+     * each call. Cached per admin class and locale, and per class list as RecordClassAncestry keys its map, so a
+     * new class or a flush rebuilds them. The tabs do not depend on the member: `canView` runs before the hook and
+     * is not cached
+     *
+     * @return array{mainClasses: list<string>, otherClasses: list<string>, tabs: list<array{class: string, title: string}>}
+     */
+    public function getArchiveTabs(): array
+    {
+        $key = $this->archiveTabsKey();
+        if (isset(static::$memo[$key])) {
+            return static::$memo[$key];
+        }
+        $cache = static::cache();
+        $archive = $cache->get($key);
+        if (!is_array($archive)) {
+            $archive = $this->buildArchiveTabs();
+            $cache->set($key, $archive);
+        }
+        return static::$memo[$key] = $archive;
+    }
+
+    /**
+     * Forgets the archive tabs read in this process, so a test reads the cache
+     */
+    public static function resetMemo(): void
+    {
+        static::$memo = [];
+    }
+
+    private function archiveTabsKey(): string
+    {
+        $classes = ClassInfo::subclassesFor(DataObject::class, false);
+        return md5(get_class($this->getOwner()) . '|' . i18n::get_locale() . '|' . implode(',', $classes));
+    }
+
+    private function buildArchiveTabs(): array
+    {
+        $admin = $this->getOwner();
+        $tabs = [];
+        foreach ($admin->getManagedModelTabs() as $tab) {
+            $tabs[] = ['class' => $tab->ClassName, 'title' => $tab->Title];
+        }
+        return [
+            'mainClasses' => array_keys($admin->getVersionedModels('main', true)),
+            'otherClasses' => array_keys($admin->getVersionedModels('other', true)),
+            'tabs' => $tabs,
+        ];
+    }
+
+    private static function cache(): CacheInterface
+    {
+        return Injector::inst()->get(CacheFactory::class)->create(
+            CacheInterface::class . '.' . static::CACHE_NAMESPACE,
+            ['namespace' => static::CACHE_NAMESPACE]
+        );
     }
 
     /**

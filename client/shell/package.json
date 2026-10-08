@@ -33,7 +33,10 @@
   },
   "app": "./src/index.html",
   "types": "dist/index.d.ts",
-  "extraTypes": "./src/forms/types.ts",
+  "extraTypes": [
+    "./src/forms/types.ts",
+    "./src/state/errorTypes.ts"
+  ],
   "importmap": {
     "imports": {
       "react": "react",

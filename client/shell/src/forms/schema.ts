@@ -258,9 +258,20 @@ export function defaultValues(valueFields: Array<FormField>): FormValues {
   return Object.fromEntries(
     valueFields.map((field) => [
       field.key,
-      field.value == null && field.schemaType !== null && textSchemaTypes.has(field.schemaType) ? '' : field.value,
+      field.value == null && field.schemaType !== null && textSchemaTypes.has(field.schemaType) ? '' : multiSelectValue(field),
     ]),
   );
+}
+
+/**
+ * ListboxField's state sends its chosen options as `{ Title, Value }` objects, which its validator refuses
+ * when posted; starting from the plain values ListboxField hands back keeps an untouched form valid and clean
+ */
+function multiSelectValue(field: FormField): unknown {
+  if (field.schemaType !== 'MultiSelect' || !Array.isArray(field.value)) {
+    return field.value;
+  }
+  return field.value.map((item) => (item !== null && typeof item === 'object' && 'Value' in item ? item.Value : item));
 }
 
 function isOption(value: object): value is { value: unknown } {
@@ -312,7 +323,10 @@ export function encodeSubmission(valueFields: Array<FormField>, values: FormValu
   return body;
 }
 
-/** A form endpoint answer that is not a usable schema, with what the server said about it */
+/**
+ * A form endpoint answer that is not a usable schema, with what the server said about it. It keeps the
+ * `ServerRequestError` name, which is how pilets recognise the shell's request failures
+ */
 export class FormSchemaRequestError extends ServerRequestError {
   constructor(
     status: number,
@@ -321,7 +335,6 @@ export class FormSchemaRequestError extends ServerRequestError {
     sessionExpired: boolean,
   ) {
     super(`The form endpoint answered ${status}`, status, sessionExpired, serverMessage);
-    this.name = 'FormSchemaRequestError';
   }
 }
 
@@ -336,8 +349,12 @@ async function formRequest(url: string, init: ServerRequestInit): Promise<FormSc
   }
 }
 
+/**
+ * The query flag lets the request reuse the response of the preload the shell page carries for its first schema,
+ * since a preload cannot send the header (LeftAndMain::PIRAL_SCHEMA_QUERY)
+ */
 export function fetchFormSchema(schemaUrl: string, signal?: AbortSignal): Promise<FormSchemaResponse> {
-  return formRequest(schemaUrl, { headers: { 'X-Formschema-Request': 'schema,state,errors' }, signal });
+  return formRequest(schemaUrl, { headers: { 'X-Formschema-Request': 'schema,state,errors' }, query: { formSchema: 1 }, signal });
 }
 
 export function submitFormSchema(schema: FormSchemaTree, body: URLSearchParams): Promise<FormSchemaResponse> {

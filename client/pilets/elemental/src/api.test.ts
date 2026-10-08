@@ -27,7 +27,7 @@ describe('createElementalApi', () => {
   });
 
   it('passes the shell\'s error on, with its reason and session expiry', async () => {
-    const refused = Object.assign(new Error('Sorry, you do not have permission'), { status: 403, sessionExpired: false, reason: 'forbidden' });
+    const refused = Object.assign(new Error('Sorry, you do not have permission'), { name: 'ServerRequestError', status: 403, sessionExpired: false, reason: 'forbidden' });
     const api = createElementalApi(controllerUrl, (async () => {
       throw refused;
     }) as unknown as PiletApi['fetchJson']);

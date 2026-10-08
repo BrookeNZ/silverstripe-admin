@@ -37,29 +37,37 @@ export interface HookPoints {
   onAfterFormSubmit: { context: FormActionHookContext & { response: FormSchemaResponse } };
 }
 
+/** A name the shell runs as an update hook: `update` then a capital, so `updatefoo` is refused */
+export type UpdateHookName = `update${Capitalize<string>}`;
+
+export type BeforeHookName = `onBefore${Capitalize<string>}`;
+
+export type AfterHookName = `onAfter${Capitalize<string>}`;
+
 type HookPoint<N extends string> = N extends keyof HookPoints ? HookPoints[N] : { value: unknown; context: unknown };
 
 export type HookValue<N extends string> = HookPoint<N> extends { value: infer V } ? V : never;
 
 export type HookContext<N extends string> = HookPoint<N>['context'];
 
+/** Returning `undefined` counts as a failure: it is logged and the previous value passes on */
 export type UpdateHookHandler<V, C> = (value: V, context: C) => V;
 
-/** Resolving `false` cancels; anything else lets it go ahead */
+/** Resolving `false` cancels; anything else, `0` and `null` included, lets it go ahead */
 export type BeforeHookHandler<C> = (context: C) => boolean | void | Promise<boolean | void>;
 
 export type AfterHookHandler<C> = (context: C) => void | Promise<void>;
 
-export type HookHandler<N extends string> = N extends `update${string}`
+export type HookHandler<N extends string> = N extends UpdateHookName
   ? UpdateHookHandler<HookValue<N>, HookContext<N>>
-  : N extends `onBefore${string}`
+  : N extends BeforeHookName
     ? BeforeHookHandler<HookContext<N>>
-    : N extends `onAfter${string}`
+    : N extends AfterHookName
       ? AfterHookHandler<HookContext<N>>
       : never;
 
 export interface HookOptions {
-  /** Names this registration `<pilet>:<id>` for other registrations' `before` and `after`; a counter when omitted */
+  /** Names this registration `<pilet>:<id>` for other registrations' `before` and `after`; `#<counter>` when omitted */
   id?: string;
   /** Registrations (`<pilet>:<id>`) this handler runs before */
   before?: ReadonlyArray<string>;

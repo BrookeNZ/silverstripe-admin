@@ -99,7 +99,7 @@ describe('createMoveApi', () => {
 
   it('ends the session when the server asks to reauthenticate', async () => {
     const fetchJson = vi.fn(async () => {
-      throw Object.assign(new Error('Your session may have expired'), { status: 403, sessionExpired: true });
+      throw Object.assign(new Error('Your session may have expired'), { name: 'ServerRequestError', status: 403, sessionExpired: true });
     });
     const client = createMoveApi('https://cms.test/admin/pages/move/', fetchJson as unknown as JsonRequest);
     const store = { move: vi.fn(() => () => undefined), moved: vi.fn(), node: () => undefined, sessionExpired: false };
@@ -191,7 +191,7 @@ describe('movePage', () => {
 });
 
 describe('PageTree keyboard move', () => {
-  async function renderTree(client: MoveApi) {
+  async function renderTree(client: MoveApi, currentId: number | null = null) {
     const store = readingStore(fakeApi());
     await store.loadMore(0);
     const notify = vi.fn();
@@ -202,7 +202,7 @@ describe('PageTree keyboard move', () => {
       root.render(
         React.createElement(PageTree, {
           store,
-          currentId: null,
+          currentId,
           onSelect: () => undefined,
           onRevealError: () => undefined,
           mover: { client, notify },
@@ -221,8 +221,83 @@ describe('PageTree keyboard move', () => {
         await new Promise((resolve) => setTimeout(resolve));
       });
     };
-    return { store, notify, host, root, press };
+    const settle = () => act(() => new Promise((resolve) => setTimeout(resolve)));
+    const hover = async () => {
+      await act(async () => {
+        tree.dispatchEvent(new PointerEvent('pointerover', { bubbles: true }));
+        tree.dispatchEvent(new PointerEvent('pointerout', { bubbles: true }));
+      });
+      await settle();
+    };
+    const focus = async () => {
+      await act(async () => {
+        tree.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+      });
+      await settle();
+    };
+    const handle = () => host.querySelector('.pages-tree__handle');
+    return { store, notify, host, root, press, hover, focus, handle };
   }
+
+  it('fetches the move hints when the pointer first enters the tree, not when it renders', async () => {
+    const client: MoveApi = { hints: vi.fn(async () => hints), move: vi.fn() };
+    const { host, root, hover, focus } = await renderTree(client);
+
+    expect(client.hints).not.toHaveBeenCalled();
+    await hover();
+    expect(client.hints).toHaveBeenCalledTimes(1);
+    await hover();
+    await focus();
+    expect(client.hints).toHaveBeenCalledTimes(1);
+    act(() => root.unmount());
+    host.remove();
+  });
+
+  it('fetches the move hints when the tree first takes focus, and again on the next hover after a failure', async () => {
+    const client: MoveApi = { hints: vi.fn(async () => hints), move: vi.fn() };
+    vi.mocked(client.hints).mockRejectedValueOnce(new ApiError('Server error', 500, 'serverError'));
+    const { host, root, hover, focus } = await renderTree(client);
+
+    await focus();
+    expect(client.hints).toHaveBeenCalledTimes(1);
+    await hover();
+    expect(client.hints).toHaveBeenCalledTimes(2);
+    await hover();
+    expect(client.hints).toHaveBeenCalledTimes(2);
+    act(() => root.unmount());
+    host.remove();
+  });
+
+  it('shows the drag handle only once the hints allow the member to reorganise', async () => {
+    // happy-dom lays nothing out, so the virtualiser would draw no rows without a pane height
+    const height = vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(300);
+    const allowed = await renderTree({ hints: vi.fn(async () => hints), move: vi.fn() }, 1);
+    expect(allowed.handle()).toBeNull();
+    await allowed.hover();
+    expect(allowed.handle()).not.toBeNull();
+    act(() => allowed.root.unmount());
+    allowed.host.remove();
+
+    const refused = await renderTree({ hints: vi.fn(async () => ({ ...hints, canOrganise: false })), move: vi.fn() }, 1);
+    await refused.hover();
+    expect(refused.handle()).toBeNull();
+    act(() => refused.root.unmount());
+    refused.host.remove();
+    height.mockRestore();
+  });
+
+  it('fetches the move hints when a drag starts before the tree is reached, once per client', async () => {
+    const client: MoveApi = { hints: vi.fn(async () => hints), move: vi.fn() };
+    const { host, root, press } = await renderTree(client);
+
+    await press('ControlLeft', 'ShiftLeft', 'KeyD');
+    expect(client.hints).toHaveBeenCalledTimes(1);
+    await press('Escape');
+    await press('ControlLeft', 'ShiftLeft', 'KeyD');
+    expect(client.hints).toHaveBeenCalledTimes(1);
+    act(() => root.unmount());
+    host.remove();
+  });
 
   it('posts the move a Control+Shift+D drag drops, and restores the order when it fails', async () => {
     const client: MoveApi = {
