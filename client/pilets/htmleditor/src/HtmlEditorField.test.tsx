@@ -100,7 +100,7 @@ class FakeEditor {
 
   type(html: string) {
     this.content = html;
-    this.fire('input');
+    act(() => this.fire('input'));
   }
 }
 

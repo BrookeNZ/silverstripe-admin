@@ -45,20 +45,20 @@
 
   /* Figma Secondary/Dark Blue */
   --admin-palette-dark-blue: #0049a3;
+
+  /* Figma New/New Grey/Grey 100 to 900 */
   --admin-palette-grey-100: #f7f8f8;
   --admin-palette-grey-200: #f1f3f3;
   --admin-palette-grey-300: #e9ebec;
   --admin-palette-grey-400: #dcdee0;
   --admin-palette-grey-500: #c1c4c8;
-
-  /* Figma Grey/700, from the older Grey folder, which New Grey does not replace */
-  --admin-palette-grey-700: #43536d;
+  --admin-palette-grey-700: #8b9098;
   --admin-palette-grey-800: #71767f;
   --admin-palette-grey-900: #595d64;
   --admin-palette-line-grey: #dadee1;
 
-  /* Figma New Grey/700, not the older Grey/700 above */
-  --admin-palette-new-grey-700: #8b9098;
+  /* Figma Grey/700, from the older Grey folder; the icons still use it */
+  --admin-palette-old-grey-700: #43536d;
 
   /* Figma node 2:6270 Remove hover fill; no variable */
   --admin-palette-red-100: #fbe5e7;
@@ -97,7 +97,7 @@
   --admin-disabled-bg-color: var(--admin-palette-grey-200);
 
   /* 2.88:1 on the disabled ground, under 4.5:1; kept as designed */
-  --admin-disabled-fg-color: var(--admin-palette-new-grey-700);
+  --admin-disabled-fg-color: var(--admin-palette-grey-700);
   --admin-disabled-opacity: 0.6;
 
   /* Grey 400 is 1.35:1 on white, so decorative only */
@@ -146,7 +146,7 @@
   --admin-header-icon-color: var(--admin-palette-dark-blue);
 
   /* 7.79:1 on white */
-  --admin-icon-color: var(--admin-palette-grey-700);
+  --admin-icon-color: var(--admin-palette-old-grey-700);
   --admin-input-bg-color: var(--admin-palette-white);
   --admin-inverse-bg-color: var(--admin-palette-ink);
   --admin-inverse-fg-color: var(--admin-palette-white);

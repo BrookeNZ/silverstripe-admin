@@ -432,4 +432,49 @@ describe('ElementalArea', () => {
     await flush();
     expect(client.readElements).toHaveBeenCalledTimes(2);
   });
+
+  it('keeps a block whose archive failed, with its unsaved changes', async () => {
+    await render();
+    await click(button('Edit Closing quote'));
+    const form = forms.get('/schema/elementForm/3')!;
+    act(() => {
+      form.dirty = true;
+      form.props.onDirtyChange(true);
+    });
+    client.archive.mockRejectedValueOnce(new Error('Archive refused'));
+    const archive = [...container.querySelectorAll<HTMLButtonElement>('#elemental-block-3-menu_Popover button')].find((candidate) => candidate.textContent === 'Archive')!;
+    await click(archive);
+    const confirm = [...document.querySelectorAll<HTMLButtonElement>('dialog[open] .admin-dialog__actions button')].find((candidate) => candidate.textContent === 'Archive')!;
+    await click(confirm);
+    expect(lastToast()).toBe('Archive refused');
+    expect(container.textContent).toContain('Closing quote');
+    expect(container.textContent).toContain('Unsaved');
+    await act(async () => {
+      await api.hooks.get('onBeforeFormSubmit')!({ formId: 'Form_EditForm', action: 'action_save', values: {} });
+    });
+    expect(order).toEqual(['submit /schema/elementForm/3']);
+  });
+
+  it('keeps the loaded blocks on screen when a re-read fails', async () => {
+    await render();
+    client.readElements.mockRejectedValueOnce(new Error('Server error'));
+    act(() => api.emit(api.recordsChangedEvent, { recordClass: 'SilverStripe\\CMS\\Model\\SiteTree', ids: [7] }));
+    await flush();
+    expect(container.querySelectorAll('.elemental-block')).toHaveLength(3);
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Server error');
+  });
+
+  it('shows the latest re-read when overlapping reads answer out of order', async () => {
+    await render();
+    const answers: Array<(blocks: Array<Block>) => void> = [];
+    client.readElements.mockImplementation(() => new Promise<Array<Block>>((resolve) => answers.push(resolve)));
+    act(() => api.emit(api.recordsChangedEvent, { recordClass: 'SilverStripe\\CMS\\Model\\SiteTree', ids: [7] }));
+    act(() => api.emit(api.recordsChangedEvent, { recordClass: 'SilverStripe\\CMS\\Model\\SiteTree', ids: [7] }));
+    await act(async () => answers[1]([block(1, 'Newest', 'App_Blocks_QuoteBlock')]));
+    await flush();
+    await act(async () => answers[0]([block(1, 'Stale', 'App_Blocks_QuoteBlock'), block(2, 'Stale too', 'App_Blocks_CardBlock')]));
+    await flush();
+    expect(container.textContent).toContain('Newest');
+    expect(container.textContent).not.toContain('Stale');
+  });
 });

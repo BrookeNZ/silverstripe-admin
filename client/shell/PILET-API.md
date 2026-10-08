@@ -8,10 +8,10 @@ from `src/forms/types.ts` via `extraTypes` in `package.json`.
 
 The Pilet API major covers the verbs and types below, **the shared dependency set** in
 `package.json` `importmap.imports` (`react`, `react-dom`, `react-router`, `react-router-dom`,
-`@silverstripe/admin-patterns`, plus `tslib` from `piral-base`) and **the React major**. Pilets get
-these from the shell at runtime and never bundle their own; SystemJS resolves a shared name with no
-version check, so changing any of them in a breaking way (React 19, a components major) is a Pilet API
-major.
+`@silverstripe/admin-patterns`, plus `tslib` from `piral-base`) and **the React major**, which is
+React 19. Pilets get these from the shell at runtime and never bundle their own; SystemJS resolves a
+shared name with no version check, so changing any of them in a breaking way (a React major, a patterns
+major) is a Pilet API major. A pilet builds and tests against the same React major as the shell.
 
 ## Changes
 
@@ -34,6 +34,12 @@ same-version tarball is reinstalled because its integrity changes); every pilet 
   `updateFormValidation`, `onBeforeFormAction`, `onBeforeFormSubmit`, `onAfterFormSubmit`,
   `updateGridColumns`, plus elemental's `updateBlockActions` and history's `onAfterRevert`).
   **Removed:** `registerBeforeSubmit`, replaced by `registerHook('onBeforeFormSubmit', …)` with no alias.
+- 2026-10-08: **Breaking:** the shared React is now 19.x (was 18.3). This is a Pilet API major by the
+  rule above, and with the `registerBeforeSubmit` removal one of the two breaking changes while the proof of concept
+  stays at 1.0.0. A pilet moves `react`,
+  `react-dom`, `@types/react` and `@types/react-dom` to 19, reinstalls the emulator, and fixes what the 19
+  types flag (a `useRef<T>(null)` ref is `RefObject<T | null>`, so a parameter typed
+  `RefObject<HTMLElement>` widens to accept it). `@silverstripe/admin-patterns` accepts `^18 || ^19`.
 
 ## Verbs
 

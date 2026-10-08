@@ -51,8 +51,8 @@ export function placeLayer(
 
 export function useAnchoredLayer(
   open: boolean,
-  anchor: React.RefObject<HTMLElement>,
-  layer: React.RefObject<HTMLElement>,
+  anchor: React.RefObject<HTMLElement | null>,
+  layer: React.RefObject<HTMLElement | null>,
   align: AnchorAlign,
   placement: AnchorPlacement,
 ): AnchorPlacement {

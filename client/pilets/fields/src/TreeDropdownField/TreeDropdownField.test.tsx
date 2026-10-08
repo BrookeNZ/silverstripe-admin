@@ -4,6 +4,8 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Component as TreeDropdownField, ConnectedTreeDropdownField } from './TreeDropdownField';
+import { TreeDropdownReadOnly } from './TreeDropdownReadOnly';
+import { lazyLoad } from './treeLoading';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -155,5 +157,44 @@ describe('TreeDropdownField', () => {
     expect(request.searchParams.get('flatList')).toBe('1');
     const options = [...container.querySelectorAll('[role="option"]')].map((option) => option.textContent);
     expect(options).toEqual(['Contact formContact us/']);
+  });
+
+  it('takes a value picked before the tree has loaded, and loads a level whose children are missing', () => {
+    const onChange = vi.fn();
+    const actions = { treeDropdownField: { addSelectedValues: vi.fn(), setSearch: vi.fn(), beginTreeUpdating: vi.fn() } };
+    const field = new TreeDropdownField({ ...TreeDropdownField.defaultProps, id: 'Form_ParentID', data: {}, actions, onChange });
+    expect(() => field.handleChange({ id: 2, title: 'Documents' })).not.toThrow();
+    expect(onChange).toHaveBeenCalledWith(2);
+    expect(actions.treeDropdownField.addSelectedValues).not.toHaveBeenCalled();
+
+    const fetch = vi.fn(() => new Promise(() => undefined));
+    lazyLoad({ ...TreeDropdownField.defaultProps, id: 'Form_ParentID', data: { urlTree: 'admin/tree' }, tree: { id: 0, count: 2 }, actions, fetch }, []);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('reads a multiple read-only field with the default empty value as no selection', () => {
+    container = document.createElement('div');
+    document.body.append(container);
+    act(() => createRoot(container).render(
+      <TreeDropdownReadOnly id="Form_TagIDs" name="TagIDs" value="" className="treedropdownfield" readOnly data={{ multiple: true }} selectedValues={[]} />,
+    ));
+    expect(container.querySelector('.treedropdownfield__title')?.textContent).toBe('');
+  });
+
+  it('drops a pending search when the field unmounts', () => {
+    vi.useFakeTimers();
+    const setSearch = vi.fn();
+    const ref = React.createRef<InstanceType<typeof TreeDropdownField>>();
+    const actions = { treeDropdownField: { addSelectedValues: vi.fn(), beginTreeUpdating: vi.fn(), updateTree: vi.fn(), updateTreeFailed: vi.fn(), setVisible: vi.fn(), setSearch } };
+    container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    act(() => root.render(
+      <TreeDropdownField ref={ref} id="Form_ParentID" name="ParentID" data={{ urlTree: 'admin/tree', showSearch: true }} tree={tree} search="" selectedValues={[]} value={0} actions={actions} fetch={() => new Promise(() => undefined)} />,
+    ));
+    act(() => ref.current!.handleSearchChange('form'));
+    act(() => root.unmount());
+    vi.advanceTimersByTime(600);
+    expect(setSearch).not.toHaveBeenCalled();
   });
 });

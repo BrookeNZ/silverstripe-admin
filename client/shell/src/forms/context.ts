@@ -8,8 +8,6 @@ export interface FormRenderContextValue {
   /** After `updateFormSchema` */
   schema: FormSchemaTree;
   control: Control<FormValues>;
-  submitting: boolean;
-  dirty: boolean;
   /** Keys of the posted fields; only these bind to the form library, so nothing else can make it dirty */
   boundKeys: ReadonlySet<string>;
   renderFields(fields: Array<FormField>): React.ReactNode;
@@ -17,6 +15,10 @@ export interface FormRenderContextValue {
 }
 
 export const FormRenderContext = React.createContext<FormRenderContextValue | null>(null);
+
+// Kept out of FormRenderContext so a change re-renders only the fields that read it, not every field
+export const FormSubmittingContext = React.createContext(false);
+export const FormDirtyContext = React.createContext(false);
 
 export function useFormRenderContext(): FormRenderContextValue {
   const context = React.useContext(FormRenderContext);

@@ -13,8 +13,8 @@
     "piral-base": "1.12.4",
     "piral-core": "1.12.4",
     "piral-notifications": "^1.12.4",
-    "react": "^18",
-    "react-dom": "^18",
+    "react": "^19",
+    "react-dom": "^19",
     "react-hook-form": "^7.89.0",
     "react-router": "^6",
     "react-router-dom": "^6"
@@ -48,8 +48,8 @@
   },
   "devDependencies": {
     "@types/node": "^24",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
     "happy-dom": "^20.14.5",
     "jsdom": "^30.1.2",
     "piral-cli": "1.12.4",
