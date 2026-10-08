@@ -24,13 +24,13 @@ export type HookKind = 'update' | 'onBefore' | 'onAfter';
 
 export const shellHookOwner = 'shell';
 
-type AnyHandler = (...args: Array<any>) => unknown;
+type StoredHandler = (...args: ReadonlyArray<unknown>) => unknown;
 
 export interface HookRegistration {
   /** `<owner>:<id>`, what `before` and `after` name */
   key: string;
   owner: string;
-  handler: AnyHandler;
+  handler: StoredHandler;
   before: ReadonlyArray<string>;
   after: ReadonlyArray<string>;
   sequence: number;
@@ -82,7 +82,7 @@ export function registerHook<N extends string>(owner: string, name: N, handler: 
   const registration: HookRegistration = {
     key,
     owner,
-    handler: handler as AnyHandler,
+    handler: handler as StoredHandler,
     before: options.before ?? [],
     after: options.after ?? [],
     sequence,
@@ -207,13 +207,14 @@ function frozenCopy<T>(value: T): T {
   if (!isPlain(value) || Object.isFrozen(value)) {
     return value;
   }
-  const copy: any = Array.isArray(value) ? value.map(frozenCopy) : {};
-  if (!Array.isArray(value)) {
-    for (const [key, entry] of Object.entries(value)) {
-      copy[key] = frozenCopy(entry);
-    }
+  if (Array.isArray(value)) {
+    return Object.freeze(value.map(frozenCopy)) as T;
   }
-  return Object.freeze(copy);
+  const copy: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    copy[key] = frozenCopy(entry);
+  }
+  return Object.freeze(copy) as T;
 }
 
 function isThenable(value: unknown): value is PromiseLike<unknown> {
@@ -282,14 +283,16 @@ type HookRunResult<N extends string> = N extends `update${string}`
 
 /** Runs a hook of any kind, decided by its name */
 export function runHook<N extends string>(name: N, ...args: HookRunArguments<N>): HookRunResult<N> {
-  const run = args as Array<any>;
+  // The name's kind decides which tuple HookRunArguments resolved to
+  const update = args as ReadonlyArray<unknown> as [value: HookValue<N>, context: HookContext<N>];
+  const [context] = args as ReadonlyArray<unknown> as [context: HookContext<N>];
   switch (hookKind(name)) {
     case 'update':
-      return runUpdateHook(name, run[0], run[1]) as HookRunResult<N>;
+      return runUpdateHook(name, ...update) as HookRunResult<N>;
     case 'onBefore':
-      return runBeforeHook(name, run[0]) as HookRunResult<N>;
+      return runBeforeHook(name, context) as HookRunResult<N>;
     case 'onAfter':
-      return runAfterHook(name, run[0]) as HookRunResult<N>;
+      return runAfterHook(name, context) as HookRunResult<N>;
     default:
       throw new Error(`Hook "${name}" is not an updateX, onBeforeX or onAfterX name`);
   }

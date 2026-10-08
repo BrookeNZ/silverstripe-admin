@@ -8,7 +8,7 @@
  * text. `icon` sits after the label by default, the reverse of Button, since a link's icon usually
  * says where it goes.
  */
-import * as React from 'react';
+import type * as React from 'react';
 import { IconLabel } from './IconLabel';
 import type { IconPosition } from './IconLabel';
 
@@ -25,28 +25,25 @@ export interface LinkProps extends Omit<React.AnchorHTMLAttributes<HTMLAnchorEle
   iconPosition?: IconPosition;
   external?: boolean;
   renderLink?: (props: LinkRenderProps) => React.ReactElement;
+  ref?: React.Ref<HTMLAnchorElement>;
 }
 
 const renderAnchor = (props: LinkRenderProps) => <a {...props} />;
 
-export const Link = React.forwardRef<HTMLAnchorElement, LinkProps>(
-  ({ icon, iconPosition = 'end', external = false, renderLink = renderAnchor, className, children, ...anchor }, ref) => {
-    const classes = ['admin-link', icon && 'admin-link--icon', className].filter(Boolean).join(' ');
-    const content = (
-      <IconLabel icon={icon} iconPosition={iconPosition}>
-        {children}
-        {external && <span className="admin-link__hidden"> (opens in new window)</span>}
-      </IconLabel>
+export const Link = ({ icon, iconPosition = 'end', external = false, renderLink = renderAnchor, className, children, ref, ...anchor }: LinkProps) => {
+  const classes = ['admin-link', icon && 'admin-link--icon', className].filter(Boolean).join(' ');
+  const content = (
+    <IconLabel icon={icon} iconPosition={iconPosition}>
+      {children}
+      {external && <span className="admin-link__hidden"> (opens in new window)</span>}
+    </IconLabel>
+  );
+  if (external) {
+    return (
+      <a {...anchor} ref={ref} className={classes} target="_blank" rel="noopener noreferrer">
+        {content}
+      </a>
     );
-    if (external) {
-      return (
-        <a {...anchor} ref={ref} className={classes} target="_blank" rel="noopener noreferrer">
-          {content}
-        </a>
-      );
-    }
-    return renderLink({ ...anchor, ref, className: classes, children: content });
-  },
-);
-
-Link.displayName = 'Link';
+  }
+  return renderLink({ ...anchor, ref: ref ?? null, className: classes, children: content });
+};

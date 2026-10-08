@@ -2,22 +2,16 @@
 
 namespace SilverStripe\Admin\Tests\UserInterface;
 
-use SilverStripe\Admin\LeftAndMain;
 use SilverStripe\CMS\Model\SiteTree;
 use SilverStripe\Control\HTTPResponse;
-use SilverStripe\Core\Config\Config;
 use SilverStripe\Dev\FunctionalTest;
 use SilverStripe\Security\Group;
 
 class FormSubmissionRulesTest extends FunctionalTest
 {
-    protected static $fixture_file = 'CMSMainEditFormSubmissionTest.yml';
+    use ShellResponseAssertions;
 
-    private const SHELL = [
-        'X-Requested-With' => 'XMLHttpRequest',
-        'Accept' => 'application/json',
-        'X-Formschema-Request' => 'state,errors',
-    ];
+    protected static $fixture_file = 'CMSMainEditFormSubmissionTest.yml';
 
     public static function setUpBeforeClass(): void
     {
@@ -30,7 +24,7 @@ class FormSubmissionRulesTest extends FunctionalTest
     protected function setUp(): void
     {
         parent::setUp();
-        Config::modify()->set(LeftAndMain::class, 'piral_shell', true);
+        $this->setUpShell();
     }
 
     public function testClassNameOnTheContentFormIsLimitedToPageTypes(): void
@@ -93,6 +87,6 @@ class FormSubmissionRulesTest extends FunctionalTest
 
     private function submitTo(SiteTree $page, array $data): HTTPResponse
     {
-        return $this->post('admin/pages/edit/EditForm/' . $page->ID . '/', $data, static::SHELL);
+        return $this->post('admin/pages/edit/EditForm/' . $page->ID . '/', $data, static::SHELL_HEADERS);
     }
 }

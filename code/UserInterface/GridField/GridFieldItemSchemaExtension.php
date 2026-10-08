@@ -15,6 +15,7 @@ use SilverStripe\Forms\GridField\GridFieldDetailForm_ItemRequest;
 use SilverStripe\Forms\GridField\GridFieldEditButton;
 use SilverStripe\Forms\GridField\GridFieldViewButton;
 use SilverStripe\Model\ModelData;
+use SilverStripe\ORM\DataObject;
 
 /**
  * Serves a GridField detail form to the Piral shell, at `GET <item link>/schema`, with the same
@@ -70,7 +71,7 @@ class GridFieldItemSchemaExtension extends Extension
             return $this->schema($request);
         }
         if (ShellSubmission::isShellSubmission($request)) {
-            throw static::jsonError(403, static::permissionMessage());
+            throw ShellSubmission::jsonException(403, static::permissionMessage());
         }
         return null;
     }
@@ -80,20 +81,20 @@ class GridFieldItemSchemaExtension extends Extension
         $itemRequest = $this->getOwner();
         $controller = static::schemaController($itemRequest);
         if (!$controller || !LeftAndMain::config()->get('piral_shell')) {
-            throw static::jsonError(404, _t(__CLASS__ . '.NO_SCHEMA', 'This form has no schema endpoint.'));
+            throw ShellSubmission::jsonException(404, _t(__CLASS__ . '.NO_SCHEMA', 'This form has no schema endpoint.'));
         }
         if (!$request->isGET()) {
-            throw static::jsonError(405, _t(__CLASS__ . '.GET_ONLY', 'The schema endpoint only answers GET.'));
+            throw ShellSubmission::jsonException(405, _t(__CLASS__ . '.GET_ONLY', 'The schema endpoint only answers GET.'));
         }
         $record = $itemRequest->getRecord();
         if (!static::canOpen($itemRequest, $record)) {
             throw $record->ID
-                ? static::jsonError(404, static::notFoundMessage())
-                : static::jsonError(403, _t(__CLASS__ . '.CANNOT_CREATE', 'You do not have permission to create this record.'));
+                ? ShellSubmission::jsonException(404, static::notFoundMessage())
+                : ShellSubmission::jsonException(403, _t(__CLASS__ . '.CANNOT_CREATE', 'You do not have permission to create this record.'));
         }
         $form = $itemRequest->ItemEditForm();
         if (!$form instanceof Form) {
-            throw static::jsonError(404, _t(__CLASS__ . '.NO_FORM', 'This record has no edit form.'));
+            throw ShellSubmission::jsonException(404, _t(__CLASS__ . '.NO_FORM', 'This record has no edit form.'));
         }
         $schemaLink = $itemRequest->Link($this->viewing ? 'view/schema' : 'schema');
         return $controller->getSchemaResponse($schemaLink, $form, null, [
@@ -146,17 +147,18 @@ class GridFieldItemSchemaExtension extends Extension
         if (!static::schemaController($this->getOwner()) || !ShellSubmission::isShellSubmission($request)) {
             return;
         }
-        if (!$result->getSecurityToken()->checkRequest($request)) {
-            throw static::jsonError(400, ShellSubmission::sessionExpiredMessage());
+        $tokenFailure = ShellSubmission::tokenFailure($request, $result->getSecurityToken());
+        if ($tokenFailure) {
+            throw new HTTPResponse_Exception($tokenFailure);
         }
         if (ShellSubmission::clickedAction($request) && $result->getFormRequiresSudoMode()) {
-            throw static::jsonError(403, _t(
+            throw ShellSubmission::jsonException(403, _t(
                 __CLASS__ . '.SUDO_MODE',
-                'Confirm your password before you change this record. The new admin cannot ask for it yet.'
+                'Confirm your password before you change this record. Reload to show the password prompt.'
             ));
         }
         if (!ShellSubmission::offersClickedAction($request, $result)) {
-            throw static::jsonError(403, static::permissionMessage());
+            throw ShellSubmission::jsonException(403, static::permissionMessage());
         }
     }
 
@@ -226,20 +228,21 @@ class GridFieldItemSchemaExtension extends Extension
     }
 
     /**
-     * The title of the record whose form holds this record's grid, for the shell's back link
+     * The title of the record whose form holds this record's grid, for the shell's back link: the outer
+     * item's record in a nested detail form, or the record a section form loaded (a page's EditForm for a
+     * block). A section grid's form, such as ModelAdmin's, loads no record
      */
     private static function parentTitle(GridFieldDetailForm_ItemRequest $itemRequest): ?string
     {
         $parent = $itemRequest->getController();
-        if (!$parent instanceof GridFieldDetailForm_ItemRequest) {
-            return null;
+        if ($parent instanceof GridFieldDetailForm_ItemRequest) {
+            $record = $parent->getRecord();
+        } else {
+            $record = $itemRequest->getGridField()->getForm()?->getRecord();
+            if (!$record instanceof DataObject || !$record->isInDB()) {
+                return null;
+            }
         }
-        $record = $parent->getRecord();
         return $record->hasMethod('getTitle') ? (string) $record->getTitle() : null;
-    }
-
-    public static function jsonError(int $code, string $message): HTTPResponse_Exception
-    {
-        return new HTTPResponse_Exception(ShellSubmission::jsonError($code, $message));
     }
 }

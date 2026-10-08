@@ -52,7 +52,7 @@ export interface TreeStoreOptions {
   firstLimit?: number;
   moreLimit?: number;
   /** Announces SiteTree records as changed, which refetches the cached listings keyed by or showing them */
-  invalidate?(ids: ReadonlyArray<number>): void;
+  invalidate?: (ids: ReadonlyArray<number>) => void;
 }
 
 export function childPageKey({ parentId, page, limit }: Pick<ChildPageRequest, 'parentId' | 'page' | 'limit'>): ChildPageKey {
@@ -70,7 +70,7 @@ interface RequestState {
   error?: ApiError;
   done: boolean;
   settled: Promise<void>;
-  settle(): void;
+  settle: () => void;
 }
 
 const emptyList: ChildList = { ids: [], total: null, loading: false, error: null };
@@ -150,7 +150,7 @@ export class TreeStore {
   /** Loads the next page of children: the first page, or the next `moreLimit` rows */
   loadMore(parentId: number): Promise<void> {
     const running = this.pending(parentId);
-    if (running) {
+    if (running !== null) {
       return running;
     }
     const held = this.children(parentId).ids.length;
@@ -172,7 +172,7 @@ export class TreeStore {
       return Promise.resolve();
     }
     const running = this.pending(parentId);
-    if (running) {
+    if (running !== null) {
       return running.then(() => this.loadThrough(parentId, rows));
     }
     if (ids.length === 0 && rows <= this.firstLimit) {

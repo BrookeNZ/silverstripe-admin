@@ -28,7 +28,7 @@ import { SudoModePasswordField } from './SudoModePasswordField';
 import { ToggleCompositeField, toggleCompositeFieldClass } from './ToggleCompositeField';
 import { UnsavedChangesIndicatorField } from './UnsavedChangesIndicatorField';
 
-export const builtInFields: Readonly<Record<string, ComponentType<FieldComponentProps<any>>>> = {
+export const builtInFields: Readonly<Record<string, ComponentType<FieldComponentProps>>> = {
   TextField,
   NumberField,
   HiddenField,
@@ -52,6 +52,10 @@ export const builtInFields: Readonly<Record<string, ComponentType<FieldComponent
   [serverHtmlComponent]: ServerHtmlField,
 };
 
+/**
+ * Registered through the same Pilet API verb pilets use, so a pilet that registers one of these names
+ * replaces the shell's component (the latest registration wins)
+ */
 export function registerBuiltInFields(api: PiletApi): void {
   for (const [name, Component] of Object.entries(builtInFields)) {
     api.registerSilverstripeComponent(name, Component);

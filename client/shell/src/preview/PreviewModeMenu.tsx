@@ -3,7 +3,7 @@
  * 2:6871, 2:6892, 2:6921), drawn at the end of the form's action bar. Share has no flow behind it yet,
  * so it is drawn disabled. The bar sits at the foot of the viewport, so the menu opens upwards
  */
-import * as React from 'react';
+import type * as React from 'react';
 import { Button, EditIcon, Menu, PreviewIcon, ShareIcon, SplitViewIcon } from '@silverstripe/admin-patterns';
 import { previewModes, setPreviewMode } from './mode';
 import type { PreviewMode } from './mode';

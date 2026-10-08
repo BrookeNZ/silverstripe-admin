@@ -1,5 +1,4 @@
 // @vitest-environment happy-dom
-import * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';

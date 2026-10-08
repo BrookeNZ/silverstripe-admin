@@ -21,9 +21,9 @@ export interface LinkKind {
   name: string;
   label: string;
   /** Whether an existing link's href is this kind */
-  matches(href: string): boolean;
-  values(link: LinkAttributes): LinkValues;
-  attributes(values: Readonly<Record<string, unknown>>): LinkAttributes;
+  matches: (href: string) => boolean;
+  values: (link: LinkAttributes) => LinkValues;
+  attributes: (values: Readonly<Record<string, unknown>>) => LinkAttributes;
 }
 
 const shortcodePattern = (name: string) => new RegExp(`^\\[${name}[,\\s]+id=["']?(\\d+)["']?\\s*\\]$`);

@@ -2,17 +2,17 @@
 
 namespace SilverStripe\Admin\Tests\UserInterface;
 
-use SilverStripe\Admin\LeftAndMain;
 use SilverStripe\Assets\File;
 use SilverStripe\Assets\Folder;
 use SilverStripe\CMS\Model\SiteTree;
-use SilverStripe\Core\Config\Config;
 use SilverStripe\Dev\FunctionalTest;
 use SilverStripe\Security\InheritedPermissions;
 use SilverStripe\Security\SecurityToken;
 
 class LinkModalRulesTest extends FunctionalTest
 {
+    use ShellResponseAssertions;
+
     protected $usesDatabase = true;
 
     private const SCHEMA = [
@@ -21,16 +21,10 @@ class LinkModalRulesTest extends FunctionalTest
         'X-Formschema-Request' => 'schema,state,errors',
     ];
 
-    private const SUBMIT = [
-        'X-Requested-With' => 'XMLHttpRequest',
-        'Accept' => 'application/json',
-        'X-Formschema-Request' => 'state,errors',
-    ];
-
     protected function setUp(): void
     {
         parent::setUp();
-        Config::modify()->set(LeftAndMain::class, 'piral_shell', true);
+        $this->setUpShell();
         SecurityToken::disable();
     }
 
@@ -50,7 +44,7 @@ class LinkModalRulesTest extends FunctionalTest
         $response = $this->post(
             'admin/modals/linkModalForm/editorInternalLink/0',
             ['PageID' => $hidden->ID, 'action_insert' => 1],
-            static::SUBMIT
+            static::SHELL_HEADERS
         );
 
         $this->assertStringNotContainsString('secret page', (string) $response->getBody());
@@ -66,7 +60,7 @@ class LinkModalRulesTest extends FunctionalTest
         $response = $this->post(
             'admin/modals/linkModalForm/EditorFileLink/0',
             ['FileID' => $hidden->ID, 'action_insert' => 1],
-            static::SUBMIT
+            static::SHELL_HEADERS
         );
 
         $this->assertStringNotContainsString($hidden->Name, (string) $response->getBody());

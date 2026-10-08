@@ -1,26 +1,14 @@
 // @vitest-environment happy-dom
 import * as React from 'react';
-import { act } from 'react';
-import { createRoot } from 'react-dom/client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { Stack } from './Stack';
+import { mount } from './test/render';
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-let container: HTMLDivElement;
-
-function render(element: React.ReactElement): HTMLElement {
-  container = document.createElement('div');
-  document.body.append(container);
-  act(() => createRoot(container).render(element));
-  return container.firstElementChild as HTMLElement;
-}
-
-afterEach(() => container.remove());
 
 describe('Stack', () => {
   it('renders a div with only the block class by default', () => {
-    const stack = render(
+    const stack = mount(
       <Stack>
         <span>One</span>
         <span>Two</span>
@@ -32,7 +20,7 @@ describe('Stack', () => {
   });
 
   it('adds no modifier for a prop given its default value', () => {
-    const stack = render(<Stack direction="column" align="stretch" justify="start" wrap />);
+    const stack = mount(<Stack direction="column" align="stretch" justify="start" wrap />);
     expect(stack.className).toBe('admin-stack');
   });
 
@@ -50,16 +38,16 @@ describe('Stack', () => {
     [{ spacing: 'xxl' as const }, 'admin-stack--gap-xxl'],
     [{ wrap: false }, 'admin-stack--nowrap'],
   ])('maps %o to one modifier', (props, modifier) => {
-    expect(render(<Stack {...props} />).className).toBe(`admin-stack ${modifier}`);
+    expect(mount(<Stack {...props} />).className).toBe(`admin-stack ${modifier}`);
   });
 
   it('composes modifiers in a fixed order with the host class last', () => {
-    const stack = render(<Stack className="host" wrap={false} spacing="sm" justify="end" align="center" direction="row" />);
+    const stack = mount(<Stack className="host" wrap={false} spacing="sm" justify="end" align="center" direction="row" />);
     expect(stack.className).toBe('admin-stack admin-stack--row admin-stack--align-center admin-stack--justify-end admin-stack--gap-sm admin-stack--nowrap host');
   });
 
   it('renders as the given element with its attributes passed through', () => {
-    const stack = render(
+    const stack = mount(
       <Stack as="ul" spacing="sm" aria-label="Files" data-test="x">
         <li>One</li>
       </Stack>,
@@ -72,7 +60,7 @@ describe('Stack', () => {
 
   it('forwards its ref to the rendered element', () => {
     const ref = React.createRef<HTMLElement>();
-    const stack = render(<Stack as="fieldset" ref={ref} />);
+    const stack = mount(<Stack as="fieldset" ref={ref} />);
     expect(ref.current).toBe(stack);
     expect(ref.current?.tagName).toBe('FIELDSET');
   });

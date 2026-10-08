@@ -1,13 +1,9 @@
 // @vitest-environment happy-dom
 import * as React from 'react';
 import { act } from 'react';
-import { createRoot } from 'react-dom/client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { Toggle } from './Toggle';
-
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-
-let container: HTMLDivElement;
+import { mount } from './test/render';
 
 const options = [
   { key: 'draft', label: 'Draft' },
@@ -26,20 +22,13 @@ const Controlled = ({ disabledLive = false }: { disabledLive?: boolean }) => {
   );
 };
 
-function render(element: React.ReactElement): HTMLElement {
-  container = document.createElement('div');
-  document.body.append(container);
-  act(() => createRoot(container).render(element));
-  return container.firstElementChild as HTMLElement;
-}
 
 const radios = (group: HTMLElement) => Array.from(group.querySelectorAll<HTMLInputElement>('input[type="radio"]'));
 
-afterEach(() => container.remove());
 
 describe('Toggle', () => {
   it('is a named radio group with one radio per option sharing a name', () => {
-    const group = render(<Controlled />);
+    const group = mount(<Controlled />);
     expect(group.getAttribute('role')).toBe('radiogroup');
     expect(group.getAttribute('aria-label')).toBe('Stage');
     const [draft, live] = radios(group);
@@ -50,7 +39,7 @@ describe('Toggle', () => {
   });
 
   it('checks and marks the selected option', () => {
-    const group = render(<Controlled />);
+    const group = mount(<Controlled />);
     const [draft, live] = radios(group);
     expect(draft.checked).toBe(true);
     expect(live.checked).toBe(false);
@@ -59,7 +48,7 @@ describe('Toggle', () => {
   });
 
   it('reports a choice through onChange and follows the controlled value', () => {
-    const group = render(<Controlled />);
+    const group = mount(<Controlled />);
     const [draft, live] = radios(group);
     act(() => live.click());
     expect(live.checked).toBe(true);
@@ -68,7 +57,7 @@ describe('Toggle', () => {
   });
 
   it('disables an option and leaves the value alone', () => {
-    const group = render(<Controlled disabledLive />);
+    const group = mount(<Controlled disabledLive />);
     const [draft, live] = radios(group);
     expect(live.disabled).toBe(true);
     expect(live.closest('label')?.className).toBe('admin-toggle__option admin-toggle__option--disabled');
@@ -77,7 +66,7 @@ describe('Toggle', () => {
   });
 
   it('passes native attributes and a class to the group', () => {
-    const group = render(
+    const group = mount(
       <Toggle aria-labelledby="stage-label" className="extra" options={options} value="live" onChange={() => undefined} />,
     );
     expect(group.className).toBe('admin-toggle extra');

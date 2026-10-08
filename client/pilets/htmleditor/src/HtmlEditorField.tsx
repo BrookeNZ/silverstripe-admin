@@ -16,6 +16,7 @@
  * Links go through the shell's link dialog (`LinkDialog`), opened from the toolbar, the context menu, a
  * link's context toolbar or Ctrl/Cmd+K. The source code button opens the shell's `SourceCodeDialog`.
  */
+import type { PiletApi } from '@silverstripe/admin-shell';
 import * as React from 'react';
 import { describedBy, FieldHolder } from '@silverstripe/admin-patterns';
 import type { Editor, TinyMCE } from 'tinymce';
@@ -28,11 +29,11 @@ import { loadTinyMce } from './loadTinyMce';
 import { SourceCodeDialog } from './SourceCodeDialog';
 import { applySourceCode, registerSourceCodeUi } from './sourceCodeUi';
 import { editorOptions, parseEditorConfig } from './settings';
-import type { HtmlEditorFieldProps, HtmlEditorPiletApi, SchemaFormDialogProps } from './shell';
+import type { HtmlEditorFieldProps } from './shell';
 
 export interface HtmlEditorFieldOptions {
-  api: HtmlEditorPiletApi;
-  load?(baseUrl: string): Promise<TinyMCE>;
+  api: PiletApi;
+  load?: (baseUrl: string) => Promise<TinyMCE>;
   /** How long typing must pause before the content reaches the form, in milliseconds */
   syncDelay?: number;
 }
@@ -59,9 +60,13 @@ function rawConfig(field: HtmlEditorFieldProps['field']): unknown {
 }
 
 const linkFormSection = 'SilverStripe\\Admin\\LeftAndMain';
+// The pages pilet's currentPageDataKey (pages/src/events.ts): the page whose anchors the anchor form lists
 const currentPageKey = 'silverstripe:pages:current-page-id';
 
-/** The anchors in the content of the editor whose link dialog is open, for the dialog's anchor field */
+/**
+ * The anchors in the content of the editor whose link dialog is open, for the dialog's anchor field. A module
+ * value because that field renders inside the server's link form, out of reach of this field's props
+ */
 export const editorAnchors: { current: ReadonlyArray<string> } = { current: [] };
 
 function anchorsIn(editor: Editor): Array<string> {
@@ -71,18 +76,18 @@ function anchorsIn(editor: Editor): Array<string> {
   return [...new Set(names.filter((name) => name !== '' && !name.startsWith('mce')))];
 }
 
-function linkKindsFromConfig(api: HtmlEditorPiletApi) {
+function linkKindsFromConfig(api: PiletApi) {
   const sections = (api.getConfig?.().sections ?? []) as ReadonlyArray<{ name?: string } & LinkFormSection>;
   return availableKinds(sections.find((section) => section.name === linkFormSection));
 }
 
-function currentPageId(api: HtmlEditorPiletApi): number {
+function currentPageId(api: PiletApi): number {
   const id = Number((api.getData as ((name: string) => unknown) | undefined)?.(currentPageKey));
   return Number.isFinite(id) ? id : 0;
 }
 
 export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300 }: HtmlEditorFieldOptions) {
-  const FormDialog = api.getSilverstripeComponent?.('SchemaFormDialog') as React.ComponentType<SchemaFormDialogProps> | undefined;
+  const FormDialog = api.getSilverstripeComponent?.('SchemaFormDialog');
 
   const HtmlEditorField = ({ field, value, onChange, onBlur, error, formId }: HtmlEditorFieldProps) => {
     const configText = textValue(rawConfig(field));
@@ -93,7 +98,9 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
     const timer = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const sync = React.useRef<SyncState>({ stored: '', baseline: '', reported: '' });
     const latest = React.useRef({ onChange, onBlur, value });
-    latest.current = { onChange, onBlur, value };
+    React.useLayoutEffect(() => {
+      latest.current = { onChange, onBlur, value };
+    });
     const [status, setStatus] = React.useState<Status>('loading');
     const [focused, setFocused] = React.useState(false);
     const label = typeof field.title === 'string' || typeof field.title === 'number' ? String(field.title) : field.name;
@@ -129,7 +136,7 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
       }
     }, [pending]);
 
-    const openLinkDialog = React.useCallback(() => {
+    const openLinkDialog = React.useEffectEvent(() => {
       const editor = editorRef.current;
       if (!editor || linkKinds.length === 0 || editor.mode.isReadOnly()) {
         return;
@@ -149,9 +156,7 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
         requireText: link === null && editor.selection.isCollapsed(),
         itemId: currentPageId(api),
       });
-    }, [linkKinds]);
-    const latestOpenLinkDialog = React.useRef(openLinkDialog);
-    latestOpenLinkDialog.current = openLinkDialog;
+    });
 
     const insertLink = (kind: LinkKind, values: Record<string, unknown>) => {
       const editor = editorRef.current;
@@ -234,7 +239,7 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
           report();
           latest.current.onBlur();
         });
-        registerLinkUi(editor, () => latestOpenLinkDialog.current());
+        registerLinkUi(editor, () => openLinkDialog());
         registerSourceCodeUi(editor, openSourceCode);
       };
 
@@ -267,7 +272,7 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
         textarea.remove();
         textareaRef.current = null;
       };
-      // Read-only state changes on the running editor below; a new config starts a new editor
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- the label is read at start and read-only state changes on the running editor below; a new config starts a new editor
     }, [config, field.id, field.name, load, report, openSourceCode]);
 
     React.useEffect(() => {

@@ -1,11 +1,10 @@
-import * as React from 'react';
 import { Button } from './Button';
 import { Dialog } from './Dialog';
 
 export interface UnsavedChangesDialogProps {
   open: boolean;
-  onStay(): void;
-  onLeave(): void;
+  onStay: () => void;
+  onLeave: () => void;
 }
 
 /**

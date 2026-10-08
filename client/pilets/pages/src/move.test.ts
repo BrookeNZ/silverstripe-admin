@@ -4,7 +4,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from './api';
-import type { ChildrenResponse, PageNode, TreeApi } from './api';
+import type { ChildrenResponse, JsonRequest, PageNode, TreeApi } from './api';
 import { canDragPage, canDropPage, createMoveApi, movePage } from './move';
 import type { MoveApi, MoveHints } from './move';
 import { PageTree } from './PageTree';
@@ -85,16 +85,28 @@ function readingStore(api: TreeApi, invalidate?: (ids: ReadonlyArray<number>) =>
 }
 
 describe('createMoveApi', () => {
-  it('posts the move with the token', async () => {
-    const fetcher = vi.fn(async () => new Response(JSON.stringify({ id: 21, parentId: 0, previousParentId: 2, sort: 2, modifiedIds: [21] })));
-    const client = createMoveApi('https://cms.test/admin/pages/move/', () => 'token-1', fetcher as unknown as typeof fetch);
+  it('posts the move through the shell\'s fetchJson', async () => {
+    const fetchJson = vi.fn(async () => ({ id: 21, parentId: 0, previousParentId: 2, sort: 2, modifiedIds: [21] }));
+    const client = createMoveApi('https://cms.test/admin/pages/move/', fetchJson as unknown as JsonRequest);
 
     await client.move({ id: 21, parentId: 0, siblingIds: [1, 21, 2, 3] });
 
-    const [url, init] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe('https://cms.test/admin/pages/move/page');
-    expect((init.headers as Record<string, string>)['X-SecurityID']).toBe('token-1');
-    expect(JSON.parse(String(init.body))).toEqual({ id: 21, parentId: 0, siblingIds: [1, 21, 2, 3] });
+    expect(fetchJson).toHaveBeenCalledWith('https://cms.test/admin/pages/move/page', {
+      method: 'POST',
+      body: { id: 21, parentId: 0, siblingIds: [1, 21, 2, 3] },
+    });
+  });
+
+  it('ends the session when the server asks to reauthenticate', async () => {
+    const fetchJson = vi.fn(async () => {
+      throw Object.assign(new Error('Your session may have expired'), { status: 403, sessionExpired: true });
+    });
+    const client = createMoveApi('https://cms.test/admin/pages/move/', fetchJson as unknown as JsonRequest);
+    const store = { move: vi.fn(() => () => undefined), moved: vi.fn(), node: () => undefined, sessionExpired: false };
+
+    await movePage({ client, store, notify: vi.fn() }, { id: 21, parentId: 0 }, 0);
+
+    expect(store.sessionExpired).toBe(true);
   });
 });
 

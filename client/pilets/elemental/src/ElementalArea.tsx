@@ -19,6 +19,7 @@
  * (useBlockActions), the add dialog (useAddBlock) and the sortable list. Reordering is dnd-kit with a
  * drag handle (pointer and keyboard) plus Move up and Move down in the block menu.
  */
+import type { PiletApi } from '@silverstripe/admin-shell';
 import * as React from 'react';
 import { createPortal } from 'react-dom';
 import { Link as RouterLink } from 'react-router-dom';
@@ -33,23 +34,22 @@ import { ArchiveBlockDialog } from './ArchiveBlockDialog';
 import { InlineBlockForm } from './InlineBlockForm';
 import { SortableBlockList } from './SortableBlockList';
 import { precedingHeading } from './areaDom';
+import { reportFailure } from './reportFailure';
 import { setIn } from './idSets';
 import { useBlockList } from './useBlockList';
 import { useBlockSaving } from './useBlockSaving';
 import { useBlockActions } from './useBlockActions';
 import { useAddBlock } from './useAddBlock';
-import type { AreaFieldProps, BlockActionsHookContext, ElementalPiletApi } from './shell';
+import type { AreaFieldProps, BlockActionsHookContext } from './shell';
 
 export { precedingHeading } from './areaDom';
 
 export interface ElementalAreaOptions {
-  api: ElementalPiletApi;
+  api: PiletApi;
   client: ElementalApi;
   types: ReadonlyArray<ElementType>;
   /** The block form's schema URL for a block id */
-  schemaUrl(id: number): string;
-  /** A block's edit URL as a router path, or null when it is outside the admin */
-  routerPath(url: string): string | null;
+  schemaUrl: (id: number) => string;
   pageClass: string;
 }
 
@@ -70,20 +70,25 @@ function containingFormId(props: AreaFieldProps): string {
 }
 
 export function createElementalAreaField(options: ElementalAreaOptions): React.ComponentType<AreaFieldProps> {
-  const { api, client, types, schemaUrl, routerPath, pageClass } = options;
+  const { api, client, types, schemaUrl, pageClass } = options;
   const FormSchemaForm = api.getSilverstripeComponent('FormSchemaForm');
   const renderRouterLink = ({ to, ...rest }: Record<string, unknown>) => <RouterLink {...(rest as object)} to={String(to)} />;
 
   const blockName = (block: Block) => blockTitle(block, blockType(block, types));
-  const updateBlockActions = (actions: ReadonlyArray<BlockAction>, context: BlockActionsHookContext) =>
-    api.runUpdateHook ? api.runUpdateHook('updateBlockActions', actions, context) : actions;
+  const report = (result: void | Promise<unknown>) => reportFailure(api, result);
+  // Handlers other pilets add through the hook may reject too, so every one is reported
+  const updateBlockActions = (actions: ReadonlyArray<BlockAction>, context: BlockActionsHookContext): Array<BlockAction> =>
+    (api.runUpdateHook ? api.runUpdateHook('updateBlockActions', actions, context) : actions).map((action) => ({
+      ...action,
+      onSelect: (block: Block) => report(action.onSelect(block)),
+    }));
 
   const editLink = (block: Block) => {
     const url = block.blockSchema.actions.edit;
     if (!url) {
       return null;
     }
-    const path = routerPath(url);
+    const path = api.routerPath(url);
     return path ? { to: path, inRouter: true } : { to: url, inRouter: false };
   };
 
@@ -191,8 +196,8 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
                 dirty={dirty.has(block.id)}
                 saving={saving.saving.has(block.id)}
                 onDirtyChange={(isDirty) => setIn(setDirty, block.id, isDirty)}
-                onSave={() => saveBlock(block)}
-                onSaved={() => onBlockSaved(block)}
+                onSave={() => report(saveBlock(block))}
+                onSaved={() => report(onBlockSaved(block))}
               />
             </div>
           )}
@@ -223,7 +228,13 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
       content = (
         <>
           {loadError}
-          <SortableBlockList blocks={blocks} label={heading} blockName={blockName} onMove={actions.move} renderRow={renderRow} />
+          <SortableBlockList
+            blocks={blocks}
+            label={heading}
+            blockName={blockName}
+            onMove={(block, toIndex, focusId) => report(actions.move(block, toIndex, focusId))}
+            renderRow={renderRow}
+          />
         </>
       );
     }
@@ -247,12 +258,12 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
               types={addableTypes}
               adding={add.adding === 'posting'}
               error={add.addError}
-              onAdd={add.addBlock}
+              onAdd={(type) => report(add.addBlock(type))}
               onClose={add.closeAddDialog}
             />
             <ArchiveBlockDialog
               title={actions.archiving ? blockName(actions.archiving) : null}
-              onConfirm={actions.confirmArchive}
+              onConfirm={() => report(actions.confirmArchive())}
               onCancel={actions.cancelArchive}
             />
           </>,

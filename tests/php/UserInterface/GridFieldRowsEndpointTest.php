@@ -21,6 +21,8 @@ use SilverStripe\Versioned\Versioned;
 
 class GridFieldRowsEndpointTest extends FunctionalTest
 {
+    use ShellResponseAssertions;
+
     protected static $fixture_file = 'GridFieldRowsEndpointTest.yml';
 
     protected static $extra_dataobjects = [Team::class, Ship::class, Player::class];
@@ -40,7 +42,7 @@ class GridFieldRowsEndpointTest extends FunctionalTest
     protected function setUp(): void
     {
         parent::setUp();
-        Config::modify()->set(LeftAndMain::class, 'piral_shell', true);
+        $this->setUpShell();
         SecurityToken::enable();
         TestController::$withBadge = false;
         TestController::$nameFormat = null;
@@ -494,14 +496,6 @@ class GridFieldRowsEndpointTest extends FunctionalTest
             null,
             json_encode($args)
         );
-    }
-
-    private function assertJsonError(HTTPResponse $response, int $code): void
-    {
-        $this->assertSame('application/json', $response->getHeader('Content-Type'));
-        $body = json_decode($response->getBody(), true);
-        $this->assertSame('error', $body['status']);
-        $this->assertSame($code, $body['errors'][0]['code']);
     }
 
     private function names(array $body): array

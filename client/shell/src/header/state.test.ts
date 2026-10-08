@@ -1,22 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import type { GlobalState, GlobalStateContext } from 'piral-core';
-import { clearSectionHeaderOf, initialSectionHeader, setSectionHeader } from './state';
-
-function fakeContext(): GlobalStateContext {
-  let state = { sectionHeader: initialSectionHeader } as unknown as GlobalState;
-  return {
-    dispatch: (update: (current: GlobalState) => GlobalState) => {
-      state = update(state);
-    },
-    readState: <S>(select: (current: GlobalState) => S) => select(state),
-  } as unknown as GlobalStateContext;
-}
+import type { GlobalStateContext } from 'piral-core';
+import { fakeGlobalContext } from '../test/fakeGlobalContext';
+import { clearSectionHeaderOf, setSectionHeader } from './state';
 
 const current = (context: GlobalStateContext) => context.readState((state) => state.sectionHeader.current);
 
 describe('section header state', () => {
   it('sets the header and clears it on dispose', () => {
-    const context = fakeContext();
+    const context = fakeGlobalContext();
     const dispose = setSectionHeader(context, 'shell', { title: 'Security', backTo: '/security/' });
     expect(current(context)).toEqual({ title: 'Security', backTo: '/security/' });
     dispose();
@@ -24,7 +15,7 @@ describe('section header state', () => {
   });
 
   it('replaces the header, and an earlier disposer leaves the replacement alone', () => {
-    const context = fakeContext();
+    const context = fakeGlobalContext();
     const disposeFirst = setSectionHeader(context, 'shell', { title: 'Security' });
     const disposeSecond = setSectionHeader(context, 'silverstripe-cms-pages', { title: 'Home' });
     expect(current(context)?.title).toBe('Home');
@@ -35,7 +26,7 @@ describe('section header state', () => {
   });
 
   it('restores the header below when a later one is disposed', () => {
-    const context = fakeContext();
+    const context = fakeGlobalContext();
     setSectionHeader(context, 'shell', { title: 'Security' });
     const disposeRecord = setSectionHeader(context, 'shell', { title: 'Admin' });
     expect(current(context)?.title).toBe('Admin');
@@ -44,7 +35,7 @@ describe('section header state', () => {
   });
 
   it('disposes only once', () => {
-    const context = fakeContext();
+    const context = fakeGlobalContext();
     const dispose = setSectionHeader(context, 'shell', { title: 'Security' });
     setSectionHeader(context, 'shell', { title: 'Groups' });
     dispose();
@@ -53,7 +44,7 @@ describe('section header state', () => {
   });
 
   it('clears the header only for the pilet that owns it', () => {
-    const context = fakeContext();
+    const context = fakeGlobalContext();
     setSectionHeader(context, 'shell', { title: 'Pages' });
     setSectionHeader(context, 'silverstripe-cms-pages', { title: 'Home' });
     clearSectionHeaderOf(context, 'hello');
@@ -63,7 +54,7 @@ describe('section header state', () => {
   });
 
   it('keeps a disposer from clearing a header set after the owner was unloaded', () => {
-    const context = fakeContext();
+    const context = fakeGlobalContext();
     const dispose = setSectionHeader(context, 'hello', { title: 'Hello' });
     clearSectionHeaderOf(context, 'hello');
     setSectionHeader(context, 'shell', { title: 'Settings' });

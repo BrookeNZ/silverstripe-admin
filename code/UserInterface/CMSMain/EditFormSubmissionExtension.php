@@ -62,12 +62,9 @@ class EditFormSubmissionExtension extends Extension
             return null;
         }
 
-        $token = $result->getSecurityToken();
-        if (!$token->checkRequest($request)) {
-            $message = $request->postVar($token->getName())
-                ? ShellSubmission::sessionExpiredMessage()
-                : ShellSubmission::missingTokenMessage();
-            return ShellSubmission::jsonError(400, $message, 'invalidToken');
+        $tokenFailure = ShellSubmission::tokenFailure($request, $result->getSecurityToken());
+        if ($tokenFailure) {
+            return $tokenFailure;
         }
 
         if (!ShellSubmission::offersClickedAction($request, $result)) {

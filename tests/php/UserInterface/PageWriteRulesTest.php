@@ -17,6 +17,8 @@ use SilverStripe\SiteConfig\SiteConfig;
 
 class PageWriteRulesTest extends FunctionalTest
 {
+    use ShellResponseAssertions;
+
     protected $usesDatabase = true;
 
     protected static $extra_dataobjects = [PlainPage::class];
@@ -163,7 +165,7 @@ class PageWriteRulesTest extends FunctionalTest
         $response = $this->move(['id' => $page->ID, 'parentId' => $parent->ID]);
 
         $this->assertSame(403, $response->getStatusCode());
-        $this->assertSame('cannotMoveTopLevel', $this->reason($response));
+        $this->assertSame('cannotMoveTopLevel', $this->errorReason($response));
         $this->assertSame(0, (int) SiteTree::get()->byID($page->ID)->ParentID);
     }
 
@@ -176,7 +178,7 @@ class PageWriteRulesTest extends FunctionalTest
         $response = $this->move(['id' => $page->ID, 'parentId' => 0]);
 
         $this->assertSame(403, $response->getStatusCode());
-        $this->assertSame('cannotMoveTopLevel', $this->reason($response));
+        $this->assertSame('cannotMoveTopLevel', $this->errorReason($response));
         $this->assertSame($parent->ID, (int) SiteTree::get()->byID($page->ID)->ParentID);
     }
 
@@ -189,7 +191,7 @@ class PageWriteRulesTest extends FunctionalTest
         $response = $this->move(['id' => $page->ID, 'parentId' => 0]);
 
         $this->assertSame(403, $response->getStatusCode());
-        $this->assertSame('notAllowedHere', $this->reason($response));
+        $this->assertSame('notAllowedHere', $this->errorReason($response));
         $this->assertSame($parent->ID, (int) SiteTree::get()->byID($page->ID)->ParentID);
     }
 
@@ -202,7 +204,7 @@ class PageWriteRulesTest extends FunctionalTest
         $response = $this->move(['id' => $page->ID, 'parentId' => $parent->ID]);
 
         $this->assertSame(403, $response->getStatusCode());
-        $this->assertSame('notAllowedHere', $this->reason($response));
+        $this->assertSame('notAllowedHere', $this->errorReason($response));
         $this->assertSame(0, (int) SiteTree::get()->byID($page->ID)->ParentID);
     }
 
@@ -215,7 +217,7 @@ class PageWriteRulesTest extends FunctionalTest
         $response = $this->move(['id' => $page->ID, 'parentId' => $parent->ID]);
 
         $this->assertSame(403, $response->getStatusCode());
-        $this->assertSame('notAllowedHere', $this->reason($response));
+        $this->assertSame('notAllowedHere', $this->errorReason($response));
         $this->assertSame(0, (int) SiteTree::get()->byID($page->ID)->ParentID);
     }
 
@@ -238,7 +240,7 @@ class PageWriteRulesTest extends FunctionalTest
         }
 
         $this->assertSame(403, $response->getStatusCode());
-        $this->assertSame('REJECTED', $this->reason($response));
+        $this->assertSame('REJECTED', $this->errorReason($response));
         $this->assertSame(0, (int) SiteTree::get()->byID($page->ID)->ParentID);
         $this->assertSame(
             [$first->ID => 1, $second->ID => 2],
@@ -295,11 +297,6 @@ class PageWriteRulesTest extends FunctionalTest
         $config = SiteConfig::current_site_config();
         $config->CanCreateTopLevelType = 'OnlyTheseUsers';
         $config->write();
-    }
-
-    private function reason(HTTPResponse $response): ?string
-    {
-        return json_decode($response->getBody(), true)['errors'][0]['reason'] ?? null;
     }
 
     private function create(array $body): HTTPResponse

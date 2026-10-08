@@ -4,7 +4,6 @@
  * page load because the section's model tabs come from the page's client config, and the admin names the
  * chosen type as the "Other" tab only on the load that asks for it (ArchiveAdminShellExtension).
  */
-import * as React from 'react';
 import type { ComponentType } from 'react';
 import type { FieldComponentProps } from '@silverstripe/admin-shell';
 

@@ -1,6 +1,11 @@
+/**
+ * The shell's entry. PiralShell.ss renders `#ss-admin-shell` with the menu, top bar, admin URL, feed URL
+ * and the inlined feed as data attributes, so the chrome draws before any pilet loads and the first feed
+ * read costs no round trip. A path no pilet registers falls through to the not_found view, which renders
+ * the section's server EditForm.
+ */
 // First, so the package tokens precede every stylesheet that reads them
 import '@silverstripe/admin-patterns/styles.css';
-import * as React from 'react';
 import { createRoot } from 'react-dom/client';
 import { createInstance, Piral } from 'piral-core';
 import { createSilverstripeApi } from './api/silverstripe';

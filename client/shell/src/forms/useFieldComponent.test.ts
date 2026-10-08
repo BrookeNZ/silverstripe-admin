@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { createSilverstripeApi } from '../api/silverstripe';
+import type { GlobalState } from 'piral-core';
+import { silverstripePlugin } from '../test/silverstripePlugin';
 import { isFullWidthInRegistry, resolveInRegistry } from './useFieldComponent';
+
+type RegistryExtensions = GlobalState['registry']['extensions'];
 
 // Piral's own registry needs the app codegen a piral build produces, so a map stands in for it
 function fakeShell() {
@@ -14,8 +17,8 @@ function fakeShell() {
       };
     },
   };
-  const api = (createSilverstripeApi() as any)(context)(piletApi, { name: 'fields' });
-  return { api, extensions: () => ({ ...extensions }) as any };
+  const api = silverstripePlugin(context)(piletApi, { name: 'fields' });
+  return { api, extensions: () => ({ ...extensions }) as unknown as RegistryExtensions };
 }
 
 describe('resolveInRegistry', () => {
@@ -50,8 +53,8 @@ describe('isFullWidthInRegistry', () => {
         };
       },
     };
-    const api = (createSilverstripeApi() as any)(context)(piletApi, { name: 'grid' });
-    return { api, extensions: () => ({ ...extensions }) as any };
+    const api = silverstripePlugin(context)(piletApi, { name: 'grid' });
+    return { api, extensions: () => ({ ...extensions }) as unknown as RegistryExtensions };
   }
 
   const field = { component: 'GridField', schemaType: 'Custom', componentCandidates: ['GridField'] };

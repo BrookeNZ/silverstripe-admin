@@ -10,8 +10,8 @@ export interface FormRenderContextValue {
   control: Control<FormValues>;
   /** Keys of the posted fields; only these bind to the form library, so nothing else can make it dirty */
   boundKeys: ReadonlySet<string>;
-  renderFields(fields: Array<FormField>): React.ReactNode;
-  autofill(name: string, value: unknown): void;
+  renderFields: (fields: ReadonlyArray<FormField>) => React.ReactNode;
+  autofill: (name: string, value: unknown) => void;
 }
 
 export const FormRenderContext = React.createContext<FormRenderContextValue | null>(null);

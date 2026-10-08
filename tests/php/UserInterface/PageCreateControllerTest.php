@@ -13,6 +13,8 @@ use SilverStripe\Security\SecurityToken;
 
 class PageCreateControllerTest extends FunctionalTest
 {
+    use ShellResponseAssertions;
+
     protected static $fixture_file = 'PageCreateControllerTest.yml';
 
     protected static $extra_dataobjects = [PlainPage::class];
@@ -41,6 +43,16 @@ class PageCreateControllerTest extends FunctionalTest
         $this->assertSame([], $types['types']);
         $this->assertSame(403, $response->getStatusCode());
         $this->assertSame(0, SiteTree::get()->filter('ParentID', $locked->ID)->count());
+    }
+
+    public function testLoggedOutCreateAsksToLogInAgain(): void
+    {
+        $this->logOut();
+
+        $response = $this->create(['parentId' => 0, 'className' => PlainPage::class]);
+
+        $this->assertJsonError($response, 403, 'notLoggedIn');
+        $this->assertSame('1', $response->getHeader('X-Reauthenticate'));
     }
 
     public function testCreateWithoutTheSecurityTokenIsRefused(): void

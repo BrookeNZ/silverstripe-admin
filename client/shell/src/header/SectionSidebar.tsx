@@ -25,7 +25,7 @@ export interface SectionSidebarSlotProps {
   titleId: string;
   searchId: string;
   searchOpen: boolean;
-  closeSearch(): void;
+  closeSearch: () => void;
 }
 
 export function sectionSidebarSlotName(section: string): string {
@@ -139,7 +139,7 @@ export const SectionSidebar = ({ title, section, hidden = false }: SectionSideba
         <ExtensionSlot
           name={sectionSidebarSlotName(section)}
           params={params}
-          render={(children: React.ReactNode[]) => <>{children[children.length - 1] ?? null}</>}
+          render={(children: Array<React.ReactNode>) => <>{children[children.length - 1] ?? null}</>}
         />
       </div>
       <div className="shell-section-sidebar__footer">

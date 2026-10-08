@@ -19,7 +19,7 @@
  * The section header carries the page title (from the tree, so a save that renames the page retitles
  * it), the page's ancestors as its breadcrumb and the page's views; the index has the section title and
  * no back button. A deep link shows the ancestors the tree has loaded and fills in as the tree loads.
- * It also carries the page's preview URL, read from the loaded form (see preview.ts) for the stage the
+ * It also carries the page's preview URL, read from the loaded form's navigator (the patterns package's previewLinks) for the stage the
  * Draft/Published toggle picks, so switching stage reloads the preview pane. The form draws the toggle in
  * split and preview modes only; the stage lives here, so it survives the toggle unmounting in edit mode.
  *
@@ -31,13 +31,12 @@
 import * as React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { FormField, FormSchemaResponse, PageComponentProps, SectionHeader } from '@silverstripe/admin-shell';
-import { fieldTitle, Toggle } from '@silverstripe/admin-patterns';
+import { fieldTitle, navigatorField, previewLinks, Toggle } from '@silverstripe/admin-patterns';
+import type { PreviewLinks } from '@silverstripe/admin-patterns';
 import { createPageApi, createTreeApi } from './api';
 import type { ChildrenResponse, TreeApi } from './api';
 import { createMoveApi } from './move';
 import { createPagesSessionHolder, createPagesSidebar, useStoreVersion } from './PagesSidebar';
-import { previewLinks } from './preview';
-import type { PreviewLinks } from './preview';
 import { stageOptions } from './stage';
 import type { PageStage } from './stage';
 import { childPageKey, childPageRecords, TreeStore } from './treeStore';
@@ -55,7 +54,6 @@ export interface PagesSectionOptions {
   treeUrl: string;
   createUrl: string;
   moveUrl: string;
-  securityId(): string;
   loginUrl: string;
   /** The schema URL of each view's form, for the views whose controller the site has */
   schemaUrls: Partial<Record<PageView, (id: number) => string>>;
@@ -128,13 +126,13 @@ export function pageSectionHeader(
 }
 
 // The preview pane and header modes replace it, as the legacy preview panel plucked it out of the form
-const navigatorFields = ['SilverStripeNavigator'];
+const navigatorFields = [navigatorField];
 
 /** The shape of the Pilet API's `useServerQuery` that the tree's reads use */
 export type ChildPageQueryHook = (
   key: ChildPageKey,
   fetcher: (context: { signal: AbortSignal }) => Promise<ChildrenResponse>,
-  options: { records(data: ChildrenResponse): ReadonlyArray<number> },
+  options: { records: (data: ChildrenResponse) => ReadonlyArray<number> },
 ) => { status: 'pending' | 'error' | 'success'; data: ChildrenResponse | undefined; error: Error | null; isFetching: boolean };
 
 interface TreeQueriesProps {
@@ -195,17 +193,19 @@ export function createPagesSection(options: PagesSectionOptions): PagesSectionCo
       () => new TreeStore(api, { invalidate: (ids) => piral.invalidateRecords(options.pageClass, ids) }),
       [api, piral],
     );
-    const createClient = React.useMemo(() => createPageApi(options.createUrl, options.securityId), []);
-    const moveClient = React.useMemo(() => createMoveApi(options.moveUrl, options.securityId), []);
+    const createClient = React.useMemo(() => createPageApi(options.createUrl, piral.fetchJson), [piral]);
+    const moveClient = React.useMemo(() => createMoveApi(options.moveUrl, piral.fetchJson), [piral]);
     useStoreVersion(store);
     const tail = useParams()['*'] ?? '';
     const navigate = useNavigate();
     const [leaving, setLeaving] = React.useState(false);
+    const unsaved = piral.useSharedState((state) => state.unsavedChanges);
     const opened = parsePageTail(tail, availableViews);
     const currentId = opened?.id ?? null;
     const revealError = opened ? store.revealError(opened.id) : null;
     const [stage, setStage] = React.useState<PageStage>('draft');
     const [links, setLinks] = React.useState<PreviewLinks>({});
+    const [shownTail, setShownTail] = React.useState(tail);
     const FormSchemaForm = React.useMemo(() => piral.getSilverstripeComponent('FormSchemaForm'), [piral]);
 
     // Layout effects, so the session is open with the current page before the header draws the sidebar
@@ -220,16 +220,18 @@ export function createPagesSection(options: PagesSectionOptions): PagesSectionCo
       [piral, currentId],
     );
 
-    React.useEffect(() => {
+    if (tail !== shownTail) {
+      setShownTail(tail);
       setStage('draft');
       setLinks({});
-    }, [tail]);
+    }
 
     const onStateChange = React.useCallback(
       (state: { fields: Array<{ name: string; value: unknown }> }) => setLinks(previewLinks(state.fields, window.location.href)),
       [],
     );
 
+    // The HTML editor's link dialog reads it to list the open page's anchors
     React.useEffect(() => {
       piral.setData(currentPageDataKey, currentId);
     }, [piral, currentId]);
@@ -247,25 +249,18 @@ export function createPagesSection(options: PagesSectionOptions): PagesSectionCo
       [piral, currentId],
     );
 
-    // The unsaved changes guard would stop a navigation made while the archived form still reads dirty
+    // Leaving unmounts the archived form, which clears its unsaved changes. The guard's blocker updates in
+    // its own effect, so the navigation waits a tick past the commit that saw the changes cleared
     React.useEffect(() => {
-      if (!leaving) {
+      if (!leaving || unsaved) {
         return undefined;
       }
-      let timer = 0;
-      const leave = (attempts: number) => {
-        timer = window.setTimeout(() => {
-          if (piral.hasUnsavedChanges() && attempts > 0) {
-            leave(attempts - 1);
-          } else {
-            setLeaving(false);
-            navigate(`${options.routePrefix}/`);
-          }
-        });
-      };
-      leave(10);
+      const timer = window.setTimeout(() => {
+        setLeaving(false);
+        navigate(`${options.routePrefix}/`);
+      });
       return () => window.clearTimeout(timer);
-    }, [leaving, piral, navigate]);
+    }, [leaving, unsaved, navigate]);
 
     const header = pageSectionHeader(
       options.routePrefix,
@@ -282,6 +277,7 @@ export function createPagesSection(options: PagesSectionOptions): PagesSectionCo
     );
     header.sidebar = sidebar;
     const headerKey = JSON.stringify(header);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- headerKey stands in for header, a new object every render
     React.useEffect(() => piral.setSectionHeader(header), [piral, headerKey]);
 
     let main: React.ReactNode;
@@ -299,22 +295,24 @@ export function createPagesSection(options: PagesSectionOptions): PagesSectionCo
               <FormSchemaForm key={schemaUrl} schemaUrl={schemaUrl} headless />
             </div>
           ) : (
-            <FormSchemaForm
-              key={schemaUrl}
-              schemaUrl={schemaUrl}
-              onSubmitted={onSubmitted}
-              onStateChange={onStateChange}
-              omitFields={navigatorFields}
-              trackUnsavedChanges
-              previewControls={
-                <Toggle<PageStage>
-                  label="Stage"
-                  options={stageOptions(store.node(opened.id)?.statusFlags)}
-                  value={stage}
-                  onChange={setStage}
-                />
-              }
-            />
+            !leaving && (
+              <FormSchemaForm
+                key={schemaUrl}
+                schemaUrl={schemaUrl}
+                onSubmitted={onSubmitted}
+                onStateChange={onStateChange}
+                omitFields={navigatorFields}
+                trackUnsavedChanges
+                previewControls={
+                  <Toggle<PageStage>
+                    label="Stage"
+                    options={stageOptions(store.node(opened.id)?.statusFlags)}
+                    value={stage}
+                    onChange={setStage}
+                  />
+                }
+              />
+            )
           )}
         </>
       );

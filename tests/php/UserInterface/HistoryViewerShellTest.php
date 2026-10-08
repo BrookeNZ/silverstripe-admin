@@ -15,6 +15,8 @@ use SilverStripe\VersionedAdmin\Controllers\HistoryViewerController;
  */
 class HistoryViewerShellTest extends FunctionalTest
 {
+    use ShellResponseAssertions;
+
     protected static $fixture_file = 'HistoryViewerShellTest.yml';
 
     public static function setUpBeforeClass(): void
@@ -38,7 +40,7 @@ class HistoryViewerShellTest extends FunctionalTest
 
         $latest = (int) SiteTree::get()->byID($page->ID)->Version;
 
-        $body = $this->json($this->read($page->ID), 200);
+        $body = $this->jsonBody($this->read($page->ID), 200);
 
         $this->assertSame($latest, $body['pageInfo']['totalCount']);
         $this->assertSame(range($latest, 1), array_column($body['versions'], 'version'));
@@ -49,8 +51,8 @@ class HistoryViewerShellTest extends FunctionalTest
     {
         $hidden = $this->objFromFixture(SiteTree::class, 'hidden');
 
-        $this->json($this->read($hidden->ID), 403);
-        $this->json($this->read(999999), 404);
+        $this->jsonBody($this->read($hidden->ID), 403);
+        $this->jsonBody($this->read(999999), 404);
     }
 
     public function testVersionFormRefusesAnUnviewablePageAndAVersionOfAnotherRecord(): void
@@ -73,8 +75,8 @@ class HistoryViewerShellTest extends FunctionalTest
         $open = $this->objFromFixture(SiteTree::class, 'open');
         $hidden = $this->objFromFixture(SiteTree::class, 'hidden');
 
-        $this->json($this->revert($open->ID, 1, 'stale'), 400);
-        $this->json($this->revert($hidden->ID, 1, SecurityToken::inst()->getValue()), 403);
+        $this->jsonBody($this->revert($open->ID, 1, 'stale'), 400);
+        $this->jsonBody($this->revert($hidden->ID, 1, SecurityToken::inst()->getValue()), 403);
         $before = (int) SiteTree::get()->byID($open->ID)->Version;
         $this->assertSame(204, $this->revert($open->ID, 1, SecurityToken::inst()->getValue())->getStatusCode());
         $this->assertSame($before + 1, (int) SiteTree::get()->byID($open->ID)->Version);
@@ -111,11 +113,5 @@ class HistoryViewerShellTest extends FunctionalTest
             null,
             json_encode(['id' => $id, 'dataClass' => SiteTree::class, 'toVersion' => $toVersion])
         );
-    }
-
-    private function json(HTTPResponse $response, int $status): array
-    {
-        $this->assertSame($status, $response->getStatusCode(), $response->getBody());
-        return json_decode($response->getBody(), true) ?? [];
     }
 }

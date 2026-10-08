@@ -12,6 +12,10 @@ interface HistorySection {
   form?: { versionForm?: { schemaUrl?: string } };
 }
 
+/**
+ * The endpoints come from the HistoryViewerController section's client config, where the legacy viewer
+ * read them too; without versioned-admin that section is absent and nothing registers
+ */
 export function setup(api: PiletApi) {
   const config = api.getConfig();
   const section = config.sections.find((candidate) => candidate.name === historyController) as HistorySection | undefined;

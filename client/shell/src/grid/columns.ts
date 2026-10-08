@@ -10,7 +10,7 @@ export interface GridColumnDef {
   id: string;
   header: string;
   enableSorting: boolean;
-  accessorFn(row: GridRow): GridCellData | undefined;
+  accessorFn: (row: GridRow) => GridCellData | undefined;
 }
 
 export function gridColumnDefs(columns: ReadonlyArray<GridColumn>): Array<GridColumnDef> {

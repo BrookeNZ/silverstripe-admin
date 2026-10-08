@@ -38,15 +38,19 @@ declare module '@silverstripe/admin-shell' {
   interface HookPoints {
     onAfterRevert: { context: RevertHookContext };
   }
+
+  interface SilverstripeComponents {
+    HistoryViewer: FieldComponentProps;
+  }
 }
 
 export interface HistoryViewerOptions {
   // Optional while the emulator predates the hook runners
   api: Pick<PiletApi, 'getSilverstripeComponent' | 'showNotification' | 'useServerQuery' | 'useServerMutation'> & {
-    runAfterHook?(name: 'onAfterRevert', context: RevertHookContext): void;
+    runAfterHook?: (name: 'onAfterRevert', context: RevertHookContext) => void;
   };
   client: HistoryApi;
-  versionSchemaUrl(recordClass: string, id: number, version: number): string;
+  versionSchemaUrl: (recordClass: string, id: number, version: number) => string;
 }
 
 const StatusBadge = ({ version }: { version: Version }) => (
@@ -54,7 +58,7 @@ const StatusBadge = ({ version }: { version: Version }) => (
 );
 
 export function createHistoryViewer({ api, client, versionSchemaUrl }: HistoryViewerOptions): React.ComponentType<FieldComponentProps> {
-  const FormSchemaForm = api.getSilverstripeComponent('FormSchemaForm') as React.ComponentType<{ schemaUrl: string; headless?: boolean }>;
+  const FormSchemaForm = api.getSilverstripeComponent('FormSchemaForm');
 
   const HistoryViewer = ({ field }: FieldComponentProps) => {
     const data = (field.data ?? {}) as HistoryViewerData;
@@ -78,11 +82,11 @@ export function createHistoryViewer({ api, client, versionSchemaUrl }: HistoryVi
     const returnFocusTo = React.useRef<number | null>(null);
     const headingId = `${field.id}_versions`;
 
-    React.useEffect(() => {
-      if (page === 1 && list.data) {
-        setNewestVersion(list.data.versions[0]?.version ?? null);
-      }
-    }, [page, list.data]);
+    // Only page 1 holds the newest version, which stays unrevertable while a later page is shown
+    const pageOneNewest = page === 1 && list.data ? (list.data.versions[0]?.version ?? null) : undefined;
+    if (pageOneNewest !== undefined && pageOneNewest !== newestVersion) {
+      setNewestVersion(pageOneNewest);
+    }
 
     React.useEffect(() => {
       if (selected) {

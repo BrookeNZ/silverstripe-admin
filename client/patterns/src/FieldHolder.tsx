@@ -1,4 +1,4 @@
-import * as React from 'react';
+import type * as React from 'react';
 import type { FieldDescriptor } from './types';
 
 type HeldField = Pick<FieldDescriptor, 'id' | 'holderId' | 'title' | 'description'>;

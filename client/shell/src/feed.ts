@@ -40,6 +40,7 @@ function fetchFeed(feedUrl: string, fetcher: typeof fetch): Promise<Array<PiletM
     credentials: 'same-origin',
     headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
   }).then((res) => {
+    // An ended session redirects to the login form; the shell's loading error then offers to log in again
     if (res.redirected || !res.ok) {
       throw new Error(`The pilet feed answered ${res.status} from ${res.url}`);
     }

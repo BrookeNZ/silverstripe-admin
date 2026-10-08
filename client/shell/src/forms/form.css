@@ -7,8 +7,9 @@
  *
  * The form has no inset of its own: each top-level field and message sits in a `shell-form__field`
  * wrapper that pads it by --shell-form-inset, so a full-width field (`--full`, the GridField) and the
- * action bar touch the sides of the content column. A nested form (`--nested`, a block's form inside
- * the page form) already sits in an inset field, so its own fields take none.
+ * action bar touch the sides of the content column. A tab set (`--tabs`) spans the column with its tab
+ * strip inset, and its panels' fields take the same wrappers. A nested form (`--nested`, a block's form
+ * inside the page form) already sits in an inset field, so its own fields take none.
  *
  * The action bar is the CMS Refresh "Bottom bar" (Figma node 2:6870; edit mode 2:6871, split mode
  * 2:6892, preview mode 2:6921): white, a Grey 400 top line drawn inside its 65px height, 15px by 20px
@@ -68,7 +69,9 @@
 }
 
 .shell-form__field {
-  padding-inline: var(--shell-form-inset);
+  --shell-form-field-inset: var(--shell-form-inset);
+
+  padding-inline: var(--shell-form-field-inset);
 }
 
 .shell-form__field:empty {
@@ -76,7 +79,12 @@
 }
 
 .shell-form__field--full {
-  --shell-form-inset: 0rem;
+  --shell-form-field-inset: 0rem;
+}
+
+.shell-form__field--tabs {
+  --admin-tab-strip-padding-inline: var(--shell-form-inset);
+  --shell-form-field-inset: 0rem;
 }
 
 .shell-form__alert {

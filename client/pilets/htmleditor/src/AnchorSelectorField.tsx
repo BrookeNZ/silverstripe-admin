@@ -4,7 +4,6 @@
  * chosen beside it from its `data.endpoint`; that belongs to a shared field for the fields pilet, which
  * LinkField needs too, and replaces this registration
  */
-import * as React from 'react';
 import { describedBy, FieldHolder } from '@silverstripe/admin-patterns';
 import type { FieldComponentProps } from '@silverstripe/admin-shell';
 

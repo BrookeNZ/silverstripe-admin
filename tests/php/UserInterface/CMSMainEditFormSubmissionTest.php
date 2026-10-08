@@ -2,11 +2,9 @@
 
 namespace SilverStripe\Admin\Tests\UserInterface;
 
-use SilverStripe\Admin\LeftAndMain;
 use SilverStripe\Admin\Tests\UserInterface\CMSMainEditFormSubmissionTest\RejectingExtension;
 use SilverStripe\CMS\Model\SiteTree;
 use SilverStripe\Control\HTTPResponse;
-use SilverStripe\Core\Config\Config;
 use SilverStripe\Core\Injector\Injector;
 use SilverStripe\Core\Kernel;
 use SilverStripe\Dev\FunctionalTest;
@@ -16,16 +14,12 @@ use SilverStripe\Versioned\Versioned;
 
 class CMSMainEditFormSubmissionTest extends FunctionalTest
 {
+    use ShellResponseAssertions;
+
     protected static $fixture_file = 'CMSMainEditFormSubmissionTest.yml';
 
     protected static $required_extensions = [
         SiteTree::class => [RejectingExtension::class],
-    ];
-
-    private const SHELL = [
-        'X-Requested-With' => 'XMLHttpRequest',
-        'Accept' => 'application/json',
-        'X-Formschema-Request' => 'state,errors',
     ];
 
     public static function setUpBeforeClass(): void
@@ -39,7 +33,7 @@ class CMSMainEditFormSubmissionTest extends FunctionalTest
     protected function setUp(): void
     {
         parent::setUp();
-        Config::modify()->set(LeftAndMain::class, 'piral_shell', true);
+        $this->setUpShell();
         $this->logInWithPermission('ADMIN');
     }
 
@@ -48,7 +42,7 @@ class CMSMainEditFormSubmissionTest extends FunctionalTest
         $page = $this->objFromFixture(SiteTree::class, 'alpha');
 
         $response = $this->submit($page, 'save', ['Title' => 'Alpha renamed']);
-        $body = $this->json($response, 200);
+        $body = $this->jsonBody($response, 200);
 
         $this->assertSame([], $body['errors'] ?? []);
         $this->assertSame('admin/pages/edit/schema/EditForm/' . $page->ID, $body['id']);
@@ -68,12 +62,12 @@ class CMSMainEditFormSubmissionTest extends FunctionalTest
     {
         $page = $this->objFromFixture(SiteTree::class, 'alpha');
 
-        $body = $this->json($this->submit($page, 'publish', ['Title' => 'Alpha live']), 200);
+        $body = $this->jsonBody($this->submit($page, 'publish', ['Title' => 'Alpha live']), 200);
         $this->assertSame('Published Page "Alpha live"', $body['message']);
         $live = Versioned::get_by_stage(SiteTree::class, Versioned::LIVE)->byID($page->ID);
         $this->assertSame('Alpha live', $live?->Title);
 
-        $body = $this->json($this->submit($page, 'unpublish', ['Title' => 'Alpha live']), 200);
+        $body = $this->jsonBody($this->submit($page, 'unpublish', ['Title' => 'Alpha live']), 200);
         $this->assertSame('Unpublished Page "Alpha live"', $body['message']);
         $this->assertNull(Versioned::get_by_stage(SiteTree::class, Versioned::LIVE)->byID($page->ID));
         $this->assertSame('Alpha live', $this->stateValue($body, 'Title'));
@@ -83,7 +77,7 @@ class CMSMainEditFormSubmissionTest extends FunctionalTest
     {
         $page = $this->objFromFixture(SiteTree::class, 'alpha');
 
-        $body = $this->json($this->submit($page, 'archive', ['Title' => 'Alpha']), 200);
+        $body = $this->jsonBody($this->submit($page, 'archive', ['Title' => 'Alpha']), 200);
 
         $this->assertSame(['deleted' => true, 'message' => 'Archived Page "Alpha"'], $body);
         $this->assertNull(SiteTree::get()->byID($page->ID));
@@ -93,7 +87,7 @@ class CMSMainEditFormSubmissionTest extends FunctionalTest
     {
         $page = $this->objFromFixture(SiteTree::class, 'alpha');
 
-        $body = $this->json($this->submit($page, 'save', ['Title' => 'Rejected']), 200);
+        $body = $this->jsonBody($this->submit($page, 'save', ['Title' => 'Rejected']), 200);
 
         $this->assertSame('This title is rejected', $body['errors'][0]['value']);
         $this->assertSame('Title', $body['errors'][0]['field']);
@@ -110,9 +104,9 @@ class CMSMainEditFormSubmissionTest extends FunctionalTest
         $response = $this->post(
             'admin/pages/edit/EditForm/' . $alpha->ID . '/',
             ['ID' => $locked->ID, 'Title' => 'Unlocked', 'action_save' => 1],
-            static::SHELL
+            static::SHELL_HEADERS
         );
-        $body = $this->json($response, 403);
+        $body = $this->jsonBody($response, 403);
 
         $this->assertSame('You do not have permission to do that to this page.', $body['errors'][0]['value']);
         $this->assertSame('forbidden', $body['errors'][0]['reason']);
@@ -123,7 +117,7 @@ class CMSMainEditFormSubmissionTest extends FunctionalTest
     {
         $page = $this->objFromFixture(SiteTree::class, 'alpha');
 
-        $body = $this->json($this->submit($page, 'unpublish', ['Title' => 'Alpha']), 403);
+        $body = $this->jsonBody($this->submit($page, 'unpublish', ['Title' => 'Alpha']), 403);
 
         $this->assertSame(
             'That action is no longer available for this page. Reload to see its current actions.',
@@ -136,7 +130,7 @@ class CMSMainEditFormSubmissionTest extends FunctionalTest
     {
         $page = $this->objFromFixture(SiteTree::class, 'alpha');
 
-        $notFound = $this->json($this->submit($page, 'save', ['ID' => 999999, 'Title' => 'Alpha']), 404);
+        $notFound = $this->jsonBody($this->submit($page, 'save', ['ID' => 999999, 'Title' => 'Alpha']), 404);
         $this->assertSame('Bad record ID #999999', $notFound['errors'][0]['value']);
         $this->assertSame('notFound', $notFound['errors'][0]['reason']);
 
@@ -144,7 +138,7 @@ class CMSMainEditFormSubmissionTest extends FunctionalTest
         $environment = $kernel->getEnvironment();
         $kernel->setEnvironment('live');
         try {
-            $serverError = $this->json($this->submit($page, 'save', ['Title' => 'Explode']), 500);
+            $serverError = $this->jsonBody($this->submit($page, 'save', ['Title' => 'Explode']), 500);
         } finally {
             $kernel->setEnvironment($environment);
         }
@@ -158,7 +152,7 @@ class CMSMainEditFormSubmissionTest extends FunctionalTest
         SecurityToken::enable();
         $page = $this->objFromFixture(SiteTree::class, 'alpha');
 
-        $body = $this->json($this->submit($page, 'save', ['Title' => 'Forged', 'SecurityID' => 'stale']), 400);
+        $body = $this->jsonBody($this->submit($page, 'save', ['Title' => 'Forged', 'SecurityID' => 'stale']), 400);
 
         $this->assertSame('Your session has expired. Please re-submit the form.', $body['errors'][0]['value']);
         $this->assertSame('Alpha', SiteTree::get()->byID($page->ID)->Title);
@@ -170,7 +164,7 @@ class CMSMainEditFormSubmissionTest extends FunctionalTest
         $page = $this->objFromFixture(SiteTree::class, 'alpha');
 
         $response = $this->submit($page, 'save', ['Title' => 'Forged']);
-        $body = $this->json($response, 400);
+        $body = $this->jsonBody($response, 400);
 
         $this->assertStringStartsWith('There seems to have been a technical problem.', $body['errors'][0]['value']);
         $this->assertNull($response->getHeader('X-Reauthenticate'));
@@ -182,7 +176,7 @@ class CMSMainEditFormSubmissionTest extends FunctionalTest
         $page = $this->objFromFixture(SiteTree::class, 'alpha');
         $pagesBefore = SiteTree::get()->count();
 
-        $body = $this->json($this->submit($page, 'save', ['ID' => 'new-' . SiteTree::class . '-0', 'Title' => 'Created']), 400);
+        $body = $this->jsonBody($this->submit($page, 'save', ['ID' => 'new-' . SiteTree::class . '-0', 'Title' => 'Created']), 400);
 
         $this->assertSame('invalid', $body['errors'][0]['reason']);
         $this->assertSame($pagesBefore, SiteTree::get()->count());
@@ -202,7 +196,7 @@ class CMSMainEditFormSubmissionTest extends FunctionalTest
             null,
             ['X-Requested-With' => 'XMLHttpRequest', 'X-Formschema-Request' => 'schema,state,errors']
         );
-        $body = $this->json($response, 403);
+        $body = $this->jsonBody($response, 403);
 
         $this->assertSame('forbidden', $body['errors'][0]['reason']);
     }
@@ -226,24 +220,7 @@ class CMSMainEditFormSubmissionTest extends FunctionalTest
         return $this->post(
             'admin/pages/edit/EditForm/' . $page->ID . '/',
             array_merge(['ID' => $page->ID, 'action_' . $action => 1], $data),
-            static::SHELL
+            static::SHELL_HEADERS
         );
-    }
-
-    private function json(HTTPResponse $response, int $status): array
-    {
-        $this->assertSame($status, $response->getStatusCode(), $response->getBody());
-        $this->assertStringContainsString('application/json', (string) $response->getHeader('Content-Type'));
-        return json_decode($response->getBody(), true);
-    }
-
-    private function stateValue(array $body, string $name): mixed
-    {
-        foreach ($body['state']['fields'] as $field) {
-            if ($field['name'] === $name) {
-                return $field['value'];
-            }
-        }
-        $this->fail("No state for $name");
     }
 }

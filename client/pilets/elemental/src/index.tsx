@@ -3,7 +3,6 @@ import { createElementalApi } from './api';
 import { blockEditRoute, createBlockEditPage } from './BlockEditPage';
 import type { ElementType } from './blocks';
 import { createElementalAreaField } from './ElementalArea';
-import type { ElementalPiletApi } from './shell';
 import { TextCheckboxGroupField } from './TextCheckboxGroupField';
 import './elemental.css';
 
@@ -19,17 +18,6 @@ interface AreaSection {
   form?: { elementForm?: { schemaUrl?: string } };
 }
 
-/** The router path for an admin URL (the router's basename is the admin URL), or null outside it */
-export function adminRouterPath(url: string, adminUrl: string): string | null {
-  const admin = new URL(adminUrl, document.baseURI);
-  const target = new URL(url, document.baseURI);
-  const base = admin.pathname.replace(/\/$/, '');
-  if (target.origin !== admin.origin || !target.pathname.startsWith(`${base}/`)) {
-    return null;
-  }
-  return target.pathname.slice(base.length) + target.search;
-}
-
 export function setup(api: PiletApi) {
   // Block forms also open outside the area, in the archive section's block records
   api.registerSilverstripeComponent('TextCheckboxGroupField', TextCheckboxGroupField);
@@ -43,11 +31,10 @@ export function setup(api: PiletApi) {
   api.registerSilverstripeComponent(
     areaField,
     createElementalAreaField({
-      api: api as ElementalPiletApi,
-      client: createElementalApi(controllerUrl, String(config.SecurityID ?? '')),
+      api,
+      client: createElementalApi(controllerUrl, api.fetchJson),
       types: section.elementTypes ?? [],
       schemaUrl: (id) => new URL(`${schemaUrl}${id}`, document.baseURI).href,
-      routerPath: (url) => adminRouterPath(url, config.adminUrl),
       pageClass: siteTree,
     }),
   );
@@ -59,7 +46,7 @@ export function setup(api: PiletApi) {
     api.registerPage(
       blockEditRoute(routePrefix),
       createBlockEditPage({
-        api: api as ElementalPiletApi,
+        api,
         types: section.elementTypes ?? [],
         pageClass: siteTree,
         routePrefix,

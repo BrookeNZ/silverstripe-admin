@@ -4,7 +4,6 @@
  * children (a TextField and a CheckboxField) are posted fields the form renders. Legacy drops the text
  * field's own label in favour of the group's, so this does too.
  */
-import * as React from 'react';
 import { FieldHolder } from '@silverstripe/admin-patterns';
 import type { FieldComponentProps } from '@silverstripe/admin-shell';
 import './text-checkbox-group-field.css';

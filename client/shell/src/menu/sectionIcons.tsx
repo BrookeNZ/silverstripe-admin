@@ -4,7 +4,7 @@
  * icons, and anything else gets the generic SectionIcon. A section with a CSS `menu_icon` image
  * (RedirectedURLAdmin) sends no class, so it gets the generic icon too.
  */
-import * as React from 'react';
+import type * as React from 'react';
 import type { ComponentType } from 'react';
 import { ExtensionSlot } from 'piral-core';
 import {
@@ -46,7 +46,7 @@ export const MenuSectionIcon = ({ code, iconClass }: { code: string; iconClass?:
   return (
     <ExtensionSlot
       name={sectionIconSlotName(code)}
-      render={(children: React.ReactNode[]) => <>{children[children.length - 1]}</>}
+      render={(children: Array<React.ReactNode>) => <>{children[children.length - 1]}</>}
       empty={() => <Fallback />}
     />
   );

@@ -1,13 +1,13 @@
 // @vitest-environment happy-dom
-import * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type * as SchemaModule from './schema';
 import { FormSchemaForm } from './FormSchemaForm';
 import { fetchFormSchema, submitFormSchema } from './schema';
 import { serverQueryClient } from '../state/serverCache';
-import type { FieldComponentProps } from './types';
+import type { FieldComponentProps, FormSchemaResponse } from './types';
 
 const renders = vi.hoisted(() => ({ count: 0, submitting: new Set<boolean>() }));
 
@@ -17,7 +17,7 @@ vi.mock('piral-core', () => ({
 }));
 vi.mock('../unsaved', () => ({ setUnsavedChanges: () => () => undefined, shellOwner: 'shell' }));
 vi.mock('./schema', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./schema')>()),
+  ...(await importOriginal<typeof SchemaModule>()),
   fetchFormSchema: vi.fn(),
   submitFormSchema: vi.fn(),
 }));
@@ -88,7 +88,7 @@ afterEach(() => {
 describe('FormSchemaForm render cost', () => {
   it('re-renders only the edited field on the first keystroke, and every field once posting starts', async () => {
     vi.mocked(fetchFormSchema).mockResolvedValue(response as never);
-    let finishPost: (value: unknown) => void = () => undefined;
+    let finishPost: (value: FormSchemaResponse) => void = () => undefined;
     vi.mocked(submitFormSchema).mockImplementation(() => new Promise((resolve) => (finishPost = resolve)));
     container = document.createElement('div');
     document.body.append(container);
@@ -112,7 +112,7 @@ describe('FormSchemaForm render cost', () => {
     });
     await flush();
     expect(renders.submitting.has(true)).toBe(true);
-    await act(async () => finishPost({ ...response, errors: [] }));
+    await act(async () => finishPost({ ...response, errors: [] } as never));
     await flush();
   });
 });

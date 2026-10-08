@@ -9,21 +9,24 @@ export interface AddBlockDialogProps {
   adding: boolean;
   /** Why the last create failed, shown inside the dialog, which a toast would sit under */
   error: string | null;
-  onAdd(type: ElementType): void;
-  onClose(): void;
+  onAdd: (type: ElementType) => void;
+  onClose: () => void;
 }
 
 /** The design has no block type picker; this is a dialog holding a searchable list of the allowed types */
 export const AddBlockDialog = ({ open, header, types, adding, error, onAdd, onClose }: AddBlockDialogProps) => {
   const [chosen, setChosen] = React.useState<ElementType | null>(null);
+  const [wasOpen, setWasOpen] = React.useState(open);
   const labelId = React.useId();
   const inputId = React.useId();
 
-  React.useEffect(() => {
+  // Closing forgets the choice, so the next opening starts empty
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (!open) {
       setChosen(null);
     }
-  }, [open]);
+  }
 
   return (
     <Dialog

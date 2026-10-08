@@ -108,6 +108,8 @@ export function useSectionHeader(): SectionHeaderEntry | null {
 /** Sets the header for as long as the calling component is mounted; a changed header replaces it */
 export function useSectionHeaderEffect(header: SectionHeader | null, owner: string): void {
   const context = useGlobalStateContext();
+  // Callers build the header afresh each render; keying on its content stops that re-pushing the stack
   const key = JSON.stringify(header);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `key` stands in for `header`
   React.useEffect(() => (header ? setSectionHeader(context, owner, header) : undefined), [context, owner, key]);
 }

@@ -1,28 +1,18 @@
 // @vitest-environment happy-dom
-import * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
 import { MemoryRouter, useNavigate } from 'react-router-dom';
 import type { NavigateFunction } from 'react-router-dom';
 import { StateContext } from 'piral-core';
-import type { GlobalState, GlobalStateContext } from 'piral-core';
-import create from 'zustand';
+import type { GlobalStateContext } from 'piral-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LiveAnnouncer } from '../announcer';
 import { applicationName, documentTitle, keptHeaderDelay, SectionHeaderBar } from './SectionHeader';
-import { initialSectionHeader, setSectionHeader } from './state';
+import { fakeGlobalContext } from '../test/fakeGlobalContext';
+import { setSectionHeader } from './state';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-
-function fakeContext(): GlobalStateContext {
-  const store = create<GlobalState>(() => ({ sectionHeader: initialSectionHeader }) as unknown as GlobalState);
-  return {
-    state: store,
-    dispatch: (update: (state: GlobalState) => GlobalState) => store.setState(update(store.getState()), true),
-    readState: <S,>(select: (state: GlobalState) => S) => select(store.getState()),
-  } as unknown as GlobalStateContext;
-}
 
 let container: HTMLDivElement;
 let root: Root;
@@ -47,20 +37,20 @@ const announced = () => container.querySelector('[role="status"]')?.textContent;
 
 beforeEach(async () => {
   document.title = 'Silverstripe - Pages';
-  context = fakeContext();
+  context = fakeGlobalContext();
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
   await act(async () => {
     root.render(
-      <StateContext.Provider value={context}>
+      <StateContext value={context}>
         <MemoryRouter initialEntries={['/pages/']}>
           <NavigateProbe />
           <button type="button">Menu link</button>
           <SectionHeaderBar />
           <LiveAnnouncer />
         </MemoryRouter>
-      </StateContext.Provider>,
+      </StateContext>,
     );
   });
 });
@@ -87,7 +77,9 @@ describe('SectionHeaderBar', () => {
   it('titles the document from the header without moving focus on the first load', async () => {
     const menuLink = container.querySelector('button')!;
     menuLink.focus();
-    act(() => void setSectionHeader(context, 'shell', { title: 'Pages' }));
+    act(() => {
+      setSectionHeader(context, 'shell', { title: 'Pages' });
+    });
     await frame();
     expect(document.title).toBe('Pages - Silverstripe');
     expect(document.activeElement).toBe(menuLink);
@@ -99,7 +91,9 @@ describe('SectionHeaderBar', () => {
     await act(async () => navigate('/security/'));
     await frame();
     expect(title()).toBeNull();
-    act(() => void setSectionHeader(context, 'shell', { title: 'Security' }));
+    act(() => {
+      setSectionHeader(context, 'shell', { title: 'Security' });
+    });
     await frame();
     expect(document.activeElement).toBe(title());
   });
@@ -123,7 +117,9 @@ describe('SectionHeaderBar', () => {
   });
 
   it('focuses a header the route change kept after a short wait', async () => {
-    act(() => void setSectionHeader(context, 'shell', { title: 'Pages' }));
+    act(() => {
+      setSectionHeader(context, 'shell', { title: 'Pages' });
+    });
     container.querySelector('button')!.focus();
     await act(async () => navigate('/pages/edit/show/1'));
     await frame();

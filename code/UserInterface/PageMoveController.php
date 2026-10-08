@@ -2,24 +2,15 @@
 
 namespace SilverStripe\Admin\UserInterface;
 
-use Psr\Log\LoggerInterface;
-use SilverStripe\Admin\AdminController;
-use SilverStripe\Control\Director;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Control\HTTPResponse;
 use SilverStripe\Control\HTTPResponse_Exception;
-use SilverStripe\Core\ClassInfo;
-use SilverStripe\Core\Injector\Injector;
 use SilverStripe\Core\Validation\ValidationException;
 use SilverStripe\Core\Validation\ValidationResult;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\DB;
-use SilverStripe\ORM\HiddenClass;
-use SilverStripe\ORM\Hierarchy\Hierarchy;
-use SilverStripe\Security\Security;
 use SilverStripe\Security\SecurityToken;
 use SilverStripe\Versioned\Versioned;
-use Throwable;
 
 /**
  * JSON for dragging a page in the shell's tree at admin/pages/move: the rules the client checks a drop against
@@ -40,9 +31,9 @@ use Throwable;
  *
  * Departures: sibling IDs outside the new parent are ignored, where legacy renumbers whatever it is sent; without
  * `siblingIds` a reparented page goes last, where legacy leaves its sort untouched; a moved page is written once when
- * both its parent and sort change, where legacy writes twice. Errors share PageTreeController's envelope.
+ * both its parent and sort change, where legacy writes twice. Errors use PageEndpointController's envelope.
  */
-class PageMoveController extends AdminController
+class PageMoveController extends PageEndpointController
 {
     private static ?string $url_segment = 'pages/move';
 
@@ -56,52 +47,25 @@ class PageMoveController extends AdminController
         'page',
     ];
 
-    private static string|array $required_permission_codes = 'CMS_ACCESS_CMSMain';
-
-    private static string $model_class = 'SilverStripe\\CMS\\Model\\SiteTree';
-
-    private static string $cms_controller = 'SilverStripe\\CMS\\Controllers\\CMSMain';
-
-    protected function init()
+    protected function serverErrorMessage(): string
     {
-        parent::init();
-
-        $response = $this->getResponse();
-        if ($response->isError() || $response->isRedirect()) {
-            $loggedIn = (bool) Security::getCurrentUser();
-            $this->setResponse($this->errorResponse(
-                $loggedIn ? 403 : 401,
-                $loggedIn ? 'forbidden' : 'notLoggedIn',
-                $loggedIn ? 'Permission denied' : 'Not logged in'
-            ));
-        }
+        return 'The page could not be moved';
     }
 
-    protected function handleAction($request, $action)
+    protected function usage(): string
     {
-        try {
-            if (!$this->modelClass()) {
-                $this->throwError(404, 'notFound', 'No page model is installed');
-            }
-            return Versioned::withVersionedMode(function () use ($request, $action) {
-                Versioned::set_stage(Versioned::DRAFT);
-                return parent::handleAction($request, $action);
-            });
-        } catch (HTTPResponse_Exception $exception) {
-            return $exception->getResponse();
-        } catch (Throwable $exception) {
-            Injector::inst()->get(LoggerInterface::class)->error($exception->getMessage(), ['exception' => $exception]);
-            return $this->errorResponse(
-                500,
-                'serverError',
-                Director::isDev() ? $exception->getMessage() : 'The page could not be moved'
-            );
-        }
+        return 'Use hints or page';
     }
 
-    public function index(): HTTPResponse
+    /**
+     * Runs on the draft stage because a move edits the draft tree, the table renumber() writes
+     */
+    protected function runAction(callable $next): mixed
     {
-        $this->throwError(404, 'notFound', 'Use hints or page');
+        return Versioned::withVersionedMode(function () use ($next) {
+            Versioned::set_stage(Versioned::DRAFT);
+            return $next();
+        });
     }
 
     /**
@@ -111,22 +75,19 @@ class PageMoveController extends AdminController
     public function hints(HTTPRequest $request): HTTPResponse
     {
         if (!$request->isGET() && !$request->isHEAD()) {
-            $this->throwError(405, 'methodNotAllowed', 'Only GET is supported', null, ['Allow' => 'GET, HEAD']);
+            throw ShellSubmission::jsonException(405, 'Only GET is supported', null, null, ['Allow' => 'GET, HEAD']);
         }
         $rootClasses = [];
         $allowedChildren = [];
         foreach ($this->pageTypes() as $class) {
             $singleton = DataObject::singleton($class);
-            if ($singleton instanceof HiddenClass) {
-                continue;
-            }
             if ($singleton->config()->get('can_be_root')) {
                 $rootClasses[] = $class;
             }
             $allowedChildren[$class] = array_values($singleton->allowedChildren());
         }
 
-        return $this->jsonResponse(200, [
+        return ShellSubmission::jsonResponse(200, [
             'canOrganise' => $this->cms()->canOrganiseTree(),
             'canCreateTopLevel' => $this->cms()->canCreateTopLevel(),
             'rootClasses' => $rootClasses,
@@ -141,13 +102,17 @@ class PageMoveController extends AdminController
     public function page(HTTPRequest $request): HTTPResponse
     {
         if (!$request->isPOST()) {
-            $this->throwError(405, 'methodNotAllowed', 'Only POST is supported', null, ['Allow' => 'POST']);
+            throw ShellSubmission::jsonException(405, 'Only POST is supported', null, null, ['Allow' => 'POST']);
         }
         if (!SecurityToken::inst()->checkRequest($request)) {
-            $this->throwError(400, 'invalidToken', 'The security token is missing or has expired');
+            throw ShellSubmission::jsonException(400, 'The security token is missing or has expired', 'invalidToken');
         }
         if (!$this->cms()->canOrganiseTree()) {
-            $this->throwError(403, 'cannotOrganise', 'You do not have permission to rearrange the tree');
+            throw ShellSubmission::jsonException(
+                403,
+                'You do not have permission to rearrange the tree',
+                'cannotOrganise'
+            );
         }
 
         $body = json_decode((string) $request->getBody(), true);
@@ -156,26 +121,30 @@ class PageMoveController extends AdminController
         $parentId = $body['parentId'] ?? null;
         $siblingIds = $body['siblingIds'] ?? null;
         if (!is_int($id) || $id < 1) {
-            $this->throwError(400, 'invalid', 'id must be a page ID', 'id');
+            throw ShellSubmission::jsonException(400, 'id must be a page ID', 'invalid', 'id');
         }
         if (!is_int($parentId) || $parentId < 0) {
-            $this->throwError(400, 'invalid', 'parentId must be a page ID or 0', 'parentId');
+            throw ShellSubmission::jsonException(400, 'parentId must be a page ID or 0', 'invalid', 'parentId');
         }
         if ($siblingIds !== null && (!is_array($siblingIds) || !array_is_list($siblingIds)
             || array_filter($siblingIds, fn ($sibling) => !is_int($sibling)))
         ) {
-            $this->throwError(400, 'invalid', 'siblingIds must be a list of page IDs', 'siblingIds');
+            throw ShellSubmission::jsonException(400, 'siblingIds must be a list of page IDs', 'invalid', 'siblingIds');
         }
 
         $node = DataObject::get($this->modelClass())->byID($id);
         if (!$node) {
-            $this->throwError(404, 'notFound', sprintf('No page with ID %d', $id), 'id');
+            throw ShellSubmission::jsonException(404, sprintf('No page with ID %d', $id), 'notFound', 'id');
         }
         if (($parentId === 0 || (int) $node->ParentID === 0) && !$this->cms()->canCreateTopLevel()) {
-            $this->throwError(403, 'cannotMoveTopLevel', 'You do not have permission to alter top-level pages');
+            throw ShellSubmission::jsonException(
+                403,
+                'You do not have permission to alter top-level pages',
+                'cannotMoveTopLevel'
+            );
         }
         if (!$node->canEdit()) {
-            $this->throwError(403, 'forbidden', 'This page cannot be edited', 'id');
+            throw ShellSubmission::jsonException(403, 'This page cannot be edited', 'forbidden', 'id');
         }
 
         $previousParentId = (int) $node->ParentID;
@@ -213,7 +182,7 @@ class PageMoveController extends AdminController
         }
         $statusUpdates = ['modified' => $modified];
 
-        return $this->jsonResponse(200, [
+        return ShellSubmission::jsonResponse(200, [
             'id' => (int) $node->ID,
             'parentId' => (int) $node->ParentID,
             'previousParentId' => $previousParentId,
@@ -229,29 +198,44 @@ class PageMoveController extends AdminController
     {
         if ($parentId === 0) {
             if ($parentChanged && !$node->config()->get('can_be_root')) {
-                $this->throwError(403, 'notAllowedHere', 'This page type cannot be at the top level', 'parentId');
+                throw ShellSubmission::jsonException(
+                    403,
+                    'This page type cannot be at the top level',
+                    'notAllowedHere',
+                    'parentId'
+                );
             }
             return;
         }
         $parent = DataObject::get($this->modelClass())->byID($parentId);
         if (!$parent) {
-            $this->throwError(404, 'notFound', sprintf('No page with ID %d', $parentId), 'parentId');
+            throw ShellSubmission::jsonException(404, sprintf('No page with ID %d', $parentId), 'notFound', 'parentId');
         }
         $seen = [];
         for ($ancestor = $parent; $ancestor?->exists() && !isset($seen[$ancestor->ID]); $ancestor = $ancestor->Parent()) {
             if ((int) $ancestor->ID === (int) $node->ID) {
-                $this->throwError(400, 'invalid', 'A page cannot be moved into itself', 'parentId');
+                throw ShellSubmission::jsonException(400, 'A page cannot be moved into itself', 'invalid', 'parentId');
             }
             $seen[$ancestor->ID] = true;
         }
         if (!$parent->canAddChildren()) {
-            $this->throwError(403, 'notAllowedHere', 'Pages cannot be added under this page', 'parentId');
+            throw ShellSubmission::jsonException(
+                403,
+                'Pages cannot be added under this page',
+                'notAllowedHere',
+                'parentId'
+            );
         }
         $subject = $node->hasMethod('getRecordForAllowedChildrenValidation')
             ? $node->getRecordForAllowedChildrenValidation()
             : $node;
         if ($parentChanged && !in_array($subject->ClassName, $parent->allowedChildren(), true)) {
-            $this->throwError(403, 'notAllowedHere', 'This page type is not allowed under this page', 'parentId');
+            throw ShellSubmission::jsonException(
+                403,
+                'This page type is not allowed under this page',
+                'notAllowedHere',
+                'parentId'
+            );
         }
     }
 
@@ -296,83 +280,22 @@ class PageMoveController extends AdminController
     }
 
     /**
-     * The model's subclasses less the base class and SiteTree.hide_pagetypes, as CMSMain::getAllowedSubClasses()
+     * A write that Hierarchy validation refuses is a refused drop, answered 403 with its own reason, not a 500
      *
-     * @return array<string>
-     */
-    private function pageTypes(): array
-    {
-        $classes = ClassInfo::getValidSubClasses($this->modelClass());
-        DataObject::singleton($this->modelClass())->invokeWithExtensions('updateAllowedSubClasses', $classes);
-        return array_values($classes);
-    }
-
-    private function cms(): object
-    {
-        return Injector::inst()->get($this->config()->get('cms_controller'));
-    }
-
-    private function modelClass(): ?string
-    {
-        $class = $this->config()->get('model_class');
-        $cms = $this->config()->get('cms_controller');
-        if (!$class || !class_exists($class) || !class_exists($cms)
-            || !DataObject::has_extension($class, Hierarchy::class)
-        ) {
-            return null;
-        }
-        return $class;
-    }
-
-    private function jsonResponse(int $code, array $data): HTTPResponse
-    {
-        return HTTPResponse::create(json_encode($data, JSON_THROW_ON_ERROR), $code)
-            ->addHeader('Content-Type', 'application/json')
-            ->addHeader('Cache-Control', 'no-store');
-    }
-
-    /**
      * @throws HTTPResponse_Exception
      */
     private function throwValidationError(ValidationResult $result): never
     {
         foreach ($result->getMessages() as $code => $message) {
             if (($message['messageType'] ?? null) === ValidationResult::TYPE_ERROR) {
-                $this->throwError(
+                throw ShellSubmission::jsonException(
                     403,
-                    is_string($code) ? $code : 'invalid',
                     (string) $message['message'],
+                    is_string($code) ? $code : 'invalid',
                     ($message['fieldName'] ?? null) ?: null
                 );
             }
         }
-        $this->throwError(403, 'invalid', 'The page could not be moved');
-    }
-
-    /**
-     * @param array<string, string> $headers
-     * @throws HTTPResponse_Exception
-     */
-    private function throwError(
-        int $code,
-        string $reason,
-        string $message,
-        ?string $field = null,
-        array $headers = []
-    ): never {
-        $response = $this->errorResponse($code, $reason, $message, $field);
-        foreach ($headers as $name => $value) {
-            $response->addHeader($name, $value);
-        }
-        throw new HTTPResponse_Exception($response);
-    }
-
-    private function errorResponse(int $code, string $reason, string $message, ?string $field = null): HTTPResponse
-    {
-        $error = ['type' => 'error', 'code' => $code, 'value' => $message, 'reason' => $reason];
-        if ($field !== null) {
-            $error['field'] = $field;
-        }
-        return $this->jsonResponse($code, ['status' => 'error', 'errors' => [$error]]);
+        throw ShellSubmission::jsonException(403, 'The page could not be moved', 'invalid');
     }
 }

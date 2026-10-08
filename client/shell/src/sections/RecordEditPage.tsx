@@ -2,7 +2,7 @@
  * A GridField record's edit form (the ModelAdmin detail form) at its legacy URL, under the section
  * header with the record's title, its model list as the breadcrumb and a back button to its grid. The
  * actions render in the bottom bar by the usual role rules; delete and archive ask first in the shared
- * Dialog.
+ * Dialog, and so does unpublish while published records use the record, as the legacy edit form did.
  *
  * A save reports through `notify`; the form announces the saved record, which refreshes the grid. A
  * new record's save replaces the URL with the record's edit URL; a delete, archive or save that takes the
@@ -25,9 +25,28 @@ export type Notify = (message: string, type: 'success' | 'error') => void;
 
 const confirmedActions = ['action_doDelete', 'action_doArchive'];
 
+/**
+ * What to ask before the action runs, or null to run it at once. The unpublish warning is the legacy edit
+ * form's (LeftAndMain.EditForm.js), which versioned's `data-owners` count of published owners triggers
+ */
+function confirmation(action: FormField): string | null {
+  if (confirmedActions.includes(action.name)) {
+    return `Are you sure you want to ${fieldTitle(action).toLowerCase()} this record?`;
+  }
+  const owners = Number(action.attributes?.['data-owners'] ?? 0);
+  if (action.name === 'action_doUnpublish' && owners > 0) {
+    return [
+      `You are unpublishing content that is being used in ${owners} other published section(s).`,
+      'This could cause a published page to have missing components on the live site.',
+      'Do you want to unpublish anyway?',
+    ].join(' ');
+  }
+  return null;
+}
+
 interface Confirming {
   action: FormField;
-  resolve(confirmed: boolean): void;
+  resolve: (confirmed: boolean) => void;
 }
 
 interface Leaving {
@@ -59,7 +78,7 @@ export const RecordEditPage = ({ route, notify }: RecordEditPageProps) => {
   }, [leaving, dirty, navigate]);
 
   const confirmAction = (action: FormField) =>
-    confirmedActions.includes(action.name) ? new Promise<boolean>((resolve) => setConfirming({ action, resolve })) : true;
+    confirmation(action) !== null ? new Promise<boolean>((resolve) => setConfirming({ action, resolve })) : true;
 
   const settle = (confirmed: boolean) => {
     confirming?.resolve(confirmed);
@@ -99,7 +118,7 @@ export const RecordEditPage = ({ route, notify }: RecordEditPageProps) => {
         open={confirming !== null}
         onClose={() => settle(false)}
         header={confirming ? `${verb} ${title}?` : ''}
-        body={confirming ? `Are you sure you want to ${verb.toLowerCase()} this record?` : null}
+        body={confirming ? confirmation(confirming.action) : null}
         footer={
           <>
             <Button data-autofocus onClick={() => settle(false)}>

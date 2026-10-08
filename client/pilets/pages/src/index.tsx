@@ -1,4 +1,3 @@
-import * as React from 'react';
 import type { PiletApi } from '@silverstripe/admin-shell';
 import { createPagesSection } from './PagesSection';
 import type { PagesSidebarSlotProps } from './PagesSidebar';
@@ -14,6 +13,10 @@ function editFormSchemaUrl(sectionUrl: string | undefined): ((id: number) => str
   return sectionUrl ? (id) => `${sectionUrl}/schema/EditForm/${id}` : undefined;
 }
 
+/**
+ * Routes under CMSMain's own `reactRoutePath` so legacy page URLs land here; without silverstripe/cms
+ * its sections are absent and nothing registers
+ */
 export function setup(api: PiletApi) {
   const config = api.getConfig();
   const section = config.sections.find((candidate) => candidate.name === cmsMain);
@@ -35,7 +38,6 @@ export function setup(api: PiletApi) {
     // The url_segment of PageCreateController in the admin module
     createUrl: new URL(`${section.url}/create/`, document.baseURI).href,
     moveUrl: new URL(`${section.url}/move/`, document.baseURI).href,
-    securityId: () => String(config.SecurityID ?? ''),
     loginUrl: adminUrl.href,
     schemaUrls: {
       edit: editFormSchemaUrl(editSection.url),

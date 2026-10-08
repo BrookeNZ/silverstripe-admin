@@ -1,7 +1,6 @@
 /**
  * What a section or record page shows when its form cannot be loaded
  */
-import * as React from 'react';
 import { FormSchemaRequestError } from '../forms/schema';
 import type { ShellSection } from './resolve';
 
@@ -30,7 +29,7 @@ const ServerProblem = ({ error, subject }: { error: unknown; subject: string }) 
 );
 
 export const SectionLoadError = ({ error, section }: { error: unknown; section: ShellSection }) => {
-  if (error instanceof FormSchemaRequestError && error.sessionEnded) {
+  if (error instanceof FormSchemaRequestError && error.sessionExpired) {
     return <SessionEnded />;
   }
   if (error instanceof FormSchemaRequestError && error.status === 403) {
@@ -51,7 +50,7 @@ export const SectionLoadError = ({ error, section }: { error: unknown; section: 
 };
 
 export const RecordLoadError = ({ error, title }: { error: unknown; title: string }) => {
-  if (error instanceof FormSchemaRequestError && error.sessionEnded) {
+  if (error instanceof FormSchemaRequestError && error.sessionExpired) {
     return <SessionEnded />;
   }
   if (error instanceof FormSchemaRequestError && error.status === 403) {

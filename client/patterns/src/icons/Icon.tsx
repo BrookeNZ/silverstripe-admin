@@ -4,7 +4,7 @@
  * 18px global icon), and its width follows the viewBox, so a host resizes it by reassigning the token.
  * `size="sm"` is the 15px icon the design puts in filled and outlined buttons.
  */
-import * as React from 'react';
+import type * as React from 'react';
 
 export type IconSize = 'sm' | 'md';
 

@@ -5,7 +5,6 @@
  * without them (a server lacking the admin decoration) falls back to the `ss-toggle-start-closed` class
  * its getAttributes() adds, and to the PHP default heading level of 3.
  */
-import * as React from 'react';
 import { Disclosure, fieldTitle } from '@silverstripe/admin-patterns';
 import type { FieldComponentProps } from '../types';
 

@@ -2,7 +2,7 @@
  * The draft and published toggle in the page form's action bar (Figma "Draft/publish toggle"). It
  * shows which stage of the page is being viewed, and offers Published only for a page that has a
  * published version. The chosen stage picks which preview link the section header carries (see
- * preview.ts), so switching it reloads the preview pane.
+ * previewLinks), so switching it reloads the preview pane.
  */
 import type { StatusFlag } from './api';
 

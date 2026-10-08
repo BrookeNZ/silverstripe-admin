@@ -1,9 +1,9 @@
-import * as React from 'react';
+import type * as React from 'react';
 import { Button } from './Button';
 import { fieldTitle } from './FieldHolder';
 import { PublishIcon, SavedIcon } from './icons';
 import type { IconProps } from './icons';
-import type { FieldProps } from './types';
+import type { FieldDescriptor, FieldProps } from './types';
 
 // Legacy font-icon names the design draws; other names render no icon until the design has them
 const actionIcons: Readonly<Record<string, React.ComponentType<IconProps>>> = {
@@ -14,7 +14,7 @@ const actionIcons: Readonly<Record<string, React.ComponentType<IconProps>>> = {
 };
 
 /** A submit button carrying the action's name, so the form can tell which one was pressed */
-export const FormAction = ({ field, submitting }: FieldProps) => {
+export const FormAction = <F extends FieldDescriptor>({ field, submitting }: FieldProps<unknown, F>) => {
   const ActionIcon = field.icon ? actionIcons[field.icon] : undefined;
   return (
     <Button

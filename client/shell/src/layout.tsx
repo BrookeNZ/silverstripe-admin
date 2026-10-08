@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { RouterProvider, createBrowserRouter, useLocation } from 'react-router-dom';
-import { ComponentsState, ErrorComponentsState, SwitchErrorInfo } from 'piral-core';
+import type { ComponentsState, ErrorComponentsState} from 'piral-core';
+import { SwitchErrorInfo } from 'piral-core';
 import { Notifications } from 'piral-notifications';
 import { Link as TextLink } from '@silverstripe/admin-patterns';
 import { LiveAnnouncer } from './announcer';
@@ -30,9 +31,9 @@ const Splat = () => <>{React.useContext(RouterChildren)}</>;
 export function createRouter(basename: string): ComponentsState['Router'] {
   const router = createBrowserRouter([{ path: '*', Component: Splat }], { basename });
   const Router: ComponentsState['Router'] = ({ children }) => (
-    <RouterChildren.Provider value={children}>
+    <RouterChildren value={children}>
       <RouterProvider router={router} />
-    </RouterChildren.Provider>
+    </RouterChildren>
   );
   Router.displayName = 'ShellRouter';
   return Router;
@@ -135,8 +136,8 @@ export const menuId = 'shell-menu';
 interface MenuDisclosure {
   open: boolean;
   toggle: () => void;
-  toggleRef: React.RefObject<HTMLButtonElement | HTMLAnchorElement>;
-  sidebarRef: React.RefObject<HTMLDivElement>;
+  toggleRef: React.RefObject<HTMLButtonElement | HTMLAnchorElement | null>;
+  sidebarRef: React.RefObject<HTMLDivElement | null>;
   onKeyDown: (event: React.KeyboardEvent) => void;
   onBlur: (event: React.FocusEvent) => void;
 }
@@ -151,8 +152,11 @@ const useMenuDisclosure = (): MenuDisclosure => {
   const toggleRef = React.useRef<HTMLButtonElement | HTMLAnchorElement>(null);
   const sidebarRef = React.useRef<HTMLDivElement>(null);
   const { pathname } = useLocation();
-
-  React.useEffect(() => setOpen(false), [pathname]);
+  const [shownPath, setShownPath] = React.useState(pathname);
+  if (pathname !== shownPath) {
+    setShownPath(pathname);
+    setOpen(false);
+  }
 
   const onKeyDown = (event: React.KeyboardEvent) => {
     if (open && event.key === 'Escape') {
@@ -184,6 +188,7 @@ export const Sidebar = ({ menu, adminPath, disclosure }: SidebarProps) => {
   const sidebarClasses = ['shell__sidebar', collapsed && 'shell__sidebar--collapsed'].filter(Boolean).join(' ');
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- Escape and focus-out handling for the menu links inside it
     <div className={sidebarClasses} ref={sidebarRef} onKeyDown={onKeyDown} onBlur={onBlur}>
       <Menu
         id={menuId}
@@ -286,6 +291,7 @@ export function createLayout(menu: Array<SilverstripeMenuItem>, adminPath: strin
     Layout,
     NotificationsHost,
     NotificationsToast,
+    // not_found is the generic section renderer (index.tsx), which draws a whole page of its own
     ErrorInfo: (props) =>
       props.type === 'not_found' ? (
         <SwitchErrorInfo {...props} />

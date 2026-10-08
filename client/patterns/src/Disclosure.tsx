@@ -18,7 +18,7 @@ export interface DisclosureProps extends Omit<React.HTMLAttributes<HTMLDivElemen
   headingLevel?: number;
   open?: boolean;
   defaultOpen?: boolean;
-  onToggle?(open: boolean): void;
+  onToggle?: (open: boolean) => void;
   /** Defaults to an id derived from the root's `id`, else a generated one */
   panelId?: string;
   children?: React.ReactNode;

@@ -13,10 +13,10 @@ import { closestEdge, stepByRow } from './collision';
 export interface SortableBlockListProps {
   blocks: Array<Block>;
   label: string;
-  blockName(block: Block): string;
+  blockName: (block: Block) => string;
   /** Called when a block is dropped somewhere new, with the id of the control to focus afterwards */
-  onMove(block: Block, toIndex: number, focusId: string): void;
-  renderRow(block: Block, index: number): React.ReactNode;
+  onMove: (block: Block, toIndex: number, focusId: string) => void;
+  renderRow: (block: Block, index: number) => React.ReactNode;
 }
 
 export const SortableBlockList = ({ blocks, label, blockName, onMove, renderRow }: SortableBlockListProps) => {
@@ -26,7 +26,9 @@ export const SortableBlockList = ({ blocks, label, blockName, onMove, renderRow 
   );
   // dnd-kit may call these handlers after a later render, so they read the latest list
   const latest = React.useRef(blocks);
-  latest.current = blocks;
+  React.useLayoutEffect(() => {
+    latest.current = blocks;
+  }, [blocks]);
 
   const titleOf = (id: number | string) => {
     const block = latest.current.find((candidate) => candidate.id === id);

@@ -49,7 +49,7 @@ class GridFieldItemSubmissionExtension extends Extension
             return;
         }
         if (!$this->allows($subject, $subject->getRecord(), $funcName)) {
-            throw GridFieldItemSchemaExtension::jsonError(403, GridFieldItemSchemaExtension::permissionMessage());
+            throw ShellSubmission::jsonException(403, GridFieldItemSchemaExtension::permissionMessage());
         }
         $this->creating = !$subject->getRecord()->ID;
         $request->addHeader(static::PJAX_HEADER, 'ValidationResult');
@@ -62,9 +62,7 @@ class GridFieldItemSubmissionExtension extends Extension
         }
         $request->removeHeader(static::PJAX_HEADER);
         if ($result instanceof HTTPResponse && $result->isError()) {
-            if (!str_contains((string) $result->getHeader('Content-Type'), 'application/json')) {
-                $result = ShellSubmission::jsonError($result->getStatusCode(), ShellSubmission::errorText($result));
-            }
+            $result = ShellSubmission::asJsonError($result);
             return;
         }
         $result = $this->successResponse($subject, $form);
@@ -125,7 +123,7 @@ class GridFieldItemSubmissionExtension extends Extension
         $inList = (bool) $listed;
         $deleted = !$id || !DataObject::get($record->ClassName)->byID($id);
         $editForm = $controller->hasMethod('getEditForm') ? $controller->getEditForm() : null;
-        $message = $this->statusMessage($controller->getResponse()) ?: $this->sessionMessage($editForm);
+        $message = ShellSubmission::statusMessage($controller->getResponse()) ?: $this->sessionMessage($editForm);
 
         $form->clearMessage();
         $form->clearFormState();
@@ -153,23 +151,13 @@ class GridFieldItemSubmissionExtension extends Extension
         return $response;
     }
 
-    private function statusMessage(HTTPResponse $response): string
-    {
-        return $this->plainText(rawurldecode((string) $response->getHeader('X-Status')));
-    }
-
     private function sessionMessage(?Form $editForm): string
     {
         foreach ($editForm?->getSessionValidationResult()?->getMessages() ?? [] as $message) {
             if (empty($message['fieldName']) && ($message['message'] ?? '') !== '') {
-                return $this->plainText((string) $message['message']);
+                return ShellSubmission::plainText((string) $message['message']);
             }
         }
         return '';
-    }
-
-    private function plainText(string $html): string
-    {
-        return trim(html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5));
     }
 }

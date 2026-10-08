@@ -2,7 +2,6 @@
  * The field when read-only or disabled: the selected titles as static text, with the value in a
  * hidden input.
  */
-import React from 'react';
 
 export interface TreeDropdownReadOnlyProps {
   id: string;

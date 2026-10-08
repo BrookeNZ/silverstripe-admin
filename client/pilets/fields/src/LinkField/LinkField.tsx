@@ -54,10 +54,12 @@ interface Editing {
 
 const archivedStates = ['draft', 'modified', 'published'];
 
-export function linkIds(value: LinkFieldValue | undefined): number[] {
+export function linkIds(value: LinkFieldValue | undefined): Array<number> {
   const list = Array.isArray(value) ? value : value == null || value === '' ? [] : [value];
   return list.map(Number).filter((id) => id > 0);
 }
+
+const noLinks: Record<number, LinkData> = {};
 
 export function createLinkField(SchemaFormDialog: React.ComponentType<SchemaFormDialogProps>) {
   const LinkField = ({ field, value, onChange, error }: FieldComponentProps<LinkFieldValue, LinkFieldSchema>) => {
@@ -81,12 +83,12 @@ export function createLinkField(SchemaFormDialog: React.ComponentType<SchemaForm
       ({ signal }) => fetchLinkData(linkIds(idsKey.split(',')), signal),
       { enabled: ids.length > 0, keepPrevious: true },
     );
-    const links: Record<number, LinkData> = linkData.data ?? {};
+    const links: Record<number, LinkData> = linkData.data ?? noLinks;
     const loading = linkData.isFetching;
     const removing = useServerMutation((id: number) => deleteLink(id, owner), {
       changes: (id) => ({ recordClass: linkRecordClass, ids: [id] }),
     });
-    const sorting = useServerMutation((next: number[]) => sortLinks(next), {
+    const sorting = useServerMutation((next: Array<number>) => sortLinks(next), {
       changes: (next) => ({ recordClass: linkRecordClass, ids: next }),
     });
     const [fieldError, setFieldError] = React.useState<string | null>(null);
@@ -106,7 +108,7 @@ export function createLinkField(SchemaFormDialog: React.ComponentType<SchemaForm
       }
     }, [focusId, links]);
 
-    const commit = (next: number[]) => onChange(isMulti ? next : next[0] ?? 0);
+    const commit = (next: Array<number>) => onChange(isMulti ? next : next[0] ?? 0);
     const editButtonId = (id: number) => `${field.id}_link_${id}`;
     const allowedTypes = Object.values(types)
       .filter((type) => type.allowed)
@@ -232,6 +234,8 @@ export function createLinkField(SchemaFormDialog: React.ComponentType<SchemaForm
             </ul>
           )}
           {canAdd && (
+            // Catches Escape bubbling from the menu toggle and the menu's items, which are the controls
+            // eslint-disable-next-line jsx-a11y/no-static-element-interactions
             <div
               className="link-field__add"
               onKeyDown={(event) => {

@@ -30,13 +30,15 @@ export const SchemaFormDialog = ({ open, header, intro, schemaUrl, onClose, onSu
     introHolder.current?.querySelectorAll('input, select, textarea, button').forEach((control) => control.setAttribute('form', ''));
   });
 
-  React.useEffect(() => {
+  const [wasOpen, setWasOpen] = React.useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (!open) {
       setActions([]);
       setPending(null);
       setLoaded(false);
     }
-  }, [open]);
+  }
 
   React.useEffect(() => {
     const dialog = body.current?.closest('dialog');
@@ -82,7 +84,7 @@ export const SchemaFormDialog = ({ open, header, intro, schemaUrl, onClose, onSu
               variant={action.primary ? 'primary' : 'secondary'}
               disabled={action.disabled || action.readOnly || (pending !== null && pending !== action.name)}
               loading={pending === action.name}
-              onClick={() => submit(action.name)}
+              onClick={() => void submit(action.name)}
             >
               {fieldTitle(action)}
             </Button>

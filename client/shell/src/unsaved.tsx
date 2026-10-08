@@ -9,6 +9,7 @@
  */
 import * as React from 'react';
 import { useBlocker, useHref, useLocation, useNavigate } from 'react-router-dom';
+import type { BlockerFunction } from 'react-router-dom';
 import type { Disposable, GlobalStateContext } from 'piral-core';
 import { useGlobalState } from 'piral-core';
 import { UnsavedChangesDialog } from '@silverstripe/admin-patterns';
@@ -66,7 +67,8 @@ export function useHasUnsavedChanges(): boolean {
 export const UnsavedChangesGuard = () => {
   const dirty = useHasUnsavedChanges();
   const blocker = useBlocker(
-    React.useCallback(
+    React.useCallback<BlockerFunction>(
+      // A hash-only change is a tab switch inside the form, which is not leaving it
       ({ currentLocation, nextLocation }) =>
         dirty && (currentLocation.pathname !== nextLocation.pathname || currentLocation.search !== nextLocation.search),
       [dirty],

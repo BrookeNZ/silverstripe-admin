@@ -41,27 +41,14 @@ class ShellErrorResponseExtension extends Extension
             $response = ShellSubmission::jsonError(500, $this->serverErrorMessage($exception->getMessage()));
             return;
         }
-        if (!$response
-            || !$response->isError()
-            || str_contains((string) $response->getHeader('Content-Type'), 'json')
-        ) {
+        if (!$response || !$response->isError()) {
             return;
         }
-        $response = $this->envelope($response);
-    }
-
-    private function envelope(HTTPResponse $response): HTTPResponse
-    {
-        $code = $response->getStatusCode();
         $text = ShellSubmission::errorText($response);
-        $message = $code >= 500 ? $this->serverErrorMessage($text) : $text;
-        $json = ShellSubmission::jsonError($code, $message);
-        foreach (['X-Reauthenticate', 'Allow'] as $header) {
-            if ($response->getHeader($header)) {
-                $json->addHeader($header, $response->getHeader($header));
-            }
-        }
-        return $json;
+        $response = ShellSubmission::asJsonError(
+            $response,
+            $response->getStatusCode() >= 500 ? $this->serverErrorMessage($text) : $text
+        );
     }
 
     private function serverErrorMessage(string $detail): string

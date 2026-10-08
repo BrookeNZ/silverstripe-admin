@@ -100,12 +100,10 @@ export const Menu = ({ id, menu, adminPath, open, collapsed, onCollapsedChange }
         ))}
         <ExtensionSlot
           name={extensionSlotName(leftAndMain, 'menu.bottom')}
-          render={(children: React.ReactNode[]) => (
+          render={(children: Array<React.ReactNode>) => (
             <>
-              {children.map((child, index) => (
-                <li className="shell-menu__item" key={index}>
-                  {child}
-                </li>
+              {React.Children.map(children, (child) => (
+                <li className="shell-menu__item">{child}</li>
               ))}
             </>
           )}

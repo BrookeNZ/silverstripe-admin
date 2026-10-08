@@ -1,28 +1,16 @@
 // @vitest-environment happy-dom
-import * as React from 'react';
 import { act } from 'react';
-import { createRoot } from 'react-dom/client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { TabStrip } from './TabStrip';
 import { Tabs } from './structure';
 import type { FieldDescriptor, FieldProps } from './types';
+import { mount } from './test/render';
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-let container: HTMLDivElement;
-
-function render(element: React.ReactElement): HTMLElement {
-  container = document.createElement('div');
-  document.body.append(container);
-  act(() => createRoot(container).render(element));
-  return container.firstElementChild as HTMLElement;
-}
-
-afterEach(() => container.remove());
 
 describe('TabStrip', () => {
   it('renders link items as anchors and marks the current one', () => {
-    const list = render(
+    const list = mount(
       <TabStrip
         items={[
           { key: 'content', label: 'Content', href: '/content', current: true },
@@ -43,10 +31,14 @@ describe('TabStrip', () => {
   });
 
   it('renders links through renderLink when given one', () => {
-    const list = render(
+    const list = mount(
       <TabStrip
         items={[{ key: 'a', label: 'A', href: '/a', current: true }]}
-        renderLink={({ href, ...link }) => <a {...link} href={`/admin${href}`} data-router="yes" />}
+        renderLink={({ href, children, ...link }) => (
+          <a {...link} href={`/admin${href}`} data-router="yes">
+            {children}
+          </a>
+        )}
       />,
     );
     const link = list.querySelector('a') as HTMLAnchorElement;
@@ -56,7 +48,7 @@ describe('TabStrip', () => {
   });
 
   it('renders other items as buttons with their props, and presentational items under a role', () => {
-    const list = render(
+    const list = mount(
       <TabStrip
         role="tablist"
         items={[
@@ -84,7 +76,7 @@ describe('Tabs', () => {
   const props = { field, renderFields: () => null } as unknown as FieldProps;
 
   it('draws the tablist through the tab strip and moves selection with the arrow keys', () => {
-    const root = render(<Tabs {...props} />);
+    const root = mount(<Tabs {...props} />);
     const list = root.querySelector('[role="tablist"]') as HTMLElement;
     expect(list.className).toBe('admin-tab-strip admin-tab-strip--lined');
     const tabs = () => Array.from(root.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
@@ -111,13 +103,13 @@ describe('Tabs', () => {
   it('labels each panel by its own tab when two tab sets share schema ids, as a block form inside the page form does', () => {
     const pageField = { ...field, children: [tab('Root_Main', 'Main content')] } as unknown as FieldDescriptor;
     const blockField = { ...field, children: [tab('Root_Main', 'Content')] } as unknown as FieldDescriptor;
-    render(
+    const both = mount(
       <div>
         <Tabs {...props} field={pageField} />
         <Tabs {...props} field={blockField} />
       </div>,
     );
-    const names = Array.from(container.querySelectorAll('[role="tabpanel"]')).map(
+    const names = Array.from(both.querySelectorAll('[role="tabpanel"]')).map(
       (panel) => document.getElementById(panel.getAttribute('aria-labelledby') ?? '')?.textContent,
     );
     expect(names).toEqual(['Main content', 'Content']);

@@ -98,6 +98,7 @@ export function useAnchoredLayer(
         element.hidePopover();
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `anchor` and `layer` are refs, read when the effect runs
   }, [open, align, placement]);
 
   return side;

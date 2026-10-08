@@ -1,5 +1,4 @@
 // @vitest-environment happy-dom
-import * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
@@ -54,18 +53,28 @@ describe('NotificationsToast', () => {
   it('closes itself after the delay', () => {
     const onClose = vi.fn();
     renderToast(onClose, 1000);
-    act(() => vi.advanceTimersByTime(1000));
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
     expect(onClose).toHaveBeenCalledOnce();
   });
 
   it('pauses while hovered', () => {
     const onClose = vi.fn();
     const toast = renderToast(onClose, 1000);
-    act(() => toast.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, relatedTarget: document.body })));
-    act(() => vi.advanceTimersByTime(5000));
+    act(() => {
+      toast.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, relatedTarget: document.body }));
+    });
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
     expect(onClose).not.toHaveBeenCalled();
-    act(() => toast.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body })));
-    act(() => vi.advanceTimersByTime(1000));
+    act(() => {
+      toast.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body }));
+    });
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
     expect(onClose).toHaveBeenCalledOnce();
   });
 
@@ -74,17 +83,23 @@ describe('NotificationsToast', () => {
     const toast = renderToast(onClose, 1000);
     const close = toast.querySelector('button')!;
     act(() => close.focus());
-    act(() => vi.advanceTimersByTime(5000));
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
     expect(onClose).not.toHaveBeenCalled();
     act(() => close.blur());
-    act(() => vi.advanceTimersByTime(1000));
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
     expect(onClose).toHaveBeenCalledOnce();
   });
 
   it('has a named close button and announces its text in the shared live region', () => {
     const onClose = vi.fn();
     const toast = renderToast(onClose, 0);
-    act(() => vi.advanceTimersByTime(announceDelay));
+    act(() => {
+      vi.advanceTimersByTime(announceDelay);
+    });
     expect(container.querySelector('[role="status"]')?.textContent).toBe('Saved');
     expect(toast.getAttribute('role')).toBeNull();
     const close = toast.querySelector('button')!;

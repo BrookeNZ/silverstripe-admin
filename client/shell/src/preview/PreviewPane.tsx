@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { setPreviewBarSlot } from './barSlot';
 import './preview.css';
 

@@ -3,7 +3,6 @@
  * (asset-admin's Editor opens an upload dialog for replacefile and a download for downloadfile) would
  * post the form here, so until a pilet implements them they render inert, saying so, and post nothing.
  */
-import * as React from 'react';
 import { Button, FormAction, fieldTitle } from '@silverstripe/admin-patterns';
 import type { FieldComponentProps } from '../types';
 

@@ -2,21 +2,21 @@
  * The add dialog's state and the create it posts, appending or inserting after a block. The create
  * answers with no id, so the new block is the one the re-read adds; an inline-editable one opens.
  */
+import type { PiletApi } from '@silverstripe/admin-shell';
 import * as React from 'react';
 import type { Block, ElementalApi } from './api';
 import type { ElementType } from './blocks';
 import { insertId, menuId } from './BlockRow';
 import { focusLater } from './areaDom';
 import type { BlockList } from './useBlockList';
-import type { ElementalPiletApi } from './shell';
 
 export interface AddBlockOptions {
-  api: ElementalPiletApi;
+  api: PiletApi;
   client: ElementalApi;
   areaId: number;
   list: BlockList;
   /** Opens a new inline-editable block */
-  open(id: number): void;
+  open: (id: number) => void;
   /** Where focus goes when the new block cannot be found */
   addButtonId: string;
 }
@@ -26,9 +26,9 @@ export interface AddBlock {
   addError: string | null;
   /** The block the dialog inserts after; null to append */
   insertAfter: Block | null;
-  openAddDialog(after: Block | null): void;
-  closeAddDialog(): void;
-  addBlock(type: ElementType): Promise<void>;
+  openAddDialog: (after: Block | null) => void;
+  closeAddDialog: () => void;
+  addBlock: (type: ElementType) => Promise<void>;
 }
 
 export function useAddBlock({ api, client, areaId, list, open, addButtonId }: AddBlockOptions): AddBlock {

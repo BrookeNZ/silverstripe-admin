@@ -49,17 +49,7 @@ class ModalControllerShellExtension extends Extension
         ) {
             return null;
         }
-        $token = $result->getSecurityToken();
-        if ($token->checkRequest($request)) {
-            return null;
-        }
-        return ShellSubmission::jsonError(
-            400,
-            $request->postVar($token->getName())
-                ? ShellSubmission::sessionExpiredMessage()
-                : ShellSubmission::missingTokenMessage(),
-            'invalidToken'
-        );
+        return ShellSubmission::tokenFailure($request, $result->getSecurityToken());
     }
 
     /**

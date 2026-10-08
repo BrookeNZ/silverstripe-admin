@@ -9,8 +9,8 @@ export interface AddPageDialogProps {
   creating: boolean;
   /** Why the last create failed, shown inside the dialog, which a toast would sit under */
   error: string | null;
-  onCreate(className: string): void;
-  onClose(): void;
+  onCreate: (className: string) => void;
+  onClose: () => void;
 }
 
 interface Choices {
@@ -22,7 +22,7 @@ interface PageTypeOptionProps {
   id: string;
   type: PageType;
   checked: boolean;
-  onChoose(className: string): void;
+  onChoose: (className: string) => void;
 }
 
 // Rendered here rather than by OptionsetField, whose options carry a title only
@@ -53,21 +53,31 @@ const PageTypeOption = ({ id, type, checked, onChoose }: PageTypeOptionProps) =>
   );
 };
 
-/** Offers the page types the server allows under the parent; the parent is the open page, or the top level */
+/**
+ * Offers the page types the server allows under the parent; the parent is the open page, or the top level.
+ * Replaces CMSMain's AddForm, which answers with a redirect
+ */
 export const AddPageDialog = ({ open, parentId, client, creating, error, onCreate, onClose }: AddPageDialogProps) => {
   const [choices, setChoices] = React.useState<Choices | null>(null);
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [chosen, setChosen] = React.useState<string | null>(null);
   const fieldId = React.useId();
+  const [shownFor, setShownFor] = React.useState({ open, parentId, client });
+  // Each opening, and a new parent while open, starts from an empty list
+  if (shownFor.open !== open || shownFor.parentId !== parentId || shownFor.client !== client) {
+    setShownFor({ open, parentId, client });
+    if (open) {
+      setChoices(null);
+      setLoadError(null);
+      setChosen(null);
+    }
+  }
 
   React.useEffect(() => {
     if (!open) {
       return undefined;
     }
     let current = true;
-    setChoices(null);
-    setLoadError(null);
-    setChosen(null);
     client.types(parentId).then(
       ({ parent, types, defaultType }) => {
         if (current) {

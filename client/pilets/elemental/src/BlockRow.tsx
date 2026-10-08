@@ -1,4 +1,4 @@
-import * as React from 'react';
+import type * as React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { AddIcon, Button, CollapsedIcon, ExpandedIcon, Link, Menu, ReorderIcon } from '@silverstripe/admin-patterns';
 import type { Block } from './api';
@@ -12,7 +12,7 @@ export interface BlockAction {
   /** The built-in actions use their `BuiltInBlockAction` name, so a handler can find, reorder or drop one */
   id: string;
   label: string;
-  onSelect(block: Block): void | Promise<void>;
+  onSelect: (block: Block) => void | Promise<void>;
   disabled?: boolean;
 }
 
@@ -27,11 +27,11 @@ export interface BlockRowProps {
   busy: boolean;
   /** The router path of the block's edit page, or its absolute URL when it is outside the router */
   editLink: { to: string; inRouter: boolean } | null;
-  renderRouterLink(props: Record<string, unknown>): React.ReactElement;
-  onToggle(): void;
+  renderRouterLink: (props: Record<string, unknown>) => React.ReactElement;
+  onToggle: () => void;
   actions: ReadonlyArray<BlockAction>;
   /** Opens the add dialog to insert after this block; no control renders without it */
-  onInsertAfter?(): void;
+  onInsertAfter?: () => void;
   children?: React.ReactNode;
 }
 
@@ -41,7 +41,7 @@ interface RowPlace {
   count: number;
 }
 
-const menuItems: ReadonlyArray<{ action: BuiltInBlockAction; label: string; allowed(row: RowPlace): boolean }> = [
+const menuItems: ReadonlyArray<{ action: BuiltInBlockAction; label: string; allowed: (row: RowPlace) => boolean }> = [
   { action: 'publish', label: 'Publish', allowed: ({ block }) => block.canPublish && blockStatus(block) !== 'published' },
   { action: 'unpublish', label: 'Unpublish', allowed: ({ block }) => block.canUnpublish && block.isPublished },
   { action: 'duplicate', label: 'Duplicate', allowed: ({ block }) => block.canCreate },
@@ -51,7 +51,7 @@ const menuItems: ReadonlyArray<{ action: BuiltInBlockAction; label: string; allo
 ];
 
 /** The built-in actions this row allows, each handing its name to `run` */
-export function builtInActions(row: RowPlace, run: (action: BuiltInBlockAction) => void): Array<BlockAction> {
+export function builtInActions(row: RowPlace, run: (action: BuiltInBlockAction) => void | Promise<void>): Array<BlockAction> {
   return menuItems.filter((item) => item.allowed(row)).map((item) => ({ id: item.action, label: item.label, onSelect: () => run(item.action) }));
 }
 
@@ -103,7 +103,7 @@ export const BlockRow = (props: BlockRowProps) => {
     >
       <div className="elemental-block__row">
         <Button
-          ref={setActivatorNodeRef as React.Ref<HTMLButtonElement | HTMLAnchorElement>}
+          ref={setActivatorNodeRef as React.ComponentProps<typeof Button>['ref']}
           {...attributes}
           {...listeners}
           id={handleId(block)}

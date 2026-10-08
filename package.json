@@ -20,7 +20,7 @@
     "coverage": "jest --coverage",
     "lint": "eslint client/src && yarn lint:ts && yarn lint:css",
     "lint:css": "stylelint client/src client/patterns/src client/shell/src 'client/pilets/*/src/**/*.css'",
-    "lint:ts": "eslint --no-eslintrc -c .eslintrc.typescript.js --ext .ts,.tsx client/shell/src client/patterns/src client/pilets/fields/src client/pilets/pages/src client/pilets/elemental/src client/pilets/htmleditor/src client/pilets/history/src",
+    "lint:ts": "eslint --no-eslintrc -c .eslintrc.typescript.js --ext .ts,.tsx client/shell/src client/patterns/src client/pilets/fields/src client/pilets/pages/src client/pilets/elemental/src client/pilets/htmleditor/src client/pilets/history/src client/pilets/archive/src",
     "js-fix": "eslint client/src --fix",
     "pattern-lib": "storybook dev -p 6006",
     "static-pattern-lib": "storybook build"
@@ -104,6 +104,7 @@
     "babel-jest": "^29.2.2",
     "copy-webpack-plugin": "^11.0.0",
     "eslint": "^8.26.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "fast-glob": "^3.2.12",
     "html-loader": "^4.2.0",
     "is-plain-object": "^5.0.0",

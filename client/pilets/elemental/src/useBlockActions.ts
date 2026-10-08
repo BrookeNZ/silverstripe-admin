@@ -3,6 +3,7 @@
  * elemental's endpoints. Each write answers with no body, so the list is re-read after it, and focus
  * goes back to the block's menu, or to the copy a duplicate made.
  */
+import type { PiletApi } from '@silverstripe/admin-shell';
 import * as React from 'react';
 import type { Block, ElementalApi } from './api';
 import { afterBlockId, moveBlock } from './blocks';
@@ -11,7 +12,6 @@ import type { BuiltInBlockAction } from './BlockRow';
 import { focusLater } from './areaDom';
 import type { BlockList } from './useBlockList';
 import type { BlockSaving } from './useBlockSaving';
-import type { ElementalPiletApi } from './shell';
 
 const actionMessages: Readonly<Record<'publish' | 'unpublish' | 'archive' | 'duplicate', (title: string) => string>> = {
   publish: (title) => `Published "${title}"`,
@@ -21,13 +21,13 @@ const actionMessages: Readonly<Record<'publish' | 'unpublish' | 'archive' | 'dup
 };
 
 export interface BlockActionsOptions {
-  api: ElementalPiletApi;
+  api: PiletApi;
   client: ElementalApi;
   list: BlockList;
   saving: BlockSaving;
-  blockName(block: Block): string;
+  blockName: (block: Block) => string;
   /** Drops an archived block's form state */
-  forget(id: number): void;
+  forget: (id: number) => void;
   /** Where focus goes when the last block is archived */
   addButtonId: string;
 }
@@ -37,11 +37,11 @@ export interface BlockActions {
   busy: number | null;
   /** The block waiting on the archive confirmation */
   archiving: Block | null;
-  cancelArchive(): void;
-  confirmArchive(): Promise<void>;
-  onAction(block: Block, action: BuiltInBlockAction): Promise<void>;
+  cancelArchive: () => void;
+  confirmArchive: () => Promise<void>;
+  onAction: (block: Block, action: BuiltInBlockAction) => Promise<void>;
   /** Moves a block to an index, optimistically, then focuses `focusId` */
-  move(block: Block, toIndex: number, focusId: string): Promise<void>;
+  move: (block: Block, toIndex: number, focusId: string) => Promise<void>;
 }
 
 export function useBlockActions({ api, client, list, saving, blockName, forget, addButtonId }: BlockActionsOptions): BlockActions {

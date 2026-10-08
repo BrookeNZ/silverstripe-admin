@@ -2,7 +2,7 @@
  * Value fields. Each receives its value and change handler as props, so none of them depends on a form
  * library or on where the field's description came from
  */
-import * as React from 'react';
+import type * as React from 'react';
 import { describedBy, FieldHolder, fieldTitle } from './FieldHolder';
 import type { FieldDescriptor, FieldProps } from './types';
 
@@ -21,12 +21,12 @@ function textValue(value: unknown): string {
   return value == null ? '' : String(value);
 }
 
-export interface TextFieldProps extends FieldProps {
+export interface TextFieldProps<F extends FieldDescriptor = FieldDescriptor> extends FieldProps<unknown, F> {
   /** The on-screen keyboard to offer, such as `decimal` for a number typed as text */
   inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
 }
 
-export const TextField = ({ field, value, onChange, onBlur, error, inputMode }: TextFieldProps) => (
+export const TextField = <F extends FieldDescriptor>({ field, value, onChange, onBlur, error, inputMode }: TextFieldProps<F>) => (
   <FieldHolder field={field} error={error} labelFor={field.id}>
     <input
       {...controlProps(field, error)}
@@ -41,11 +41,11 @@ export const TextField = ({ field, value, onChange, onBlur, error, inputMode }: 
   </FieldHolder>
 );
 
-export const HiddenField = ({ field, value }: FieldProps) => (
+export const HiddenField = <F extends FieldDescriptor>({ field, value }: FieldProps<unknown, F>) => (
   <input type="hidden" id={field.id} name={field.name} value={textValue(value)} />
 );
 
-export const CheckboxField = ({ field, value, onChange, onBlur, error }: FieldProps) => (
+export const CheckboxField = <F extends FieldDescriptor>({ field, value, onChange, onBlur, error }: FieldProps<unknown, F>) => (
   <FieldHolder field={field} error={error} labelFor={field.id} inline>
     <input
       {...controlProps(field, error)}
@@ -58,7 +58,7 @@ export const CheckboxField = ({ field, value, onChange, onBlur, error }: FieldPr
   </FieldHolder>
 );
 
-export const SingleSelectField = ({ field, value, onChange, onBlur, error }: FieldProps) => (
+export const SingleSelectField = <F extends FieldDescriptor>({ field, value, onChange, onBlur, error }: FieldProps<unknown, F>) => (
   <FieldHolder field={field} error={error} labelFor={field.id}>
     <select
       {...controlProps(field, error)}
@@ -77,7 +77,7 @@ export const SingleSelectField = ({ field, value, onChange, onBlur, error }: Fie
   </FieldHolder>
 );
 
-export const OptionsetField = ({ field, value, onChange, onBlur, error }: FieldProps) => (
+export const OptionsetField = <F extends FieldDescriptor>({ field, value, onChange, onBlur, error }: FieldProps<unknown, F>) => (
   <fieldset className="admin-field__choices" id={field.holderId} aria-describedby={describedBy(field, error)}>
     <legend className="admin-field__label">{fieldTitle(field)}</legend>
     {field.source.map((option) => {
@@ -109,7 +109,7 @@ export const OptionsetField = ({ field, value, onChange, onBlur, error }: FieldP
   </fieldset>
 );
 
-export const DatetimeField = ({ field, value, onChange, onBlur, error }: FieldProps) => (
+export const DatetimeField = <F extends FieldDescriptor>({ field, value, onChange, onBlur, error }: FieldProps<unknown, F>) => (
   <FieldHolder field={field} error={error} labelFor={field.id}>
     <input
       {...controlProps(field, error)}
@@ -123,7 +123,7 @@ export const DatetimeField = ({ field, value, onChange, onBlur, error }: FieldPr
   </FieldHolder>
 );
 
-export const ReadonlyField = ({ field, value }: FieldProps) => (
+export const ReadonlyField = <F extends FieldDescriptor>({ field, value }: FieldProps<unknown, F>) => (
   <FieldHolder field={field}>
     <p className="admin-field__readonly" id={field.id}>
       {textValue(value)}

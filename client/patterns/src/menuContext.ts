@@ -6,7 +6,7 @@ import * as React from 'react';
  * become menu items without knowing where they are
  */
 export interface MenuItemContextValue {
-  close(): void;
+  close: () => void;
 }
 
 export const MenuItemContext = React.createContext<MenuItemContextValue | null>(null);

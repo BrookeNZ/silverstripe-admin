@@ -1,13 +1,14 @@
 // @vitest-environment happy-dom
-import * as React from 'react';
+import type * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type * as PiralCore from 'piral-core';
 import { PagesIcon, SectionIcon, SecurityIcon } from '@silverstripe/admin-patterns';
 import type { SilverstripeMenuItem } from '../silverstripe';
-import { createSilverstripeApi } from '../api/silverstripe';
+import { silverstripePlugin } from '../test/silverstripePlugin';
 import { menuCollapsedKey, useMenuCollapsed } from './collapse';
 import { Menu } from './Menu';
 import { legacySectionIcon } from './sectionIcons';
@@ -16,7 +17,7 @@ import { legacySectionIcon } from './sectionIcons';
 const extensions = vi.hoisted((): Record<string, Array<{ reference: unknown }>> => ({}));
 
 vi.mock('piral-core', async (original) => ({
-  ...(await original<typeof import('piral-core')>()),
+  ...(await original<typeof PiralCore>()),
   ExtensionSlot: ({ empty }: { empty?: () => React.ReactNode }) => <>{empty?.()}</>,
   useGlobalState: (select: (state: unknown) => unknown) => select({ registry: { extensions: { ...extensions } } }),
 }));
@@ -31,7 +32,7 @@ function piletApi() {
       };
     },
   };
-  return (createSilverstripeApi() as any)(context)(shellApi, { name: 'hello' });
+  return silverstripePlugin(context)(shellApi, { name: 'hello' });
 }
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;

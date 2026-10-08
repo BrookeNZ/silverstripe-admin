@@ -5,15 +5,22 @@ namespace SilverStripe\Admin\UserInterface;
 use SilverStripe\Admin\LeftAndMain;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Control\HTTPResponse;
+use SilverStripe\Control\HTTPResponse_Exception;
 use SilverStripe\Forms\Form;
 use SilverStripe\Forms\FormAction;
 use SilverStripe\Forms\Schema\FormSchema;
+use SilverStripe\Security\CMSSecurity;
+use SilverStripe\Security\Security;
+use SilverStripe\Security\SecurityToken;
 
 /**
- * What the shell's form handling has in common across the page edit form (CMSMain) and GridField record
- * forms: recognising a shell request, the JSON error envelope (AdminController::jsonError()'s, built without
- * throwing, with the `reason` key PageTreeController's envelope carries), the messages both answer with, and
- * the check for an action the form withholds.
+ * What the shell's server endpoints have in common: recognising a shell request, the JSON error envelope
+ * (AdminController::jsonError()'s, built without throwing, with a `reason` and an optional `field`), the
+ * refusals for a failed access or token check, wrapping a plain-text error in the envelope, the messages the
+ * forms answer with, and the check for an action a form withholds.
+ *
+ * AdminController::jsonError() is not used because it reads an undefined $request, which raises a warning that
+ * dev mode prints into the JSON body.
  */
 final class ShellSubmission
 {
@@ -49,22 +56,107 @@ final class ShellSubmission
     }
 
     /**
-     * @param string|null $reason Defaults to the reason PageTreeController gives the same status
+     * @param string|null $reason Defaults to the reason the page endpoints give the same status
+     * @param string|null $field The request parameter or body key at fault
+     * @param array<string, string> $headers
      */
-    public static function jsonError(int $code, string $message, ?string $reason = null): HTTPResponse
+    public static function jsonError(
+        int $code,
+        string $message,
+        ?string $reason = null,
+        ?string $field = null,
+        array $headers = []
+    ): HTTPResponse {
+        $error = [
+            'type' => 'error',
+            'code' => $code,
+            'value' => $message,
+            'reason' => $reason ?? static::defaultReason($code),
+        ];
+        if ($field !== null) {
+            $error['field'] = $field;
+        }
+        $response = static::jsonResponse($code, ['status' => 'error', 'errors' => [$error]]);
+        foreach ($headers as $name => $value) {
+            $response->addHeader($name, $value);
+        }
+        return $response;
+    }
+
+    /**
+     * @param array<string, string> $headers
+     */
+    public static function jsonException(
+        int $code,
+        string $message,
+        ?string $reason = null,
+        ?string $field = null,
+        array $headers = []
+    ): HTTPResponse_Exception {
+        return new HTTPResponse_Exception(static::jsonError($code, $message, $reason, $field, $headers));
+    }
+
+    /**
+     * Sent `no-store`: every answer depends on the member and the moment
+     */
+    public static function jsonResponse(int $code, array $data, int $flags = 0): HTTPResponse
     {
-        $body = json_encode([
-            'status' => 'error',
-            'errors' => [[
-                'type' => 'error',
-                'code' => $code,
-                'value' => $message,
-                'reason' => $reason ?? static::defaultReason($code),
-            ]],
-        ]);
-        return HTTPResponse::create($body, $code)
+        return HTTPResponse::create(json_encode($data, $flags | JSON_THROW_ON_ERROR), $code)
             ->addHeader('Content-Type', 'application/json')
             ->addHeader('Cache-Control', 'no-store');
+    }
+
+    /**
+     * A JSON 403 for a request AdminController::init() refused, with `X-Reauthenticate` when nobody is
+     * logged in, which Security::permissionFailure() sets for an XHR only
+     */
+    public static function refusal(string $deniedMessage, string $loggedOutMessage): HTTPResponse
+    {
+        if (Security::getCurrentUser()) {
+            return static::jsonError(403, $deniedMessage);
+        }
+        $headers = CMSSecurity::singleton()->enabled() ? ['X-Reauthenticate' => '1'] : [];
+        return static::jsonError(403, $loggedOutMessage, 'notLoggedIn', null, $headers);
+    }
+
+    /**
+     * Null when the token passes. The framework redirects back for a stale token, which the shell cannot
+     * follow, and answers plain text for a missing one; both become a JSON 400 in the framework's wording
+     */
+    public static function tokenFailure(HTTPRequest $request, SecurityToken $token): ?HTTPResponse
+    {
+        if ($token->checkRequest($request)) {
+            return null;
+        }
+        $name = $token->getName();
+        $sent = $request->postVar($name) || $request->getHeader('X-' . $name);
+        return static::jsonError(
+            400,
+            $sent ? static::sessionExpiredMessage() : static::missingTokenMessage(),
+            'invalidToken'
+        );
+    }
+
+    /**
+     * An error response in the JSON envelope: a JSON body is kept as it is, anything else is wrapped,
+     * keeping the headers the shell acts on
+     */
+    public static function asJsonError(HTTPResponse $response, ?string $message = null): HTTPResponse
+    {
+        if (str_contains((string) $response->getHeader('Content-Type'), 'json')) {
+            return $response;
+        }
+        $headers = array_filter([
+            'X-Reauthenticate' => $response->getHeader('X-Reauthenticate'),
+            'Allow' => $response->getHeader('Allow'),
+        ]);
+        return static::jsonError(
+            $response->getStatusCode(),
+            $message ?? static::errorText($response),
+            null,
+            null,
+            $headers
+        );
     }
 
     /**
@@ -74,6 +166,19 @@ final class ShellSubmission
     {
         $lines = preg_split('/\R/', trim(strip_tags((string) $response->getBody())));
         return trim($lines[0] ?? '') ?: (string) $response->getStatusDescription();
+    }
+
+    /**
+     * An action's `X-Status` text, which LeftAndMain sends URL-encoded and may hold markup
+     */
+    public static function statusMessage(HTTPResponse $response): string
+    {
+        return static::plainText(rawurldecode((string) $response->getHeader('X-Status')));
+    }
+
+    public static function plainText(string $html): string
+    {
+        return trim(html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5));
     }
 
     private static function defaultReason(int $code): string

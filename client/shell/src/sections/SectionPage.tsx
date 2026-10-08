@@ -8,7 +8,7 @@
  * section with even one pilet page is left to that pilet and gets the given fallback, as does a path
  * outside every menu section.
  */
-import * as React from 'react';
+import type * as React from 'react';
 import { useLocation } from 'react-router-dom';
 import { useGlobalState } from 'piral-core';
 import { FormSchemaForm } from '../forms/FormSchemaForm';

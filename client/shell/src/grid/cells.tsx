@@ -68,8 +68,8 @@ export interface GridCellContentProps {
   cell: GridCellData | undefined;
   row: GridRow;
   column: GridColumn;
-  isRegistered(name: string): boolean;
-  component(name: string): ComponentType<GridCellProps>;
+  isRegistered: (name: string) => boolean;
+  component: (name: string) => ComponentType<GridCellProps>;
 }
 
 export const GridCellContent = ({ cell, row, column, isRegistered, component }: GridCellContentProps) => {

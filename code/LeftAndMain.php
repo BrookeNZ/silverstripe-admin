@@ -564,11 +564,19 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
         return parent::handleAction($request, $action);
     }
 
+    /**
+     * Lets every shell page load reach handleAction(), whatever the URL names as its action, so a client route
+     * that has no server action does not 404
+     */
     public function hasAction($action)
     {
         return $this->shellOwnsRequest() || parent::hasAction($action);
     }
 
+    /**
+     * Skips only the allowed_actions match for a shell page load; section access is still checked by
+     * canView() in AdminController::init()
+     */
     public function checkAccessAction($action)
     {
         return $this->shellOwnsRequest() || parent::checkAccessAction($action);
@@ -580,6 +588,10 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
         return $request && $this->config()->get('piral_shell') && $this->isPiralNavigation($request);
     }
 
+    /**
+     * Tells a browser page load from the shell's own data requests, which send XHR or FormSchema headers and
+     * accept JSON, so one section URL can serve both
+     */
     protected function isPiralNavigation(HTTPRequest $request): bool
     {
         return $request->httpMethod() === 'GET'
@@ -664,6 +676,10 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
 
     private bool $piralPiletItemsRead = false;
 
+    /**
+     * Read once per request for both the inline feed and the preloads; the flag is separate because null,
+     * a member the feed refuses, is a valid answer
+     */
     private function piralPiletItems(): ?array
     {
         if (!$this->piralPiletItemsRead) {

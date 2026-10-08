@@ -53,9 +53,6 @@ interface PanelProps extends MenuProps {
 
 const itemSelector = '[role="menuitem"]';
 
-// React 18's types do not know the popover attribute yet
-const topLayer = { popover: 'manual' } as React.HTMLAttributes<HTMLDivElement>;
-
 const AnchoredPanel = ({
   id,
   label,
@@ -93,7 +90,7 @@ const AnchoredPanel = ({
     if (open && isMenu) {
       items()[0]?.focus();
     }
-  }, [open]);
+  }, [open, isMenu]);
 
   React.useEffect(() => {
     if (!open) {
@@ -155,9 +152,10 @@ const AnchoredPanel = ({
   };
 
   const menuContext = React.useMemo(() => ({ close: () => close(true) }), [close]);
-  const content = isMenu && open ? <MenuItemContext.Provider value={menuContext}>{children}</MenuItemContext.Provider> : children;
+  const content = isMenu && open ? <MenuItemContext value={menuContext}>{children}</MenuItemContext> : children;
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- Escape and outside-press handling for the trigger button and panel inside it
     <div className="admin-popover" id={holderId} ref={root} onKeyDown={onKeyDown} onBlur={onBlur} onPointerDown={onPointerDown}>
       <Button
         ref={button as React.Ref<HTMLButtonElement | HTMLAnchorElement>}
@@ -179,7 +177,7 @@ const AnchoredPanel = ({
         ref={panel}
         className="admin-popover__panel"
         id={panelId}
-        {...topLayer}
+        popover="manual"
         data-align={align}
         data-placement={side}
         role={role}

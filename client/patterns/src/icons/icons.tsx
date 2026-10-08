@@ -3,7 +3,6 @@
  * design and minified with svgo. Each icon keeps the design's own frame as its viewBox, so a glyph
  * drawn inset in its 18px slot (share, print) stays inset.
  */
-import * as React from 'react';
 import { Icon } from './Icon';
 import type { IconProps } from './Icon';
 

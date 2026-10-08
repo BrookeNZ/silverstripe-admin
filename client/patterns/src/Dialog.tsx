@@ -4,7 +4,7 @@ import { Stack } from './Stack';
 export interface DialogProps {
   open: boolean;
   /** Escape (the native cancel event); the dialog stays open until the host sets `open` false */
-  onClose(): void;
+  onClose: () => void;
   /** Rendered inside the dialog's heading, which names the dialog */
   header: React.ReactNode;
   body?: React.ReactNode;
@@ -38,6 +38,7 @@ export const Dialog = ({ open, onClose, header, body, children, footer, alert, f
     } else if (!open && element?.open) {
       element.close();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs on opening and closing only; `focusHeading` is read as the dialog opens
   }, [open]);
 
   return (

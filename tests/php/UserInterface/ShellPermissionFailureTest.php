@@ -14,13 +14,15 @@ use SilverStripe\Security\Security;
 
 class ShellPermissionFailureTest extends FunctionalTest
 {
+    use ShellResponseAssertions;
+
     protected $usesDatabase = true;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->autoFollowRedirection = false;
-        Config::modify()->set(LeftAndMain::class, 'piral_shell', true);
+        $this->setUpShell();
     }
 
     public function testLoggedOutShellSubmissionGetsJsonAndKeepsReauthenticate(): void
@@ -118,14 +120,5 @@ class ShellPermissionFailureTest extends FunctionalTest
 
         $this->assertSame(403, $response->getStatusCode());
         $this->assertSame('Not logged in', $response->getBody());
-    }
-
-    private function errorMessage(HTTPResponse $response): string
-    {
-        $this->assertSame('application/json', $response->getHeader('Content-Type'));
-        $body = json_decode($response->getBody(), true);
-        $this->assertSame('error', $body['status']);
-        $this->assertSame(403, $body['errors'][0]['code']);
-        return $body['errors'][0]['value'];
     }
 }

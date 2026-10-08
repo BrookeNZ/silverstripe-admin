@@ -5,7 +5,7 @@
  * the design does. In preview mode the content is hidden, so the bar's right-hand group alone draws at
  * the foot of the preview pane, through a portal.
  */
-import * as React from 'react';
+import type * as React from 'react';
 import { createPortal } from 'react-dom';
 import { useSectionHeader } from '../header/state';
 import { useMeasuredHeight } from '../measure';

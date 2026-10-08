@@ -1,29 +1,27 @@
 // @vitest-environment happy-dom
-import * as React from 'react';
+import type * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { StateContext } from 'piral-core';
-import type { GlobalState, GlobalStateContext } from 'piral-core';
-import create from 'zustand';
+import type { GlobalStateContext } from 'piral-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { recordsChangedEvent } from '../events';
 import { builtInFields } from '../forms/fields';
-import type { FieldSchema, FormSchemaResponse } from '../forms/types';
-import { initialSectionHeader } from '../header/state';
-import { initialUnsavedChanges } from '../unsaved';
+import type { FieldComponentProps, FieldSchema, FormSchemaResponse } from '../forms/types';
 import { RecordEditPage } from './RecordEditPage';
 import { recordRoute } from './record';
 import { resolveSectionRoute } from './resolve';
 import { serverQueryClient } from '../state/serverCache';
+import { fakeGlobalContext } from '../test/fakeGlobalContext';
 import type { ShellSection } from './resolve';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // Piral's registry and instance need the app codegen a piral build produces, so fields resolve straight
 // to the built-in components and a store with an event bus stands in for the global state context
-const registry = vi.hoisted(() => ({ fields: {} as Record<string, React.ComponentType<any>> }));
+const registry = vi.hoisted(() => ({ fields: {} as Record<string, React.ComponentType<FieldComponentProps>> }));
 
 vi.mock('../forms/useFieldComponent', async () => {
   const { resolveFieldComponent } = await import('../forms/resolve');
@@ -35,30 +33,6 @@ vi.mock('../forms/useFieldComponent', async () => {
     },
   };
 });
-
-function fakeContext(): GlobalStateContext {
-  const store = create<GlobalState>(() => ({ sectionHeader: initialSectionHeader, unsavedChanges: initialUnsavedChanges }) as unknown as GlobalState);
-  const listeners = new Map<string, Set<(arg: unknown) => void>>();
-  const on = (type: string, listener: (arg: unknown) => void) => {
-    listeners.set(type, (listeners.get(type) ?? new Set()).add(listener));
-    return context;
-  };
-  const context = {
-    state: store,
-    dispatch: (update: (state: GlobalState) => GlobalState) => store.setState(update(store.getState()), true),
-    readState: <S,>(select: (state: GlobalState) => S) => select(store.getState()),
-    on,
-    off: (type: string, listener: (arg: unknown) => void) => {
-      listeners.get(type)?.delete(listener);
-      return context;
-    },
-    emit: (type: string, arg: unknown) => {
-      listeners.get(type)?.forEach((listener) => listener(arg));
-      return context;
-    },
-  } as unknown as GlobalStateContext;
-  return context;
-}
 
 const model = 'App-Note';
 const grid = `/notes/${model}/`;
@@ -93,6 +67,9 @@ function schemaResponse(id: string, title: string | null): FormSchemaResponse {
       actions: [
         field('action_doSave', { component: 'FormAction', type: 'submit', title: 'Save' }),
         ...(id === 'new' ? [] : [field('action_doDelete', { component: 'FormAction', type: 'submit', title: 'Delete' })]),
+        ...(id === 'new' || unpublishOwners === null
+          ? []
+          : [field('action_doUnpublish', { component: 'FormAction', type: 'submit', title: 'Unpublish', attributes: { 'data-owners': unpublishOwners } })]),
       ],
     },
     state: {
@@ -121,6 +98,8 @@ let root: Root;
 let context: GlobalStateContext;
 let location = '';
 let posts: Array<{ url: string; body: URLSearchParams }> = [];
+/** Versioned's count of published records that use this one, on the Unpublish action; null leaves the action out */
+let unpublishOwners: number | null = null;
 
 const LocationProbe = () => {
   const current = useLocation();
@@ -134,7 +113,7 @@ async function renderAt(path: string, notify = vi.fn()) {
   const route = recordRoute(resolveSectionRoute(path, [section])!)!;
   await act(async () => {
     root.render(
-      <StateContext.Provider value={context}>
+      <StateContext value={context}>
         <MemoryRouter initialEntries={[path]}>
           <LocationProbe />
           <Routes>
@@ -142,7 +121,7 @@ async function renderAt(path: string, notify = vi.fn()) {
             <Route path="*" element={<p>Elsewhere</p>} />
           </Routes>
         </MemoryRouter>
-      </StateContext.Provider>,
+      </StateContext>,
     );
   });
   await flush();
@@ -176,12 +155,13 @@ async function press(name: string) {
 
 beforeEach(() => {
   window.ss = { config: { adminUrl: 'admin/', sections: [] } } as unknown as typeof window.ss;
-  context = fakeContext();
+  context = fakeGlobalContext();
   registry.fields = { ...builtInFields };
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
   posts = [];
+  unpublishOwners = null;
 });
 
 afterEach(() => {
@@ -288,6 +268,33 @@ describe('RecordEditPage', () => {
     expect(changed).toHaveBeenCalledWith({ recordClass: 'App\\Note', ids: [4] });
     expect(notify).toHaveBeenCalledWith('Delete succeeded: Note 4', 'success');
     expect(location).toBe(grid);
+  });
+
+  it('asks before unpublishing a record published records use, in the legacy wording', async () => {
+    unpublishOwners = 2;
+    serve(() => json({}, 500));
+    await renderAt(`/notes/${model}/EditForm/field/${model}/item/4/edit/`);
+
+    await press('Unpublish');
+    const dialog = container.querySelector('dialog')!;
+    expect(dialog.open).toBe(true);
+    expect(dialog.textContent).toContain('Unpublish Note 4?');
+    expect(dialog.textContent).toContain(
+      'You are unpublishing content that is being used in 2 other published section(s). This could cause a published page to have missing components on the live site. Do you want to unpublish anyway?',
+    );
+    expect(posts).toHaveLength(0);
+  });
+
+  it('unpublishes at once when no published record uses it', async () => {
+    unpublishOwners = 0;
+    serve(() => json({}, 500));
+    await renderAt(`/notes/${model}/EditForm/field/${model}/item/4/edit/`);
+
+    await press('Unpublish');
+
+    expect(container.querySelector('dialog')?.open).toBe(false);
+    expect(posts).toHaveLength(1);
+    expect(posts[0].body.has('action_doUnpublish')).toBe(true);
   });
 
   it('cancelling the delete dialog posts nothing', async () => {

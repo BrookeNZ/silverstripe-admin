@@ -8,9 +8,10 @@ import { connectConfig } from '../legacy/Config';
 import UploadField from './UploadField';
 import type { UploadFieldValue } from './UploadField';
 import { fileMeta, uploadFile, UploadError } from './uploadFile';
+import type * as UploadFileModule from './uploadFile';
 
 vi.mock('./uploadFile', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./uploadFile')>()),
+  ...(await importOriginal<typeof UploadFileModule>()),
   uploadFile: vi.fn(),
 }));
 
@@ -39,7 +40,7 @@ function field(data: Record<string, unknown> = {}, extra: Record<string, unknown
   } as any;
 }
 
-const Harness = ({ initial, schema, onValue, error }: { initial: UploadFieldValue; schema: any; onValue?(value: UploadFieldValue): void; error?: string }) => {
+const Harness = ({ initial, schema, onValue, error }: { initial: UploadFieldValue; schema: any; onValue?: (value: UploadFieldValue) => void; error?: string }) => {
   const [value, setValue] = React.useState<UploadFieldValue | null>(initial);
   return (
     <UploadField

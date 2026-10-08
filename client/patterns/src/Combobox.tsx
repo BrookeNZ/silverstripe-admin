@@ -26,9 +26,6 @@ import * as React from 'react';
 import { useAnchoredLayer } from './anchoredLayer';
 import { RemoveIcon, ShowOptionsIcon } from './icons';
 
-// React 18's types do not know the popover attribute yet
-const topLayer = { popover: 'manual' } as React.HTMLAttributes<HTMLDivElement>;
-
 export interface ComboboxOptionState {
   active: boolean;
   selected: boolean;
@@ -40,21 +37,21 @@ export interface ComboboxProps<T> {
   name?: string;
   className?: string;
   options?: ReadonlyArray<T>;
-  loadOptions?(inputValue: string): Promise<ReadonlyArray<T>>;
+  loadOptions?: (inputValue: string) => Promise<ReadonlyArray<T>>;
   multiple?: boolean;
   value?: T | null | ReadonlyArray<T>;
   defaultValue?: T | null | ReadonlyArray<T>;
   /** Receives the chosen option, or null, or the array of options when `multiple` */
-  onChange?(value: T | null | T[]): void;
-  onInputChange?(inputValue: string): void;
-  onOpenChange?(open: boolean): void;
+  onChange?: (value: T | null | Array<T>) => void;
+  onInputChange?: (inputValue: string) => void;
+  onOpenChange?: (open: boolean) => void;
   /** Runs before the built-in keys; call `preventDefault()` to handle a key yourself, and `activate` to choose the active option once the options have changed */
-  onKeyDown?(event: React.KeyboardEvent<HTMLInputElement>, activeOption: T | undefined, activate: (option: T) => void): void;
-  getOptionValue?(option: T): string | number;
-  getOptionLabel?(option: T): string;
-  isOptionDisabled?(option: T): boolean;
-  filterOption?(option: T, inputValue: string): boolean;
-  renderOption?(option: T, state: ComboboxOptionState): React.ReactNode;
+  onKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>, activeOption: T | undefined, activate: (option: T) => void) => void;
+  getOptionValue?: (option: T) => string | number;
+  getOptionLabel?: (option: T) => string;
+  isOptionDisabled?: (option: T) => boolean;
+  filterOption?: (option: T, inputValue: string) => boolean;
+  renderOption?: (option: T, state: ComboboxOptionState) => React.ReactNode;
   /** Shown above the options inside the popup */
   header?: React.ReactNode;
   searchable?: boolean;
@@ -69,7 +66,7 @@ export interface ComboboxProps<T> {
   /** Read out through the status line while the list is open, such as the level a tree has moved to */
   statusMessage?: string;
   clearLabel?: string;
-  removeLabel?(optionLabel: string): string;
+  removeLabel?: (optionLabel: string) => string;
   inputRef?: React.Ref<HTMLInputElement>;
   'aria-labelledby'?: string;
   'aria-describedby'?: string;
@@ -138,7 +135,7 @@ export const Combobox = <T,>({
   const typeahead = React.useRef({ text: '', at: 0 });
 
   const current = value === undefined ? uncontrolled : value;
-  const selected: T[] = current == null ? [] : Array.isArray(current) ? [...current] : [current as T];
+  const selected: Array<T> = current == null ? [] : Array.isArray(current) ? [...current] : [current as T];
   const keyOf = (option: T) => String(getOptionValue(option));
   const selectedKeys = new Set(selected.map(keyOf));
   const matches = filterOption ?? ((option: T, text: string) => getOptionLabel(option).toLocaleLowerCase().includes(text.toLocaleLowerCase()));
@@ -157,6 +154,7 @@ export const Combobox = <T,>({
     if (open && activeIndex >= 0) {
       document.getElementById(optionId(activeIndex))?.scrollIntoView?.({ block: 'nearest' });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `optionId` is rebuilt each render from the stable listbox id
   }, [open, activeIndex]);
 
   const setInput = (node: HTMLInputElement | null) => {
@@ -217,7 +215,7 @@ export const Combobox = <T,>({
     resetInput();
   };
 
-  const commit = (next: T[]) => {
+  const commit = (next: Array<T>) => {
     const result = multiple ? next : next[0] ?? null;
     if (value === undefined) {
       setUncontrolled(result);
@@ -239,7 +237,7 @@ export const Combobox = <T,>({
     resetInput();
   };
 
-  const remove = (next: T[]) => {
+  const remove = (next: Array<T>) => {
     commit(next);
     ownInput.current?.focus();
   };
@@ -365,6 +363,7 @@ export const Combobox = <T,>({
 
   return (
     <div className={blockClasses} onBlur={handleBlur}>
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- pointer convenience around the input, which is the interactive control */}
       <div className="admin-combobox__control" ref={control} onMouseDown={handleControlMouseDown}>
         <div className="admin-combobox__values">
           {multiple && selected.length > 0 && (
@@ -418,10 +417,11 @@ export const Combobox = <T,>({
           <ShowOptionsIcon />
         </span>
       </div>
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- keeps focus in the input on click and closes on Escape from header controls; the listbox and input carry the semantics */}
       <div
         ref={popup}
         className="admin-combobox__popup"
-        {...topLayer}
+        popover="manual"
         hidden={!open}
         onMouseDown={(event) => event.preventDefault()}
         onKeyDown={handlePopupKeyDown}
@@ -448,6 +448,7 @@ export const Combobox = <T,>({
               .filter(Boolean)
               .join(' ');
             return (
+              // eslint-disable-next-line jsx-a11y/click-events-have-key-events -- options are chosen by keyboard through the input and aria-activedescendant
               <li
                 key={key}
                 id={optionId(index)}

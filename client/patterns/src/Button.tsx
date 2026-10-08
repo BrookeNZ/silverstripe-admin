@@ -36,6 +36,7 @@ interface ButtonBaseProps {
   icon?: React.ReactNode;
   iconPosition?: IconPosition;
   loading?: boolean;
+  ref?: React.Ref<HTMLButtonElement | HTMLAnchorElement>;
 }
 
 type ButtonName =
@@ -71,64 +72,70 @@ function swallow(event: React.MouseEvent) {
   event.preventDefault();
 }
 
-export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonProps>(
-  (
-    { variant = 'secondary', tone, size, icon, iconPosition = 'start', iconOnly = false, loading = false, className, children, 'aria-label': label, ...rest },
-    ref,
-  ) => {
-    const menu = React.useContext(MenuItemContext);
-    const classes = buttonClassName(variant, tone, size, iconOnly, className);
-    if (process.env.NODE_ENV !== 'production' && iconOnly && !label?.trim() && !hasText(children)) {
-      console.warn('An icon-only Button needs an aria-label or text children to name it');
-    }
-    const content = (
-      <IconLabel icon={icon} iconPosition={iconPosition}>
-        {hasText(children) && <span className={iconOnly ? 'admin-button__label--hidden' : undefined}>{children}</span>}
-      </IconLabel>
-    );
+export const Button = ({
+  variant = 'secondary',
+  tone,
+  size,
+  icon,
+  iconPosition = 'start',
+  iconOnly = false,
+  loading = false,
+  className,
+  children,
+  'aria-label': label,
+  ref,
+  ...rest
+}: ButtonProps) => {
+  const menu = React.useContext(MenuItemContext);
+  const classes = buttonClassName(variant, tone, size, iconOnly, className);
+  if (process.env.NODE_ENV !== 'production' && iconOnly && !label?.trim() && !hasText(children)) {
+    console.warn('An icon-only Button needs an aria-label or text children to name it');
+  }
+  const content = (
+    <IconLabel icon={icon} iconPosition={iconPosition}>
+      {hasText(children) && <span className={iconOnly ? 'admin-button__label--hidden' : undefined}>{children}</span>}
+    </IconLabel>
+  );
 
-    if (rest.href !== undefined) {
-      const { href, disabled, onClick, tabIndex, ...anchor } = rest as NativeAnchorProps;
-      const inert = disabled || loading;
-      return (
-        <a
-          {...anchor}
-          ref={ref as React.Ref<HTMLAnchorElement>}
-          className={classes}
-          aria-label={label}
-          href={inert ? undefined : href}
-          tabIndex={inert ? -1 : tabIndex}
-          onClick={inert ? swallow : onClick}
-          aria-disabled={inert || undefined}
-          aria-busy={loading || undefined}
-        >
-          {content}
-        </a>
-      );
-    }
-
-    const { type = 'button', disabled, onClick, ...button } = rest as NativeButtonProps;
-    const onMenuItemClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-      onClick?.(event);
-      menu?.close();
-    };
+  if (rest.href !== undefined) {
+    const { href, disabled, onClick, tabIndex, ...anchor } = rest as NativeAnchorProps;
+    const inert = disabled || loading;
     return (
-      <button
-        type={type}
-        {...(menu ? { role: 'menuitem', tabIndex: -1 } : {})}
-        {...button}
-        ref={ref as React.Ref<HTMLButtonElement>}
+      <a
+        {...anchor}
+        ref={ref as React.Ref<HTMLAnchorElement>}
         className={classes}
         aria-label={label}
-        disabled={disabled}
-        onClick={loading ? swallow : menu ? onMenuItemClick : onClick}
-        aria-disabled={loading || button['aria-disabled'] || undefined}
+        href={inert ? undefined : href}
+        tabIndex={inert ? -1 : tabIndex}
+        onClick={inert ? swallow : onClick}
+        aria-disabled={inert || undefined}
         aria-busy={loading || undefined}
       >
         {content}
-      </button>
+      </a>
     );
-  },
-);
+  }
 
-Button.displayName = 'Button';
+  const { type = 'button', disabled, onClick, ...button } = rest as NativeButtonProps;
+  const onMenuItemClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    onClick?.(event);
+    menu?.close();
+  };
+  return (
+    <button
+      type={type}
+      {...(menu ? { role: 'menuitem', tabIndex: -1 } : {})}
+      {...button}
+      ref={ref as React.Ref<HTMLButtonElement>}
+      className={classes}
+      aria-label={label}
+      disabled={disabled}
+      onClick={loading ? swallow : menu ? onMenuItemClick : onClick}
+      aria-disabled={loading || button['aria-disabled'] || undefined}
+      aria-busy={loading || undefined}
+    >
+      {content}
+    </button>
+  );
+};

@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { fieldTitle } from '@silverstripe/admin-patterns';
 import { isValueField } from '../schema';
 import type { FieldComponentProps } from '../types';

@@ -10,8 +10,8 @@ import { Button, Dialog } from '@silverstripe/admin-patterns';
 export interface SourceCodeDialogProps {
   /** The HTML to edit; null while closed */
   content: string | null;
-  onCancel(): void;
-  onSave(html: string): void;
+  onCancel: () => void;
+  onSave: (html: string) => void;
 }
 
 export const SourceCodeDialog = ({ content, onCancel, onSave }: SourceCodeDialogProps) => {

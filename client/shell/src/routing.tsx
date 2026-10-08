@@ -2,7 +2,7 @@
  * Moving between admin URLs inside the shell's router. The server sends links relative to the site base
  * (`admin/redirects/...`); the router's paths are relative to the admin root (`/redirects/...`).
  */
-import * as React from 'react';
+import type * as React from 'react';
 import { Link } from 'react-router-dom';
 import type { LinkRenderProps } from '@silverstripe/admin-patterns';
 

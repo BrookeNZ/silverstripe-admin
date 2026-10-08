@@ -7,35 +7,39 @@
 import * as React from 'react';
 import { Link } from 'react-router-dom';
 import { FieldHolder } from '@silverstripe/admin-patterns';
-import { ApiError } from './api';
-import type { SearchResponse, TreeApi } from './api';
+import type { PiletApi } from '@silverstripe/admin-shell';
+import type { TreeApi } from './api';
 
 export interface PageSearchProps {
   /** The id the opening button's aria-controls names */
   id?: string;
   api: TreeApi;
-  editPath(id: number): string;
+  useServerQuery: PiletApi['useServerQuery'];
+  /** The page class, whose records-changed events re-run the search */
+  recordClass: string;
+  editPath: (id: number) => string;
   query: string;
-  onQueryChange(query: string): void;
+  onQueryChange: (query: string) => void;
   minLength?: number;
-  onClose?(): void;
+  onClose?: () => void;
 }
 
 const debounceMs = 300;
 
 const inputId = 'pages-search-input';
 
-type SearchState =
-  | { status: 'idle' }
-  | { status: 'searching' }
-  | { status: 'done'; response: SearchResponse }
-  | { status: 'failed'; error: ApiError };
-
-export const PageSearch = ({ id, api, editPath, query, onQueryChange, minLength = 2, onClose }: PageSearchProps) => {
-  const [state, setState] = React.useState<SearchState>({ status: 'idle' });
+export const PageSearch = ({ id, api, useServerQuery, recordClass, editPath, query, onQueryChange, minLength = 2, onClose }: PageSearchProps) => {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const term = query.trim();
+  const [searchedTerm, setSearchedTerm] = React.useState(term);
   const opened = Boolean(onClose);
+  const active = term.length >= minLength;
+  const search = useServerQuery(
+    [recordClass, 'search', searchedTerm],
+    ({ signal }) => api.search(searchedTerm, signal),
+    { enabled: searchedTerm.length >= minLength },
+  );
+  const response = search.status === 'success' ? search.data : undefined;
 
   React.useEffect(() => {
     if (opened) {
@@ -44,43 +48,22 @@ export const PageSearch = ({ id, api, editPath, query, onQueryChange, minLength 
   }, [opened]);
 
   React.useEffect(() => {
-    if (term.length < minLength) {
-      setState({ status: 'idle' });
-      return undefined;
-    }
-    const abort = new AbortController();
-    const timer = window.setTimeout(() => {
-      setState({ status: 'searching' });
-      api
-        .search(term, abort.signal)
-        .then((response) => setState({ status: 'done', response }))
-        .catch((error: unknown) => {
-          if (!abort.signal.aborted) {
-            setState({
-              status: 'failed',
-              error: error instanceof ApiError ? error : new ApiError(String(error), 0, 'network'),
-            });
-          }
-        });
-    }, debounceMs);
-    return () => {
-      window.clearTimeout(timer);
-      abort.abort();
-    };
-  }, [api, term, minLength]);
+    const timer = window.setTimeout(() => setSearchedTerm(term), debounceMs);
+    return () => window.clearTimeout(timer);
+  }, [term]);
 
   let status = '';
-  if (term.length > 0 && term.length < minLength) {
+  if (term.length > 0 && !active) {
     status = `Type at least ${minLength} characters to search`;
-  } else if (state.status === 'searching') {
+  } else if (active && search.isFetching && !response) {
     status = 'Searching…';
-  } else if (state.status === 'done') {
-    const { totalCount: total } = state.response.pageInfo;
-    const shown = state.response.items.length;
+  } else if (active && response) {
+    const { totalCount: total } = response.pageInfo;
+    const shown = response.items.length;
     status = total === 0 ? 'No pages found' : `${total} ${total === 1 ? 'page' : 'pages'} found${shown < total ? `, showing ${shown}` : ''}`;
   }
 
-  const error = state.status === 'failed' ? state.error.message : undefined;
+  const error = active && search.status === 'error' ? search.error?.message : undefined;
 
   return (
     <div className="pages-search" id={id}>
@@ -115,9 +98,9 @@ export const PageSearch = ({ id, api, editPath, query, onQueryChange, minLength 
       <p className="pages-search__status" id={`${inputId}_status`} role="status">
         {status}
       </p>
-      {term.length >= minLength && state.status === 'done' && state.response.items.length > 0 && (
+      {active && response && response.items.length > 0 && (
         <ul className="pages-search__results" aria-label="Search results">
-          {state.response.items.map((item) => (
+          {response.items.map((item) => (
             <li className="pages-search__result" key={item.id}>
               <Link className="pages-search__link" to={editPath(item.id)}>
                 {item.title}

@@ -40,6 +40,17 @@ same-version tarball is reinstalled because its integrity changes); every pilet 
   `react-dom`, `@types/react` and `@types/react-dom` to 19, reinstalls the emulator, and fixes what the 19
   types flag (a `useRef<T>(null)` ref is `RefObject<T | null>`, so a parameter typed
   `RefObject<HTMLElement>` widens to accept it). `@silverstripe/admin-patterns` accepts `^18 || ^19`.
+- 2026-10-09: `routerPath`; `ServerRequestError` gains `reason` and `field`.
+- 2026-10-09: `registerSilverstripeComponent` and `getSilverstripeComponent` are typed by name through
+  the augmentable `SilverstripeComponents` interface (see **Typed components**); a name it lists takes
+  only a component with its props, and `getSilverstripeComponent` returns a component with them. The
+  built-in field components in `@silverstripe/admin-patterns` are generic over the field descriptor, so
+  they take `FieldComponentProps` without a cast, and `FieldProps['renderFields']` takes a read-only array.
+  `registerExtensionComponent` takes Piral's extension component type rather than `any`.
+  `useServerQuery` takes `initialData` and `initialDataUpdatedAt`, and its `refetch()` resolves to the fetched data (`Promise<T | undefined>`,
+  was `Promise<void>`).
+  `@silverstripe/admin-patterns` requires React `^19` (was `^18 || ^19`); `Button`, `Link` and `Stack`
+  take `ref` as a prop rather than through `forwardRef`, with the same element types.
 
 ## Verbs
 
@@ -48,8 +59,8 @@ piral-notifications, ...):
 
 | Verb | Use |
 |---|---|
-| `registerSilverstripeComponent(name, Component): Disposable` | Register a component under a registry name. The latest registration of a name wins; unloading the pilet restores the previous one. Field components register here too |
-| `getSilverstripeComponent(name): ComponentType` | A stable component that renders the latest registration of `name` |
+| `registerSilverstripeComponent(name, Component): Disposable` | Register a component under a registry name. The latest registration of a name wins; unloading the pilet restores the previous one. Field components register here too. Typed by name; see **Typed components** |
+| `getSilverstripeComponent(name): ComponentType<props>` | A stable component that renders the latest registration of `name`, with the props `SilverstripeComponents` lists for it |
 | `registerExtensionComponent(name, slot, Component): Disposable` | Fill the slot `<name>.<slot>`. `SilverStripe\Admin\LeftAndMain` / `menu.bottom` is legacy; use `registerMenuItem` |
 | `getConfig(): Readonly<SilverstripeClientConfig>` | A deep-frozen copy of `window.ss.config` |
 | `showNotification(content, options?)` | From piral-notifications |
@@ -65,15 +76,35 @@ piral-notifications, ...):
 | `subscribeSharedState(selector, listener): Disposable` | Hear changes to shared state outside React; see **Shared state and events** |
 | `setCurrentRecord({recordClass, id}): Disposable` | Name the record the showing page edits; see **Shared state and events** |
 | `recordsChangedEvent` | The records-changed event's name, for `emit`/`on`/`off`; see **Shared state and events** |
-| `useServerQuery(key, fetcher, options?): ServerQueryResult<T>` | Read and cache server data under a key; see **Server cache** |
+| `useServerQuery(key, fetcher, options?): ServerQueryResult<T>` | Read and cache server data under a key; `initialData` seeds the first result, `initialDataUpdatedAt` dates it, and `refetch()` resolves to the fetched data; see **Server cache** |
 | `useServerMutation(mutation, options?): ServerMutationResult<V, R>` | Run a write and announce the records it changed; see **Server cache** |
 | `invalidateRecords(recordClass, ids): void` | Emit records-changed, which refetches every cached read of those records; see **Server cache** |
 | `fetchJson(url, init?): Promise<T>` | The shell's fetch for admin JSON endpoints, with the session and CSRF handling; see **Server cache** |
+| `routerPath(url): string \| null` | The shell router's path for a server link under the admin URL (`admin/pages/edit/show/7` becomes `/pages/edit/show/7`), or null for a link that leaves the admin |
 
 No `registerFormField`: binding a field to the form is decided by the schema (`schemaType`, read-only
 state, the posted set), not by the registration; holders are a component (`FieldHolder` in
 `@silverstripe/admin-patterns`) that a field draws itself; and one registry namespace serves fields
 and other components. A field component is typed by annotating it with `FieldComponentProps`.
+
+### Typed components
+
+`SilverstripeComponents` maps each registry name to the props its component takes: `FormSchemaForm`,
+`SchemaFormDialog`, the built-in fields (`FieldComponentProps`) and the grid's components. A listed name
+only accepts a component taking those props, and `getSilverstripeComponent` returns one that requires
+them. A name not listed takes any component and returns one taking any props. A pilet whose component
+other pilets read lists it by augmenting the interface, as with `HookPoints`:
+
+```ts
+declare module '@silverstripe/admin-shell' {
+  interface SilverstripeComponents {
+    'SilverStripe\\VersionedAdmin\\Forms\\HistoryViewerField': HistoryViewerProps;
+  }
+}
+
+piral.registerSilverstripeComponent('SilverStripe\\VersionedAdmin\\Forms\\HistoryViewerField', HistoryViewer);
+const Form = piral.getSilverstripeComponent('FormSchemaForm'); // ComponentType<FormSchemaFormProps>
+```
 
 ## Field props contract
 
@@ -289,17 +320,22 @@ use four verbs, and a records-changed event is what clears the cache, so emitter
   `URLSearchParams` and `FormData` are sent as they are), `headers` and `signal`. It resolves to the parsed
   body, or `null` for an empty one, and rejects with a `ServerRequestError`: `message` (what the server
   said, or a generic one), `status`, `serverMessage` (the CMS envelope's errors joined, or the first line
-  of a dev-mode plain-text error; `null` when the server said nothing worth showing) and `sessionExpired`,
+  of a dev-mode plain-text error; `null` when the server said nothing worth showing), `reason` and `field`
+  (the envelope's first error's, when it names them) and `sessionExpired`,
   set for a 401, a 403 with `X-Reauthenticate` and a redirect to the login form, whose message asks the
   viewer to reload and log in. A success whose body is not JSON (an HTML page) rejects too, and so does a
   200 that redirects by `X-ControllerURL` (a section the member cannot view), as a 403.
 - `useServerQuery<T>(key, fetcher, options?)` is a React hook. `fetcher({signal, request})` loads the data,
   `request` being `fetchJson`; the same key on screen twice fetches once. Options: `enabled` (false holds the
   read back), `staleTime` in milliseconds (0 by default, so a remount refetches behind the cached data) and
-  `keepPrevious` (keep the last key's data on screen while the next key loads) and `records(data)`, which
+  `keepPrevious` (keep the last key's data on screen while the next key loads), `initialData` (the first
+  result, with no loading state; with the default `staleTime` the cache still refetches behind it),
+  `initialDataUpdatedAt` (when that data was fetched, in epoch milliseconds, so `staleTime` counts from then
+  rather than from the mount) and `records(data)`, which
   returns the ids of the key's class that the result shows (the rows of a listing), so an event naming any
   of them refetches the listing even when the key itself names none. It returns
-  `{status: 'pending' | 'error' | 'success', data, error, isFetching, refetch()}`. A failure with a status
+  `{status: 'pending' | 'error' | 'success', data, error, isFetching, refetch()}`, where `refetch()` resolves to the
+  data once the fetch settles (a failed fetch leaves the previous data, if any). A failure with a status
   under 500 is not retried; anything else is retried once. Window focus does not refetch.
 - `useServerMutation<V, R>(mutation, options?)` is a React hook for a write: `mutation(variables, request)`.
   It returns `{mutate(variables), status: 'idle' | 'pending' | 'error' | 'success', error, reset()}`;

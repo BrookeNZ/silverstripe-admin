@@ -3,7 +3,7 @@
  * tree while searching and the pointer target into its children, and the breadcrumb row above a
  * nested level.
  */
-import React from 'react';
+import type React from 'react';
 import { BackIcon, CollapsedIcon } from '@silverstripe/admin-patterns';
 import i18n from '../legacy/i18n';
 import { mapHighlight } from '../legacy/castStringToElement';
@@ -27,7 +27,7 @@ export interface TreeOptionProps {
   searching: boolean;
   /** Shown as the place in the tree of a top-level search match */
   emptyContext: string | null;
-  onNavigate(event: React.MouseEvent, id: unknown): void;
+  onNavigate: (event: React.MouseEvent, id: unknown) => void;
 }
 
 /**
@@ -44,6 +44,8 @@ export const TreeOption = ({ node, search, searching, emptyContext, onNavigate }
         {subtitle && <span className="treedropdownfield__option-context">{subtitle}</span>}
       </span>
       {hasChildren && (
+        // A pointer shortcut inside the option, which is the control; the right arrow does the same from the keyboard
+        // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
         <span className="treedropdownfield__option-children" onClick={(event) => onNavigate(event, node.id)}>
           <CollapsedIcon />
           <span className="treedropdownfield__option-hint">
@@ -58,7 +60,7 @@ export const TreeOption = ({ node, search, searching, emptyContext, onNavigate }
 export interface TreeBreadcrumbsProps {
   crumbs: string;
   searching: boolean;
-  onBack(event: React.MouseEvent<HTMLButtonElement>): void;
+  onBack: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 /**

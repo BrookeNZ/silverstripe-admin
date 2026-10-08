@@ -1,11 +1,11 @@
 // @vitest-environment happy-dom
-import * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
 import { MemoryRouter, useNavigate } from 'react-router-dom';
 import type { NavigateFunction } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type * as PiralCore from 'piral-core';
 import { Chrome, Content, mainId, menuId, SkipLink } from './layout';
 import type { SectionHeader } from './header/state';
 import type { SectionSidebarSlotProps } from './header/SectionSidebar';
@@ -14,13 +14,13 @@ import { resetPreviewMode, setPreviewMode } from './preview/mode';
 import { readTopBar } from './topbar/TopBar';
 
 const shellState = vi.hoisted(() => ({
-  current: { registry: { extensions: {} }, sectionHeader: { current: null, entries: [] as Array<unknown> } },
+  current: { registry: { extensions: {} }, sectionHeader: { current: null as SectionHeader | null, entries: [] as Array<unknown> } },
 }));
 
 const slot = vi.hoisted(() => ({ params: null as unknown }));
 
 vi.mock('piral-core', async (original) => ({
-  ...(await original<typeof import('piral-core')>()),
+  ...(await original<typeof PiralCore>()),
   ExtensionSlot: ({ name, params }: { name: string; params?: unknown }) => {
     slot.params = params;
     return <span data-slot={name} />;
@@ -117,7 +117,9 @@ describe('Chrome', () => {
     act(() => toggle().click());
     const link = menu().querySelector('a')!;
     act(() => link.focus());
-    act(() => void link.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+    act(() => {
+      link.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
     expect(toggle().getAttribute('aria-expanded')).toBe('false');
     expect(document.activeElement).toBe(toggle());
   });

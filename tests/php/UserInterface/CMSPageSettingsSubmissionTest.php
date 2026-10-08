@@ -2,10 +2,8 @@
 
 namespace SilverStripe\Admin\Tests\UserInterface;
 
-use SilverStripe\Admin\LeftAndMain;
 use SilverStripe\CMS\Model\SiteTree;
 use SilverStripe\Control\HTTPResponse;
-use SilverStripe\Core\Config\Config;
 use SilverStripe\Dev\FunctionalTest;
 
 /**
@@ -14,13 +12,9 @@ use SilverStripe\Dev\FunctionalTest;
  */
 class CMSPageSettingsSubmissionTest extends FunctionalTest
 {
-    protected static $fixture_file = 'CMSMainEditFormSubmissionTest.yml';
+    use ShellResponseAssertions;
 
-    private const SHELL = [
-        'X-Requested-With' => 'XMLHttpRequest',
-        'Accept' => 'application/json',
-        'X-Formschema-Request' => 'state,errors',
-    ];
+    protected static $fixture_file = 'CMSMainEditFormSubmissionTest.yml';
 
     public static function setUpBeforeClass(): void
     {
@@ -33,7 +27,7 @@ class CMSPageSettingsSubmissionTest extends FunctionalTest
     protected function setUp(): void
     {
         parent::setUp();
-        Config::modify()->set(LeftAndMain::class, 'piral_shell', true);
+        $this->setUpShell();
         $this->logInWithPermission('ADMIN');
     }
 
@@ -42,7 +36,7 @@ class CMSPageSettingsSubmissionTest extends FunctionalTest
         $page = $this->objFromFixture(SiteTree::class, 'alpha');
 
         $response = $this->submit($page, 'save', ['ShowInMenus' => 0, 'CanViewType' => 'LoggedInUsers']);
-        $body = $this->json($response, 200);
+        $body = $this->jsonBody($response, 200);
 
         $this->assertSame([], $body['errors'] ?? []);
         $this->assertSame('admin/pages/settings/schema/EditForm/' . $page->ID, $body['id']);
@@ -62,7 +56,7 @@ class CMSPageSettingsSubmissionTest extends FunctionalTest
         $page->ParentID = $parent->ID;
         $page->write();
 
-        $this->json($this->submit($page, 'save', ['ParentType' => 'root', 'ParentID' => $parent->ID]), 200);
+        $this->jsonBody($this->submit($page, 'save', ['ParentType' => 'root', 'ParentID' => $parent->ID]), 200);
 
         $this->assertSame(0, (int) SiteTree::get()->byID($page->ID)->ParentID);
     }
@@ -72,7 +66,7 @@ class CMSPageSettingsSubmissionTest extends FunctionalTest
         $this->logInWithPermission('CMS_ACCESS_CMSMain');
         $page = $this->objFromFixture(SiteTree::class, 'locked');
 
-        $body = $this->json($this->submit($page, 'save', ['CanViewType' => 'Anyone']), 403);
+        $body = $this->jsonBody($this->submit($page, 'save', ['CanViewType' => 'Anyone']), 403);
 
         $this->assertSame('actionNotAvailable', $body['errors'][0]['reason']);
         $this->assertSame('Inherit', SiteTree::get()->byID($page->ID)->CanViewType);
@@ -83,24 +77,7 @@ class CMSPageSettingsSubmissionTest extends FunctionalTest
         return $this->post(
             'admin/pages/settings/EditForm/' . $page->ID . '/',
             array_merge(['ID' => $page->ID, 'action_' . $action => 1], $data),
-            static::SHELL
+            static::SHELL_HEADERS
         );
-    }
-
-    private function json(HTTPResponse $response, int $status): array
-    {
-        $this->assertSame($status, $response->getStatusCode(), $response->getBody());
-        $this->assertStringContainsString('application/json', (string) $response->getHeader('Content-Type'));
-        return json_decode($response->getBody(), true);
-    }
-
-    private function stateValue(array $body, string $name): mixed
-    {
-        foreach ($body['state']['fields'] as $field) {
-            if ($field['name'] === $name) {
-                return $field['value'];
-            }
-        }
-        $this->fail("No state for $name");
     }
 }

@@ -9,7 +9,7 @@
  * sidebar. While the menu is open the bar is the design's "Mobile menu" (2:1916): Royal Blue, the close
  * cross and the site name in white. Help links open in a new tab, as the legacy menu's did.
  */
-import * as React from 'react';
+import type * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, CloseIcon, HelpIcon, Icon, Menu, MenuIcon, UserIcon } from '@silverstripe/admin-patterns';
 import { routerPath } from '../routing';

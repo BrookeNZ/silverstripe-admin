@@ -4,7 +4,6 @@ namespace SilverStripe\Admin\Tests\UserInterface;
 
 use SilverStripe\Admin\LeftAndMain;
 use SilverStripe\Assets\Folder;
-use SilverStripe\Control\HTTPResponse;
 use SilverStripe\Core\Config\Config;
 use SilverStripe\Dev\FunctionalTest;
 use SilverStripe\Security\InheritedPermissions;
@@ -12,6 +11,8 @@ use SilverStripe\Security\SecurityToken;
 
 class LinkModalShellTest extends FunctionalTest
 {
+    use ShellResponseAssertions;
+
     protected $usesDatabase = true;
 
     private const SCHEMA = [
@@ -20,16 +21,10 @@ class LinkModalShellTest extends FunctionalTest
         'X-Formschema-Request' => 'schema,state,errors',
     ];
 
-    private const SUBMIT = [
-        'X-Requested-With' => 'XMLHttpRequest',
-        'Accept' => 'application/json',
-        'X-Formschema-Request' => 'state,errors',
-    ];
-
     protected function setUp(): void
     {
         parent::setUp();
-        Config::modify()->set(LeftAndMain::class, 'piral_shell', true);
+        $this->setUpShell();
         SecurityToken::disable();
         $this->logInWithPermission('ADMIN');
     }
@@ -48,7 +43,7 @@ class LinkModalShellTest extends FunctionalTest
             null,
             static::SCHEMA
         );
-        $body = $this->json($response);
+        $body = $this->jsonBody($response, 200);
 
         $this->assertSame('https://example.com', $this->stateValue($body, 'Link'));
         $this->assertSame('Ex', $this->stateValue($body, 'Description'));
@@ -58,16 +53,16 @@ class LinkModalShellTest extends FunctionalTest
 
     public function testAFormWithLinkTextPostsWithLinkText(): void
     {
-        $body = $this->json($this->get('admin/modals/linkModalFormSchema/EditorExternalLink/0?requireLinkText=1', null, static::SCHEMA));
+        $body = $this->jsonBody($this->get('admin/modals/linkModalFormSchema/EditorExternalLink/0?requireLinkText=1', null, static::SCHEMA), 200);
         $this->assertMatchesRegularExpression('#^admin/modals/linkModalForm/EditorExternalLink/0/?\?requireLinkText=1$#', $body['schema']['action']);
 
-        $body = $this->json($this->get('admin/modals/linkModalFormSchema/EditorExternalLink/0', null, static::SCHEMA));
+        $body = $this->jsonBody($this->get('admin/modals/linkModalFormSchema/EditorExternalLink/0', null, static::SCHEMA), 200);
         $this->assertStringNotContainsString('requireLinkText', $body['schema']['action']);
     }
 
     public function testSchemaLoadsAFileIdAsARecordId(): void
     {
-        $body = $this->json($this->get('admin/modals/linkModalFormSchema/EditorFileLink/0?FileID=9', null, static::SCHEMA));
+        $body = $this->jsonBody($this->get('admin/modals/linkModalFormSchema/EditorFileLink/0?FileID=9', null, static::SCHEMA), 200);
 
         $this->assertSame(9, $this->stateValue($body, 'FileID'));
     }
@@ -75,8 +70,8 @@ class LinkModalShellTest extends FunctionalTest
     public function testEditingNamesTheActionSaveLink(): void
     {
         $actionTitle = fn (array $body) => $body['schema']['actions'][0]['title'];
-        $this->assertSame('Insert link', $actionTitle($this->json($this->get('admin/modals/linkModalFormSchema/EditorExternalLink/0', null, static::SCHEMA))));
-        $this->assertSame('Save link', $actionTitle($this->json($this->get('admin/modals/linkModalFormSchema/EditorExternalLink/0?editing=1', null, static::SCHEMA))));
+        $this->assertSame('Insert link', $actionTitle($this->jsonBody($this->get('admin/modals/linkModalFormSchema/EditorExternalLink/0', null, static::SCHEMA), 200)));
+        $this->assertSame('Save link', $actionTitle($this->jsonBody($this->get('admin/modals/linkModalFormSchema/EditorExternalLink/0?editing=1', null, static::SCHEMA), 200)));
     }
 
     public function testFileTreeListsOnlyWhatTheMemberMayView(): void
@@ -100,7 +95,7 @@ class LinkModalShellTest extends FunctionalTest
     {
         $hidden = $this->hiddenFolderForAFilesOnlyMember();
 
-        $body = $this->json($this->get("admin/modals/linkModalFormSchema/EditorFileLink/0?FileID={$hidden->ID}", null, static::SCHEMA));
+        $body = $this->jsonBody($this->get("admin/modals/linkModalFormSchema/EditorFileLink/0?FileID={$hidden->ID}", null, static::SCHEMA), 200);
 
         $this->assertStringNotContainsString($hidden->Name, json_encode($body['state']));
         $this->assertSame($hidden->ID, $this->stateValue($body, 'FileID'));
@@ -133,9 +128,9 @@ class LinkModalShellTest extends FunctionalTest
         $response = $this->post(
             'admin/modals/linkModalForm/EditorEmailLink/0?requireLinkText',
             ['Link' => 'someone@example.com', 'Subject' => 'Hi there', 'Text' => 'Mail us', 'action_insert' => 1],
-            static::SUBMIT
+            static::SHELL_HEADERS
         );
-        $body = $this->json($response);
+        $body = $this->jsonBody($response, 200);
 
         $this->assertSame([], $body['errors'] ?? []);
         $this->assertSame('admin/modals/linkModalFormSchema/EditorEmailLink/0', $body['id']);
@@ -148,9 +143,9 @@ class LinkModalShellTest extends FunctionalTest
         $response = $this->post(
             'admin/modals/linkModalForm/EditorEmailLink/0?requireLinkText',
             ['Link' => 'not an address', 'Text' => '', 'action_insert' => 1],
-            static::SUBMIT
+            static::SHELL_HEADERS
         );
-        $body = $this->json($response);
+        $body = $this->jsonBody($response, 200);
 
         $fields = array_column($body['errors'], 'field');
         $this->assertContains('Link', $fields);
@@ -162,9 +157,9 @@ class LinkModalShellTest extends FunctionalTest
         $response = $this->post(
             'admin/modals/linkModalForm/EditorFileLink/0',
             ['FileID' => '0', 'action_insert' => 1],
-            static::SUBMIT
+            static::SHELL_HEADERS
         );
-        $body = $this->json($response);
+        $body = $this->jsonBody($response, 200);
 
         $this->assertSame(['FileID'], array_column($body['errors'], 'field'));
     }
@@ -176,9 +171,9 @@ class LinkModalShellTest extends FunctionalTest
             $response = $this->post(
                 'admin/modals/linkModalForm/EditorFileLink/0',
                 ['FileID' => (string) $id, 'action_insert' => 1],
-                static::SUBMIT
+                static::SHELL_HEADERS
             );
-            $body = $this->json($response);
+            $body = $this->jsonBody($response, 200);
 
             $this->assertSame(['FileID'], array_column($body['errors'], 'field'), "FileID $id");
         }
@@ -205,7 +200,7 @@ class LinkModalShellTest extends FunctionalTest
         $response = $this->post(
             'admin/modals/linkModalForm/EditorExternalLink/0',
             ['Link' => 'https://example.com', 'action_insert' => 1],
-            static::SUBMIT
+            static::SHELL_HEADERS
         );
 
         $this->assertSame(404, $response->getStatusCode());
@@ -218,7 +213,7 @@ class LinkModalShellTest extends FunctionalTest
         $response = $this->post(
             'admin/modals/linkModalForm/EditorExternalLink/0',
             ['Link' => 'https://example.com', 'action_insert' => 1],
-            static::SUBMIT
+            static::SHELL_HEADERS
         );
 
         $this->assertNotSame(200, $response->getStatusCode());
@@ -231,7 +226,7 @@ class LinkModalShellTest extends FunctionalTest
         $response = $this->post(
             'admin/modals/linkModalForm/EditorExternalLink/0',
             ['Link' => 'https://example.com', 'action_insert' => 1, 'SecurityID' => 'forged'],
-            static::SUBMIT
+            static::SHELL_HEADERS
         );
 
         $this->assertNotSame(200, $response->getStatusCode());
@@ -246,22 +241,5 @@ class LinkModalShellTest extends FunctionalTest
         $this->logOut();
         $this->logInWithPermission(['CMS_ACCESS_AssetAdmin']);
         return $hidden;
-    }
-
-    private function json(HTTPResponse $response): array
-    {
-        $this->assertSame(200, $response->getStatusCode(), $response->getBody());
-        $this->assertStringContainsString('application/json', (string) $response->getHeader('Content-Type'));
-        return json_decode($response->getBody(), true);
-    }
-
-    private function stateValue(array $body, string $name): mixed
-    {
-        foreach ($body['state']['fields'] as $field) {
-            if ($field['name'] === $name) {
-                return $field['value'];
-            }
-        }
-        $this->fail("No state for $name");
     }
 }

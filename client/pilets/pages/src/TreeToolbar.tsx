@@ -3,11 +3,11 @@
  * then `actions`, where the batch actions button goes. The design's list view toggle at the end of the
  * row is not built.
  */
-import * as React from 'react';
+import type * as React from 'react';
 import { AddIcon, Button } from '@silverstripe/admin-patterns';
 
 export interface TreeToolbarProps {
-  onAdd(): void;
+  onAdd: () => void;
   actions?: React.ReactNode;
 }
 

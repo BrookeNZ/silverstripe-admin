@@ -35,22 +35,22 @@ export interface UnsavedChangesIndicatorProps {
  * readers announce each change of level
  */
 export const UnsavedChangesIndicator = ({ id, dirty, minutes }: UnsavedChangesIndicatorProps) => {
-  const [since, setSince] = React.useState<number | null>(null);
-  const [now, setNow] = React.useState(() => Date.now());
+  const [elapsed, setElapsed] = React.useState(0);
+  const [wasDirty, setWasDirty] = React.useState(dirty);
+  if (dirty !== wasDirty) {
+    setWasDirty(dirty);
+    setElapsed(0);
+  }
 
   React.useEffect(() => {
     if (!dirty) {
-      setSince(null);
       return undefined;
     }
     const start = Date.now();
-    setSince(start);
-    setNow(start);
-    const tick = setInterval(() => setNow(Date.now()), 1000);
+    const tick = setInterval(() => setElapsed(Date.now() - start), 1000);
     return () => clearInterval(tick);
   }, [dirty]);
 
-  const elapsed = since === null ? 0 : now - since;
   const level = unsavedChangesLevel(dirty, elapsed, minutes);
   const elapsedMinutes = Math.floor(elapsed / minute);
 

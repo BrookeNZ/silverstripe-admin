@@ -1,13 +1,26 @@
-import React, {Component, createRef} from 'react';
+import { Component, createRef } from 'react';
+import type { KeyboardEvent, MouseEvent } from 'react';
 import classNames from 'classnames';
 import { describePoint, focusFromClick, markerPercent, nudge } from './focusPoint';
+import type { FocusPoint } from './focusPoint';
 
-class FocusPointPicker extends Component<any, any> {
-  static defaultProps: Record<string, unknown>;
+export interface FocusPointPickerProps {
+  id: string;
+  className?: string;
+  imageUrl?: string;
+  width?: number;
+  height?: number;
+  tooltip?: string;
+  readOnly?: boolean;
+  focusX?: number;
+  focusY?: number;
+  onChange?: ((point: FocusPoint) => void) | null;
+}
 
+class FocusPointPicker extends Component<FocusPointPickerProps, FocusPoint> {
   marker = createRef<HTMLSpanElement>();
 
-  constructor(props) {
+  constructor(props: FocusPointPickerProps) {
     super(props);
     this.state = {
       focusX: props.focusX || 0,
@@ -18,7 +31,7 @@ class FocusPointPicker extends Component<any, any> {
   }
 
   // Measured from the rendered box, which differs from the width and height props when the box scales
-  handleClick(event) {
+  handleClick(event: MouseEvent<HTMLElement>) {
     if (this.props.readOnly) {
       return;
     }
@@ -26,7 +39,7 @@ class FocusPointPicker extends Component<any, any> {
     this.change(focusFromClick(event.clientX - box.left, event.clientY - box.top, box.width, box.height));
   }
 
-  handleKeyDown(event) {
+  handleKeyDown(event: KeyboardEvent<HTMLElement>) {
     if (this.props.readOnly) {
       return;
     }
@@ -38,13 +51,13 @@ class FocusPointPicker extends Component<any, any> {
     }
   }
 
-  change(point) {
+  change(point: FocusPoint) {
     if (typeof this.props.onChange === 'function') {
       this.props.onChange(point);
     }
   }
 
-  static getDerivedStateFromProps(nextProps) {
+  static getDerivedStateFromProps(nextProps: FocusPointPickerProps): FocusPoint {
     return {
       focusX: nextProps.focusX || 0,
       focusY: nextProps.focusY || 0
@@ -68,7 +81,7 @@ class FocusPointPicker extends Component<any, any> {
   }
 
   render() {
-    const {width, height, imageUrl, tooltip, className, readOnly, id} = this.props;
+    const {width = 0, height = 0, imageUrl = '', tooltip = '', className, readOnly, id} = this.props;
     const {focusX, focusY} = this.state;
     const hintId = `${id}_hint`;
     return (
@@ -83,7 +96,7 @@ class FocusPointPicker extends Component<any, any> {
         <span
           className="focuspoint-picker__overlay"
           role="slider"
-          tabIndex={readOnly ? undefined : 0}
+          tabIndex={readOnly ? -1 : 0}
           aria-label="Focus point"
           aria-describedby={hintId}
           aria-valuemin={-1}
@@ -102,14 +115,6 @@ class FocusPointPicker extends Component<any, any> {
     )
   }
 }
-
-FocusPointPicker.defaultProps = {
-  imageUrl: '',
-  width: 0,
-  height: 0,
-  tooltip: '',
-  onChange: null
-};
 
 
 export default FocusPointPicker;

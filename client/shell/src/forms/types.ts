@@ -128,7 +128,7 @@ export interface FormFieldBase
  * A FormSchema field with its schema-level props typed. Fields such as SearchableDropdownField send
  * their own props at the top level of the schema entry (`optionUrl`, `lazyLoad`); name them in `P`
  */
-export type FormField<P extends object = {}> = FormFieldBase & Partial<P>;
+export type FormField<P extends object = object> = FormFieldBase & Partial<P>;
 
 export interface FormFieldActions {
   /**
@@ -136,7 +136,7 @@ export interface FormFieldActions {
    * that drives hidden companions, such as a focus point picker writing its X and Y fields. Names
    * that are not posted are ignored
    */
-  autofill(name: string, value: unknown): void;
+  autofill: (name: string, value: unknown) => void;
 }
 
 /** Where a field is rendered */
@@ -146,13 +146,13 @@ export interface FormFieldContext {
 }
 
 /** What a field component registered with the Pilet API receives */
-export type FieldComponentProps<V = unknown, P extends object = {}> = FieldProps<V, FormField<P>> & FormFieldActions & FormFieldContext;
+export type FieldComponentProps<V = unknown, P extends object = object> = FieldProps<V, FormField<P>> & FormFieldActions & FormFieldContext;
 
 /** What FormSchemaForm's `handleRef` receives */
 export interface FormSchemaFormHandle {
   /** Posts the form with the named action (the first action, else `action_save`, when omitted) */
-  submit(action?: string): Promise<FormSchemaSubmitResult>;
-  isDirty(): boolean;
+  submit: (action?: string) => Promise<FormSchemaSubmitResult>;
+  isDirty: () => boolean;
 }
 
 export interface FormSchemaSubmitResult {
@@ -171,9 +171,9 @@ export interface SchemaFormDialogProps {
   intro?: ReactNode;
   schemaUrl: string;
   /** Cancel or Escape; the dialog stays open until the host sets `open` false */
-  onClose(): void;
+  onClose: () => void;
   /** A post the server accepted; the host closes the dialog here */
-  onSubmitted?(response: FormSchemaResponse, action: FormField): void;
+  onSubmitted?: (response: FormSchemaResponse, action: FormField) => void;
 }
 
 export type * from '../hooks/types';

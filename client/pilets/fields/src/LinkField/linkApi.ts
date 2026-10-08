@@ -83,7 +83,7 @@ export function savedLinkId(responseId: string | undefined): number | null {
   return match ? Number(match[1]) : null;
 }
 
-export async function fetchLinkData(ids: number[], signal?: AbortSignal): Promise<Record<number, LinkData>> {
+export async function fetchLinkData(ids: Array<number>, signal?: AbortSignal): Promise<Record<number, LinkData>> {
   const url = endpoint(linkFormConfig().dataUrl, '');
   for (const id of ids) {
     url.searchParams.append('itemIDs[]', String(id));
@@ -101,6 +101,6 @@ export async function deleteLink(id: number, owner: LinkOwner): Promise<void> {
   await serverCache().fetchJson(endpoint(linkFormConfig().deleteUrl, String(id), ownerQuery(owner)).href, { method: 'DELETE' });
 }
 
-export async function sortLinks(ids: number[]): Promise<void> {
+export async function sortLinks(ids: Array<number>): Promise<void> {
   await serverCache().fetchJson(endpoint(linkFormConfig().sortUrl, '').href, { method: 'POST', body: { newLinkIDs: ids } });
 }

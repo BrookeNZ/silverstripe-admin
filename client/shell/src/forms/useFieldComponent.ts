@@ -13,14 +13,14 @@ export function resolveInRegistry(field: ResolvableField, extensions: GlobalStat
 }
 
 /** Resolves against the Pilet API's component slots, so a late or unloaded pilet re-resolves the field */
-export function useFieldComponent(field: FormField): ComponentType<FieldComponentProps<any>> {
+export function useFieldComponent(field: FormField): ComponentType<FieldComponentProps> {
   const extensions = useGlobalState((state) => state.registry.extensions);
   const { name } = resolveInRegistry(field, extensions);
   const downgrade = name ? fieldDowngrade(field, name) : null;
   if (downgrade) {
     reportFieldDowngrade(downgrade);
   }
-  return name ? silverstripeComponent(name) : UnknownField;
+  return name ? silverstripeComponent<FieldComponentProps>(name) : UnknownField;
 }
 
 /** Whether the latest registration of the field's component declares `fullWidth` */

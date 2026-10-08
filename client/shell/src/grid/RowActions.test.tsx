@@ -35,7 +35,7 @@ const trigger = () => container.querySelector<HTMLButtonElement>('#Grid_Actions_
 const menuItems = () => Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
 
 // The same wiring GridTable gives a row: a confirm opens the dialog, anything else runs at once
-const ConfirmingRow = ({ onRun }: { onRun(action: GridPostAction): void }) => {
+const ConfirmingRow = ({ onRun }: { onRun: (action: GridPostAction) => void }) => {
   const [confirming, setConfirming] = React.useState<{ action: GridPostAction; row: GridRow } | null>(null);
   return (
     <>

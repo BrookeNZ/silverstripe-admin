@@ -1,4 +1,4 @@
-import * as React from 'react';
+import type * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, AddIcon } from '@silverstripe/admin-patterns';
 import { isNewTabClick, routerPath } from '../routing';

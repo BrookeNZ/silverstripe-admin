@@ -22,7 +22,7 @@ const tree = {
 let container: HTMLDivElement;
 
 const Host = ({ value = 0, showSelectedPath = false }: { value?: number; showSelectedPath?: boolean }) => {
-  const [visible, setVisible] = React.useState<number[]>([]);
+  const [visible, setVisible] = React.useState<Array<number>>([]);
   const actions = {
     treeDropdownField: {
       addSelectedValues: vi.fn(),
@@ -30,7 +30,7 @@ const Host = ({ value = 0, showSelectedPath = false }: { value?: number; showSel
       updateTree: vi.fn(),
       updateTreeFailed: vi.fn(),
       setSearch: vi.fn(),
-      setVisible: (id: string, path: number[]) => setVisible(path),
+      setVisible: (id: string, path: Array<number>) => setVisible(path),
     },
   };
   return (

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createSilverstripeApi } from '../api/silverstripe';
+import { silverstripePlugin } from '../test/silverstripePlugin';
 import { clearHooksOf, orderedHooks, registerHook, resetHooks, runAfterHook, runBeforeHook, runHook, runUpdateHook, setHookFeedOrder } from './registry';
 
 afterEach(() => {
@@ -84,8 +84,8 @@ describe('update hooks', () => {
   it('hands each handler a frozen copy outside production builds, so mutating fails and is isolated', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const input = { fields: [{ name: 'Title' }] };
-    registerHook('pages', 'updateSchema', (schema: any) => {
-      schema.fields[0].name = 'Changed';
+    registerHook('pages', 'updateSchema', (schema) => {
+      (schema as typeof input).fields[0].name = 'Changed';
       return schema;
     });
     const result = runUpdateHook('updateSchema', input, undefined) as typeof input;
@@ -146,8 +146,8 @@ describe('after hooks', () => {
     registerHook('elemental', 'onAfterSave', async () => {
       throw new Error('Async');
     });
-    registerHook('history', 'onAfterSave', ({ id }: { id: number }) => {
-      told.push(`history ${id}`);
+    registerHook('history', 'onAfterSave', (context) => {
+      told.push(`history ${(context as { id: number }).id}`);
     });
     runAfterHook('onAfterSave', { id: 3 });
     await Promise.resolve();
@@ -182,7 +182,7 @@ describe('pilet api runners', () => {
   // The Pilet API plugin reads the feed order from Piral state, so a stub context holds the modules
   function piletApis(feed: Array<string>) {
     const context = { on() {}, readState: (read: (state: unknown) => unknown) => read({ modules: feed.map((name) => ({ name })) }) };
-    const plugin = (createSilverstripeApi() as any)(context);
+    const plugin = silverstripePlugin(context);
     return Object.fromEntries(feed.map((name) => [name, plugin({}, { name })]));
   }
 
@@ -204,6 +204,7 @@ describe('pilet api runners', () => {
     expect(await apis.history.runBeforeHook('onBeforeRevert', {})).toBe(false);
     apis.history.runAfterHook('onAfterRevert', { version: 2 });
     expect(heard).toEqual([{ version: 2 }]);
+    // @ts-expect-error the wrong kind of name is what the runtime check refuses
     expect(() => apis.history.runUpdateHook('onAfterRevert', {}, {})).toThrow('not an updateX');
   });
 });

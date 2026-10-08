@@ -1,10 +1,14 @@
+/**
+ * The admin's legacy SearchableDropdownField, ported with its body kept close to the legacy source; the
+ * legacy/ stand-ins replace its admin imports and PORTING.md lists every change
+ */
 import { CSRF_HEADER, serverCache } from '../legacy/Backend';
 import classNames from 'classnames';
 import Config from '../legacy/Config';
 import debounce from 'debounce-promise';
 import i18n from '../legacy/i18n';
 import fieldHolder from '../legacy/fieldHolder';
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { Combobox } from '@silverstripe/admin-patterns';
 
 interface SearchableOption {
@@ -19,7 +23,7 @@ export interface SearchableDropdownFieldProps {
   multi?: boolean;
   name: string;
   placeholder?: string;
-  onChange?(value: unknown): void;
+  onChange?: (value: unknown) => void;
   options?: Array<SearchableOption>;
   optionUrl?: string;
   searchable?: boolean;
@@ -28,6 +32,33 @@ export interface SearchableDropdownFieldProps {
   'aria-labelledby'?: string;
   'aria-invalid'?: boolean;
   'aria-errormessage'?: string;
+}
+
+/**
+ * Fetch the lazy loaded options from the server, filtered by the given term
+ */
+function lazyLoadOptions(optionUrl: string | undefined) {
+  const fetchCache: Record<string, Array<SearchableOption>> = {};
+  const fetchLazyLoadOptions = (term: string): Promise<Array<SearchableOption>> => {
+    if (Object.prototype.hasOwnProperty.call(fetchCache, term)) {
+      return Promise.resolve(fetchCache[term]);
+    }
+    const fetchUrl = new URL(optionUrl ?? '', document.baseURI);
+    fetchUrl.searchParams.set('term', term);
+    // The search action checks the token on a GET, where the shell's fetch sends none
+    const headers = { [CSRF_HEADER]: String(Config.get('SecurityID')) };
+    return serverCache().fetchJson<Array<SearchableOption>>(fetchUrl.href, { headers })
+      .then(responseJson => {
+        fetchCache[term] = responseJson;
+        return responseJson;
+      });
+  };
+  return debounce((input: string) => {
+    if (!input) {
+      return Promise.resolve([]);
+    }
+    return fetchLazyLoadOptions(input);
+  }, 500);
 }
 
 const SearchableDropdownField = ({
@@ -45,49 +76,14 @@ const SearchableDropdownField = ({
   ...aria
 }: SearchableDropdownFieldProps) => {
   const [hasChanges, setHasChanges] = useState(false);
-  const [justChanged, setJustChanged] = useState(false);
-  const fetchCache = useRef<Record<string, SearchableOption[]>>({});
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // This is required to get the PageForm change tracker to work by firing a bubbling change event
-  useEffect(() => {
-    if (!justChanged) {
-      return;
-    }
-    inputRef.current?.dispatchEvent(new Event('change', { bubbles: true }));
-    setJustChanged(false);
-  });
-
-  /**
-   * Fetch the lazy loaded options from the server, filtered by the given term
-   */
-  const fetchLazyLoadOptions = (term: string): Promise<SearchableOption[]> => {
-    if (Object.prototype.hasOwnProperty.call(fetchCache.current, term)) {
-      return Promise.resolve(fetchCache.current[term]);
-    }
-    const fetchUrl = new URL(optionUrl ?? '', document.baseURI);
-    fetchUrl.searchParams.set('term', term);
-    // The search action checks the token on a GET, where the shell's fetch sends none
-    const headers = { [CSRF_HEADER]: String(Config.get('SecurityID')) };
-    return serverCache().fetchJson<SearchableOption[]>(fetchUrl.href, { headers })
-      .then(responseJson => {
-        fetchCache.current[term] = responseJson;
-        return responseJson;
-      });
-  };
-
-  const getLazyLoadOptions = useRef(debounce((input: string) => {
-    if (!input) {
-      return Promise.resolve([]);
-    }
-    return fetchLazyLoadOptions(input);
-  }, 500)).current;
+  // Made once, as legacy's ref was: the options cache and the debounce belong to the field instance
+  const [getLazyLoadOptions] = useState(() => lazyLoadOptions(optionUrl));
 
   const handleChange = (val: unknown) => {
     setHasChanges(false);
     if (JSON.stringify(value) !== JSON.stringify(val)) {
       setHasChanges(true);
-      setJustChanged(true);
     }
     onChange(val);
   };

@@ -98,6 +98,8 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
 
     public const CSRF_HEADER = 'X-SecurityID';
 
+    protected const JSON_FLAGS = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE;
+
     // The GridState keys of GridFieldPaginator, GridFieldSortableHeader and GridFieldFilterHeader
     protected const QUERY_STATE_KEYS = ['GridFieldPaginator', 'GridFieldSortableHeader', 'GridFieldFilterHeader'];
 
@@ -156,7 +158,7 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
     {
         return $this->respond(function () use ($gridField, $request) {
             if ($request->httpMethod() !== 'GET') {
-                throw $this->error(405, 'Use GET to read the rows');
+                throw ShellSubmission::jsonException(405, 'Use GET to read the rows');
             }
             $this->resetState($gridField);
             $this->applyQuery($gridField, $request);
@@ -168,37 +170,34 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
     {
         return $this->respond(function () use ($gridField, $request) {
             if ($request->httpMethod() !== 'POST') {
-                throw $this->error(405, 'Use POST to run a row action');
+                throw ShellSubmission::jsonException(405, 'Use POST to run a row action');
             }
             $this->resetState($gridField);
             $form = $gridField->getForm();
-            $token = $form ? $form->getSecurityToken() : SecurityToken::inst();
-            if (!$token->check($request->getHeader(static::CSRF_HEADER))) {
-                throw $this->error(400, _t(
-                    'SilverStripe\\Forms\\Form.CSRF_FAILED_MESSAGE',
-                    'There seems to have been a technical problem. Please click the back button, refresh your browser, and try again.'
-                ));
+            $tokenFailure = ShellSubmission::tokenFailure($request, $form ? $form->getSecurityToken() : SecurityToken::inst());
+            if ($tokenFailure) {
+                throw new HTTPResponse_Exception($tokenFailure);
             }
             $name = strtolower((string) $request->param('ActionName'));
             // Columns first: GridFieldArchiveAction removes the delete action from a versioned grid while augmenting them
             $gridField->getColumns();
             if (!$this->postableAction($gridField, $name)) {
-                throw $this->error(404, sprintf('This grid has no "%s" action', $name));
+                throw ShellSubmission::jsonException(404, sprintf('This grid has no "%s" action', $name));
             }
             if ($gridField->isReadonly() || $this->sudoModeBlocks($gridField)) {
-                throw $this->error(403, 'This grid is read only');
+                throw ShellSubmission::jsonException(403, 'This grid is read only');
             }
             $args = json_decode((string) $request->getBody(), true);
             $recordID = is_array($args) ? ($args['RecordID'] ?? null) : null;
             if (!is_int($recordID) || $recordID < 1) {
-                throw $this->error(400, 'The body must be a JSON object with a positive integer RecordID');
+                throw ShellSubmission::jsonException(400, 'The body must be a JSON object with a positive integer RecordID');
             }
             $record = $gridField->getList()->byID($recordID);
             if (!$record || ($record->hasMethod('canView') && !$record->canView())) {
-                throw $this->error(404, 'That record is not in this grid');
+                throw ShellSubmission::jsonException(404, 'That record is not in this grid');
             }
             if (!$this->offersAction($gridField, $record, $name)) {
-                throw $this->error(404, sprintf('This grid has no "%s" action', $name));
+                throw ShellSubmission::jsonException(404, sprintf('This grid has no "%s" action', $name));
             }
             $controllerResponse = $this->controllerResponse($gridField);
             $controllerResponse?->removeHeader('X-Message-Text');
@@ -303,10 +302,10 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
             return;
         }
         if (!$gridField->getConfig()->getComponentByType(GridFieldSortableHeader::class)) {
-            throw $this->error(400, 'This grid cannot be sorted');
+            throw ShellSubmission::jsonException(400, 'This grid cannot be sorted');
         }
         if (!is_string($sort)) {
-            throw $this->error(400, 'sort must be a column name');
+            throw ShellSubmission::jsonException(400, 'sort must be a column name');
         }
         $state = $gridField->getState()->GridFieldSortableHeader;
         $state->SortColumn = null;
@@ -315,12 +314,12 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
             return;
         }
         if (str_contains($sort, ',')) {
-            throw $this->error(400, 'Sorting by more than one column is not supported');
+            throw ShellSubmission::jsonException(400, 'Sorting by more than one column is not supported');
         }
         $column = ltrim($sort, '-');
         $sortField = $this->sortFields($gridField, $gridField->getColumns())[$column] ?? null;
         if ($sortField === null) {
-            throw $this->error(400, sprintf('Column "%s" cannot be sorted', $column));
+            throw ShellSubmission::jsonException(400, sprintf('Column "%s" cannot be sorted', $column));
         }
         $state->SortColumn = $sortField;
         $state->SortDirection = str_starts_with($sort, '-') ? 'desc' : 'asc';
@@ -333,20 +332,20 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
         }
         $header = $gridField->getConfig()->getComponentByType(GridFieldFilterHeader::class);
         if (!$header) {
-            throw $this->error(400, 'This grid cannot be filtered');
+            throw ShellSubmission::jsonException(400, 'This grid cannot be filtered');
         }
         if (!is_array($filter)) {
-            throw $this->error(400, 'filter must be filter[<name>]=<value> pairs');
+            throw ShellSubmission::jsonException(400, 'filter must be filter[<name>]=<value> pairs');
         }
         $allowed = array_keys($this->filterFields($gridField, $header));
         $values = [];
         foreach ($filter as $name => $value) {
             $name = preg_replace('/^Search__/', '', (string) $name);
             if (!in_array($name, $allowed, true)) {
-                throw $this->error(400, sprintf('"%s" is not a filter of this grid', $name));
+                throw ShellSubmission::jsonException(400, sprintf('"%s" is not a filter of this grid', $name));
             }
             if (!is_string($value)) {
-                throw $this->error(400, sprintf('filter[%s] must be a string', $name));
+                throw ShellSubmission::jsonException(400, sprintf('filter[%s] must be a string', $name));
             }
             if ($value !== '') {
                 $values[$name] = $value;
@@ -366,17 +365,17 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
         }
         $paginator = $gridField->getConfig()->getComponentByType(GridFieldPaginator::class);
         if (!$paginator) {
-            throw $this->error(400, 'This grid is not paginated');
+            throw ShellSubmission::jsonException(400, 'This grid is not paginated');
         }
         if (!is_array($page) || array_diff(array_keys($page), ['number', 'size'])) {
-            throw $this->error(400, 'page takes page[number] and page[size]');
+            throw ShellSubmission::jsonException(400, 'page takes page[number] and page[size]');
         }
         $state = $gridField->getState()->GridFieldPaginator;
         if (isset($page['size'])) {
             $size = $this->positiveInt($page['size'], 'page[size]');
             $max = static::config()->get('max_page_size');
             if ($size > $max) {
-                throw $this->error(400, sprintf('page[size] can be at most %d', $max));
+                throw ShellSubmission::jsonException(400, sprintf('page[size] can be at most %d', $max));
             }
             $paginator->setItemsPerPage($size);
             $state->itemsPerPage = $size;
@@ -389,7 +388,7 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
     private function positiveInt(mixed $value, string $name): int
     {
         if (!is_string($value) || !ctype_digit($value) || (int) $value < 1) {
-            throw $this->error(400, sprintf('%s must be a positive integer', $name));
+            throw ShellSubmission::jsonException(400, sprintf('%s must be a positive integer', $name));
         }
         return (int) $value;
     }
@@ -811,6 +810,9 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
         return false;
     }
 
+    /**
+     * Null for a grid whose list has no data class, which getModelClass() reports by throwing
+     */
     private function modelClass(GridField $gridField): ?string
     {
         try {
@@ -836,9 +838,9 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
     private function respond(callable $build): HTTPResponse
     {
         try {
-            return $this->json(200, $build());
+            return ShellSubmission::jsonResponse(200, $build(), static::JSON_FLAGS);
         } catch (HTTPResponse_Exception $exception) {
-            return $this->asJsonError($exception->getResponse());
+            return ShellSubmission::asJsonError($exception->getResponse());
         } catch (ValidationException $exception) {
             // RestoreAction gives 409 for a record that is not archived
             $code = $exception->getCode();
@@ -849,26 +851,5 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
             Injector::inst()->get(LoggerInterface::class)->error($exception->getMessage(), ['exception' => $exception]);
             return ShellSubmission::jsonError(500, Director::isDev() ? $exception->getMessage() : 'The grid could not be loaded');
         }
-    }
-
-    private function error(int $code, string $message): HTTPResponse_Exception
-    {
-        return new HTTPResponse_Exception(ShellSubmission::jsonError($code, $message));
-    }
-
-    private function asJsonError(HTTPResponse $response): HTTPResponse
-    {
-        if (str_contains((string) $response->getHeader('Content-Type'), 'application/json')) {
-            return $response;
-        }
-        return ShellSubmission::jsonError($response->getStatusCode(), ShellSubmission::errorText($response));
-    }
-
-    private function json(int $code, array $data): HTTPResponse
-    {
-        $body = json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
-        return HTTPResponse::create($body, $code)
-            ->addHeader('Content-Type', 'application/json')
-            ->addHeader('Cache-Control', 'no-store');
     }
 }

@@ -65,6 +65,15 @@ describe('fetchJson', () => {
     expect(error).toMatchObject({ message: 'Record not found', status: 404, sessionExpired: false });
   });
 
+  it('carries the envelope\'s first reason and field', async () => {
+    fetchMock.mockResolvedValue(
+      json(403, { errors: [{ value: 'Pages cannot be added under this page', reason: 'notAllowedHere', field: 'parentId' }, { reason: 'other' }] }),
+    );
+    const error = await fetchJson('https://example.test/admin/pages/move/page', { method: 'POST' }).catch((caught: unknown) => caught);
+
+    expect(error).toMatchObject({ status: 403, reason: 'notAllowedHere', field: 'parentId', sessionExpired: false });
+  });
+
   it('raises a plain JSON body\'s message, such as a refused sudo mode password', async () => {
     fetchMock.mockResolvedValue(json(401, { message: 'Incorrect password' }));
     const error = await fetchJson('https://example.test/admin/sudomode/activate', { method: 'POST' }).catch((caught: unknown) => caught);

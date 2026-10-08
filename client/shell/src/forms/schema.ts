@@ -295,6 +295,7 @@ function appendValue(body: URLSearchParams, name: string, value: unknown): void 
   }
 }
 
+/** The pressed action posts as `action_x=1`, as a native submit button would, which is how the form request handler picks the action */
 export function encodeSubmission(valueFields: Array<FormField>, values: FormValues, action: string): URLSearchParams {
   const body = new URLSearchParams();
   for (const field of valueFields) {
@@ -317,9 +318,9 @@ export class FormSchemaRequestError extends ServerRequestError {
     status: number,
     serverMessage: string | null,
     /** The CMS session has ended: LeftAndMain answers an XHR with 403 and `X-Reauthenticate` */
-    readonly sessionEnded: boolean,
+    sessionExpired: boolean,
   ) {
-    super(`The form endpoint answered ${status}`, status, sessionEnded, serverMessage);
+    super(`The form endpoint answered ${status}`, status, sessionExpired, serverMessage);
     this.name = 'FormSchemaRequestError';
   }
 }

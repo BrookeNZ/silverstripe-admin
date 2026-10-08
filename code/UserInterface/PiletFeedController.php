@@ -5,7 +5,6 @@ namespace SilverStripe\Admin\UserInterface;
 use SilverStripe\Admin\AdminController;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Control\HTTPResponse;
-use SilverStripe\Security\Security;
 
 /**
  * Serves the pilet feed at admin/pilets for the Piral app shell.
@@ -15,9 +14,9 @@ use SilverStripe\Security\Security;
  * list depends on the member's permissions, so no shared cache may keep it, and the browser must revalidate
  * on every load, but it may keep a copy so the revalidation can come back as an empty 304.
  *
- * A request sent with `X-Requested-With: XMLHttpRequest` that fails the access check gets the CMS JSON error
- * envelope (401 when nobody is logged in, 403 otherwise) instead of the framework's plain-text 403 or the
- * redirect to the login form that a plain request still gets.
+ * A request sent with `X-Requested-With: XMLHttpRequest` that fails the access check gets the shell's JSON 403
+ * (ShellSubmission::refusal(), with `X-Reauthenticate` when nobody is logged in) instead of the framework's
+ * plain-text 403. A plain request still gets the redirect to the login form.
  */
 class PiletFeedController extends AdminController
 {
@@ -37,12 +36,7 @@ class PiletFeedController extends AdminController
 
         $response = $this->getResponse();
         if ($response->isError() && $this->getRequest()->isAjax()) {
-            $loggedIn = (bool) Security::getCurrentUser();
-            $this->setResponse($this->jsonErrorResponse(
-                $loggedIn ? 403 : 401,
-                $loggedIn ? 'Permission denied' : 'Not logged in',
-                $response->getHeader('X-Reauthenticate')
-            ));
+            $this->setResponse(ShellSubmission::refusal('Permission denied', 'Not logged in'));
         }
     }
 
@@ -76,24 +70,5 @@ class PiletFeedController extends AdminController
             }
         }
         return false;
-    }
-
-    /**
-     * Same envelope as jsonError(), built without throwing because jsonError() reads an undefined $request,
-     * which raises a warning that dev mode would print into the JSON body
-     */
-    private function jsonErrorResponse(int $code, string $message, ?string $reauthenticate): HTTPResponse
-    {
-        $body = json_encode([
-            'status' => 'error',
-            'errors' => [['type' => 'error', 'code' => $code, 'value' => $message]],
-        ], JSON_THROW_ON_ERROR);
-        $response = HTTPResponse::create($body, $code)
-            ->addHeader('Content-Type', 'application/json')
-            ->addHeader('Cache-Control', 'no-store');
-        if ($reauthenticate) {
-            $response->addHeader('X-Reauthenticate', $reauthenticate);
-        }
-        return $response;
     }
 }

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
-import { previewLinks } from './preview';
+import { previewLinks } from './previewLinks';
 
 const base = 'https://example.test/admin/pages/edit/show/1';
 

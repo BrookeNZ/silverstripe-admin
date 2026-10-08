@@ -31,6 +31,7 @@ import './grid.css';
 
 const features = tableFeatures({ rowSortingFeature, rowPaginationFeature });
 
+// The legacy GridField template's fragment targets above the table; any other slot draws below it
 const slotsAbove = ['before', 'buttons-before-left', 'buttons-before-right', 'toolbar-header-left', 'toolbar-header-right', 'header'];
 
 function absolute(url: string): string {
@@ -72,6 +73,8 @@ export interface GridTableProps {
 export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryKey = rowsParams(readGridQuery(searchParams, name)).toString();
+  // Keyed on the serialised query, so an unrelated search param change keeps the same object
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const query = React.useMemo(() => readGridQuery(searchParams, name), [queryKey]);
   const rowsKey = ['grid', rowsUrl, queryKey] as const;
   const listing = useShellServerQuery(rowsKey, ({ signal }) => requestGrid(withParams(rowsUrl, rowsParams(query)), { signal }), {
@@ -85,7 +88,12 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
   );
   const loading = listing.isFetching || rowAction.status === 'pending';
   const [actionError, setActionError] = React.useState<string | null>(null);
-  React.useEffect(() => setActionError(null), [listing.data]);
+  // New rows clear an action's error
+  const [errorRows, setErrorRows] = React.useState(listing.data);
+  if (listing.data !== errorRows) {
+    setErrorRows(listing.data);
+    setActionError(null);
+  }
   const error = actionError ?? (listing.status === 'error' ? listing.error?.message ?? null : null);
   const [status, setStatus] = React.useState('');
   const [confirming, setConfirming] = React.useState<{ action: GridPostAction; row: GridRow } | null>(null);
@@ -101,9 +109,10 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
     pageSize: payload?.pagination?.pageSize ?? 1,
   };
   const updateGridColumns = useUpdateHook('updateGridColumns');
+  const payloadColumns = payload?.columns;
   const gridColumns = React.useMemo(
-    () => (payload ? updateGridColumns(payload.columns, { name, rowsUrl }) : []),
-    [updateGridColumns, payload?.columns, name, rowsUrl],
+    () => (payloadColumns ? updateGridColumns(payloadColumns, { name, rowsUrl }) : []),
+    [updateGridColumns, payloadColumns, name, rowsUrl],
   );
   const columns = React.useMemo(() => gridColumnDefs(gridColumns), [gridColumns]);
   const columnsByName = React.useMemo(() => new Map<string, GridColumn>(gridColumns.map((column) => [column.name, column])), [gridColumns]);
@@ -154,15 +163,15 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
   };
 
   const renderSlot = (slot: string) =>
-    (payload?.slots[slot] ?? []).map((entry: GridSlotEntry, index: number) => {
+    (payload?.slots[slot] ?? []).map((entry: GridSlotEntry) => {
       if ('html' in entry) {
-        return <HtmlContent key={`${slot}-${index}`} className="admin-grid__slot" html={entry.html} />;
+        return <HtmlContent key={entry.html} className="admin-grid__slot" html={entry.html} />;
       }
       if (!isRegistered(entry.component)) {
         return null;
       }
-      const Slot = silverstripeComponent(entry.component);
-      return <Slot key={`${slot}-${index}`} {...entry.props} grid={payload?.grid} />;
+      const Slot = silverstripeComponent<Record<string, unknown>>(entry.component);
+      return <Slot key={entry.component} {...entry.props} grid={payload?.grid} />;
     });
 
   const otherSlots = Object.keys(payload?.slots ?? {}).filter((slot) => !slotsAbove.includes(slot));
@@ -244,7 +253,7 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
                       component={silverstripeComponent}
                     />
                     {column.actions && (
-                      <RowActions gridId={id} row={row.original} readonly={payload?.grid.readonly ?? true} onAction={(action) => (action.confirm ? setConfirming({ action, row: row.original }) : runAction(action, row.original))} />
+                      <RowActions gridId={id} row={row.original} readonly={payload?.grid.readonly ?? true} onAction={(action) => (action.confirm ? setConfirming({ action, row: row.original }) : void runAction(action, row.original))} />
                     )}
                   </>
                 );
@@ -287,7 +296,7 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
       <ConfirmDialog
         confirming={confirming}
         onCancel={() => setConfirming(null)}
-        onConfirm={() => confirming && runAction(confirming.action, confirming.row)}
+        onConfirm={() => confirming && void runAction(confirming.action, confirming.row)}
       />
     </div>
   );
@@ -297,7 +306,7 @@ export interface RowActionsProps {
   gridId: string;
   row: GridRow;
   readonly: boolean;
-  onAction(action: GridPostAction): void;
+  onAction: (action: GridPostAction) => void;
 }
 
 export const RowActions = ({ gridId, row, readonly, onAction }: RowActionsProps) => {
@@ -330,13 +339,17 @@ interface GridSearchProps {
   label: string;
   value: string;
   active: boolean;
-  onSearch(text: string): void;
-  onClear(): void;
+  onSearch: (text: string) => void;
+  onClear: () => void;
 }
 
 const GridSearch = ({ id, label, value, active, onSearch, onClear }: GridSearchProps) => {
   const [draft, setDraft] = React.useState(value);
-  React.useEffect(() => setDraft(value), [value]);
+  const [searched, setSearched] = React.useState(value);
+  if (value !== searched) {
+    setSearched(value);
+    setDraft(value);
+  }
   return (
     <Stack direction="row" align="center" spacing="xs" wrap={false} className="admin-grid__search" role="search">
       <label className="admin-grid__hidden" htmlFor={id}>
@@ -370,8 +383,8 @@ const GridSearch = ({ id, label, value, active, onSearch, onClear }: GridSearchP
 
 export interface ConfirmDialogProps {
   confirming: { action: GridPostAction; row: GridRow } | null;
-  onCancel(): void;
-  onConfirm(): void;
+  onCancel: () => void;
+  onConfirm: () => void;
 }
 
 export const ConfirmDialog = ({ confirming, onCancel, onConfirm }: ConfirmDialogProps) => (
@@ -386,7 +399,7 @@ export const ConfirmDialog = ({ confirming, onCancel, onConfirm }: ConfirmDialog
           Cancel
         </Button>
         <Button variant="primary" onClick={onConfirm}>
-          {confirming?.action.title}
+          {confirming?.action.title ?? 'Confirm'}
         </Button>
       </>
     }

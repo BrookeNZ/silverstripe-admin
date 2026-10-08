@@ -49,11 +49,15 @@ export interface ServerQueryOptions<T = unknown> {
   staleTime?: number;
   /** Keeps showing the previous key's data while the next key loads, as paging wants */
   keepPrevious?: boolean;
+  /** Shown as the first result, with no loading state; as the cache treats it, a stale one is refetched behind it */
+  initialData?: T;
+  /** When `initialData` was fetched, in epoch milliseconds, so `staleTime` counts from then; now by default */
+  initialDataUpdatedAt?: number;
   /**
    * The ids of records of the key's class that the result shows, such as the rows of a listing; an event
    * naming one of them invalidates the key too
    */
-  records?(data: T): ReadonlyArray<number>;
+  records?: (data: T) => ReadonlyArray<number>;
 }
 
 export interface ServerQueryResult<T> {
@@ -62,22 +66,23 @@ export interface ServerQueryResult<T> {
   error: Error | null;
   /** True during any fetch, including a background refetch with data already shown */
   isFetching: boolean;
-  refetch(): Promise<void>;
+  /** Resolves to the data once the fetch settles; a failed fetch leaves the previous data, if any */
+  refetch: () => Promise<T | undefined>;
 }
 
 export type ServerMutation<V, R> = (variables: V, request: ServerRequest) => Promise<R>;
 
 export interface ServerMutationOptions<V, R> {
   /** The records a successful mutation changed; each is announced as a records-changed event */
-  changes?(variables: V, result: R): RecordsChangedEvent | ReadonlyArray<RecordsChangedEvent> | null;
+  changes?: (variables: V, result: R) => RecordsChangedEvent | ReadonlyArray<RecordsChangedEvent> | null;
 }
 
 export interface ServerMutationResult<V, R> {
   /** Resolves with the result or rejects with the error, which `error` also holds */
-  mutate(variables: V): Promise<R>;
+  mutate: (variables: V) => Promise<R>;
   status: 'idle' | 'pending' | 'error' | 'success';
   error: Error | null;
-  reset(): void;
+  reset: () => void;
 }
 
 export interface ServerCacheApi {
@@ -85,16 +90,17 @@ export interface ServerCacheApi {
    * Reads and caches `fetcher`'s result under `key`; the same key on screen twice fetches once. A
    * records-changed event matching the key refetches it (PILET-API.md, "Shared state and events")
    */
-  useServerQuery<T>(key: ServerQueryKey, fetcher: ServerQueryFetcher<T>, options?: ServerQueryOptions<T>): ServerQueryResult<T>;
+  useServerQuery: <T>(key: ServerQueryKey, fetcher: ServerQueryFetcher<T>, options?: ServerQueryOptions<T>) => ServerQueryResult<T>;
   /** Runs a write; on success announces the records `options.changes` names, which invalidates them */
-  useServerMutation<V, R>(mutation: ServerMutation<V, R>, options?: ServerMutationOptions<V, R>): ServerMutationResult<V, R>;
+  useServerMutation: <V, R>(mutation: ServerMutation<V, R>, options?: ServerMutationOptions<V, R>) => ServerMutationResult<V, R>;
   /** Emits records-changed for these records, which refetches every cached read they match */
-  invalidateRecords(recordClass: string, ids: ReadonlyArray<number>): void;
+  invalidateRecords: (recordClass: string, ids: ReadonlyArray<number>) => void;
   /** The shell's fetch: admin XHR headers, X-SecurityID on writes, session expiry as an error */
   fetchJson: ServerRequest;
 }
 
 declare module 'piral-core/lib/types/custom' {
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- merging into Piral's pilet API needs an interface
   interface PiletCustomApi extends ServerCacheApi {}
 }
 
@@ -132,13 +138,14 @@ export function matchesRecordsChanged(
 }
 
 interface ServerQueryMeta extends Record<string, unknown> {
-  records?(data: unknown): ReadonlyArray<number>;
+  records?: (data: unknown) => ReadonlyArray<number>;
 }
 
 function shownRecords(meta: ServerQueryMeta | undefined, data: unknown): ReadonlyArray<number> {
   return data === undefined || !meta?.records ? [] : meta.records(data);
 }
 
+// One retry for a network failure or a 5xx; a 4xx (permission, missing record, ended session) will not change
 function retryable(failureCount: number, error: unknown): boolean {
   return failureCount < 1 && !(error instanceof ServerRequestError && error.status < 500);
 }
@@ -146,6 +153,7 @@ function retryable(failureCount: number, error: unknown): boolean {
 export function createServerQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
+      // Refetching on focus would reload a form under an editor's unsaved changes; legacy never refetches on focus
       queries: { retry: retryable, refetchOnWindowFocus: false, staleTime: 0 },
       mutations: { retry: false },
     },
@@ -178,6 +186,8 @@ function useCachedQuery<T>(
       enabled: options.enabled ?? true,
       staleTime: options.staleTime,
       placeholderData: options.keepPrevious ? keepPreviousData : undefined,
+      initialData: options.initialData,
+      initialDataUpdatedAt: options.initialDataUpdatedAt,
       meta: options.records ? ({ records: options.records } as ServerQueryMeta) : undefined,
     },
     queryClient,
@@ -187,9 +197,7 @@ function useCachedQuery<T>(
     data: query.data,
     error: query.error,
     isFetching: query.isFetching,
-    refetch: async () => {
-      await query.refetch();
-    },
+    refetch: async () => (await query.refetch()).data,
   };
 }
 

@@ -1,9 +1,15 @@
-import React, {Component} from 'react';
+/**
+ * jonom/focuspoint's FocusPointField, ported and carried here until that module ships a pilet. The X and
+ * Y values go through the shell's `autofill` rather than redux-form's, since the shell form owns the
+ * values; PORTING.md lists the other changes
+ */
+import { Component } from 'react';
 import classNames from 'classnames';
 import { FieldHolder } from '@silverstripe/admin-patterns';
 import type { FieldComponentProps } from '@silverstripe/admin-shell';
 import FocusPointPicker from './FocusPointPicker';
 import { pickerSize } from './focusPoint';
+import type { FocusPoint } from './focusPoint';
 import './FocusPointField.css';
 
 export interface FocusPointState {
@@ -18,8 +24,15 @@ export interface FocusPointState {
   };
 }
 
-class FocusPointField extends Component<FieldComponentProps<unknown, FocusPointState>, any> {
-  constructor(props) {
+type FocusPointFieldProps = FieldComponentProps<unknown, FocusPointState>;
+
+interface FocusPointFieldState {
+  FocusX: number;
+  FocusY: number;
+}
+
+class FocusPointField extends Component<FocusPointFieldProps, FocusPointFieldState> {
+  constructor(props: FocusPointFieldProps) {
     super(props);
 
     const data = props.field.data as FocusPointState['data'];
@@ -30,7 +43,7 @@ class FocusPointField extends Component<FieldComponentProps<unknown, FocusPointS
     this.handleFocusChange = this.handleFocusChange.bind(this);
   }
 
-  handleFocusChange({focusX, focusY}) {
+  handleFocusChange({focusX, focusY}: FocusPoint) {
     this.setState({
       FocusX: focusX,
       FocusY: focusY
@@ -43,7 +56,7 @@ class FocusPointField extends Component<FieldComponentProps<unknown, FocusPointS
   }
 
   // The schema is fetched again after a save, which can move the saved point
-  componentDidUpdate(oldProps) {
+  componentDidUpdate(oldProps: FocusPointFieldProps) {
     const {X, Y} = this.props.field.data as FocusPointState['data'];
     const old = oldProps.field.data as FocusPointState['data'];
     if (X !== old.X || Y !== old.Y) {

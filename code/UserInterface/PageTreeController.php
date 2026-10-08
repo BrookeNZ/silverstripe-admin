@@ -2,24 +2,17 @@
 
 namespace SilverStripe\Admin\UserInterface;
 
-use Psr\Log\LoggerInterface;
 use ReflectionMethod;
-use SilverStripe\Admin\AdminController;
-use SilverStripe\Control\Director;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Control\HTTPResponse;
-use SilverStripe\Control\HTTPResponse_Exception;
-use SilverStripe\Core\Injector\Injector;
 use SilverStripe\ORM\DataList;
 use SilverStripe\ORM\DataObject;
-use SilverStripe\ORM\Hierarchy\Hierarchy;
 use SilverStripe\Security\InheritedPermissions;
 use SilverStripe\Security\Member;
 use SilverStripe\Security\Permission;
 use SilverStripe\Security\PermissionChecker;
 use SilverStripe\Security\Security;
 use SilverStripe\Versioned\Versioned;
-use Throwable;
 
 /**
  * Read-only JSON for the page tree at admin/pages/tree: paged children of a node, the path to a node, and search.
@@ -30,14 +23,9 @@ use Throwable;
  * disabled, this one leaves them out. Search also leaves out a match below a page the member cannot view, since
  * the tree cannot reach it.
  *
- * Errors use jsonError()'s envelope plus `reason` and, for a bad parameter, `field`, uncaught exceptions included
- * (500, `serverError`). They are built here because jsonError() reads an undefined $request, which dev mode prints
- * into the body, and has no room for the two keys.
- *
- * The model class is config so the admin module keeps no hard dependency on silverstripe/cms; without it every
- * action answers 404.
+ * Reads the draft stage. Errors use PageEndpointController's envelope, with `field` for a bad parameter.
  */
-class PageTreeController extends AdminController
+class PageTreeController extends PageEndpointController
 {
     private static ?string $url_segment = 'pages/tree';
 
@@ -52,11 +40,6 @@ class PageTreeController extends AdminController
         'search',
     ];
 
-    // Matches CMSMain, whose tree endpoints this replaces
-    private static string|array $required_permission_codes = 'CMS_ACCESS_CMSMain';
-
-    private static string $model_class = 'SilverStripe\\CMS\\Model\\SiteTree';
-
     private static int $default_limit = 50;
 
     private static int $max_limit = 250;
@@ -68,7 +51,7 @@ class PageTreeController extends AdminController
     private static int $search_min_length = 2;
 
     /**
-     * @var array<int, array<DataObject>> viewable children per parent ID, for the current request and stage
+     * @var array<int, array<DataObject>> viewable children per parent ID, for the current request
      */
     private array $viewableChildren = [];
 
@@ -77,54 +60,29 @@ class PageTreeController extends AdminController
      */
     private array $overrides = [];
 
-    protected function init()
+    protected function serverErrorMessage(): string
     {
-        parent::init();
-
-        $response = $this->getResponse();
-        if ($response->isError() || $response->isRedirect()) {
-            $loggedIn = (bool) Security::getCurrentUser();
-            $error = $this->errorResponse(
-                $loggedIn ? 403 : 401,
-                $loggedIn ? 'forbidden' : 'notLoggedIn',
-                $loggedIn ? 'Permission denied' : 'Not logged in'
-            );
-            if ($response->getHeader('X-Reauthenticate')) {
-                $error->addHeader('X-Reauthenticate', $response->getHeader('X-Reauthenticate'));
-            }
-            $this->setResponse($error);
-        }
+        return 'The page tree could not be loaded';
     }
 
-    protected function handleAction($request, $action)
+    protected function usage(): string
     {
-        try {
-            if (!in_array($request->httpMethod(), ['GET', 'HEAD'])) {
-                $this->throwError(405, 'methodNotAllowed', 'Only GET is supported', null, ['Allow' => 'GET, HEAD']);
-            }
-            if (!$this->modelClass()) {
-                $this->throwError(404, 'notFound', 'No page model is installed');
-            }
-            return parent::handleAction($request, $action);
-        } catch (HTTPResponse_Exception $exception) {
-            return $exception->getResponse();
-        } catch (Throwable $exception) {
-            Injector::inst()->get(LoggerInterface::class)->error($exception->getMessage(), ['exception' => $exception]);
-            return $this->errorResponse(
-                500,
-                'serverError',
-                Director::isDev() ? $exception->getMessage() : 'The page tree could not be loaded'
-            );
-        }
+        return 'Use children, ancestors or search';
     }
 
-    public function index(): HTTPResponse
+    protected function runAction(callable $next): mixed
     {
-        $this->throwError(404, 'notFound', 'Use children, ancestors or search');
+        if (!in_array($this->getRequest()->httpMethod(), ['GET', 'HEAD'])) {
+            throw ShellSubmission::jsonException(405, 'Only GET is supported', null, null, ['Allow' => 'GET, HEAD']);
+        }
+        return Versioned::withVersionedMode(function () use ($next) {
+            Versioned::set_stage(Versioned::DRAFT);
+            return $next();
+        });
     }
 
     /**
-     * GET pages/tree/children/<id>?page=&limit=&stage=, where id 0 is the root
+     * GET pages/tree/children/<id>?page=&limit=, where id 0 is the root
      */
     public function children(HTTPRequest $request): HTTPResponse
     {
@@ -138,28 +96,26 @@ class PageTreeController extends AdminController
             static::config()->get('max_limit')
         );
 
-        return $this->inStage($this->stageParam($request), function () use ($id, $page, $limit): HTTPResponse {
-            if ($id !== 0) {
-                $this->viewableRecord($id);
-            }
-            $children = $this->viewableChildrenOf($id);
-            $slice = $this->pageSlice($children, $page, $limit);
-            $data = [
-                'items' => $this->serialiseNodes($slice),
-                'pageInfo' => [
-                    'totalCount' => count($children),
-                    'pageSize' => $limit,
-                    'page' => $page,
-                    'hasMore' => $page * $limit < count($children),
-                ],
-            ];
-            $this->extend('updateApiChildren', $data, $id);
-            return $this->jsonSuccess(200, $data);
-        });
+        if ($id !== 0) {
+            $this->viewableRecord($id);
+        }
+        $children = $this->viewableChildrenOf($id);
+        $slice = $this->pageSlice($children, $page, $limit);
+        $data = [
+            'items' => $this->serialiseNodes($slice),
+            'pageInfo' => [
+                'totalCount' => count($children),
+                'pageSize' => $limit,
+                'page' => $page,
+                'hasMore' => $page * $limit < count($children),
+            ],
+        ];
+        $this->extend('updateApiChildren', $data, $id);
+        return $this->jsonSuccess(200, $data);
     }
 
     /**
-     * GET pages/tree/ancestors/<id>?limit=&stage=
+     * GET pages/tree/ancestors/<id>?limit=
      *
      * `items` runs from the top-level ancestor down to the node's parent. Each item and `node` carry `page`, the
      * page of its parent's children (at `pageSize`, the `limit` parameter, per page) that it falls on, so a client can load just the pages
@@ -176,56 +132,58 @@ class PageTreeController extends AdminController
             static::config()->get('max_limit')
         );
 
-        return $this->inStage($this->stageParam($request), function () use ($id, $limit): HTTPResponse {
-            $record = $this->viewableRecord($id);
-            $path = [];
-            $parent = $record;
-            while ($parent->ParentID) {
-                $parent = DataObject::get($this->modelClass())->byID($parent->ParentID);
-                if (!$parent) {
-                    break;
-                }
-                if (!$parent->canView()) {
-                    $this->throwError(403, 'ancestorNotViewable', 'An ancestor of this page cannot be viewed');
-                }
-                array_unshift($path, $parent);
+        $record = $this->viewableRecord($id);
+        $path = [];
+        $parent = $record;
+        while ($parent->ParentID) {
+            $parent = DataObject::get($this->modelClass())->byID($parent->ParentID);
+            if (!$parent) {
+                break;
             }
+            if (!$parent->canView()) {
+                throw ShellSubmission::jsonException(
+                    403,
+                    'An ancestor of this page cannot be viewed',
+                    'ancestorNotViewable'
+                );
+            }
+            array_unshift($path, $parent);
+        }
 
-            $items = $this->serialiseNodes($path);
-            foreach ($path as $index => $ancestor) {
-                $items[$index]['page'] = $this->pageOf($ancestor, $limit);
-            }
-            $data = [
-                'items' => $items,
-                'node' => [
-                    'id' => (int) $record->ID,
-                    'parentId' => (int) $record->ParentID,
-                    'page' => $this->pageOf($record, $limit),
-                ],
-                'pageSize' => $limit,
-            ];
-            $this->extend('updateApiAncestors', $data, $record);
-            return $this->jsonSuccess(200, $data);
-        });
+        $items = $this->serialiseNodes($path);
+        foreach ($path as $index => $ancestor) {
+            $items[$index]['page'] = $this->pageOf($ancestor, $limit);
+        }
+        $data = [
+            'items' => $items,
+            'node' => [
+                'id' => (int) $record->ID,
+                'parentId' => (int) $record->ParentID,
+                'page' => $this->pageOf($record, $limit),
+            ],
+            'pageSize' => $limit,
+        ];
+        $this->extend('updateApiAncestors', $data, $record);
+        return $this->jsonSuccess(200, $data);
     }
 
     /**
-     * GET pages/tree/search?q=&page=&limit=&stage=, matching Title or MenuTitle; each item adds `ancestorIds`
+     * GET pages/tree/search?q=&page=&limit=, matching Title or MenuTitle; each item adds `ancestorIds`
      * from the top-level ancestor down to its parent
      */
     public function search(HTTPRequest $request): HTTPResponse
     {
         $query = $request->getVar('q') ?? '';
         if (!is_string($query)) {
-            $this->throwError(400, 'invalid', 'q must be a string', 'q');
+            throw ShellSubmission::jsonException(400, 'q must be a string', 'invalid', 'q');
         }
         $query = trim($query);
         $minLength = static::config()->get('search_min_length');
         if (mb_strlen($query) < $minLength) {
-            $this->throwError(
+            throw ShellSubmission::jsonException(
                 400,
-                $query === '' ? 'required' : 'tooShort',
                 sprintf('q needs at least %d characters', $minLength),
+                $query === '' ? 'required' : 'tooShort',
                 'q'
             );
         }
@@ -238,43 +196,41 @@ class PageTreeController extends AdminController
             static::config()->get('search_max_limit')
         );
 
-        return $this->inStage($this->stageParam($request), function () use ($query, $page, $limit): HTTPResponse {
-            $matches = $this->visibleList()
-                ->filterAny(['Title:PartialMatch' => $query, 'MenuTitle:PartialMatch' => $query])
-                ->sort(['Title' => 'ASC', 'ID' => 'ASC']);
-            $parentOf = array_combine(
-                array_map('intval', $matches->column('ID')),
-                array_map('intval', $matches->column('ParentID'))
-            );
-            $viewable = array_intersect_key($parentOf, array_flip($this->viewableIds(array_keys($parentOf))));
-            $ancestorIds = $this->ancestorIdsOf($viewable);
-            $ancestors = array_unique(array_merge([], ...array_values($ancestorIds)));
-            $hiddenAncestors = array_diff($ancestors, $this->viewableIds($ancestors));
-            $reachable = array_keys(array_filter(
-                $ancestorIds,
-                fn (array $path) => !array_intersect($path, $hiddenAncestors)
-            ));
-            $sliceIds = $this->pageSlice($reachable, $page, $limit);
-            $records = DataObject::get($this->modelClass())->filter('ID', $sliceIds ?: [0])->toArray();
-            $byId = array_combine(array_map(fn (DataObject $record) => (int) $record->ID, $records), $records);
-            $slice = array_values(array_filter(array_map(fn (int $id) => $byId[$id] ?? null, $sliceIds)));
-            $this->prepopulateVersionCache($slice);
-            $items = $this->serialiseNodes($slice);
-            foreach ($slice as $index => $match) {
-                $items[$index]['ancestorIds'] = $ancestorIds[(int) $match->ID];
-            }
-            $data = [
-                'items' => $items,
-                'pageInfo' => [
-                    'totalCount' => count($reachable),
-                    'pageSize' => $limit,
-                    'page' => $page,
-                    'hasMore' => $page * $limit < count($reachable),
-                ],
-            ];
-            $this->extend('updateApiSearch', $data, $query);
-            return $this->jsonSuccess(200, $data);
-        });
+        $matches = $this->visibleList()
+            ->filterAny(['Title:PartialMatch' => $query, 'MenuTitle:PartialMatch' => $query])
+            ->sort(['Title' => 'ASC', 'ID' => 'ASC']);
+        $parentOf = array_combine(
+            array_map('intval', $matches->column('ID')),
+            array_map('intval', $matches->column('ParentID'))
+        );
+        $viewable = array_intersect_key($parentOf, array_flip($this->viewableIds(array_keys($parentOf))));
+        $ancestorIds = $this->ancestorIdsOf($viewable);
+        $ancestors = array_unique(array_merge([], ...array_values($ancestorIds)));
+        $hiddenAncestors = array_diff($ancestors, $this->viewableIds($ancestors));
+        $reachable = array_keys(array_filter(
+            $ancestorIds,
+            fn (array $path) => !array_intersect($path, $hiddenAncestors)
+        ));
+        $sliceIds = $this->pageSlice($reachable, $page, $limit);
+        $records = DataObject::get($this->modelClass())->filter('ID', $sliceIds ?: [0])->toArray();
+        $byId = array_combine(array_map(fn (DataObject $record) => (int) $record->ID, $records), $records);
+        $slice = array_values(array_filter(array_map(fn (int $id) => $byId[$id] ?? null, $sliceIds)));
+        $this->prepopulateVersionCache($slice);
+        $items = $this->serialiseNodes($slice);
+        foreach ($slice as $index => $match) {
+            $items[$index]['ancestorIds'] = $ancestorIds[(int) $match->ID];
+        }
+        $data = [
+            'items' => $items,
+            'pageInfo' => [
+                'totalCount' => count($reachable),
+                'pageSize' => $limit,
+                'page' => $page,
+                'hasMore' => $page * $limit < count($reachable),
+            ],
+        ];
+        $this->extend('updateApiSearch', $data, $query);
+        return $this->jsonSuccess(200, $data);
     }
 
     private function pageSlice(array $items, int $page, int $limit): array
@@ -283,15 +239,6 @@ class PageTreeController extends AdminController
             return [];
         }
         return array_slice($items, ($page - 1) * $limit, $limit);
-    }
-
-    private function modelClass(): ?string
-    {
-        $class = static::config()->get('model_class');
-        if (!$class || !class_exists($class) || !DataObject::has_extension($class, Hierarchy::class)) {
-            return null;
-        }
-        return $class;
     }
 
     /**
@@ -313,6 +260,8 @@ class PageTreeController extends AdminController
     }
 
     /**
+     * Kept per request because ancestors() asks for the same sibling lists again, once per level, through pageOf()
+     *
      * @return array<DataObject>
      */
     private function viewableChildrenOf(int $parentId): array
@@ -348,10 +297,10 @@ class PageTreeController extends AdminController
     {
         $record = DataObject::get($this->modelClass())->byID($id);
         if (!$record) {
-            $this->throwError(404, 'notFound', sprintf('No page with ID %d in this stage', $id));
+            throw ShellSubmission::jsonException(404, sprintf('No page with ID %d in this stage', $id));
         }
         if (!$record->canView()) {
-            $this->throwError(403, 'forbidden', 'This page cannot be viewed');
+            throw ShellSubmission::jsonException(403, 'This page cannot be viewed');
         }
         return $record;
     }
@@ -654,23 +603,6 @@ class PageTreeController extends AdminController
         return $singleton->hasMethod('getPermissionChecker') ? $singleton->getPermissionChecker() : null;
     }
 
-    private function inStage(string $stage, callable $callback): HTTPResponse
-    {
-        return Versioned::withVersionedMode(function () use ($stage, $callback): HTTPResponse {
-            Versioned::set_stage($stage === 'live' ? Versioned::LIVE : Versioned::DRAFT);
-            return $callback();
-        });
-    }
-
-    private function stageParam(HTTPRequest $request): string
-    {
-        $stage = $request->getVar('stage') ?? 'draft';
-        if (!in_array($stage, ['draft', 'live'], true)) {
-            $this->throwError(400, 'invalid', 'stage must be draft or live', 'stage');
-        }
-        return $stage;
-    }
-
     private function idParam(HTTPRequest $request, bool $allowRoot): int
     {
         $id = $request->param('ID');
@@ -678,7 +610,7 @@ class PageTreeController extends AdminController
             return 0;
         }
         if (!is_string($id) || !ctype_digit($id) || (!$allowRoot && (int) $id === 0)) {
-            $this->throwError(404, 'notFound', 'The ID must be a page ID');
+            throw ShellSubmission::jsonException(404, 'The ID must be a page ID');
         }
         return (int) $id;
     }
@@ -690,45 +622,16 @@ class PageTreeController extends AdminController
             return $default;
         }
         if (!is_string($value) || !ctype_digit($value)) {
-            $this->throwError(400, 'invalid', sprintf('%s must be a whole number', $name), $name);
+            throw ShellSubmission::jsonException(400, sprintf('%s must be a whole number', $name), 'invalid', $name);
         }
         if ((int) $value < $min || (int) $value > $max) {
-            $this->throwError(
+            throw ShellSubmission::jsonException(
                 400,
-                'outOfRange',
                 sprintf('%s must be between %d and %d', $name, $min, $max),
+                'outOfRange',
                 $name
             );
         }
         return (int) $value;
-    }
-
-    /**
-     * @throws HTTPResponse_Exception
-     */
-    private function throwError(
-        int $code,
-        string $reason,
-        string $message,
-        ?string $field = null,
-        array $headers = []
-    ): never {
-        $response = $this->errorResponse($code, $reason, $message, $field);
-        foreach ($headers as $name => $value) {
-            $response->addHeader($name, $value);
-        }
-        throw new HTTPResponse_Exception($response);
-    }
-
-    private function errorResponse(int $code, string $reason, string $message, ?string $field = null): HTTPResponse
-    {
-        $error = ['type' => 'error', 'code' => $code, 'value' => $message, 'reason' => $reason];
-        if ($field !== null) {
-            $error['field'] = $field;
-        }
-        $body = json_encode(['status' => 'error', 'errors' => [$error]], JSON_THROW_ON_ERROR);
-        return HTTPResponse::create($body, $code)
-            ->addHeader('Content-Type', 'application/json')
-            ->addHeader('Cache-Control', 'no-store');
     }
 }

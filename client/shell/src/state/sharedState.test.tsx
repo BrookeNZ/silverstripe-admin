@@ -1,58 +1,18 @@
 // @vitest-environment happy-dom
-import * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { GlobalState, GlobalStateContext, PiletApi, PiletMetadata } from 'piral-core';
+import type { GlobalStateContext, PiletApi, PiletMetadata } from 'piral-core';
 import { createSilverstripeApi } from '../api/silverstripe';
-import { initialSectionHeader } from '../header/state';
 import { previewModeStorageKey, resetPreviewMode, setPreviewMode } from '../preview/mode';
-import { initialUnsavedChanges } from '../unsaved';
-import { initialCurrentRecord, resetSharedConfig } from './sharedState';
+import { fakeGlobalContext } from '../test/fakeGlobalContext';
+import { resetSharedConfig } from './sharedState';
 import type { SharedState } from './sharedState';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-type Handler = (event: any) => void;
-
 let context: GlobalStateContext;
 let extend: (api: PiletApi, meta: PiletMetadata) => Partial<PiletApi>;
-
-// Piral's createInstance needs its build-time codegen, so the tests run the plugin against a small store
-function fakeContext(initial: Partial<GlobalState>): GlobalStateContext {
-  let state = initial as GlobalState;
-  const listeners = new Set<() => void>();
-  const handlers = new Map<string, Set<Handler>>();
-  const store = Object.assign(() => state, {
-    getState: () => state,
-    subscribe: (listener: () => void) => {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
-  });
-  return {
-    state: store,
-    dispatch: (update: (current: GlobalState) => GlobalState) => {
-      const next = update(state);
-      if (next !== state) {
-        state = next;
-        listeners.forEach((listener) => listener());
-      }
-    },
-    readState: <S,>(select: (current: GlobalState) => S) => select(state),
-    on: (name: string, handler: Handler) => {
-      handlers.set(name, (handlers.get(name) ?? new Set()).add(handler));
-    },
-    off: (name: string, handler: Handler) => {
-      handlers.get(name)?.delete(handler);
-    },
-    emit: (name: string, event: unknown) => {
-      handlers.get(name)?.forEach((handler) => handler(event));
-    },
-  } as unknown as GlobalStateContext;
-}
 
 function piletApi(name: string): PiletApi {
   const api = { emit: context.emit, on: context.on, off: context.off } as unknown as PiletApi;
@@ -68,7 +28,7 @@ beforeEach(() => {
   resetPreviewMode();
   resetSharedConfig();
   window.ss = { config: { sections: [], baseUrl: '/', absoluteBaseUrl: 'http://localhost/', adminUrl: 'admin/', environment: 'dev', debugging: false } } as unknown as typeof window.ss;
-  context = fakeContext({ currentRecord: initialCurrentRecord, sectionHeader: initialSectionHeader, unsavedChanges: initialUnsavedChanges });
+  context = fakeGlobalContext();
   extend = createSilverstripeApi()(context) as typeof extend;
 });
 

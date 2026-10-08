@@ -36,13 +36,12 @@ function loadState(query: ServerQueryResult<FormSchemaResponse>): LoadState {
 export function useSchemaLoad(schemaUrl: string, onLoad?: (response: FormSchemaResponse) => void): LoadState {
   const query = useShellServerQuery(schemaKey(schemaUrl), ({ signal }) => fetchFormSchema(schemaUrl, signal));
   const load = loadState(query);
-  const loadListener = React.useRef(onLoad);
-  loadListener.current = onLoad;
+  const reportLoad = React.useEffectEvent((response: FormSchemaResponse) => onLoad?.(response));
   const loaded = load.status === 'ready' ? load.response : null;
 
   React.useEffect(() => {
     if (loaded) {
-      loadListener.current?.(loaded);
+      reportLoad(loaded);
     }
   }, [loaded]);
 
@@ -55,13 +54,12 @@ export function useRefetchedResponse(
   apply: (response: FormSchemaResponse & { schema: FormSchemaTree }) => void,
 ): void {
   const applied = React.useRef(latest);
-  const latestApply = React.useRef(apply);
-  latestApply.current = apply;
+  const applyRefetched = React.useEffectEvent(apply);
   React.useEffect(() => {
     if (latest === applied.current || !latest.schema) {
       return;
     }
     applied.current = latest;
-    latestApply.current(latest as FormSchemaResponse & { schema: FormSchemaTree });
+    applyRefetched(latest as FormSchemaResponse & { schema: FormSchemaTree });
   }, [latest]);
 }

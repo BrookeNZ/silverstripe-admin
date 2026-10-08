@@ -32,7 +32,19 @@ import './TreeDropdownField.css';
 const SEARCH_DELAY = 500; // ms
 
 class TreeDropdownField extends Component<any, any> {
-  static defaultProps: Record<string, unknown>;
+  static defaultProps = {
+    // React considers "undefined" as an uncontrolled component.
+    value: '',
+    extraClass: '',
+    className: '',
+    tree: {},
+    visible: [],
+    loading: [],
+    failed: [],
+    findTreeByPath,
+    findTreePath,
+    fetch: (url: string) => serverCache().fetchJson(url),
+  };
 
   searchTimer: ReturnType<typeof setTimeout> | null;
 
@@ -434,20 +446,6 @@ class TreeDropdownField extends Component<any, any> {
     );
   }
 }
-
-TreeDropdownField.defaultProps = {
-  // React considers "undefined" as an uncontrolled component.
-  value: '',
-  extraClass: '',
-  className: '',
-  tree: {},
-  visible: [],
-  loading: [],
-  failed: [],
-  findTreeByPath,
-  findTreePath,
-  fetch: (url: string) => serverCache().fetchJson(url),
-};
 
 const ConnectedTreeDropdownField = connectTreeDropdownField(mapStateToProps)(TreeDropdownField);
 

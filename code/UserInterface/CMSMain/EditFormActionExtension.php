@@ -81,30 +81,23 @@ class EditFormActionExtension extends Extension
     private function errorResponse(HTTPResponse $result): HTTPResponse
     {
         $code = $result->getStatusCode();
-        $reauthenticate = $result->getHeader('X-Reauthenticate');
         $message = match (true) {
-            $code === 403 && (bool) $reauthenticate => ShellSubmission::loggedOutMessage(),
+            $code === 403 && (bool) $result->getHeader('X-Reauthenticate') => ShellSubmission::loggedOutMessage(),
             $code === 403 => EditFormSubmissionExtension::permissionMessage(),
-            default => ShellSubmission::errorText($result),
+            default => null,
         };
-        $response = ShellSubmission::jsonError($code, (string) $message);
-        if ($reauthenticate) {
-            $response->addHeader('X-Reauthenticate', $reauthenticate);
-        }
-        return $response;
+        return ShellSubmission::asJsonError($result, $message);
     }
 
     private function successResponse(CMSMain $controller, Form $form, int $id): HTTPResponse
     {
-        $message = $this->statusMessage($controller->getResponse());
+        $message = ShellSubmission::statusMessage($controller->getResponse());
         $form->clearMessage();
         $form->clearFormState();
 
         $record = DataObject::get($controller->getModelClass())->byID($id);
         if (!$record) {
-            return HTTPResponse::create(json_encode(['deleted' => true, 'message' => $message]))
-                ->addHeader('Content-Type', 'application/json')
-                ->addHeader('Cache-Control', 'no-store');
+            return ShellSubmission::jsonResponse(200, ['deleted' => true, 'message' => $message]);
         }
 
         $freshForm = $controller->getEditForm($id);
@@ -122,11 +115,5 @@ class EditFormActionExtension extends Extension
         return $controller
             ->getSchemaResponse(EditFormSubmissionExtension::schemaId($controller, $freshForm), $freshForm, null, $envelope)
             ->addHeader('Cache-Control', 'no-store');
-    }
-
-    private function statusMessage(HTTPResponse $response): string
-    {
-        $status = rawurldecode((string) $response->getHeader('X-Status'));
-        return trim(html_entity_decode(strip_tags($status), ENT_QUOTES | ENT_HTML5));
     }
 }

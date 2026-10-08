@@ -33,7 +33,7 @@ export interface UploadFieldData {
   multi?: boolean;
   canUpload?: boolean;
   canAttach?: boolean;
-  files?: UploadedFile[];
+  files?: Array<UploadedFile>;
 }
 
 interface PendingUpload {
@@ -42,11 +42,11 @@ interface PendingUpload {
   progress: number;
 }
 
-export function fileIds(value: UploadFieldValue | null | undefined): number[] {
+export function fileIds(value: UploadFieldValue | null | undefined): Array<number> {
   return Array.isArray(value?.Files) ? value.Files.map(Number).filter((id) => id > 0) : [];
 }
 
-function byId(files: UploadedFile[] | undefined): Record<number, UploadedFile> {
+function byId(files: Array<UploadedFile> | undefined): Record<number, UploadedFile> {
   return Object.fromEntries((files ?? []).map((file) => [file.id, file]));
 }
 
@@ -63,18 +63,23 @@ const UploadField = ({ field, value, onChange, error }: FieldComponentProps<Uplo
   const data = field.data as UploadFieldData;
   const ids = fileIds(value);
   const [known, setKnown] = React.useState(() => byId(data.files));
-  const [pending, setPending] = React.useState<PendingUpload[]>([]);
+  const [pending, setPending] = React.useState<Array<PendingUpload>>([]);
   const [uploadError, setUploadError] = React.useState<string | null>(null);
   const [status, setStatus] = React.useState('');
   const [dragging, setDragging] = React.useState(false);
-  const [focusUpload, setFocusUpload] = React.useState(false);
+  const focusAfterRemove = React.useRef(false);
   const input = React.useRef<HTMLInputElement>(null);
   const uploadButton = React.useRef<HTMLButtonElement>(null);
   const group = React.useRef<HTMLDivElement>(null);
   const latestIds = React.useRef(ids);
-  latestIds.current = ids;
-
-  React.useEffect(() => setKnown((current) => ({ ...current, ...byId(data.files) })), [data.files]);
+  React.useLayoutEffect(() => {
+    latestIds.current = ids;
+  });
+  const [mergedFiles, setMergedFiles] = React.useState(data.files);
+  if (data.files !== mergedFiles) {
+    setMergedFiles(data.files);
+    setKnown((current) => ({ ...current, ...byId(data.files) }));
+  }
 
   const editable = !field.readOnly && !field.disabled;
   const multi = Boolean(data.multi);
@@ -86,21 +91,22 @@ const UploadField = ({ field, value, onChange, error }: FieldComponentProps<Uplo
   const shownError = uploadError ?? error;
   const labelId = `${field.id}_label`;
 
+  // After a removal renders, focus goes to the upload button it may have brought back
   React.useEffect(() => {
-    if (focusUpload) {
-      setFocusUpload(false);
+    if (focusAfterRemove.current) {
+      focusAfterRemove.current = false;
       (uploadButton.current ?? group.current)?.focus();
     }
-  }, [focusUpload]);
+  });
 
-  const upload = async (files: File[]) => {
+  const upload = async (files: Array<File>) => {
     if (!endpoint || files.length === 0) {
       return;
     }
     setUploadError(null);
     const room = multi ? (maxFiles === null ? files.length : maxFiles - ids.length - pending.length) : 1;
     const accepted = files.slice(0, Math.max(room, 0));
-    const errors: string[] = [];
+    const errors: Array<string> = [];
     if (accepted.length < files.length) {
       errors.push(maxFiles === 1 || !multi ? 'Only one file can be attached' : `Only ${maxFiles} files can be attached`);
     }
@@ -140,14 +146,14 @@ const UploadField = ({ field, value, onChange, error }: FieldComponentProps<Uplo
     onChange({ Files: next });
     setStatus(`Removed ${fileName(known[id], id)}`);
     setUploadError(null);
-    setFocusUpload(true);
+    focusAfterRemove.current = true;
   };
 
   const onDrop = (event: React.DragEvent) => {
     event.preventDefault();
     setDragging(false);
     if (canUpload) {
-      upload(Array.from(event.dataTransfer.files));
+      void upload(Array.from(event.dataTransfer.files));
     }
   };
 
@@ -233,7 +239,7 @@ const UploadField = ({ field, value, onChange, error }: FieldComponentProps<Uplo
               onChange={(event) => {
                 const files = Array.from(event.target.files ?? []);
                 event.target.value = '';
-                upload(files);
+                void upload(files);
               }}
             />
           </Stack>

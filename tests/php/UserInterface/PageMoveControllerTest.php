@@ -10,6 +10,8 @@ use SilverStripe\Security\SecurityToken;
 
 class PageMoveControllerTest extends FunctionalTest
 {
+    use ShellResponseAssertions;
+
     protected static $fixture_file = 'PageMoveControllerTest.yml';
 
     protected static $extra_dataobjects = [PlainPage::class];
@@ -28,6 +30,16 @@ class PageMoveControllerTest extends FunctionalTest
         $this->logInWithPermission(['CMS_ACCESS_CMSMain', 'SITETREE_REORGANISE']);
     }
 
+    public function testLoggedOutMoveAsksToLogInAgain(): void
+    {
+        $this->logOut();
+
+        $response = $this->move(['id' => $this->page('b1')->ID, 'parentId' => 0]);
+
+        $this->assertJsonError($response, 403, 'notLoggedIn');
+        $this->assertSame('1', $response->getHeader('X-Reauthenticate'));
+    }
+
     public function testMoveWithoutTheReorganisePermissionIsRefused(): void
     {
         $this->logOut();
@@ -38,7 +50,7 @@ class PageMoveControllerTest extends FunctionalTest
         $response = $this->move(['id' => $b1->ID, 'parentId' => $alpha->ID]);
 
         $this->assertSame(403, $response->getStatusCode());
-        $this->assertSame('cannotOrganise', $this->reason($response));
+        $this->assertSame('cannotOrganise', $this->errorReason($response));
         $this->assertSame($this->page('bravo')->ID, $this->reload($b1)->ParentID);
     }
 
@@ -50,7 +62,7 @@ class PageMoveControllerTest extends FunctionalTest
         $response = $this->move(['id' => $b1->ID, 'parentId' => $this->page('alpha')->ID]);
 
         $this->assertSame(400, $response->getStatusCode());
-        $this->assertSame('invalidToken', $this->reason($response));
+        $this->assertSame('invalidToken', $this->errorReason($response));
         $this->assertSame($this->page('bravo')->ID, $this->reload($b1)->ParentID);
     }
 
@@ -93,7 +105,7 @@ class PageMoveControllerTest extends FunctionalTest
         $response = $this->move(['id' => $b1->ID, 'parentId' => $this->page('locked')->ID]);
 
         $this->assertSame(403, $response->getStatusCode());
-        $this->assertSame('notAllowedHere', $this->reason($response));
+        $this->assertSame('notAllowedHere', $this->errorReason($response));
         $this->assertSame($this->page('bravo')->ID, $this->reload($b1)->ParentID);
     }
 
@@ -104,7 +116,7 @@ class PageMoveControllerTest extends FunctionalTest
         $response = $this->move(['id' => $locked->ID, 'parentId' => $this->page('alpha')->ID]);
 
         $this->assertSame(403, $response->getStatusCode());
-        $this->assertSame('forbidden', $this->reason($response));
+        $this->assertSame('forbidden', $this->errorReason($response));
         $this->assertSame(0, $this->reload($locked)->ParentID);
     }
 
@@ -155,11 +167,6 @@ class PageMoveControllerTest extends FunctionalTest
     private function reload(SiteTree $page): SiteTree
     {
         return SiteTree::get()->byID($page->ID);
-    }
-
-    private function reason(HTTPResponse $response): ?string
-    {
-        return json_decode($response->getBody(), true)['errors'][0]['reason'] ?? null;
     }
 
     private function move(array $body): HTTPResponse

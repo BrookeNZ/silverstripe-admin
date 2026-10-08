@@ -1,8 +1,10 @@
 // @vitest-environment happy-dom
-import * as React from 'react';
+import { readFileSync } from 'node:fs';
+import type * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type * as SchemaModule from './schema';
 import { FormSchemaForm } from './FormSchemaForm';
 import { FormSchemaRequestError, fetchFormSchema } from './schema';
 import { serverQueryClient } from '../state/serverCache';
@@ -14,28 +16,45 @@ vi.mock('piral-core', () => ({
 }));
 vi.mock('../unsaved', () => ({ setUnsavedChanges: () => () => undefined, shellOwner: 'shell' }));
 vi.mock('./schema', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./schema')>()),
+  ...(await importOriginal<typeof SchemaModule>()),
   fetchFormSchema: vi.fn(),
 }));
-vi.mock('./useFieldComponent', () => ({
-  useFullWidthField: (field: { name: string }) => field.name === 'Grid',
-  useFieldComponent: () => ({ field }: FieldComponentProps) => (field.name === 'Nothing' ? null : <div id={field.id} />),
-}));
+vi.mock('./useFieldComponent', async () => {
+  const { TabItem, Tabs } = await import('@silverstripe/admin-patterns');
+  const structural: Record<string, React.ComponentType<FieldComponentProps>> = { Tabs, TabItem };
+  return {
+    useFullWidthField: (field: { name: string }) => field.name.endsWith('Grid'),
+    useFieldComponent:
+      ({ component }: { component: string | null }) =>
+      (props: FieldComponentProps) => {
+        const Structural = component ? structural[component] : undefined;
+        if (Structural) {
+          return <Structural {...props} />;
+        }
+        return props.field.name === 'Nothing' ? null : <div id={props.field.id} />;
+      },
+  };
+});
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const field = (name: string, schemaType = 'Text') => ({
+const field = (name: string, schemaType = 'Text', component: string | null = null, children: Array<unknown> = []) => ({
   name,
   id: `Form_EditForm_${name}`,
   type: 'text',
   schemaType,
-  component: null,
+  component,
   title: name,
   readOnly: false,
   disabled: false,
   data: [],
-  children: [],
+  children,
 });
+
+const tabSet = (name: string, tabs: Array<unknown>) => field(name, 'Structural', 'Tabs', tabs);
+const tab = (name: string, children: Array<unknown>) => field(name, 'Structural', 'TabItem', children);
+
+const defaultFields = [field('Title'), field('Grid'), field('ID', 'Hidden'), field('Nothing')];
 
 let container: HTMLDivElement;
 
@@ -45,10 +64,10 @@ afterEach(() => {
   serverQueryClient.clear();
 });
 
-async function render(element: React.ReactElement) {
+async function render(element: React.ReactElement, fields: Array<unknown> = defaultFields) {
   vi.mocked(fetchFormSchema).mockResolvedValue({
     id: 'EditForm',
-    schema: { id: 'EditForm', name: 'EditForm', action: 'save', method: 'post', attributes: {}, fields: [field('Title'), field('Grid'), field('ID', 'Hidden'), field('Nothing')], actions: [] },
+    schema: { id: 'EditForm', name: 'EditForm', action: 'save', method: 'post', attributes: {}, fields, actions: [] },
     state: { id: 'EditForm', fields: [], messages: [{ type: 'good', value: 'Saved.' }] },
   } as never);
   container = document.createElement('div');
@@ -100,5 +119,48 @@ describe('FormSchemaForm content inset', () => {
     await settle();
     expect(wrapperOf('LoadError')).toBe('shell-form__field');
     expect(container.querySelector('.shell-form')?.className).toBe('shell-form shell-form--nested');
+  });
+
+  describe('inside a tab set', () => {
+    const tabbedFields = [
+      tabSet('Root', [
+        tab('Main', [field('Content'), field('PageGrid')]),
+        tab('Settings', [tabSet('Nested', [tab('Inner', [field('InnerTitle'), field('InnerGrid')])])]),
+      ]),
+    ];
+
+    it('spans the content column with the tab set and insets its tab strip', async () => {
+      // The stylesheets are not loaded by the test runner, and the inset is a token chain across both
+      const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
+      const style = document.createElement('style');
+      style.textContent = `:root { --shell-inset: 1.6rem; } ${read('./form.css')} ${read('../../../patterns/src/css/tab-strip.css')}`;
+      document.head.append(style);
+      await render(<FormSchemaForm schemaUrl="admin/form" />, tabbedFields);
+      const paddingOf = (element: Element | null | undefined) => (element ? getComputedStyle(element).getPropertyValue('padding-inline') : null);
+      expect(wrapperOf('Form_EditForm_Root')).toBe('shell-form__field shell-form__field--tabs');
+      expect(paddingOf(container.querySelector('#Form_EditForm_Root')?.parentElement)).toBe('0rem');
+      expect(paddingOf(container.querySelector('#Form_EditForm_Root > .admin-tab-strip'))).toBe('1.6rem');
+      expect(paddingOf(container.querySelector('#Form_EditForm_Content')?.parentElement)).toBe('1.6rem');
+      expect(paddingOf(container.querySelector('#Form_EditForm_PageGrid')?.parentElement)).toBe('0rem');
+      style.remove();
+    });
+
+    it('breaks a grid inside a tab out to the edges', async () => {
+      await render(<FormSchemaForm schemaUrl="admin/form" />, tabbedFields);
+      expect(wrapperOf('Form_EditForm_PageGrid')).toBe('shell-form__field shell-form__field--full');
+      expect(container.querySelector('#Form_EditForm_PageGrid')?.closest('[role="tabpanel"]')).not.toBeNull();
+    });
+
+    it('keeps the inset on a text field inside a tab', async () => {
+      await render(<FormSchemaForm schemaUrl="admin/form" />, tabbedFields);
+      expect(wrapperOf('Form_EditForm_Content')).toBe('shell-form__field');
+    });
+
+    it('lays out a tab set nested in a tab the same way', async () => {
+      await render(<FormSchemaForm schemaUrl="admin/form" />, tabbedFields);
+      expect(wrapperOf('Form_EditForm_Nested')).toBe('shell-form__field shell-form__field--tabs');
+      expect(wrapperOf('Form_EditForm_InnerGrid')).toBe('shell-form__field shell-form__field--full');
+      expect(wrapperOf('Form_EditForm_InnerTitle')).toBe('shell-form__field');
+    });
   });
 });

@@ -31,7 +31,7 @@ class PageTreeDeleteRulesTest extends FunctionalTest
         $this->assertRowsMatch('admin/pages/tree/children/' . $this->idFor('mid'), 'Stage');
     }
 
-    public function testLiveChildrenMatchRecords(): void
+    public function testChildrenWithADraftOnlyDescendantMatchRecords(): void
     {
         foreach (['top', 'mid', 'leaf', 'wf', 'open', 'openchild'] as $name) {
             $this->objFromFixture(SiteTree::class, $name)->publishSingle();
@@ -43,8 +43,7 @@ class PageTreeDeleteRulesTest extends FunctionalTest
         $draftOnly->EditorGroups()->add($this->objFromFixture(\SilverStripe\Security\Group::class, 'other'));
 
         $this->assertRowsMatch('admin/pages/tree/children/0', 'Stage');
-        $this->assertRowsMatch('admin/pages/tree/children/0?stage=live', 'Live');
-        $this->assertRowsMatch('admin/pages/tree/children/' . $this->idFor('top') . '?stage=live', 'Live');
+        $this->assertRowsMatch('admin/pages/tree/children/' . $this->idFor('top'), 'Stage');
     }
 
     public function testAncestorsMatchRecords(): void

@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import type { PiletApi } from '@silverstripe/admin-shell';
 import * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -6,7 +7,7 @@ import type { Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RawEditorOptions, TinyMCE } from 'tinymce';
 import { createHtmlEditorField } from './HtmlEditorField';
-import type { HtmlEditorFieldProps, HtmlEditorPiletApi, SchemaFormDialogProps, UpdateFormValuesHandler } from './shell';
+import type { HtmlEditorFieldProps, SchemaFormDialogProps, UpdateFormValuesHandler } from './shell';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -17,12 +18,12 @@ class FakeEditor {
   handlers = new Map<string, Array<() => void>>();
   readOnly = false;
   mode = { set: vi.fn(), isReadOnly: () => this.readOnly };
-  buttons = new Map<string, { onAction(): void }>();
-  menuItems = new Map<string, { onAction(): void }>();
+  buttons = new Map<string, { onAction: () => void }>();
+  menuItems = new Map<string, { onAction: () => void }>();
   ui = {
     registry: {
-      addButton: (name: string, spec: { onAction(): void }) => this.buttons.set(name, spec),
-      addMenuItem: (name: string, spec: { onAction(): void }) => this.menuItems.set(name, spec),
+      addButton: (name: string, spec: { onAction: () => void }) => this.buttons.set(name, spec),
+      addMenuItem: (name: string, spec: { onAction: () => void }) => this.menuItems.set(name, spec),
       addContextToolbar: vi.fn(),
     },
   };
@@ -152,7 +153,7 @@ let tinymce: { init: ReturnType<typeof vi.fn> };
 let load: ReturnType<typeof vi.fn>;
 let hooks: Map<string, UpdateFormValuesHandler>;
 let disposed: Array<string>;
-let api: HtmlEditorPiletApi;
+let api: PiletApi;
 let changes: Array<string>;
 let blurs: number;
 let setOuterValue: (value: string) => void;
@@ -228,7 +229,7 @@ beforeEach(() => {
         hooks.delete(name);
       };
     },
-  } as unknown as HtmlEditorPiletApi;
+  } as unknown as PiletApi;
 });
 
 afterEach(() => {

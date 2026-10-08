@@ -34,30 +34,30 @@ export { FormFieldSlot } from './FormFieldSlot';
 
 export interface FormSchemaFormProps {
   schemaUrl: string;
-  onSubmitted?(response: FormSchemaResponse, action: FormField): void;
+  onSubmitted?: (response: FormSchemaResponse, action: FormField) => void;
   /** Called with the loaded state and again whenever a save replaces it, so a host can show record values such as the title */
-  onStateChange?(state: FormSchemaState): void;
+  onStateChange?: (state: FormSchemaState) => void;
   /** Field names left out of the form, for a host that shows them itself; an omitted field posts nothing */
   omitFields?: ReadonlyArray<string>;
   /** Replaces the default notice when the schema cannot be loaded; the error is a FormSchemaRequestError for an HTTP failure */
-  renderLoadError?(error: unknown): React.ReactNode;
+  renderLoadError?: (error: unknown) => React.ReactNode;
   /** Reports unsaved changes even when the form state does not ask to, as legacy change tracking did for every CMS edit form */
   trackUnsavedChanges?: boolean;
   /** Controls for what the preview shows, such as the draft and published toggle; drawn before Share in split and preview modes only */
   previewControls?: React.ReactNode;
   /** Called with each loaded response, the first and every refetch, for a host that shows what the endpoint sends beside the form */
-  onLoad?(response: FormSchemaResponse): void;
+  onLoad?: (response: FormSchemaResponse) => void;
   /** Asked before an action is submitted; false cancels it, as the legacy delete confirmation did */
-  confirmAction?(action: FormField): boolean | Promise<boolean>;
+  confirmAction?: (action: FormField) => boolean | Promise<boolean>;
   /** Renders the fields with no form element or action bar, for a form inside another form; post it through `handleRef` */
   headless?: boolean;
   /** Receives the handle that posts the form */
   handleRef?: React.Ref<FormSchemaFormHandle>;
-  onDirtyChange?(dirty: boolean): void;
+  onDirtyChange?: (dirty: boolean) => void;
   /** Receives the actions as one row of buttons whenever they change, for a headless form whose host draws them */
-  onActionsChange?(actions: Array<FormField>): void;
+  onActionsChange?: (actions: Array<FormField>) => void;
   /** The action being posted, then null once it settles, whether a button or Enter posted it */
-  onSubmittingChange?(action: string | null): void;
+  onSubmittingChange?: (action: string | null) => void;
 }
 
 const noFields: ReadonlyArray<string> = [];
@@ -92,9 +92,8 @@ const LoadedForm = ({
   const updateFormSchema = useUpdateHook('updateFormSchema');
   const schema = React.useMemo(() => updateFormSchema(loadedSchema, { formId }), [updateFormSchema, loadedSchema, formId]);
   const [state, setState] = React.useState(initialState);
-  const stateListener = React.useRef(onStateChange);
-  stateListener.current = onStateChange;
-  React.useEffect(() => stateListener.current?.(state), [state]);
+  const reportState = React.useEffectEvent((changed: FormSchemaState) => onStateChange?.(changed));
+  React.useEffect(() => reportState(state), [state]);
   const fields = React.useMemo(() => withoutFields(mergeFields(schema.fields, state), omitFields), [schema, state, omitFields]);
   const actions = React.useMemo(() => mergeFields(schema.actions, state), [schema, state]);
   const valueFields = React.useMemo(() => collectValueFields(fields), [fields]);
@@ -102,18 +101,15 @@ const LoadedForm = ({
     defaultValues: defaultValues(valueFields),
   });
   const { control, reset, setValue, formState } = form;
-  const isDirty = React.useRef(false);
-  isDirty.current = formState.isDirty;
-  const dirtyListener = React.useRef(onDirtyChange);
-  dirtyListener.current = onDirtyChange;
-  React.useEffect(() => dirtyListener.current?.(formState.isDirty), [formState.isDirty]);
+  const reportDirty = React.useEffectEvent((dirty: boolean) => onDirtyChange?.(dirty));
+  React.useEffect(() => reportDirty(formState.isDirty), [formState.isDirty]);
 
   const notifyUnsavedChanges = Boolean(trackUnsavedChanges || (state.notifyUnsavedChanges ?? initialState.notifyUnsavedChanges));
   useUnsavedFormRegistration(schema.id, notifyUnsavedChanges, formState.isDirty);
 
   useRefetchedResponse(latest, (response) => {
     setSchema(response.schema);
-    if (response.state && !isDirty.current) {
+    if (response.state && !formState.isDirty) {
       setState(response.state);
       const freshFields = runUpdateHook('updateFormSchema', response.schema, { formId }).fields;
       reset(defaultValues(collectValueFields(mergeFields(freshFields, response.state))));
@@ -134,12 +130,11 @@ const LoadedForm = ({
     confirmAction,
   });
 
-  const onHeadlessKeyDown = useFormHandle({ handleRef, submitWith, defaultAction: actions[0]?.name || 'action_save', isDirty });
+  const onHeadlessKeyDown = useFormHandle({ handleRef, submitWith, defaultAction: actions[0]?.name || 'action_save', isDirty: formState.isDirty });
 
   const shownActions = React.useMemo(() => barActions(actions, formState.isDirty), [actions, formState.isDirty]);
-  const actionsListener = React.useRef(onActionsChange);
-  actionsListener.current = onActionsChange;
-  React.useEffect(() => actionsListener.current?.(dialogActions(actions, formState.isDirty)), [actions, formState.isDirty]);
+  const reportActions = React.useEffectEvent((shown: Array<FormField>) => onActionsChange?.(shown));
+  React.useEffect(() => reportActions(dialogActions(actions, formState.isDirty)), [actions, formState.isDirty]);
 
   const context = React.useMemo(() => {
     const boundKeys = new Set(valueFields.map((field) => field.key));
@@ -161,11 +156,11 @@ const LoadedForm = ({
   const renderedFields = React.useMemo(() => renderTopLevelFields(fields), [fields]);
 
   const provide = (children: React.ReactNode) => (
-    <FormRenderContext.Provider value={context}>
-      <FormSubmittingContext.Provider value={formState.isSubmitting}>
-        <FormDirtyContext.Provider value={formState.isDirty}>{children}</FormDirtyContext.Provider>
-      </FormSubmittingContext.Provider>
-    </FormRenderContext.Provider>
+    <FormRenderContext value={context}>
+      <FormSubmittingContext value={formState.isSubmitting}>
+        <FormDirtyContext value={formState.isDirty}>{children}</FormDirtyContext>
+      </FormSubmittingContext>
+    </FormRenderContext>
   );
 
   if (headless) {

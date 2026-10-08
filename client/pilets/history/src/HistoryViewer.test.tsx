@@ -60,12 +60,13 @@ function useServerQuery(key: ReadonlyArray<unknown>, fetcher: (context: { signal
       (error: Error) => setState({ key: serialised, status: 'error', data: undefined, error }),
     );
     return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by the serialised key, as the real cache is
   }, [serialised, seen]);
   const current = state?.key === serialised ? state : { status: 'pending' as const, data: undefined, error: null };
   return { status: current.status, data: current.data, error: current.error, isFetching: false, refetch: async () => undefined };
 }
 
-function useServerMutation(mutation: (variables: unknown) => Promise<unknown>, options: { changes?(variables: unknown, result: unknown): unknown } = {}) {
+function useServerMutation(mutation: (variables: unknown) => Promise<unknown>, options: { changes?: (variables: unknown, result: unknown) => unknown } = {}) {
   const [status, setStatus] = React.useState<'idle' | 'pending' | 'error' | 'success'>('idle');
   return {
     status,

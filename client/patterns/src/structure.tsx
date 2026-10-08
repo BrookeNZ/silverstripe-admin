@@ -8,19 +8,19 @@ import { revealFieldEvent } from './reveal';
 import { TabStrip } from './TabStrip';
 import type { FieldDescriptor, FieldProps } from './types';
 
-export const CompositeField = ({ field, renderFields }: FieldProps) => (
+export const CompositeField = <F extends FieldDescriptor>({ field, renderFields }: FieldProps<unknown, F>) => (
   <div className="admin-group" id={field.holderId}>
     {renderFields(field.children)}
   </div>
 );
 
-export const FieldGroup = ({ field, renderFields }: FieldProps) => (
+export const FieldGroup = <F extends FieldDescriptor>({ field, renderFields }: FieldProps<unknown, F>) => (
   <div className="admin-group admin-group--row" id={field.holderId}>
     {renderFields(field.children)}
   </div>
 );
 
-export const HeaderField = ({ field }: FieldProps) => {
+export const HeaderField = <F extends FieldDescriptor>({ field }: FieldProps<unknown, F>) => {
   const level = Math.min(Math.max(Number(field.headingLevel) || 2, 1), 6);
   const Heading = `h${level}` as 'h1';
   return (
@@ -30,14 +30,14 @@ export const HeaderField = ({ field }: FieldProps) => {
   );
 };
 
-export const LiteralField = ({ field, value }: FieldProps) => (
+export const LiteralField = <F extends FieldDescriptor>({ field, value }: FieldProps<unknown, F>) => (
   // The value is server-authored HTML, rendered the way the legacy LiteralField renders it
   <div className="admin-literal" id={field.id} dangerouslySetInnerHTML={{ __html: String(value ?? '') }} />
 );
 
-export const TabItem = ({ field, renderFields }: FieldProps) => <>{renderFields(field.children)}</>;
+export const TabItem = <F extends FieldDescriptor>({ field, renderFields }: FieldProps<unknown, F>) => <>{renderFields(field.children)}</>;
 
-export const Tabs = ({ field, renderFields }: FieldProps) => {
+export const Tabs = <F extends FieldDescriptor>({ field, renderFields }: FieldProps<unknown, F>) => {
   const tabs = field.children;
   const [active, setActive] = React.useState(0);
   const tabRefs = React.useRef<Array<HTMLButtonElement | null>>([]);

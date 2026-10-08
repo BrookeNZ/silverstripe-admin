@@ -1,17 +1,17 @@
 /**
- * The page's preview URLs, read from the SilverStripeNavigator field CMSMain adds to the page edit and
- * settings forms: a LiteralField whose state value is the navigator's HTML, with one link per stage
- * (`?stage=Stage` for draft, `?stage=Live` for published; a select's `data-link` once there are five or
- * more). The page record and tree endpoints carry no link, and the tree's URL segments alone cannot
- * rebuild one. Like the legacy preview panel, the URL loaded gets `CMSPreview=1`.
+ * A record's preview URLs, read from the SilverStripeNavigator field CMSMain adds to a page's edit and
+ * settings forms and a block's item form carries: a LiteralField whose state value is the navigator's
+ * HTML, with one link per stage (`?stage=Stage` for draft, `?stage=Live` for published; a select's
+ * `data-link` once there are five or more). The record endpoints carry no link of their own. Like the
+ * legacy preview panel, the URL loaded gets `CMSPreview=1`.
  */
-import type { PageStage } from './stage';
+export type PreviewStage = 'draft' | 'live';
 
-export type PreviewLinks = Partial<Record<PageStage, string>>;
+export type PreviewLinks = Partial<Record<PreviewStage, string>>;
 
-const navigatorField = 'SilverStripeNavigator';
+export const navigatorField = 'SilverStripeNavigator';
 
-const stageParams: Record<string, PageStage> = { Stage: 'draft', Live: 'live' };
+const stageParams: Record<string, PreviewStage> = { Stage: 'draft', Live: 'live' };
 
 /** `base` resolves the relative links PreviewLink() can return */
 export function previewLinks(fields: ReadonlyArray<{ name: string; value: unknown }>, base: string): PreviewLinks {

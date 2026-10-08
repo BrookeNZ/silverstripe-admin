@@ -2,26 +2,16 @@
 import * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Button } from './Button';
 import { SearchIcon } from './icons';
+import { mount, unmountAll } from './test/render';
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-let container: HTMLDivElement;
-
-function render(element: React.ReactElement): HTMLElement {
-  container = document.createElement('div');
-  document.body.append(container);
-  act(() => createRoot(container).render(element));
-  return container.firstElementChild as HTMLElement;
-}
-
-afterEach(() => container.remove());
 
 describe('Button', () => {
   it('renders a non-submitting button by default, as the outlined secondary', () => {
-    const button = render(<Button>Save</Button>);
+    const button = mount(<Button>Save</Button>);
     expect(button.tagName).toBe('BUTTON');
     expect(button.getAttribute('type')).toBe('button');
     expect(button.className).toBe('admin-button');
@@ -29,7 +19,7 @@ describe('Button', () => {
   });
 
   it('renders a link when given href, with the variant modifier and native attributes', () => {
-    const link = render(
+    const link = mount(
       <Button href="/admin/new" variant="primary" className="extra" data-test="x">
         Add new
       </Button>,
@@ -41,12 +31,12 @@ describe('Button', () => {
   });
 
   it('places the icon before the label by default and after it on request', () => {
-    const start = render(<Button icon={<SearchIcon />}>Search</Button>);
+    const start = mount(<Button icon={<SearchIcon />}>Search</Button>);
     expect(start.firstElementChild?.tagName).toBe('svg');
     expect(start.lastElementChild?.tagName).toBe('SPAN');
-    container.remove();
+    unmountAll();
 
-    const end = render(
+    const end = mount(
       <Button icon={<SearchIcon />} iconPosition="end">
         Search
       </Button>,
@@ -56,7 +46,7 @@ describe('Button', () => {
   });
 
   it('keeps an icon-only label as visually hidden text and hides the icon from assistive technology', () => {
-    const button = render(
+    const button = mount(
       <Button variant="tertiary" iconOnly icon={<SearchIcon />}>
         Search
       </Button>,
@@ -70,10 +60,10 @@ describe('Button', () => {
 
   it('adds a class for each tone and size, composed with the variant', () => {
     for (const tone of ['accent', 'danger', 'warning'] as const) {
-      expect(render(<Button tone={tone}>Edit</Button>).className).toBe(`admin-button admin-button--${tone}`);
-      container.remove();
+      expect(mount(<Button tone={tone}>Edit</Button>).className).toBe(`admin-button admin-button--${tone}`);
+      unmountAll();
     }
-    const button = render(
+    const button = mount(
       <Button variant="tertiary" tone="accent" size="sm">
         Select all
       </Button>,
@@ -82,17 +72,17 @@ describe('Button', () => {
   });
 
   it('draws a text button as a link while keeping it a button', () => {
-    const button = render(<Button variant="text">Delete</Button>) as HTMLButtonElement;
+    const button = mount(<Button variant="text">Delete</Button>) as HTMLButtonElement;
     expect(button.tagName).toBe('BUTTON');
     expect(button.type).toBe('button');
     expect(button.className).toBe('admin-button admin-button--text');
   });
 
   it('disables a button while disabled, and drops the href of a disabled link', () => {
-    expect((render(<Button disabled>Save</Button>) as HTMLButtonElement).disabled).toBe(true);
-    container.remove();
+    expect((mount(<Button disabled>Save</Button>) as HTMLButtonElement).disabled).toBe(true);
+    unmountAll();
 
-    const link = render(
+    const link = mount(
       <Button href="/admin/new" disabled>
         Add new
       </Button>,
@@ -106,7 +96,6 @@ describe('Button', () => {
     const onClick = vi.fn();
     const root = document.createElement('div');
     document.body.append(root);
-    container = root as HTMLDivElement;
     const reactRoot = createRoot(root);
     act(() => reactRoot.render(<Button onClick={onClick}>Save</Button>));
     const button = root.firstElementChild as HTMLButtonElement;
@@ -125,12 +114,14 @@ describe('Button', () => {
     expect(button.getAttribute('aria-busy')).toBe('true');
     act(() => button.click());
     expect(onClick).not.toHaveBeenCalled();
+    act(() => reactRoot.unmount());
+    root.remove();
   });
 
   it('takes a disabled or loading link out of the tab order and swallows its clicks', () => {
     for (const props of [{ disabled: true }, { loading: true }]) {
       const onClick = vi.fn();
-      const link = render(
+      const link = mount(
         <Button href="/admin/new" onClick={onClick} {...props}>
           Add new
         </Button>,
@@ -140,20 +131,19 @@ describe('Button', () => {
       expect(link.tabIndex).toBe(-1);
       act(() => link.click());
       expect(onClick).not.toHaveBeenCalled();
-      container.remove();
+      unmountAll();
     }
-    container = document.createElement('div');
   });
 
   it('names an icon-only button by aria-label when it has no text, and warns when it has neither', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const button = render(<Button iconOnly icon={<SearchIcon />} aria-label="Search" />);
+    const button = mount(<Button iconOnly icon={<SearchIcon />} aria-label="Search" />);
     expect(button.getAttribute('aria-label')).toBe('Search');
     expect(button.querySelector('span')).toBeNull();
     expect(warn).not.toHaveBeenCalled();
-    container.remove();
+    unmountAll();
 
-    render(<Button iconOnly icon={<SearchIcon />} aria-label=" " />);
+    mount(<Button iconOnly icon={<SearchIcon />} aria-label=" " />);
     expect(warn).toHaveBeenCalledOnce();
     warn.mockRestore();
 
@@ -162,7 +152,7 @@ describe('Button', () => {
   });
 
   it('submits when asked, carrying its name and value', () => {
-    const button = render(
+    const button = mount(
       <Button type="submit" name="action_save" value="1">
         Save
       </Button>,
@@ -174,12 +164,12 @@ describe('Button', () => {
 
   it('forwards its ref to the rendered element', () => {
     const buttonRef = React.createRef<HTMLButtonElement | HTMLAnchorElement>();
-    render(<Button ref={buttonRef}>Save</Button>);
+    mount(<Button ref={buttonRef}>Save</Button>);
     expect(buttonRef.current?.tagName).toBe('BUTTON');
-    container.remove();
+    unmountAll();
 
     const linkRef = React.createRef<HTMLButtonElement | HTMLAnchorElement>();
-    render(
+    mount(
       <Button ref={linkRef} href="/admin">
         Home
       </Button>,
@@ -190,7 +180,7 @@ describe('Button', () => {
 
 describe('icons', () => {
   it('names a standalone icon when given a label', () => {
-    const svg = render(<SearchIcon label="Search" size="sm" />);
+    const svg = mount(<SearchIcon label="Search" size="sm" />);
     expect(svg.getAttribute('role')).toBe('img');
     expect(svg.getAttribute('aria-label')).toBe('Search');
     expect(svg.hasAttribute('aria-hidden')).toBe(false);

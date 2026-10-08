@@ -25,23 +25,19 @@ export interface LinkDialogProps {
   request: LinkDialogRequest | null;
   kinds: ReadonlyArray<{ kind: LinkKind; schemaUrl: string }>;
   FormDialog: React.ComponentType<SchemaFormDialogProps>;
-  onClose(): void;
-  onSubmit(kind: LinkKind, values: Record<string, unknown>): void;
+  onClose: () => void;
+  onSubmit: (kind: LinkKind, values: Record<string, unknown>) => void;
 }
 
 export const LinkDialog = ({ request, kinds, FormDialog, onClose, onSubmit }: LinkDialogProps) => {
   const [selected, setSelected] = React.useState(request?.kind ?? '');
-  const shown = React.useRef(request);
-  if (request) {
-    shown.current = request;
+  // The last request stays drawn while the dialog closes, and a new one opens on its own kind
+  const [last, setLast] = React.useState(request);
+  if (request && request !== last) {
+    setLast(request);
+    setSelected(request.kind);
   }
-  React.useEffect(() => {
-    if (request) {
-      setSelected(request.kind);
-    }
-  }, [request]);
 
-  const last = shown.current;
   const current = kinds.find(({ kind }) => kind.name === selected) ?? kinds.find(({ kind }) => kind.name === last?.kind) ?? kinds[0];
   if (!current || !last) {
     return null;

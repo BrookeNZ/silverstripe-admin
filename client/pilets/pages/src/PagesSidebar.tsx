@@ -31,10 +31,10 @@ export interface PagesSession {
 }
 
 export interface PagesSessionHolder {
-  get(): PagesSession | null;
-  open(session: PagesSession): void;
-  close(session: PagesSession): void;
-  subscribe(listener: () => void): () => void;
+  get: () => PagesSession | null;
+  open: (session: PagesSession) => void;
+  close: (session: PagesSession) => void;
+  subscribe: (listener: () => void) => () => void;
 }
 
 export function createPagesSessionHolder(): PagesSessionHolder {
@@ -78,14 +78,14 @@ export interface PagesSidebarSlotProps {
   titleId?: string;
   searchId?: string;
   searchOpen?: boolean;
-  closeSearch?(): void;
+  closeSearch?: () => void;
 }
 
 export interface PagesSidebarOptions {
   holder: PagesSessionHolder;
   /** The class the section sets the shared `currentRecord` with */
   recordClass: string;
-  editPath(id: number): string;
+  editPath: (id: number) => string;
   loginUrl: string;
 }
 
@@ -102,7 +102,7 @@ export function createPagesSidebar({ holder, recordClass, editPath, loginUrl }: 
     searchId,
     searchOpen,
     closeSearch,
-  }: PagesSidebarSlotProps & { piral: Pick<PiletApi, 'showNotification' | 'useSharedState'> }) => {
+  }: PagesSidebarSlotProps & { piral: Pick<PiletApi, 'showNotification' | 'useSharedState' | 'useServerQuery'> }) => {
     const session = usePagesSession(holder);
     useStoreVersion(session?.store);
     const record = piral.useSharedState((state) => state.currentRecord);
@@ -116,7 +116,13 @@ export function createPagesSidebar({ holder, recordClass, editPath, loginUrl }: 
 
     const showSearch = searchOpen ?? true;
 
-    React.useEffect(() => setQuery(''), [pathname, showSearch]);
+    // A route change or the shell closing the search clears the query
+    const searchPlace = `${String(showSearch)} ${pathname}`;
+    const [shownSearchPlace, setShownSearchPlace] = React.useState(searchPlace);
+    if (searchPlace !== shownSearchPlace) {
+      setShownSearchPlace(searchPlace);
+      setQuery('');
+    }
 
     if (!session) {
       return null;
@@ -158,6 +164,8 @@ export function createPagesSidebar({ holder, recordClass, editPath, loginUrl }: 
             <PageSearch
               id={searchId}
               api={api}
+              useServerQuery={piral.useServerQuery}
+              recordClass={recordClass}
               editPath={editPath}
               query={query}
               onQueryChange={setQuery}

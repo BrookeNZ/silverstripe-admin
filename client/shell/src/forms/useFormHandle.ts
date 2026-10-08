@@ -10,23 +10,25 @@ const buttonInputTypes = new Set(['button', 'submit', 'reset', 'image']);
 
 interface FormHandleOptions {
   handleRef?: React.Ref<FormSchemaFormHandle>;
-  submitWith(actionName: string, focusedId?: string): Promise<FormSchemaSubmitResult>;
+  submitWith: (actionName: string, focusedId?: string) => Promise<FormSchemaSubmitResult>;
   /** Posted by Enter, and by the handle when it is given no action */
   defaultAction: string;
-  isDirty: { readonly current: boolean };
+  isDirty: boolean;
 }
 
 /** Publishes the handle and returns the headless form's keydown handler */
 export function useFormHandle({ handleRef, submitWith, defaultAction, isDirty }: FormHandleOptions): (event: React.KeyboardEvent<HTMLElement>) => void {
-  const latestSubmit = React.useRef(submitWith);
-  latestSubmit.current = submitWith;
-  const latestDefaultAction = React.useRef(defaultAction);
-  latestDefaultAction.current = defaultAction;
+  // The host calls the handle from its own events, so it reads the latest render's values without being
+  // replaced on every render, which would call a callback ref twice per render
+  const latest = React.useRef({ submitWith, defaultAction, isDirty });
+  React.useLayoutEffect(() => {
+    latest.current = { submitWith, defaultAction, isDirty };
+  });
   React.useImperativeHandle(
     handleRef,
     () => ({
-      submit: (action) => latestSubmit.current(action ?? latestDefaultAction.current),
-      isDirty: () => isDirty.current,
+      submit: (action) => latest.current.submitWith(action ?? latest.current.defaultAction),
+      isDirty: () => latest.current.isDirty,
     }),
     [],
   );
@@ -43,8 +45,8 @@ export function useFormHandle({ handleRef, submitWith, defaultAction, isDirty }:
       return;
     }
     event.preventDefault();
-    if (isDirty.current) {
-      submitWith(defaultAction, target.id);
+    if (isDirty) {
+      void submitWith(defaultAction, target.id);
     }
   };
 }

@@ -3,7 +3,7 @@
  * the flat props FormBuilder used to pass. The schema-level props a field reads are typed by `P` and
  * picked by name, so nothing else from the schema reaches the legacy component
  */
-import * as React from 'react';
+import type * as React from 'react';
 import { FieldHolder } from '@silverstripe/admin-patterns';
 import type { FieldComponentProps } from '@silverstripe/admin-shell';
 

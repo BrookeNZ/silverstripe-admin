@@ -8,6 +8,8 @@ use SilverStripe\Dev\FunctionalTest;
 
 class PiletFeedControllerTest extends FunctionalTest
 {
+    use ShellResponseAssertions;
+
     private const AJAX = ['X-Requested-With' => 'XMLHttpRequest'];
 
     protected function setUp(): void
@@ -39,12 +41,9 @@ class PiletFeedControllerTest extends FunctionalTest
 
         $response = $this->get('admin/pilets/', null, PiletFeedControllerTest::AJAX);
 
-        $this->assertSame(401, $response->getStatusCode());
-        $this->assertSame('application/json', $response->getHeader('Content-Type'));
-        $body = json_decode($response->getBody(), true);
-        $this->assertSame('error', $body['status']);
-        $this->assertSame(401, $body['errors'][0]['code']);
-        $this->assertArrayNotHasKey('items', $body);
+        $this->assertJsonError($response, 403, 'notLoggedIn');
+        $this->assertSame('1', $response->getHeader('X-Reauthenticate'));
+        $this->assertArrayNotHasKey('items', json_decode($response->getBody(), true));
     }
 
     public function testAjaxRequestsWithoutCmsAccessGetAJsonForbidden(): void
@@ -53,8 +52,8 @@ class PiletFeedControllerTest extends FunctionalTest
 
         $response = $this->get('admin/pilets/', null, PiletFeedControllerTest::AJAX);
 
-        $this->assertSame(403, $response->getStatusCode());
-        $this->assertSame(403, json_decode($response->getBody(), true)['errors'][0]['code']);
+        $this->assertJsonError($response, 403, 'forbidden');
+        $this->assertNull($response->getHeader('X-Reauthenticate'));
     }
 
     public function testCmsUsersGetTheFeed(): void

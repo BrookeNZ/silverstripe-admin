@@ -70,7 +70,7 @@ export function uploadFile(
         return;
       }
       try {
-        const [uploaded] = JSON.parse(request.responseText) as UploadedFile[];
+        const [uploaded] = JSON.parse(request.responseText) as Array<UploadedFile>;
         if (!uploaded || typeof uploaded.id !== 'number') {
           throw new Error('no file');
         }
@@ -85,7 +85,7 @@ export function uploadFile(
 
 /** "PNG, 73 B" from the extension and byte size, as the design's meta line */
 export function fileMeta(file: Pick<UploadedFile, 'extension' | 'size'>): string {
-  const parts: string[] = [];
+  const parts: Array<string> = [];
   if (file.extension) {
     parts.push(file.extension.toUpperCase());
   }

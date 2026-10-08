@@ -102,6 +102,7 @@ export const SudoModePasswordField = ({ field }: FieldComponentProps) => {
               id={inputId}
               type="password"
               autoComplete={String(attributes.autocomplete ?? 'off')}
+              // eslint-disable-next-line jsx-a11y/no-autofocus -- shown only after a Verify press, which removes the button that held focus
               autoFocus
               value={password}
               aria-invalid={message ? true : undefined}

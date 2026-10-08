@@ -13,6 +13,8 @@ use SilverStripe\ORM\DB;
 
 class PageTreeControllerTest extends FunctionalTest
 {
+    use ShellResponseAssertions;
+
     protected static $fixture_file = 'PageTreeControllerTest.yml';
 
     private const AJAX = ['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'application/json'];
@@ -131,31 +133,6 @@ class PageTreeControllerTest extends FunctionalTest
         $this->assertFalse($last['pageInfo']['hasMore']);
     }
 
-    public function testLiveStageListsOnlyPublishedChildren(): void
-    {
-        foreach (['wide', 'wide2', 'wide4'] as $name) {
-            $this->objFromFixture(SiteTree::class, $name)->publishSingle();
-        }
-        $url = 'admin/pages/tree/children/' . $this->idFor('wide');
-
-        $live = $this->getJson($url . '?stage=live');
-        $draft = $this->getJson($url . '?stage=draft');
-
-        $this->assertSame(['Wide two', 'Wide four'], array_column($live['items'], 'title'));
-        $this->assertSame(5, $draft['pageInfo']['totalCount']);
-        $this->assertSame(
-            ['Wide'],
-            array_column($this->getJson('admin/pages/tree/children/0?stage=live')['items'], 'title')
-        );
-    }
-
-    public function testDraftOnlyParentIsNotFoundInLive(): void
-    {
-        $response = $this->get('admin/pages/tree/children/' . $this->idFor('alpha') . '?stage=live', null, self::AJAX);
-
-        $this->assertError($response, 404, 'notFound');
-    }
-
     public function testUnknownIdIsNotFound(): void
     {
         $this->assertError($this->get('admin/pages/tree/children/999999', null, self::AJAX), 404, 'notFound');
@@ -188,7 +165,6 @@ class PageTreeControllerTest extends FunctionalTest
         $this->assertError($this->get($url . '?limit=0', null, self::AJAX), 400, 'outOfRange', 'limit');
         $this->assertError($this->get($url . '?limit=251', null, self::AJAX), 400, 'outOfRange', 'limit');
         $this->assertError($this->get($url . '?page=x', null, self::AJAX), 400, 'invalid', 'page');
-        $this->assertError($this->get($url . '?stage=archive', null, self::AJAX), 400, 'invalid', 'stage');
     }
 
     public function testPageBeyondTheLastIsEmpty(): void
@@ -296,12 +272,21 @@ class PageTreeControllerTest extends FunctionalTest
         $this->assertError($this->get('admin/pages/tree/children/0', null, self::AJAX), 403, 'forbidden');
 
         $this->logOut();
-        $this->assertError($this->get('admin/pages/tree/children/0', null, self::AJAX), 401, 'notLoggedIn');
+        $response = $this->get('admin/pages/tree/children/0', null, self::AJAX);
+        $this->assertError($response, 403, 'notLoggedIn');
+        $this->assertSame('1', $response->getHeader('X-Reauthenticate'));
     }
 
     public function testWithoutAPageModelEveryActionIsNotFound(): void
     {
         Config::modify()->set(PageTreeController::class, 'model_class', 'App\\Missing\\Model');
+
+        $this->assertError($this->get('admin/pages/tree/children/0', null, self::AJAX), 404, 'notFound');
+    }
+
+    public function testWithoutTheCmsControllerEveryActionIsNotFound(): void
+    {
+        Config::modify()->set(PageTreeController::class, 'cms_controller', 'App\\Missing\\Controller');
 
         $this->assertError($this->get('admin/pages/tree/children/0', null, self::AJAX), 404, 'notFound');
     }
@@ -321,19 +306,13 @@ class PageTreeControllerTest extends FunctionalTest
 
     private function getJson(string $url): array
     {
-        $response = $this->get($url, null, self::AJAX);
-        $this->assertSame(200, $response->getStatusCode(), $response->getBody());
-        $this->assertSame('application/json', $response->getHeader('Content-Type'));
-        return json_decode($response->getBody(), true);
+        return $this->jsonBody($this->get($url, null, self::AJAX), 200);
     }
 
     private function assertError(HTTPResponse $response, int $code, string $reason, ?string $field = null): void
     {
-        $this->assertSame($code, $response->getStatusCode(), $response->getBody());
-        $error = json_decode($response->getBody(), true)['errors'][0];
-        $this->assertSame($code, $error['code']);
-        $this->assertSame($reason, $error['reason']);
-        $this->assertSame($field, $error['field'] ?? null);
+        $this->assertJsonError($response, $code, $reason);
+        $this->assertSame($field, json_decode($response->getBody(), true)['errors'][0]['field'] ?? null);
     }
 
     private function idFor(string $name): int

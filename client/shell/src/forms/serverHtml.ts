@@ -126,6 +126,7 @@ export function readControls(html: string): Array<HtmlControl> {
   }));
 }
 
+// Every merge of the field tree asks again, and each answer sanitises and parses the HTML
 const bindings = new Map<string, ServerHtmlBinding>();
 
 export function bindServerHtml(name: string, html: string): ServerHtmlBinding {

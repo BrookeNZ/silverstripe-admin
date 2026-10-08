@@ -6,7 +6,8 @@
  *
  * Failures throw a `ServerRequestError` carrying the status, what the server said (the CMS JSON error
  * envelope's messages, a plain JSON body's `message`, or the first line of the plain-text error a dev-mode site sends), and
- * `sessionExpired`, which a login redirect also sets. A section the member cannot view answers an XHR
+ * `sessionExpired`, which a login redirect also sets, and the envelope's first error's `reason` and `field`
+ * for an endpoint that names them. A section the member cannot view answers an XHR
  * with a 200 that redirects by header (AdminController::redirect), which counts as a 403.
  */
 import { sharedConfig } from './sharedState';
@@ -35,6 +36,10 @@ export class ServerRequestError extends Error {
     readonly sessionExpired: boolean = false,
     /** What the server said about the failure, when it said anything worth showing */
     readonly serverMessage: string | null = null,
+    /** The first error's `reason` in the CMS JSON envelope, a code an endpoint can name the failure with */
+    readonly reason?: string,
+    /** The first error's `field` in the CMS JSON envelope */
+    readonly field?: string,
   ) {
     super(message);
     this.name = 'ServerRequestError';
@@ -59,6 +64,15 @@ export function serverMessage(body: string, contentType: string | null): string 
   }
   const firstLine = body.trimStart().split('\n', 1)[0]?.trim() ?? '';
   return firstLine && !firstLine.startsWith('<') ? firstLine.slice(0, 300) : null;
+}
+
+/** The first error's `reason` and `field` in a CMS JSON error envelope */
+function envelopeError(body: unknown): { reason?: string; field?: string } {
+  const first = (body as { errors?: Array<{ reason?: unknown; field?: unknown }> } | null | undefined)?.errors?.[0];
+  return {
+    reason: typeof first?.reason === 'string' && first.reason !== '' ? first.reason : undefined,
+    field: typeof first?.field === 'string' && first.field !== '' ? first.field : undefined,
+  };
 }
 
 function requestBody(body: unknown, headers: Record<string, string>): BodyInit | undefined {
@@ -103,15 +117,23 @@ export const fetchJson: ServerRequest = async <T,>(url: string, init: ServerRequ
   }
   const text = await response.text().catch(() => '');
   const said = response.ok ? null : serverMessage(text, response.headers.get('content-type'));
+  const body = parsed(text);
+  const { reason, field } = response.ok ? {} : envelopeError(body);
   if (response.status === 401 || (response.status === 403 && response.headers.has('X-Reauthenticate'))) {
-    throw new ServerRequestError(said ?? sessionExpiredMessage, response.status, true, said);
+    throw new ServerRequestError(said ?? sessionExpiredMessage, response.status, true, said, reason, field);
   }
   if (response.headers.has('X-ControllerURL')) {
     throw new ServerRequestError(`The server redirected ${target.pathname}`, 403);
   }
-  const body = parsed(text);
   if (!response.ok || body === undefined) {
-    throw new ServerRequestError(said ?? `The server answered ${response.status} from ${target.pathname}`, response.status, false, said);
+    throw new ServerRequestError(
+      said ?? `The server answered ${response.status} from ${target.pathname}`,
+      response.status,
+      false,
+      said,
+      reason,
+      field,
+    );
   }
   return body as T;
 };

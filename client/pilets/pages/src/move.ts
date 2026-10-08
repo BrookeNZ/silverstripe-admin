@@ -5,8 +5,8 @@
  *
  * The server checks every rule again; these only keep the tree from offering a drop it would refuse.
  */
-import { postJson, requestJson, toApiError } from './api';
-import type { PageNode } from './api';
+import { requestApi, toApiError } from './api';
+import type { JsonRequest, PageNode } from './api';
 import type { TreeStore } from './treeStore';
 
 export interface MoveHints {
@@ -35,15 +35,15 @@ export interface MovedPage {
 }
 
 export interface MoveApi {
-  hints(): Promise<MoveHints>;
-  move(request: MoveRequest): Promise<MovedPage>;
+  hints: () => Promise<MoveHints>;
+  move: (request: MoveRequest) => Promise<MovedPage>;
 }
 
 /** `moveUrl` is the absolute URL of admin/pages/move/, the url_segment of PageMoveController */
-export function createMoveApi(moveUrl: string, securityId: () => string, fetcher: typeof fetch = fetch): MoveApi {
+export function createMoveApi(moveUrl: string, request: JsonRequest): MoveApi {
   return {
-    hints: () => requestJson(new URL('hints', moveUrl).href),
-    move: (request) => postJson(new URL('page', moveUrl).href, request, securityId, 'Moving the page', fetcher),
+    hints: () => requestApi(request, new URL('hints', moveUrl).href),
+    move: (move) => requestApi(request, new URL('page', moveUrl).href, { method: 'POST', body: move }),
   };
 }
 
@@ -79,7 +79,7 @@ export function canDropPage(hints: MoveHints | null, node: PageNode, parent: Pag
 export interface MoveSteps {
   client: Pick<MoveApi, 'move'>;
   store: Pick<TreeStore, 'move' | 'moved' | 'node'> & { sessionExpired: boolean };
-  notify(message: string, type: 'success' | 'error'): void;
+  notify: (message: string, type: 'success' | 'error') => void;
 }
 
 /**

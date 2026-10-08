@@ -6,6 +6,8 @@ use SilverStripe\Admin\LeftAndMain;
 use SilverStripe\Admin\Tests\UserInterface\GridFieldItemSchemaTest\Note;
 use SilverStripe\Admin\Tests\UserInterface\GridFieldItemSchemaTest\NoteAdmin;
 use SilverStripe\Admin\Tests\UserInterface\GridFieldItemSchemaTest\Notice;
+use SilverStripe\Admin\UserInterface\GridField\GridFieldItemSchemaExtension;
+use SilverStripe\Control\Controller;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Control\HTTPResponse;
 use SilverStripe\Control\HTTPResponse_Exception;
@@ -23,6 +25,8 @@ use SilverStripe\Versioned\Versioned;
 
 class GridFieldItemSchemaTest extends FunctionalTest
 {
+    use ShellResponseAssertions;
+
     protected static $fixture_file = 'GridFieldItemSchemaTest.yml';
 
     protected static $extra_dataobjects = [Note::class, Notice::class];
@@ -43,7 +47,7 @@ class GridFieldItemSchemaTest extends FunctionalTest
     {
         parent::setUp();
         $this->autoFollowRedirection = false;
-        Config::modify()->set(LeftAndMain::class, 'piral_shell', true);
+        $this->setUpShell();
         SecurityToken::enable();
         Note::$denied = [];
         $this->logInWithPermission('ADMIN');
@@ -66,6 +70,28 @@ class GridFieldItemSchemaTest extends FunctionalTest
         $this->assertSame('First', $body['record']['title']);
         $this->assertStringEndsWith("item/{$id}/edit/", $body['record']['link']);
         $this->assertNull($body['record']['parentTitle'], 'A record in a section grid has no parent record');
+    }
+
+    public function testARecordInAGridOnARecordFormNamesThatRecordAsItsParent(): void
+    {
+        $controller = new Controller();
+        $grid = GridField::create('Notes', 'Notes', Note::get(), GridFieldConfig_RecordEditor::create());
+        $form = Form::create($controller, 'EditForm', FieldList::create($grid), FieldList::create());
+        $item = Note::get()->byID($this->idFromFixture(Note::class, 'second'));
+        $itemRequest = GridFieldDetailForm_ItemRequest::create(
+            $grid,
+            $grid->getConfig()->getComponentByType(GridFieldDetailForm::class),
+            $item,
+            $controller,
+            'DetailForm'
+        );
+
+        $this->assertNull(
+            GridFieldItemSchemaExtension::recordSummary($itemRequest, false)['parentTitle'],
+            'A form with no record loaded names no parent'
+        );
+        $form->loadDataFrom(Note::get()->byID($this->idFromFixture(Note::class, 'first')));
+        $this->assertSame('First', GridFieldItemSchemaExtension::recordSummary($itemRequest, false)['parentTitle']);
     }
 
     public function testNewItemSchemaNeedsCreatePermission(): void
@@ -166,14 +192,18 @@ class GridFieldItemSchemaTest extends FunctionalTest
     public function testSubmissionNeedsTheSecurityToken(): void
     {
         $id = $this->idFromFixture(Note::class, 'first');
-        foreach ([[], ['X-SecurityID' => 'stolen']] as $token) {
+        $answers = [
+            'There seems to have been a technical problem.' => [],
+            'Your session has expired.' => ['X-SecurityID' => 'stolen'],
+        ];
+        foreach ($answers as $message => $token) {
             $response = $this->post(
                 static::NOTES . "{$id}/ItemEditForm",
                 ['Title' => 'Changed', 'action_doSave' => 1],
                 array_merge($this->headers('state,errors'), $token)
             );
-            $this->assertJsonError($response, 400);
-            $this->assertSame('Your session has expired. Please re-submit the form.', $this->errorMessage($response));
+            $this->assertJsonError($response, 400, 'invalidToken');
+            $this->assertStringStartsWith($message, $this->errorMessage($response));
         }
         $this->assertSame('First', Note::get()->byID($id)->Title);
     }
@@ -350,34 +380,10 @@ class GridFieldItemSchemaTest extends FunctionalTest
         return null;
     }
 
-    private function stateValue(array $body, string $name): mixed
-    {
-        foreach ($body['state']['fields'] as $field) {
-            if ($field['name'] === $name) {
-                return $field['value'];
-            }
-        }
-        return null;
-    }
-
     private function assertWithheld(HTTPResponse $response): void
     {
         $this->assertJsonError($response, 403);
         $this->assertSame('You do not have permission to do that to this record.', $this->errorMessage($response));
         $this->assertStringNotContainsString('Class', $response->getBody());
-    }
-
-    private function errorMessage(HTTPResponse $response): string
-    {
-        return json_decode($response->getBody(), true)['errors'][0]['value'];
-    }
-
-    private function assertJsonError(HTTPResponse $response, int $code): void
-    {
-        $this->assertSame($code, $response->getStatusCode(), $response->getBody());
-        $this->assertSame('application/json', $response->getHeader('Content-Type'));
-        $body = json_decode($response->getBody(), true);
-        $this->assertSame('error', $body['status']);
-        $this->assertSame($code, $body['errors'][0]['code']);
     }
 }

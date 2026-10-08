@@ -43,14 +43,14 @@ export interface PageTreeMover {
 export interface PageTreeProps {
   store: TreeStore;
   currentId: number | null;
-  onSelect(id: number): void;
-  onRevealError?(error: unknown): void;
+  onSelect: (id: number) => void;
+  onRevealError?: (error: unknown) => void;
   hidden?: boolean;
   /** Without one, pages cannot be dragged */
   mover?: PageTreeMover;
   dragDisabled?: boolean;
   /** Drawn at the start of each page row, before the expander */
-  rowStart?(node: PageNode): React.ReactNode;
+  rowStart?: (node: PageNode) => React.ReactNode;
 }
 
 const typeaheadResetMs = 500;
@@ -193,30 +193,33 @@ export const PageTree = ({
   const [, rerender] = React.useReducer((count: number) => count + 1, 0);
   const scrollRef = React.useRef<HTMLDivElement | null>(null);
   const scrollToIndex = React.useRef<(index: number) => void>(() => undefined);
+  // The tree library keeps the handlers it was first given, so they reach the latest props through refs
   const onSelectRef = React.useRef(onSelect);
-  onSelectRef.current = onSelect;
-  const onRevealErrorRef = React.useRef(onRevealError);
-  onRevealErrorRef.current = onRevealError;
+  const moverRef = React.useRef(mover);
+  React.useLayoutEffect(() => {
+    onSelectRef.current = onSelect;
+    moverRef.current = mover;
+  });
+  const onRevealErrorEvent = React.useEffectEvent((error: unknown) => onRevealError?.(error));
   const typeahead = useTypeahead();
 
-  const [hints, setHints] = React.useState<MoveHints | null>(null);
+  const moveClient = mover?.client;
+  const [loadedHints, setLoadedHints] = React.useState<{ client: MoveApi; hints: MoveHints } | null>(null);
+  const hints = loadedHints && loadedHints.client === moveClient ? loadedHints.hints : null;
   React.useEffect(() => {
-    setHints(null);
-    if (!mover) {
+    if (!moveClient) {
       return undefined;
     }
     let cancelled = false;
-    mover.client
+    moveClient
       .hints()
-      .then((loaded) => !cancelled && setHints(loaded))
+      .then((loaded) => !cancelled && setLoadedHints({ client: moveClient, hints: loaded }))
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, [mover?.client]);
+  }, [moveClient]);
   const dragEnabled = Boolean(mover && hints?.canOrganise) && !dragDisabled;
-  const moverRef = React.useRef(mover);
-  moverRef.current = mover;
 
   const canDrag = (items: Array<ItemInstance<TreeEntry>>) => {
     const node = pageOf(items[0]);
@@ -306,15 +309,35 @@ export const PageTree = ({
 
   const items = tree.getItems();
   // The sidebar scrolls as one panel, so the virtualiser measures from the tree's offset inside it
+  // and re-measures whenever anything in the panel (the search, an alert, the tree itself) resizes or comes and goes
   const [scrollMargin, setScrollMargin] = React.useState(0);
   React.useLayoutEffect(() => {
     const tree = scrollRef.current;
     const pane = tree?.parentElement;
     if (!tree || !pane) {
-      return;
+      return undefined;
     }
-    setScrollMargin(tree.getBoundingClientRect().top - pane.getBoundingClientRect().top + pane.scrollTop);
-  });
+    const measure = () => setScrollMargin(tree.getBoundingClientRect().top - pane.getBoundingClientRect().top + pane.scrollTop);
+    measure();
+    if (typeof ResizeObserver === 'undefined') {
+      return undefined;
+    }
+    const resizes = new ResizeObserver(measure);
+    const observeChildren = () => {
+      resizes.disconnect();
+      Array.from(pane.children).forEach((child) => resizes.observe(child));
+    };
+    const arrivals = new MutationObserver(() => {
+      observeChildren();
+      measure();
+    });
+    observeChildren();
+    arrivals.observe(pane, { childList: true });
+    return () => {
+      resizes.disconnect();
+      arrivals.disconnect();
+    };
+  }, []);
   const virtualizer = useVirtualizer({
     count: items.length,
     getScrollElement: () => scrollRef.current?.parentElement ?? null,
@@ -323,7 +346,9 @@ export const PageTree = ({
     overscan: 10,
     getItemKey: (index) => items[index]?.getId() ?? index,
   });
-  scrollToIndex.current = (index) => virtualizer.scrollToIndex(index, { align: 'auto' });
+  React.useLayoutEffect(() => {
+    scrollToIndex.current = (index) => virtualizer.scrollToIndex(index, { align: 'auto' });
+  }, [virtualizer]);
 
   const [revealed, setRevealed] = React.useState<number | null>(null);
   React.useEffect(() => {
@@ -342,7 +367,7 @@ export const PageTree = ({
       })
       .catch((error: unknown) => {
         if (!cancelled) {
-          onRevealErrorRef.current?.(error);
+          onRevealErrorEvent(error);
         }
       });
     return () => {
@@ -360,7 +385,7 @@ export const PageTree = ({
       setFocusedItem(pageItemId(revealed));
       virtualizer.scrollToIndex(index, { align: 'center' });
     }
-  });
+  }, [revealed, items, virtualizer]);
 
   const { ref: registerContainer, ...containerProps } = tree.getContainerProps('Pages');
   // A new callback each render would unmount and remount the tree's key handlers between a keydown and its keyup
@@ -369,6 +394,7 @@ export const PageTree = ({
       scrollRef.current = element;
       (registerContainer as (element: HTMLElement | null) => void)(element);
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- registerContainer is new each render; the tree instance decides
     [tree],
   );
 
@@ -411,6 +437,8 @@ export const PageTree = ({
               .filter(Boolean)
               .join(' ');
             return (
+              // itemProps make the row a treeitem with a roving tabindex; its keys are the tree's hotkeys on the container
+              // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
               <div
                 {...itemProps}
                 key={row.key}

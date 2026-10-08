@@ -3,7 +3,7 @@
  * (Icon gives it currentColor, its size token and aria-hidden), and each host spaces it with its own
  * gap token, so a button and a link with the same icon line up alike. Internal to the package.
  */
-import * as React from 'react';
+import type * as React from 'react';
 
 export type IconPosition = 'start' | 'end';
 

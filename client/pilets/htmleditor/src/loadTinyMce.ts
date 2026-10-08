@@ -59,7 +59,7 @@ export function loadTinyMce(baseUrl: string, bundle: () => Promise<unknown> = im
   if (window.tinymce) {
     return Promise.resolve(window.tinymce);
   }
-  if (loading) {
+  if (loading !== null) {
     return loading;
   }
   const promise = loadBundle(bundle)

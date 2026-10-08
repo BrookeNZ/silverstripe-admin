@@ -1,13 +1,11 @@
 // @vitest-environment happy-dom
-import * as React from 'react';
+import type * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GlobalStateContext } from 'piral-core';
 import type { QueryClient } from '@tanstack/react-query';
 import { recordsChangedEvent } from '../events';
-import type { RecordsChangedEvent } from '../events';
 import { createServerCacheApi, createServerQueryClient, matchesRecordsChanged } from './serverCache';
 import type {
   ServerCacheApi,
@@ -20,29 +18,16 @@ import type {
 } from './serverCache';
 import { resetSharedConfig } from './sharedState';
 import { ServerRequestError } from './serverRequest';
+import { fakeGlobalContext } from '../test/fakeGlobalContext';
+import type { FakeGlobalContext } from '../test/fakeGlobalContext';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-type Handler = (event: any) => void;
-
-let handlers: Map<string, Set<Handler>>;
-let emitted: Array<RecordsChangedEvent>;
+let context: FakeGlobalContext;
 let queryClient: QueryClient;
 let api: ServerCacheApi;
 let container: HTMLDivElement;
 let root: Root;
-
-function fakeContext(): GlobalStateContext {
-  return {
-    on: (name: string, handler: Handler) => {
-      handlers.set(name, (handlers.get(name) ?? new Set()).add(handler));
-    },
-    emit: (name: string, event: RecordsChangedEvent) => {
-      emitted.push(event);
-      handlers.get(name)?.forEach((handler) => handler(event));
-    },
-  } as unknown as GlobalStateContext;
-}
 
 const last = <T,>(list: ReadonlyArray<T>): T | undefined => list[list.length - 1];
 
@@ -71,10 +56,9 @@ async function render(element: React.ReactElement) {
 }
 
 beforeEach(() => {
-  handlers = new Map();
-  emitted = [];
+  context = fakeGlobalContext();
   queryClient = createServerQueryClient();
-  api = (createServerCacheApi(queryClient)(fakeContext()) as () => ServerCacheApi)();
+  api = (createServerCacheApi(queryClient)(context) as () => ServerCacheApi)();
   container = document.createElement('div');
   root = createRoot(container);
   resetSharedConfig();
@@ -165,6 +149,58 @@ describe('useServerQuery', () => {
     expect(last(second)?.data).toEqual(['v3', 'v2']);
   });
 
+  it('shows initial data as the first result, with no loading state', async () => {
+    const fetcher = vi.fn(async () => ['fetched']);
+    const seen: Array<ServerQueryResult<Array<string>>> = [];
+    await render(<Reader queryKey={['Page', 7, 'blocks']} fetcher={fetcher} seen={seen} options={{ initialData: ['initial'] }} />);
+
+    expect(seen[0]).toMatchObject({ status: 'success', data: ['initial'] });
+    expect(seen.some((result) => result.status === 'pending')).toBe(false);
+  });
+
+  it('trusts initial data for its staleTime from when it was fetched, and until a records-changed event', async () => {
+    const fetcher = vi.fn(async () => ['fetched']);
+    const seen: Array<ServerQueryResult<Array<string>>> = [];
+    await render(
+      <Reader queryKey={['blocks', 3]} fetcher={fetcher} seen={seen} options={{ initialData: ['initial'], initialDataUpdatedAt: Date.now(), staleTime: 30_000 }} />,
+    );
+    expect(fetcher).not.toHaveBeenCalled();
+
+    await act(async () => {
+      context.emit(recordsChangedEvent, { recordClass: 'Page', ids: [7] });
+    });
+    await flush();
+
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(last(seen)?.data).toEqual(['fetched']);
+  });
+
+  it('refetches behind initial data fetched longer ago than its staleTime', async () => {
+    const fetcher = vi.fn(async () => ['fetched']);
+    const seen: Array<ServerQueryResult<Array<string>>> = [];
+    await render(
+      <Reader queryKey={['blocks', 3]} fetcher={fetcher} seen={seen} options={{ initialData: ['initial'], initialDataUpdatedAt: Date.now() - 30_001, staleTime: 30_000 }} />,
+    );
+
+    expect(seen[0]).toMatchObject({ status: 'success', data: ['initial'] });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(last(seen)?.data).toEqual(['fetched']);
+  });
+
+  it('resolves a refetch to the data it fetched', async () => {
+    let version = 0;
+    const fetcher = vi.fn(async () => `v${++version}`);
+    const seen: Array<ServerQueryResult<string>> = [];
+    await render(<Reader queryKey={['Page', 7, 'title']} fetcher={fetcher} seen={seen} />);
+
+    let refetched: string | undefined;
+    await act(async () => {
+      refetched = await last(seen)?.refetch();
+    });
+
+    expect(refetched).toBe('v2');
+  });
+
   it('refetches the keys a records-changed event matches and leaves the rest', async () => {
     const versions = vi.fn(async () => 'versions');
     const otherPage = vi.fn(async () => 'other');
@@ -182,7 +218,7 @@ describe('useServerQuery', () => {
     });
     await flush();
 
-    expect(emitted).toEqual([{ recordClass: 'Page', ids: [7] }]);
+    expect(context.emitted).toEqual([{ recordClass: 'Page', ids: [7] }]);
     expect(versions).toHaveBeenCalledTimes(2);
     expect(schema).toHaveBeenCalledTimes(2);
     expect(otherPage).toHaveBeenCalledTimes(1);
@@ -240,7 +276,7 @@ describe('useServerQuery', () => {
     await render(<Reader queryKey={['Page', 7, 'versions', 1]} fetcher={versions} seen={[]} />);
 
     await act(async () => {
-      handlers.get(recordsChangedEvent)?.forEach((handler) => handler({ recordClass: 'Page', ids: [7] }));
+      context.emit(recordsChangedEvent, { recordClass: 'Page', ids: [7] });
     });
     await flush();
 
@@ -297,7 +333,7 @@ describe('useServerMutation', () => {
 
     const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect((init.headers as Record<string, string>)['X-SecurityID']).toBe('csrf-token');
-    expect(emitted).toEqual([{ recordClass: 'Page', ids: [7] }]);
+    expect(context.emitted).toEqual([{ recordClass: 'Page', ids: [7] }]);
     expect(versions).toHaveBeenCalledTimes(2);
     expect(mutation?.status).toBe('success');
   });
@@ -313,6 +349,6 @@ describe('useServerMutation', () => {
 
     expect(mutation?.status).toBe('error');
     expect(mutation?.error?.message).toBe('Nope');
-    expect(emitted).toEqual([]);
+    expect(context.emitted).toEqual([]);
   });
 });

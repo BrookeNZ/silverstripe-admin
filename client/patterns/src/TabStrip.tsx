@@ -9,7 +9,7 @@
  * `buttonProps`. Given a `role` (tablist), the list items become presentational so the tabs are the
  * list's only children in the accessibility tree.
  */
-import * as React from 'react';
+import type * as React from 'react';
 
 export interface TabStripItem {
   key: React.Key;
@@ -27,7 +27,7 @@ export interface TabStripLinkProps {
 }
 
 export interface TabStripProps extends Omit<React.HTMLAttributes<HTMLUListElement>, 'children'> {
-  items: TabStripItem[];
+  items: Array<TabStripItem>;
   renderLink?: (props: TabStripLinkProps) => React.ReactElement;
 }
 

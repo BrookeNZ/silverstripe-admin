@@ -36,8 +36,8 @@ Outside the pilet, the shell's `encodeSubmission` now posts an option object's `
 
 ## Dormant or stubbed
 
-- The bubbling `change` event and `no-change-track` class feed the legacy PageForm change tracker,
-  which the shell does not have; kept to keep the file recognisable, harmless
+- The `no-change-track` class fed the legacy PageForm change tracker, which the shell does not have;
+  kept to keep the file recognisable, harmless. The bubbling `change` event it paired with is gone
 - `noOptionsMessage` reads its argument as a string but react-select passes `{ inputValue }`, so the
   "Type to search" message never shows; a legacy bug, kept
 - Dropped legacy styling: hidden indicators in lazy-load mode, option borders, multi-value chip styling

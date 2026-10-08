@@ -1,4 +1,7 @@
-import React from 'react';
+/**
+ * The admin's legacy UsedOnTable, ported; its Redux slice is replaced by provideUsedOnData, and
+ * PORTING.md lists the changes
+ */
 import classnames from 'classnames';
 import i18n from '../legacy/i18n';
 import provideUsedOnData from './provideUsedOnData';

@@ -14,7 +14,7 @@ interface Fruit {
   disabled?: boolean;
 }
 
-const fruit: Fruit[] = [
+const fruit: Array<Fruit> = [
   { value: 'a', label: 'Apple' },
   { value: 'b', label: 'Banana', disabled: true },
   { value: 'c', label: 'Cherry' },
@@ -219,8 +219,8 @@ describe('Combobox', () => {
   });
 
   it('marks the listbox busy while loadOptions resolves and drops a stale answer', async () => {
-    const resolvers: Array<(result: Fruit[]) => void> = [];
-    const loadOptions = vi.fn(() => new Promise<Fruit[]>((resolve) => resolvers.push(resolve)));
+    const resolvers: Array<(result: Array<Fruit>) => void> = [];
+    const loadOptions = vi.fn(() => new Promise<Array<Fruit>>((resolve) => resolvers.push(resolve)));
     render({ loadOptions, loadingMessage: 'Loading fruit' });
     type('a');
     type('ap');
@@ -273,9 +273,9 @@ describe('Combobox', () => {
 
   it('activates the first option when the options change under the active one, or the one onKeyDown picks', () => {
     const level = [{ value: 'x', label: 'Child one' }, { value: 'y', label: 'Child two' }];
-    let swap: (next: Fruit[]) => void = () => undefined;
+    let swap: (next: Array<Fruit>) => void = () => undefined;
     const Host = () => {
-      const [items, setItems] = React.useState<Fruit[]>(fruit);
+      const [items, setItems] = React.useState<Array<Fruit>>(fruit);
       swap = setItems;
       return (
         <Combobox<Fruit>

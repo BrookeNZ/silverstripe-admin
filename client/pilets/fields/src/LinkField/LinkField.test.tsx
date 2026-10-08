@@ -12,9 +12,10 @@ import type { ServerCache } from '../legacy/Backend';
 import { createLinkField } from './LinkField';
 import type { LinkFieldValue } from './LinkField';
 import { deleteLink, fetchLinkData, linkSchemaUrl, savedLinkId, sortLinks } from './linkApi';
+import type * as LinkApi from './linkApi';
 
 vi.mock('./linkApi', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./linkApi')>()),
+  ...(await importOriginal<typeof LinkApi>()),
   fetchLinkData: vi.fn(),
   deleteLink: vi.fn(),
   sortLinks: vi.fn(),
@@ -52,6 +53,7 @@ function fakeServerCache(): ServerCache {
         return () => {
           current = false;
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by the serialised key, as the real cache is
       }, [keyText, revision, options.enabled]);
       const status = result.error ? 'error' : result.data === undefined ? 'pending' : 'success';
       return { status, data: result.data, error: result.error, isFetching: result.fetching, refetch: async () => setRevision((count) => count + 1) } as never;
@@ -137,7 +139,7 @@ const link = (title: string, sort = 1, versionState = 'unsaved') => ({
   sort,
 });
 
-const Harness = ({ initial, schema, onValue }: { initial: LinkFieldValue; schema: any; onValue?(value: LinkFieldValue): void }) => {
+const Harness = ({ initial, schema, onValue }: { initial: LinkFieldValue; schema: any; onValue?: (value: LinkFieldValue) => void }) => {
   const [value, setValue] = React.useState<LinkFieldValue>(initial);
   return (
     <form onSubmit={() => onValue?.('page form submitted' as any)}>

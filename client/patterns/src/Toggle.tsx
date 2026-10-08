@@ -17,7 +17,7 @@ export interface ToggleProps<K extends string = string>
   extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onChange' | 'role'> {
   options: ReadonlyArray<ToggleOption<K>>;
   value: K;
-  onChange(value: K): void;
+  onChange: (value: K) => void;
   /** The group's accessible name, when no visible text names it through `aria-labelledby` */
   label?: string;
   /** The radios' shared name; a unique one is generated when omitted */

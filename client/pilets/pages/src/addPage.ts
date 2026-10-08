@@ -4,7 +4,7 @@ import type { TreeStore } from './treeStore';
 export interface AddPageSteps {
   client: Pick<CreatePageApi, 'create'>;
   store: Pick<TreeStore, 'childAdded'>;
-  land(page: CreatedPage): void;
+  land: (page: CreatedPage) => void;
 }
 
 /** Creates the page, re-reads its parent so the tree holds the new row, then lands on its edit route */

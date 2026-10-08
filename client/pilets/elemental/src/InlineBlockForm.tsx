@@ -1,23 +1,20 @@
-import * as React from 'react';
+import type * as React from 'react';
 import { Button } from '@silverstripe/admin-patterns';
-import type { FormSchemaFormHandle } from './shell';
+import type { FormSchemaFormHandle, FormSchemaFormProps } from './shell';
 
 export interface InlineBlockFormProps {
   /** The shell's FormSchemaForm, from the component registry */
-  FormSchemaForm: React.ComponentType<any>;
+  FormSchemaForm: React.ComponentType<FormSchemaFormProps>;
   schemaUrl: string;
   regionId: string;
   title: string;
   handleRef: React.RefCallback<FormSchemaFormHandle>;
   dirty: boolean;
   saving: boolean;
-  onDirtyChange(dirty: boolean): void;
-  onSave(): void;
-  onSaved(): void;
+  onDirtyChange: (dirty: boolean) => void;
+  onSave: () => void;
+  onSaved: () => void;
 }
-
-// The history viewer has no shell component yet
-const omittedTabs = ['History'];
 
 /**
  * A block's own form inside the page form: the shell renders it headless (no nested form element, no
@@ -44,7 +41,6 @@ export const InlineBlockForm = ({
       onDirtyChange={onDirtyChange}
       onSubmitted={onSaved}
       trackUnsavedChanges
-      omitFields={omittedTabs}
     />
     <div className="elemental-block__form-actions">
       <Button

@@ -4,6 +4,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
+import type * as AdminComponents from '@silverstripe/admin-patterns';
 import type { ChildrenResponse, PageNode, TreeApi } from './api';
 import type { RecordsChangedEvent } from './events';
 import { createPagesSection, pageAncestors, pageSectionHeader, parsePageTail, TreeQueries } from './PagesSection';
@@ -16,14 +17,19 @@ vi.mock('./PageTree', () => ({ PageTree: () => null }));
 vi.mock('./AddPageDialog', () => ({ AddPageDialog: () => null }));
 
 // The patterns package resolves its own React copy under vitest, so its hooks fail here
-vi.mock('@silverstripe/admin-patterns', () => ({
-  AddIcon: () => null,
-  Button: ({ variant, icon, children, ...rest }: { variant?: string; icon?: unknown; children?: React.ReactNode }) =>
-    React.createElement('button', { type: 'button', 'data-variant': variant, ...rest }, children),
-  FieldHolder: ({ children }: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, children),
-  fieldTitle: (field: { title?: string }) => field.title ?? '',
-  Toggle: () => null,
-}));
+vi.mock('@silverstripe/admin-patterns', async (importOriginal) => {
+  const { navigatorField, previewLinks } = await importOriginal<typeof AdminComponents>();
+  return {
+    navigatorField,
+    previewLinks,
+    AddIcon: () => null,
+    Button: ({ variant, icon: _icon, children, ...rest }: { variant?: string; icon?: unknown; children?: React.ReactNode }) =>
+      React.createElement('button', { type: 'button', 'data-variant': variant, ...rest }, children),
+    FieldHolder: ({ children }: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, children),
+    fieldTitle: (field: { title?: string }) => field.title ?? '',
+    Toggle: () => null,
+  };
+});
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -149,7 +155,11 @@ describe('PagesSidebar', () => {
       editPath: (id) => `/pages/edit/show/${id}`,
       loginUrl: '/admin/',
     });
-    const piral = { showNotification: vi.fn(), useSharedState: () => null as never };
+    const piral = {
+      showNotification: vi.fn(),
+      useSharedState: () => null as never,
+      useServerQuery: () => ({ status: 'pending' as const, data: undefined, error: null, isFetching: false, refetch: async () => undefined }),
+    };
     const container = document.createElement('div');
     document.body.append(container);
     const root = createRoot(container);
@@ -192,7 +202,9 @@ describe('PagesSidebar', () => {
       field()!.dispatchEvent(new Event('input', { bubbles: true }));
     });
     expect(field()!.value).toBe('ab');
-    act(() => void field()!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+    act(() => {
+      field()!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
     expect(closeSearch).toHaveBeenCalledTimes(1);
     render({ ...slot, searchOpen: false });
     render({ ...slot, searchOpen: true });
@@ -252,6 +264,7 @@ describe('TreeQueries', () => {
         };
         listeners.add(onEvent);
         return () => void listeners.delete(onEvent);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by the joined key, as the real cache is
       }, [id]);
       React.useEffect(() => {
         let live = true;
@@ -262,6 +275,7 @@ describe('TreeQueries', () => {
         return () => {
           live = false;
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by the joined key, as the real cache is
       }, [id, generation]);
       return result;
     };
@@ -320,27 +334,46 @@ describe('TreeQueries', () => {
 });
 
 describe('PagesSection submissions', () => {
-  function renderSection() {
+  function renderSection({ formClearsOnUnmount = true } = {}) {
     let formProps: Record<string, any> = {};
-    let location = '';
+    const locations: Array<string> = [];
+    let unsaved = false;
+    const listeners = new Set<() => void>();
+    const setUnsaved = (next: boolean) => {
+      unsaved = next;
+      listeners.forEach((listener) => listener());
+    };
+    const subscribe = (listener: () => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    };
     const FakeFormSchemaForm = (props: Record<string, any>) => {
       formProps = props;
+      React.useEffect(() => () => {
+        if (formClearsOnUnmount) {
+          setUnsaved(false);
+        }
+      }, []);
       return null;
     };
     const Location = () => {
-      location = useLocation().pathname;
+      const { pathname } = useLocation();
+      React.useEffect(() => {
+        locations.push(pathname);
+      }, [pathname]);
       return null;
     };
     const piral = {
       fetchJson: () => new Promise(() => undefined),
       getSilverstripeComponent: () => FakeFormSchemaForm,
-      hasUnsavedChanges: vi.fn(() => false),
       invalidateRecords: vi.fn(),
       setCurrentRecord: () => undefined,
       setData: () => undefined,
       setSectionHeader: () => undefined,
       showNotification: vi.fn(),
       useServerQuery: () => ({ status: 'pending', data: undefined, error: null, isFetching: true }),
+      useSharedState: (selector: (state: { unsavedChanges: boolean }) => unknown) =>
+        selector({ unsavedChanges: React.useSyncExternalStore(subscribe, () => unsaved) }),
     };
     const { Page } = createPagesSection({
       routePrefix: '/pages',
@@ -350,7 +383,6 @@ describe('PagesSection submissions', () => {
       treeUrl: 'https://example.test/admin/pages/tree/',
       createUrl: 'https://example.test/admin/pages/add/',
       moveUrl: 'https://example.test/admin/pages/move/',
-      securityId: () => 'token',
       loginUrl: '/admin/',
       schemaUrls: { edit: (id) => `/admin/pages/edit/schema/EditForm/${id}` },
     });
@@ -375,7 +407,7 @@ describe('PagesSection submissions', () => {
       act(() => root.unmount());
       container.remove();
     };
-    return { piral, form: () => formProps, location: () => location, done };
+    return { piral, form: () => formProps, locations, setUnsaved, done };
   }
 
   const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 20)));
@@ -383,26 +415,47 @@ describe('PagesSection submissions', () => {
   it("reports the action's own message, falling back to the action's title", () => {
     const { piral, form, done } = renderSection();
 
-    act(() => form().onSubmitted({ id: 'x', message: 'Saved Page "Alpha"' }, { title: 'Save' }));
-    act(() => form().onSubmitted({ id: 'x' }, { title: 'Publish' }));
+    act(() => {
+      form().onSubmitted({ id: 'x', message: 'Saved Page "Alpha"' }, { title: 'Save' });
+    });
+    act(() => {
+      form().onSubmitted({ id: 'x' }, { title: 'Publish' });
+    });
 
     expect(piral.showNotification.mock.calls.map(([message]) => message)).toEqual(['Saved Page "Alpha"', 'Publish succeeded']);
     expect(piral.invalidateRecords).toHaveBeenCalledWith(siteTreeClass, [7]);
     done();
   });
 
-  it('leaves for the section index once an archived page form is clean, refreshing its tree row', async () => {
-    const { piral, form, location, done } = renderSection();
-    piral.hasUnsavedChanges.mockReturnValueOnce(true);
+  const archive = (form: ReturnType<typeof renderSection>['form']) =>
+    act(() => {
+      form().onSubmitted({ id: 'x', deleted: true, message: 'Archived Page "Alpha"' }, { title: 'Archive' });
+    });
 
-    act(() => form().onSubmitted({ id: 'x', deleted: true, message: 'Archived Page "Alpha"' }, { title: 'Archive' }));
-    expect(location()).toBe('/pages/edit/show/7');
+  it('leaves for the section index once, after the archived form unmounts and clears its unsaved changes', async () => {
+    const { piral, form, locations, setUnsaved, done } = renderSection();
+    act(() => setUnsaved(true));
+
+    archive(form);
     await settle();
 
     expect(piral.showNotification).toHaveBeenCalledWith('Archived Page "Alpha"', { type: 'success' });
     expect(piral.invalidateRecords).toHaveBeenCalledWith(siteTreeClass, [7]);
-    expect(piral.hasUnsavedChanges).toHaveBeenCalledTimes(2);
-    expect(location()).toBe('/pages/');
+    expect(locations).toEqual(['/pages/edit/show/7', '/pages/']);
+    done();
+  });
+
+  it('stays on the archived page while its unsaved changes are still flagged', async () => {
+    const { form, locations, setUnsaved, done } = renderSection({ formClearsOnUnmount: false });
+    act(() => setUnsaved(true));
+
+    archive(form);
+    await settle();
+    expect(locations).toEqual(['/pages/edit/show/7']);
+
+    act(() => setUnsaved(false));
+    await settle();
+    expect(locations).toEqual(['/pages/edit/show/7', '/pages/']);
     done();
   });
 });

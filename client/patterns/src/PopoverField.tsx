@@ -1,10 +1,9 @@
-import * as React from 'react';
 import { fieldTitle } from './FieldHolder';
 import { Menu, Popover } from './Popover';
 import type { PopoverProps } from './Popover';
-import type { FieldProps } from './types';
+import type { FieldDescriptor, FieldProps } from './types';
 
-function popoverProps({ field }: FieldProps): PopoverProps {
+function popoverProps({ field }: { field: FieldDescriptor }): PopoverProps {
   const title = fieldTitle(field);
   return {
     id: field.id,
@@ -19,9 +18,9 @@ function popoverProps({ field }: FieldProps): PopoverProps {
 }
 
 /** A schema PopoverField: its child fields in a Popover */
-export const PopoverField = (props: FieldProps) => (
+export const PopoverField = <F extends FieldDescriptor>(props: FieldProps<unknown, F>) => (
   <Popover {...popoverProps(props)}>{props.renderFields(props.field.children)}</Popover>
 );
 
 /** Child actions in a Menu, such as the action bar's "More options" */
-export const MenuField = (props: FieldProps) => <Menu {...popoverProps(props)}>{props.renderFields(props.field.children)}</Menu>;
+export const MenuField = <F extends FieldDescriptor>(props: FieldProps<unknown, F>) => <Menu {...popoverProps(props)}>{props.renderFields(props.field.children)}</Menu>;

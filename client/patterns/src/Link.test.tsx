@@ -1,28 +1,16 @@
 // @vitest-environment happy-dom
 import * as React from 'react';
-import { act } from 'react';
-import { createRoot } from 'react-dom/client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { Link } from './Link';
 import type { LinkRenderProps } from './Link';
 import { BackIcon, ForwardIcon } from './icons';
+import { mount, unmountAll } from './test/render';
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-let container: HTMLDivElement;
-
-function render(element: React.ReactElement): HTMLElement {
-  container = document.createElement('div');
-  document.body.append(container);
-  act(() => createRoot(container).render(element));
-  return container.firstElementChild as HTMLElement;
-}
-
-afterEach(() => container.remove());
 
 describe('Link', () => {
   it('renders an anchor by default, passing anchor attributes through', () => {
-    const link = render(
+    const link = mount(
       <Link href="/admin/pages" className="extra" title="Pages" data-test="x">
         Pages
       </Link>,
@@ -36,10 +24,12 @@ describe('Link', () => {
   });
 
   it('renders through an injected link component', () => {
-    const RouterLink = React.forwardRef<HTMLAnchorElement, Omit<LinkRenderProps, 'href' | 'ref'> & { to: string }>(
-      ({ to, ...props }, ref) => <a {...props} ref={ref} data-router-to={to} />,
+    const RouterLink = ({ to, children, ...props }: Omit<LinkRenderProps, 'href'> & { to: string }) => (
+      <a {...props} data-router-to={to}>
+        {children}
+      </a>
     );
-    const link = render(
+    const link = mount(
       <Link href="/pages/edit/1" renderLink={({ href, ...props }) => <RouterLink {...props} to={href} />}>
         Edit
       </Link>,
@@ -50,7 +40,7 @@ describe('Link', () => {
   });
 
   it('places the icon after the label by default and before it on request', () => {
-    const end = render(
+    const end = mount(
       <Link href="/next" icon={<ForwardIcon />}>
         Next
       </Link>,
@@ -59,9 +49,9 @@ describe('Link', () => {
     expect(end.firstChild?.textContent).toBe('Next');
     expect(end.lastElementChild?.tagName).toBe('svg');
     expect(end.lastElementChild?.getAttribute('aria-hidden')).toBe('true');
-    container.remove();
+    unmountAll();
 
-    const start = render(
+    const start = mount(
       <Link href="/back" icon={<BackIcon />} iconPosition="start">
         Back
       </Link>,
@@ -71,7 +61,7 @@ describe('Link', () => {
   });
 
   it('opens an external link in a new window and says so in hidden text', () => {
-    const link = render(
+    const link = mount(
       <Link href="https://example.com" external renderLink={() => <span />}>
         Example
       </Link>,
@@ -86,17 +76,17 @@ describe('Link', () => {
 
   it('forwards its ref to the anchor, injected or not', () => {
     const plain = React.createRef<HTMLAnchorElement>();
-    render(
+    mount(
       <Link href="/a" ref={plain}>
         A
       </Link>,
     );
     expect(plain.current?.tagName).toBe('A');
-    container.remove();
+    unmountAll();
 
     const injected = React.createRef<HTMLAnchorElement>();
-    render(
-      <Link href="/b" ref={injected} renderLink={(props) => <a {...props} data-injected="" />}>
+    mount(
+      <Link href="/b" ref={injected} renderLink={({ children, ...props }) => <a {...props} data-injected="">{children}</a>}>
         B
       </Link>,
     );

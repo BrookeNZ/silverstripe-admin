@@ -4,7 +4,6 @@
  * flow (a dropzone posting to `data.uploadFileEndpoint`, progress and undo held in Redux), which is out
  * of scope here; the field posts nothing either way. Belongs in asset-admin's own pilet once it has one
  */
-import * as React from 'react';
 import { FieldHolder } from '@silverstripe/admin-patterns';
 import type { FieldComponentProps } from '@silverstripe/admin-shell';
 import './PreviewImageField.css';

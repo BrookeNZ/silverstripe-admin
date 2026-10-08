@@ -107,7 +107,7 @@ export const SectionHeaderBar = () => {
   const { pathname } = useLocation();
   const titleRef = React.useRef<HTMLHeadingElement>(null);
   const headerRef = useMeasuredHeight<HTMLDivElement>('--shell-header-offset');
-  const application = React.useRef(applicationName(document.title)).current;
+  const [application] = React.useState(() => applicationName(document.title));
   const mounted = React.useRef(false);
   const pending = React.useRef<{ staleId: number | undefined } | null>(null);
   const [landings, setLandings] = React.useState(0);
@@ -119,6 +119,8 @@ export const SectionHeaderBar = () => {
       pending.current = { staleId: entry?.id };
     }
     mounted.current = true;
+    // Runs on route changes only: the entry showing then is the leaving page's, which the arriving one replaces
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   React.useEffect(() => {

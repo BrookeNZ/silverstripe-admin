@@ -2,7 +2,7 @@
  * Stands in for mapHighlight from the admin's lib/castStringToElement: splits `haystack` around each
  * case-insensitive match of `needle` and wraps the matches in `Tag`
  */
-import * as React from 'react';
+import type * as React from 'react';
 
 export function mapHighlight(haystack: string, needle: string, Tag?: React.ComponentType<{ children: React.ReactNode }>) {
   let index = 0;

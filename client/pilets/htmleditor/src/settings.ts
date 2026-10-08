@@ -80,7 +80,7 @@ export interface EditorContext {
 export function editorOptions(config: ServerEditorConfig, { target, label, readOnly, setup }: EditorContext): RawEditorOptions {
   const {
     baseURL,
-    editorIdentifier,
+    editorIdentifier: _editorIdentifier,
     external_plugins: externalPlugins = {},
     toolbar,
     contextmenu,

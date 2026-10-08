@@ -1,9 +1,10 @@
 // @vitest-environment happy-dom
-import * as React from 'react';
+import type * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type * as SchemaModule from './schema';
 import { SchemaFormDialog } from './SchemaFormDialog';
 import { fetchFormSchema, submitFormSchema } from './schema';
 import { serverQueryClient } from '../state/serverCache';
@@ -15,7 +16,7 @@ vi.mock('piral-core', () => ({
 }));
 vi.mock('../unsaved', () => ({ setUnsavedChanges: () => () => undefined, shellOwner: 'shell' }));
 vi.mock('./schema', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./schema')>()),
+  ...(await importOriginal<typeof SchemaModule>()),
   fetchFormSchema: vi.fn(),
   submitFormSchema: vi.fn(),
 }));

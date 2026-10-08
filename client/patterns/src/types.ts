@@ -43,11 +43,11 @@ export interface FieldDescriptor {
 export interface FieldProps<V = unknown, F extends FieldDescriptor = FieldDescriptor> {
   field: F;
   value: V;
-  onChange(value: V): void;
-  onBlur(): void;
+  onChange: (value: V) => void;
+  onBlur: () => void;
   error?: string;
   /** True while the surrounding form is submitting; actions disable themselves */
   submitting: boolean;
   /** Renders nested fields; groups and tabs call it with their children */
-  renderFields(fields: F['children']): ReactNode;
+  renderFields: (fields: ReadonlyArray<F['children'][number]>) => ReactNode;
 }

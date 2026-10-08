@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
-import * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type * as ServerRequestModule from '../../state/serverRequest';
 import { invalidateShellServerCache } from '../../state/serverCache';
 import { fetchJson, ServerRequestError } from '../../state/serverRequest';
 import type { FieldComponentProps } from '../types';
@@ -11,7 +11,7 @@ import { SudoModePasswordField, sudoModeControllerName } from './SudoModePasswor
 
 vi.mock('../../state/serverCache', () => ({ invalidateShellServerCache: vi.fn(async () => undefined) }));
 vi.mock('../../state/serverRequest', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../state/serverRequest')>()),
+  ...(await importOriginal<typeof ServerRequestModule>()),
   fetchJson: vi.fn(),
 }));
 vi.mock('../../state/sharedState', () => ({

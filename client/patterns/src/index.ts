@@ -39,3 +39,5 @@ export type { UnsavedChangesIndicatorProps, UnsavedChangesLevel, UnsavedChangesM
 export { UnsavedChangesDialog } from './UnsavedChangesDialog';
 export type { UnsavedChangesDialogProps } from './UnsavedChangesDialog';
 export { revealField, revealFieldEvent } from './reveal';
+export { navigatorField, previewLinks } from './previewLinks';
+export type { PreviewLinks, PreviewStage } from './previewLinks';

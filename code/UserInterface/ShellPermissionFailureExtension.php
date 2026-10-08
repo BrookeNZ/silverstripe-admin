@@ -2,7 +2,7 @@
 
 namespace SilverStripe\Admin\UserInterface;
 
-use SilverStripe\Admin\LeftAndMain;
+use SilverStripe\Admin\AdminController;
 use SilverStripe\Core\Extension;
 use SilverStripe\Security\CMSSecurity;
 use SilverStripe\Security\Security;
@@ -12,9 +12,10 @@ use SilverStripe\Security\Security;
  * answers an XHR with a 403 ("Not logged in" as plain text with `X-Reauthenticate`, or an empty body for a member
  * without access) and any other request with a redirect to the login form, logged in or not, which a FormSchema
  * request sent without `X-Requested-With` cannot follow. Both become a JSON 403, with `X-Reauthenticate` when nobody is logged in. init()
- * returns before any action or form handler runs, so the form extensions never see these requests.
+ * returns before any action or form handler runs, so the form extensions never see these requests. Applied to
+ * AdminController so the link modal and every other admin JSON endpoint answer the same way as the sections.
  *
- * @extends Extension<LeftAndMain>
+ * @extends Extension<AdminController>
  */
 class ShellPermissionFailureExtension extends Extension
 {

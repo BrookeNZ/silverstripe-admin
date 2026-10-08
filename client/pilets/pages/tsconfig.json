@@ -1,11 +1,8 @@
 {
   "compilerOptions": {
-    "declaration": true,
-    "noImplicitAny": false,
+    "strict": true,
     "removeComments": false,
     "noLib": false,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
     "target": "es6",
     "sourceMap": true,
     "outDir": "./dist",
@@ -13,7 +10,7 @@
     "lib": ["dom", "es2018"],
     "moduleResolution": "Bundler",
     "module": "esnext",
-    "jsx": "react",
+    "jsx": "react-jsx",
     "rootDir": ".",
     "importHelpers": true
   },

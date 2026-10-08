@@ -38,8 +38,8 @@ export interface HistoryEndpoints {
 
 export interface HistoryApi {
   /** `page` counts from 1 */
-  read(recordClass: string, id: number, page: number, signal?: AbortSignal): Promise<VersionPage>;
-  revert(recordClass: string, id: number, toVersion: number): Promise<void>;
+  read: (recordClass: string, id: number, page: number, signal?: AbortSignal) => Promise<VersionPage>;
+  revert: (recordClass: string, id: number, toVersion: number) => Promise<void>;
 }
 
 /** `request` is the shell's `fetchJson`, which sends the session headers and the CSRF token on the revert */

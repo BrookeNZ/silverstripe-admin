@@ -33,18 +33,18 @@ export interface FormSubmissionOptions {
   actions: Array<FormField>;
   initialMessages: Array<SchemaMessage>;
   /** Receives the state a successful save sends back */
-  onSavedState(state: FormSchemaState): void;
-  onSubmitted?(response: FormSchemaResponse, action: FormField): void;
-  onSubmittingChange?(action: string | null): void;
-  confirmAction?(action: FormField): boolean | Promise<boolean>;
+  onSavedState: (state: FormSchemaState) => void;
+  onSubmitted?: (response: FormSchemaResponse, action: FormField) => void;
+  onSubmittingChange?: (action: string | null) => void;
+  confirmAction?: (action: FormField) => boolean | Promise<boolean>;
 }
 
 export interface FormSubmission {
   messages: Array<SchemaMessage>;
   /** Posts with the named action, judging the values afresh */
-  submitWith(actionName: string, focusedId?: string): Promise<FormSchemaSubmitResult>;
+  submitWith: (actionName: string, focusedId?: string) => Promise<FormSchemaSubmitResult>;
   /** The form element's submit handler, which posts the submitter's action once it is confirmed */
-  onSubmit(event: React.FormEvent<HTMLElement>): Promise<unknown>;
+  onSubmit: (event: React.FormEvent<HTMLElement>) => void;
 }
 
 function findAction(actions: Array<FormField>, name: string | undefined): FormField | undefined {
@@ -83,14 +83,12 @@ export function useFormSubmission({
   const globalState = useGlobalStateContext();
   const [messages, setMessages] = React.useState<Array<SchemaMessage>>(initialMessages);
 
-  const submittingListener = React.useRef(onSubmittingChange);
-  submittingListener.current = onSubmittingChange;
   const submit = async (actionName: string, focusedId: string | undefined): Promise<FormSchemaSubmitResult> => {
-    submittingListener.current?.(actionName);
+    onSubmittingChange?.(actionName);
     try {
       return await post(actionName, focusedId);
     } finally {
-      submittingListener.current?.(null);
+      onSubmittingChange?.(null);
     }
   };
 
@@ -185,7 +183,7 @@ export function useFormSubmission({
   const submitWith = (actionName: string, focusedId?: string) =>
     new Promise<FormSchemaSubmitResult>((resolve) => {
       clearErrors();
-      handleSubmit(
+      void handleSubmit(
         () => submit(actionName, focusedId).then(resolve, (error) => resolve({ ok: false, message: errorMessage(error) })),
         () => resolve({ ok: false }),
       )();
@@ -203,10 +201,10 @@ export function useFormSubmission({
     event.preventDefault();
     const confirmed = async () =>
       (await runBeforeHook('onBeforeFormAction', { formId, action: actionName })) && (!action || (await confirmAction(action)));
-    return confirmed().then(
-      (go) => (go ? submitValues() : undefined),
-      (error) => setMessages([{ type: 'error', value: errorMessage(error) }]),
-    );
+    // A failed confirmation or post shows above the form, as a failed request does
+    confirmed()
+      .then((go) => (go ? submitValues() : undefined))
+      .catch((error: unknown) => setMessages([{ type: 'error', value: errorMessage(error) }]));
   };
 
   return { messages, submitWith, onSubmit };
