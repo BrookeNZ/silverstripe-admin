@@ -17,20 +17,22 @@ use SilverStripe\ORM\DataObject;
  * Answers a shell submission of a GridField detail form (see GridFieldItemSchemaExtension) with JSON.
  *
  * Before the action runs, the member's permission for it is checked and a refusal is a JSON 403: canEdit
- * to save a record, canCreate to save a new one, canDelete to delete or archive, canPublish (plus the
- * save permission) to publish and canUnpublish to unpublish. The stock item requests leave such an action
- * out of the form, so GridFieldItemSchemaExtension usually refuses first; this covers item requests that
- * allow an action the form does not show. Creating without canCreate is refused for every submission,
- * legacy ones included (plain text for those), because the framework's doSave lets it through.
+ * to save a record, canCreate to save a new one, canDelete to delete or archive, canPublish to publish
+ * and canUnpublish to unpublish. Publishing needs no canEdit, as in VersionedGridFieldItemRequest: without
+ * it the form is read only, so the publish saves none of the posted values. The stock item requests leave
+ * such an action out of the form, so GridFieldItemSchemaExtension usually refuses first; this covers item
+ * requests that allow an action the form does not show. Creating without canCreate is refused for every
+ * submission, legacy ones included (plain text for those), because the framework's doSave lets it through.
  *
  * The item request's actions end by rendering the form as a PJAX fragment or redirecting, and an XHR
  * without `X-Pjax` makes the fragment render fail, so the action runs with `X-Pjax: ValidationResult`
  * (the smallest fragment, as doDelete itself sets `X-Pjax` on the request) and its response is replaced
  * by the success envelope: `record` (GridFieldItemSchemaExtension::recordSummary(), whose `link` is
  * null once the record is no longer in the grid's list), `deleted`, `message` (the action's `X-Status`
- * text) and, for a record still in the list, the `state` of a form built afresh for the record. A new record
- * answers 201 with a `Location` header. The form's session message is cleared, because the shell shows
- * the message itself.
+ * text, else the message it left on the section's edit form, as versioned-admin's restore does) and, for a
+ * record still in the list, the `state` of a form built afresh for the record. A new record answers 201
+ * with a `Location` header. The form's session message is cleared, because the shell shows the message
+ * itself. An error response the action returns rather than throws is passed on as the JSON error envelope.
  *
  * @extends Extension<FormRequestHandler>
  */
@@ -59,6 +61,12 @@ class GridFieldItemSubmissionExtension extends Extension
             return;
         }
         $request->removeHeader(static::PJAX_HEADER);
+        if ($result instanceof HTTPResponse && $result->isError()) {
+            if (!str_contains((string) $result->getHeader('Content-Type'), 'application/json')) {
+                $result = ShellSubmission::jsonError($result->getStatusCode(), ShellSubmission::errorText($result));
+            }
+            return;
+        }
         $result = $this->successResponse($subject, $form);
     }
 
@@ -97,7 +105,7 @@ class GridFieldItemSubmissionExtension extends Extension
         return match ($action) {
             'doSave' => $canSave,
             'doDelete', 'doArchive' => $this->can($record, 'canDelete'),
-            'doPublish' => $canSave && $this->can($record, 'canPublish'),
+            'doPublish' => $this->can($record, 'canPublish'),
             'doUnpublish' => $this->can($record, 'canUnpublish'),
             default => true,
         };
@@ -116,14 +124,13 @@ class GridFieldItemSubmissionExtension extends Extension
         $listed = $id ? $itemRequest->getGridField()->getList()->byID($id) : null;
         $inList = (bool) $listed;
         $deleted = !$id || !DataObject::get($record->ClassName)->byID($id);
-        $message = $this->statusMessage($controller->getResponse());
+        $editForm = $controller->hasMethod('getEditForm') ? $controller->getEditForm() : null;
+        $message = $this->statusMessage($controller->getResponse()) ?: $this->sessionMessage($editForm);
 
         $form->clearMessage();
         $form->clearFormState();
-        if ($controller->hasMethod('getEditForm')) {
-            // doDelete leaves its message on the section's form, which the shell would show on its next load
-            $controller->getEditForm()?->clearFormState();
-        }
+        // doDelete and doRestore leave their message on the section's form, which the shell would show on its next load
+        $editForm?->clearFormState();
 
         $envelope = [
             'record' => GridFieldItemSchemaExtension::recordSummary($itemRequest, $inList),
@@ -148,7 +155,21 @@ class GridFieldItemSubmissionExtension extends Extension
 
     private function statusMessage(HTTPResponse $response): string
     {
-        $status = rawurldecode((string) $response->getHeader('X-Status'));
-        return trim(html_entity_decode(strip_tags($status), ENT_QUOTES | ENT_HTML5));
+        return $this->plainText(rawurldecode((string) $response->getHeader('X-Status')));
+    }
+
+    private function sessionMessage(?Form $editForm): string
+    {
+        foreach ($editForm?->getSessionValidationResult()?->getMessages() ?? [] as $message) {
+            if (empty($message['fieldName']) && ($message['message'] ?? '') !== '') {
+                return $this->plainText((string) $message['message']);
+            }
+        }
+        return '';
+    }
+
+    private function plainText(string $html): string
+    {
+        return trim(html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5));
     }
 }

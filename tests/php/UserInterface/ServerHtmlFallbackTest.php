@@ -5,6 +5,7 @@ namespace SilverStripe\Admin\Tests\UserInterface;
 use LogicException;
 use SilverStripe\Admin\LeftAndMain;
 use SilverStripe\Admin\Tests\UserInterface\FieldComponentCandidatesTest\SchemaController;
+use SilverStripe\Admin\Tests\UserInterface\ServerHtmlFallbackTest\CountingField;
 use SilverStripe\Admin\Tests\UserInterface\ServerHtmlFallbackTest\TemplateOnlyField;
 use SilverStripe\Admin\UserInterface\ServerHtmlFallback;
 use SilverStripe\Control\HTTPRequest;
@@ -58,6 +59,43 @@ class ServerHtmlFallbackTest extends SapphireTest
         $this->schemaFields($this->createForm());
     }
 
+    public function testEachFallbackFieldCarriesItsOwnHtml(): void
+    {
+        Config::modify()->set(LeftAndMain::class, 'piral_shell', true);
+        $form = Form::create(
+            null,
+            'TestForm',
+            FieldList::create(
+                TemplateOnlyField::create('First'),
+                CompositeField::create(TemplateOnlyField::create('Second'), TextField::create('Title')),
+                TemplateOnlyField::create('Third')
+            ),
+            FieldList::create()
+        );
+
+        $fields = $this->schemaFields($form);
+
+        $this->assertStringContainsString('name="First"', $fields[0]['fallback']['html']);
+        $this->assertStringContainsString('name="Second"', $fields[1]['children'][0]['fallback']['html']);
+        $this->assertArrayNotHasKey('fallback', $fields[1]['children'][1]);
+        $this->assertStringContainsString('name="Third"', $fields[2]['fallback']['html']);
+        $this->assertStringNotContainsString('name="First"', $fields[2]['fallback']['html']);
+    }
+
+    public function testStateOnlyRequestRendersNoFallback(): void
+    {
+        Config::modify()->set(LeftAndMain::class, 'piral_shell', true);
+        CountingField::$renders = 0;
+        $form = Form::create(null, 'TestForm', FieldList::create(CountingField::create('Counted')), FieldList::create());
+
+        $body = $this->schemaResponse($form, 'state');
+
+        $this->assertArrayNotHasKey('schema', $body);
+        $this->assertArrayHasKey('state', $body);
+        $this->assertSame(0, CountingField::$renders);
+        $this->assertNull($form->Fields()->dataFieldByName('Counted')->getSchemaComponent());
+    }
+
     private function createForm(): Form
     {
         return Form::create(
@@ -70,13 +108,17 @@ class ServerHtmlFallbackTest extends SapphireTest
 
     private function schemaFields(Form $form): array
     {
+        return $this->schemaResponse($form, 'schema')['schema']['fields'];
+    }
+
+    private function schemaResponse(Form $form, string $parts): array
+    {
         $request = new HTTPRequest('GET', 'admin/field-component-candidates-test/schema/TestForm');
-        $request->addHeader('X-Formschema-Request', 'schema');
+        $request->addHeader('X-Formschema-Request', $parts);
         $request->setSession(new Session([]));
         $controller = SchemaController::create();
         $controller->setRequest($request);
 
-        $body = json_decode($controller->getSchemaResponse('TestForm', $form)->getBody(), true);
-        return $body['schema']['fields'];
+        return json_decode($controller->getSchemaResponse('TestForm', $form)->getBody(), true);
     }
 }

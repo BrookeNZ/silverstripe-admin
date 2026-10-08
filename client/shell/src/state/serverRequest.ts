@@ -5,7 +5,7 @@
  * the login form, and the CSRF token from the client config in X-SecurityID on anything but a GET.
  *
  * Failures throw a `ServerRequestError` carrying the status, what the server said (the CMS JSON error
- * envelope's messages, or the first line of the plain-text error a dev-mode site sends), and
+ * envelope's messages, a plain JSON body's `message`, or the first line of the plain-text error a dev-mode site sends), and
  * `sessionExpired`, which a login redirect also sets. A section the member cannot view answers an XHR
  * with a 200 that redirects by header (AdminController::redirect), which counts as a 403.
  */
@@ -46,8 +46,12 @@ export class ServerRequestError extends Error {
  * dev-mode site sends to XHR. HTML error pages carry nothing worth showing
  */
 export function serverMessage(body: string, contentType: string | null): string | null {
-  const data = parsed(body) as { errors?: Array<{ value?: unknown }> } | null | undefined;
+  const data = parsed(body) as { errors?: Array<{ value?: unknown }>; message?: unknown } | null | undefined;
   if (data !== undefined || contentType?.includes('application/json')) {
+    // SudoModeController and other plain JSON endpoints answer `{"message": "..."}`
+    if (typeof data?.message === 'string' && data.message !== '') {
+      return data.message;
+    }
     const texts = (Array.isArray(data?.errors) ? data.errors : [])
       .map((error) => error?.value)
       .filter((value): value is string => typeof value === 'string' && value !== '');

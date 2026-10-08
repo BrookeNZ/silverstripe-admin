@@ -218,12 +218,16 @@ abstract class ModelAdmin extends LeftAndMain
 
     /**
      * Adds `modelTabs`, a list of `['tab' => URL segment, 'title' => tab title]` in managed_models order, so a
-     * client can name the landing tab and link every tab before it requests a form
+     * client can name the landing tab and link every tab before it requests a form. The list is empty for a member
+     * who cannot view the section, since the combined client config reaches every CMS member
      */
     public function getClientConfig(): array
     {
         $this->beforeExtending('updateClientConfig', function (array &$clientConfig): void {
             $clientConfig['modelTabs'] = [];
+            if (!$this->canView()) {
+                return;
+            }
             foreach ($this->getManagedModels() as $tab => $options) {
                 $clientConfig['modelTabs'][] = [
                     'tab' => $this->sanitiseClassName($tab),

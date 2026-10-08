@@ -6,6 +6,7 @@ use InvalidArgumentException;
 use LogicException;
 use SilverStripe\Admin\Forms\UnsavedChangesIndicator;
 use SilverStripe\Admin\Navigator\SilverStripeNavigator;
+use SilverStripe\Admin\UserInterface\PiletFeed;
 use SilverStripe\Admin\UserInterface\PiletFeedController;
 use SilverStripe\Admin\UserInterface\PiralShellAssets;
 use SilverStripe\Admin\UserInterface\RecordClassAncestry;
@@ -50,6 +51,7 @@ use SilverStripe\Security\SecurityToken;
 use SilverStripe\SiteConfig\SiteConfig;
 use SilverStripe\View\Requirements;
 use SilverStripe\View\SSViewer;
+use Throwable;
 
 /**
  * LeftAndMain is the parent class of all the two-pane views in the CMS.
@@ -304,7 +306,9 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
         $combinedClientConfig['baseUrl'] = Director::baseURL();
         $combinedClientConfig['absoluteBaseUrl'] = Director::absoluteBaseURL();
         $combinedClientConfig['adminUrl'] = AdminRootController::admin_url();
-        $combinedClientConfig['recordClasses'] = RecordClassAncestry::singleton()->getMap();
+        if ($this->config()->get('piral_shell')) {
+            $combinedClientConfig['recordClasses'] = RecordClassAncestry::singleton()->getMap();
+        }
 
         // Get "global" CSRF token for use in JavaScript
         $token = SecurityToken::inst();
@@ -483,7 +487,27 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
         parent::afterHandleRequest();
     }
 
+    /**
+     * Extensions see the response, or the exception that ended the request, through `updateRequestResponse`
+     * and may answer an exception with a response
+     */
     public function handleRequest(HTTPRequest $request): HTTPResponse
+    {
+        try {
+            $response = $this->handleRequestWithHeaders($request);
+        } catch (Throwable $exception) {
+            $response = null;
+            $this->extend('updateRequestResponse', $request, $response, $exception);
+            if (!$response) {
+                throw $exception;
+            }
+            return $response;
+        }
+        $this->extend('updateRequestResponse', $request, $response);
+        return $response;
+    }
+
+    private function handleRequestWithHeaders(HTTPRequest $request): HTTPResponse
     {
         try {
             $response = parent::handleRequest($request);
@@ -590,6 +614,63 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
     {
         $segment = PiletFeedController::config()->get('url_segment');
         return Controller::join_links(AdminRootController::admin_url(), $segment, '/');
+    }
+
+    /**
+     * The pilet feed's items as JSON, the same list admin/pilets answers, so the shell starts without
+     * fetching the feed. Empty for a member the feed would refuse
+     */
+    public function PiralPilets(): string
+    {
+        $items = $this->piralPiletItems();
+        return $items === null ? '' : json_encode($items, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * URLs the shell page preloads: every pilet script, plus the first data requests a section makes, which
+     * its controller adds through `updatePiralPreloads`. A data URL must equal the later request exactly,
+     * query string and trailing slash included, or the browser fetches it twice; a relative URL resolves
+     * against the page's base tag, and Director::absoluteURL() would apply add_trailing_slash
+     */
+    public function getPiralPreloads(): array
+    {
+        $urls = array_column($this->piralPiletItems() ?? [], 'link');
+        $this->extend('updatePiralPreloads', $urls);
+        return array_values(array_unique($urls));
+    }
+
+    /**
+     * A URL ending in `.js` preloads as a script, anything else as a fetch. Same-origin pilet scripts load
+     * without a crossorigin attribute and others with `anonymous`, as SystemJS loads them; a fetch preload
+     * is `anonymous` because that is the credentials mode `same-origin` requests use
+     */
+    public function PiralPreloadLinks(): ArrayList
+    {
+        $origin = Director::protocolAndHost() . '/';
+        $links = ArrayList::create();
+        foreach ($this->getPiralPreloads() as $url) {
+            $isScript = (bool) preg_match('#\.js(\?|$)#', $url);
+            $sameOrigin = !preg_match('#^(https?:)?//#', $url) || str_starts_with($url, $origin);
+            $links->push(ArrayData::create([
+                'URL' => $url,
+                'As' => $isScript ? 'script' : 'fetch',
+                'CrossOrigin' => $isScript && $sameOrigin ? '' : 'anonymous',
+            ]));
+        }
+        return $links;
+    }
+
+    private ?array $piralPiletItems = null;
+
+    private bool $piralPiletItemsRead = false;
+
+    private function piralPiletItems(): ?array
+    {
+        if (!$this->piralPiletItemsRead) {
+            $this->piralPiletItemsRead = true;
+            $this->piralPiletItems = PiletFeedController::singleton()->canView() ? PiletFeed::singleton()->getItems() : null;
+        }
+        return $this->piralPiletItems;
     }
 
     public function AdminURL(): string

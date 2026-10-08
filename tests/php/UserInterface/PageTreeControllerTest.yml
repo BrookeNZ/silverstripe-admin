@@ -93,3 +93,53 @@ SilverStripe\CMS\Model\SiteTree:
     Parent: =>SilverStripe\CMS\Model\SiteTree.restricted
     CanViewType: Anyone
     Sort: 2
+  family:
+    Title: Family
+    URLSegment: family
+    Sort: 5
+  familypublished:
+    Title: Family published
+    URLSegment: family-published
+    Parent: =>SilverStripe\CMS\Model\SiteTree.family
+    Sort: 1
+  familydraft:
+    Title: Family draft
+    URLSegment: family-draft
+    Parent: =>SilverStripe\CMS\Model\SiteTree.family
+    Sort: 2
+  familymodified:
+    Title: Family modified
+    URLSegment: family-modified
+    Parent: =>SilverStripe\CMS\Model\SiteTree.family
+    Sort: 3
+  familyhidden:
+    Title: Family hidden
+    URLSegment: family-hidden
+    Parent: =>SilverStripe\CMS\Model\SiteTree.family
+    Sort: 4
+    CanViewType: OnlyTheseUsers
+    ViewerGroups: =>SilverStripe\Security\Group.other
+  familylocked:
+    Title: Family locked
+    URLSegment: family-locked
+    Parent: =>SilverStripe\CMS\Model\SiteTree.family
+    Sort: 5
+    CanEditType: OnlyTheseUsers
+    EditorGroups: =>SilverStripe\Security\Group.other
+  familyguarded:
+    Title: Family guarded
+    URLSegment: family-guarded
+    Parent: =>SilverStripe\CMS\Model\SiteTree.family
+    Sort: 6
+  familyguardedchild:
+    Title: Family guarded child
+    URLSegment: family-guarded-child
+    Parent: =>SilverStripe\CMS\Model\SiteTree.familyguarded
+    Sort: 1
+  familyguardedgrandchild:
+    Title: Family guarded grandchild
+    URLSegment: family-guarded-grandchild
+    Parent: =>SilverStripe\CMS\Model\SiteTree.familyguardedchild
+    Sort: 1
+    CanEditType: OnlyTheseUsers
+    EditorGroups: =>SilverStripe\Security\Group.other

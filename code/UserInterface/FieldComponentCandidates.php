@@ -30,6 +30,10 @@ use SilverStripe\Forms\ToggleCompositeField;
  *
  * The same walk gives a ToggleCompositeField `data.headingLevel` and `data.startClosed`, which its schema
  * leaves out (the start state is only in its class attribute).
+ *
+ * Departures: legacy sends only `component` and the field's short class name in `extraClass`;
+ * `componentCandidates`, sent only on shell schema requests, also exposes the field's class names up to
+ * FormField.
  */
 class FieldComponentCandidates
 {

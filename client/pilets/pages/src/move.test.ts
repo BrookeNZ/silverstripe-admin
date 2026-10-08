@@ -108,6 +108,31 @@ describe('drop rules', () => {
     expect(canDropPage({ ...hints, rootClasses: [] }, node(21), null)).toBe(false);
     expect(canDropPage({ ...hints, rootClasses: [] }, node(1), null)).toBe(true);
   });
+
+  it('allow a drop on a parent class the hints leave out', () => {
+    expect(canDropPage(hints, node(21), node(1, { className: 'App\\HiddenPage' }))).toBe(true);
+    expect(canDropPage(hints, node(21), node(1, { className: 'App\\HiddenPage', canEdit: false }))).toBe(false);
+  });
+
+  it('allow a class the hints leave out at the top level while canCreateTopLevel holds', () => {
+    const unknown = node(21, { className: 'App\\HiddenPage' });
+    expect(canDropPage({ ...hints, rootClasses: [] }, unknown, null)).toBe(true);
+    expect(canDropPage({ ...hints, canCreateTopLevel: false }, unknown, null)).toBe(false);
+  });
+
+  it('check a virtual page by the class of the page it copies', () => {
+    const virtualPage = 'SilverStripe\\CMS\\Model\\VirtualPage';
+    const virtualHints: MoveHints = {
+      ...hints,
+      rootClasses: [virtualPage],
+      allowedChildren: { [page]: [virtualPage], [leaf]: [leaf], [virtualPage]: [] },
+    };
+    const copiesLeaf = node(21, { className: virtualPage, copiedClassName: leaf });
+    expect(canDropPage(virtualHints, copiesLeaf, node(1))).toBe(false);
+    expect(canDropPage(virtualHints, copiesLeaf, node(1, { className: leaf }))).toBe(true);
+    expect(canDropPage(virtualHints, copiesLeaf, null)).toBe(false);
+    expect(canDropPage({ ...virtualHints, rootClasses: [leaf] }, copiesLeaf, null)).toBe(true);
+  });
 });
 
 describe('movePage', () => {

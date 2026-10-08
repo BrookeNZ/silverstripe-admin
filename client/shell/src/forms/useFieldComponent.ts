@@ -3,7 +3,8 @@ import { useGlobalState } from 'piral-core';
 import type { GlobalState } from 'piral-core';
 import { componentSlotName, isFullWidth, silverstripeComponent } from '../api/silverstripe';
 import { UnknownField } from './fields/UnknownField';
-import { resolveFieldComponent } from './resolve';
+import { reportFieldDowngrade } from './downgrades';
+import { fieldDowngrade, resolveFieldComponent } from './resolve';
 import type { FieldResolution, ResolvableField } from './resolve';
 import type { FieldComponentProps, FormField } from './types';
 
@@ -15,6 +16,10 @@ export function resolveInRegistry(field: ResolvableField, extensions: GlobalStat
 export function useFieldComponent(field: FormField): ComponentType<FieldComponentProps<any>> {
   const extensions = useGlobalState((state) => state.registry.extensions);
   const { name } = resolveInRegistry(field, extensions);
+  const downgrade = name ? fieldDowngrade(field, name) : null;
+  if (downgrade) {
+    reportFieldDowngrade(downgrade);
+  }
   return name ? silverstripeComponent(name) : UnknownField;
 }
 

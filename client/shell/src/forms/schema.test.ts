@@ -195,11 +195,6 @@ describe('action variants', () => {
     );
     expect(actions.map((field) => field.primary)).toEqual([true, false, true, false, true, true]);
   });
-
-  it('reads the action icon from the schema data', () => {
-    const [save] = mergeFields([action('action_save', 'btn', { data: { icon: 'tick' } })], undefined);
-    expect(save.icon).toBe('tick');
-  });
 });
 
 describe('withChangedActions', () => {

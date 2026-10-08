@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client';
 import { createInstance, Piral } from 'piral-core';
 import { createSilverstripeApi } from './api/silverstripe';
 import { FileEditPage } from './assets';
+import { createRequestPilets } from './feed';
 import { registerBuiltInFields } from './forms/fields';
 import { registerShellValidation } from './forms/validation';
 import { registerGridComponents } from './grid';
@@ -49,17 +50,7 @@ const instance = createInstance({
     viewMode: chosenPreviewMode(),
   },
   plugins: [createShellNotificationsApi(8000), createSilverstripeApi(), createServerCacheApi()],
-  requestPilets() {
-    return fetch(feedUrl, {
-      credentials: 'same-origin',
-      headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-    }).then((res) => {
-      if (res.redirected || !res.ok) {
-        throw new Error(`The pilet feed answered ${res.status} from ${res.url}`);
-      }
-      return res.json().then((feed) => feed.items);
-    });
-  },
+  requestPilets: createRequestPilets(root, feedUrl),
 });
 
 registerBuiltInFields(instance.root);

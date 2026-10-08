@@ -122,7 +122,7 @@ async function flush() {
   });
 }
 
-async function render(areaHeading?: string) {
+async function render(areaHeading?: string, fieldProps: object = field) {
   const Area = createElementalAreaField({
     api,
     client: client as unknown as ElementalApi,
@@ -134,15 +134,21 @@ async function render(areaHeading?: string) {
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
-  act(() =>
-    root.render(
-      <MemoryRouter>
-        {areaHeading && <h2>{areaHeading}</h2>}
-        <Area field={field as never} formId="Form_EditForm" value={{}} onChange={vi.fn()} onBlur={vi.fn()} submitting={false} renderFields={() => null} autofill={vi.fn()} />
-      </MemoryRouter>,
-    ),
-  );
+  const draw = (props: object) =>
+    act(() =>
+      root.render(
+        <MemoryRouter>
+          {areaHeading && <h2>{areaHeading}</h2>}
+          <Area field={props as never} formId="Form_EditForm" value={{}} onChange={vi.fn()} onBlur={vi.fn()} submitting={false} renderFields={() => null} autofill={vi.fn()} />
+        </MemoryRouter>,
+      ),
+    );
+  draw(fieldProps);
   await flush();
+  return async (props: object) => {
+    draw(props);
+    await flush();
+  };
 }
 
 const button = (name: string) =>
@@ -424,6 +430,24 @@ describe('ElementalArea', () => {
     });
     expect(allowed).toBe(false);
     expect(lastToast()).toBe('The page was not saved because a block could not be saved');
+  });
+
+  it('draws the list the schema sent without reading it, and re-reads on records-changed', async () => {
+    await render(undefined, { ...field, data: { blocks: [block(4, 'From the schema', 'App_Blocks_QuoteBlock')] } });
+    expect(client.readElements).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('From the schema');
+    act(() => api.emit(api.recordsChangedEvent, { recordClass: 'SilverStripe\\CMS\\Model\\SiteTree', ids: [7] }));
+    await flush();
+    expect(client.readElements).toHaveBeenCalledTimes(1);
+    expect(container.querySelectorAll('.elemental-block')).toHaveLength(3);
+  });
+
+  it('replaces the list when a refetched schema sends a new one', async () => {
+    const rerender = await render(undefined, { ...field, data: { blocks: [block(4, 'First schema', 'App_Blocks_QuoteBlock')] } });
+    await rerender({ ...field, data: { blocks: [block(5, 'Refetched schema', 'App_Blocks_QuoteBlock')] } });
+    expect(client.readElements).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('Refetched schema');
+    expect(container.textContent).not.toContain('First schema');
   });
 
   it('re-reads the blocks when the page is saved', async () => {

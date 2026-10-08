@@ -9,6 +9,7 @@ use SilverStripe\Forms\Form;
 use SilverStripe\Forms\GridField\GridField;
 use SilverStripe\Forms\GridField\GridFieldConfig_Base;
 use SilverStripe\Forms\GridField\GridFieldConfig_RecordEditor;
+use SilverStripe\Forms\GridField\GridFieldConfig_RelationEditor;
 use SilverStripe\Forms\GridField\GridFieldDataColumns;
 use SilverStripe\Versioned\GridFieldRestoreAction;
 use SilverStripe\Versioned\Versioned;
@@ -21,7 +22,7 @@ class TestController extends Controller implements TestOnly
 
     private static string $url_segment = 'GridFieldRowsEndpointTest';
 
-    private static array $allowed_actions = ['Form', 'Fleet', 'Archive'];
+    private static array $allowed_actions = ['Form', 'Fleet', 'Archive', 'Roster'];
 
     public function Form(): Form
     {
@@ -42,6 +43,13 @@ class TestController extends Controller implements TestOnly
         Versioned::set_stage(Versioned::DRAFT);
         $grid = GridField::create('Ships', 'Ships', Ship::get(), GridFieldConfig_RecordEditor::create());
         return Form::create($this, 'Fleet', FieldList::create($grid), FieldList::create());
+    }
+
+    public function Roster(): Form
+    {
+        $team = Team::get()->find('Name', 'Alpha');
+        $grid = GridField::create('Players', 'Players', $team->Players(), GridFieldConfig_RelationEditor::create());
+        return Form::create($this, 'Roster', FieldList::create($grid), FieldList::create());
     }
 
     public function Archive(): Form

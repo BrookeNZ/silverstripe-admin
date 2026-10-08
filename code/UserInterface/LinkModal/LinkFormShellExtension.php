@@ -25,6 +25,11 @@ use SilverStripe\ORM\DataObject;
  * Editing a link, the shell sends the link's current values as query parameters on the schema request; the
  * form's data fields load them, so the dialog opens filled in, and `editing` names the action "Save link".
  *
+ * Departures: a tree field holding a record the member may not view keeps the id but answers no `valueObject`,
+ * on the schema GET and on `action_insert`, so the dialog names no record for it where the framework's state
+ * would give its title. The id stays so a description-only edit of a link to a restricted page keeps its
+ * `[sitetree_link,id=N]`, as legacy did.
+ *
  * @extends Extension<\SilverStripe\Admin\Forms\LinkFormFactory>
  */
 class LinkFormShellExtension extends Extension
@@ -44,6 +49,7 @@ class LinkFormShellExtension extends Extension
             if (!ShellSubmission::isShellSubmission($controller->getRequest())) {
                 return null;
             }
+            static::withholdUnviewableRecords($form);
             return $controller->getSchemaResponse($schemaId, $form, $result);
         });
 
@@ -62,16 +68,39 @@ class LinkFormShellExtension extends Extension
             if ($fields[$name] instanceof HasOneRelationFieldInterface && is_numeric($value)) {
                 $values[$name] = (int) $value;
             }
-            // The field's state names the record it holds, so a record the member may not view is not loaded
-            if ($fields[$name] instanceof TreeDropdownField && $values[$name]) {
-                $record = DataObject::get_by_id($fields[$name]->getSourceObject(), (int) $values[$name]);
-                if ($record && !$record->canView()) {
-                    unset($values[$name]);
-                }
-            }
         }
         if ($values) {
             $form->loadDataFrom($values);
+        }
+        static::withholdUnviewableRecords($form);
+    }
+
+    /**
+     * Leaves the selected record's title out of each tree field's schema state when the member may not view
+     * that record. The field keeps the id as its value. Call once the form holds its final values
+     */
+    public static function withholdUnviewableRecords(Form $form): void
+    {
+        foreach ($form->Fields()->dataFields() as $field) {
+            if (!$field instanceof TreeDropdownField || !$field->getValue()) {
+                continue;
+            }
+            $data = $field->getSchemaStateDefaults()['data'] ?? [];
+            $viewable = function ($id) use ($field): bool {
+                $record = DataObject::get($field->getSourceObject())->filter($field->getKeyField(), $id)->first();
+                return (bool) $record?->canView();
+            };
+            if (isset($data['valueObject']['id']) && !$viewable($data['valueObject']['id'])) {
+                unset($data['valueObject']);
+            } elseif (isset($data['valueObjects'])) {
+                $data['valueObjects'] = array_values(array_filter(
+                    $data['valueObjects'],
+                    fn ($item) => !isset($item['id']) || $viewable($item['id'])
+                ));
+            } else {
+                continue;
+            }
+            $field->setSchemaState(['data' => $data]);
         }
     }
 }

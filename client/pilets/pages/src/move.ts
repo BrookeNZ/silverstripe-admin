@@ -51,19 +51,29 @@ export function canDragPage(hints: MoveHints | null, node: PageNode): boolean {
   return Boolean(hints?.canOrganise) && node.canEdit && (node.parentId !== 0 || Boolean(hints?.canCreateTopLevel));
 }
 
-/** `parent` is null for the top level; canEdit stands in for the parent's canAddChildren() */
+/**
+ * `parent` is null for the top level; canEdit stands in for the parent's canAddChildren(). Like the legacy tree,
+ * a class the hints leave out is not refused here, and a virtual page is checked by the class of the page it copies
+ */
 export function canDropPage(hints: MoveHints | null, node: PageNode, parent: PageNode | null): boolean {
   if (!hints || !canDragPage(hints, node)) {
     return false;
   }
+  const nodeClass = node.copiedClassName ?? node.className;
   if (!parent) {
-    return hints.canCreateTopLevel && (node.parentId === 0 || hints.rootClasses.includes(node.className));
+    return (
+      hints.canCreateTopLevel &&
+      (node.parentId === 0 || !Object.prototype.hasOwnProperty.call(hints.allowedChildren, nodeClass) || hints.rootClasses.includes(nodeClass))
+    );
   }
   if (parent.id === node.id || !parent.canEdit) {
     return false;
   }
-  const allowed = hints.allowedChildren[parent.className] ?? [];
-  return allowed.length > 0 && (node.parentId === parent.id || allowed.includes(node.className));
+  if (!Object.prototype.hasOwnProperty.call(hints.allowedChildren, parent.className)) {
+    return true;
+  }
+  const allowed = hints.allowedChildren[parent.className];
+  return allowed.length > 0 && (node.parentId === parent.id || allowed.includes(nodeClass));
 }
 
 export interface MoveSteps {

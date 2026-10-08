@@ -6,6 +6,7 @@ use BadMethodCallException;
 use LogicException;
 use Psr\Log\LoggerInterface;
 use ReflectionMethod;
+use SilverStripe\Admin\UserInterface\ShellSubmission;
 use SilverStripe\Control\Controller;
 use SilverStripe\Control\Director;
 use SilverStripe\Control\HTTPRequest;
@@ -62,8 +63,9 @@ use Throwable;
  * sets GridFieldFilterHeader's columns (names as the search context knows them, `q` for the general
  * search; a `Search__` prefix is accepted), `page[number]` and `page[size]` set GridFieldPaginator.
  * A parameter the grid has no component for, a column that cannot be sorted or an unknown filter is a 400.
- * GridState sent the legacy way (`<name>[GridState]`, `gridState-<name>-<n>`) is discarded, so these
- * parameters are the only way in.
+ * The paginator, sort and filter keys of GridState sent the legacy way (`<name>[GridState]`,
+ * `gridState-<name>-<n>`) are reset, so these parameters are the only way to set them; its other keys
+ * still apply.
  *
  * The body is a plain envelope: `grid`, `columns`, `rows`, `sort`, `filter`, `pagination`,
  * `bulkActions`, `slots`, `emptyText`. A cell is `{value}` when its column provider implements
@@ -73,12 +75,21 @@ use Throwable;
  * carries what they render as data. Row actions are typed: GridField_ActionMenuLink components give
  * links; GridFieldDeleteAction, GridFieldArchiveAction and GridFieldRestoreAction give POST actions. Only
  * those actions can be posted, because their arguments come from the client rather than the session state
- * store GridField_FormAction uses. Each component's own handleAction() runs the action and its permission
+ * store GridField_FormAction uses, and only for a record the row offers the action on; any other is a 404
+ * like an unknown action. Each component's own handleAction() then runs the action and its permission
  * check; a message it leaves in the controller's X-Message-Text header comes back as `message`.
  * `pagination.totalCount` is the paginator's count, taken before canView() drops rows, as GridField does.
  *
- * Errors use the CMS JSON error envelope. A POST needs the form's CSRF token in `X-SecurityID` and
- * answers with the refreshed envelope for the query string it was sent with.
+ * A grid whose model needs sudo mode the member has not entered is served from its read-only
+ * transformation, as GridField::FieldHolder() renders it: edit becomes view, components outside
+ * `default_readonly_components` go, and `grid.readonly` is set. The password prompt GridFieldSudoMode
+ * adds there is the client's to show.
+ *
+ * Errors use the shell's JSON error envelope (ShellSubmission::jsonError()). A POST needs the form's CSRF
+ * token in `X-SecurityID` and answers with the refreshed envelope for the query string it was sent with.
+ * The endpoint's own checks are the permission gate, so a ValidationException from an action they let
+ * through is a business rule (onBeforeDelete, a failing write) and answers 400 with its message, which
+ * legacy shows as a form message.
  */
 class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridField_URLHandler
 {
@@ -186,6 +197,9 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
             if (!$record || ($record->hasMethod('canView') && !$record->canView())) {
                 throw $this->error(404, 'That record is not in this grid');
             }
+            if (!$this->offersAction($gridField, $record, $name)) {
+                throw $this->error(404, sprintf('This grid has no "%s" action', $name));
+            }
             $controllerResponse = $this->controllerResponse($gridField);
             $controllerResponse?->removeHeader('X-Message-Text');
             try {
@@ -245,7 +259,10 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
 
     public function getPayload(GridField $gridField): array
     {
-        $readonly = $gridField->isReadonly() || $this->sudoModeBlocks($gridField);
+        if ($this->sudoModeBlocks($gridField)) {
+            $gridField = $gridField->performReadonlyTransformation();
+        }
+        $readonly = $gridField->isReadonly();
         $columns = $gridField->getColumns();
         $handlers = $this->columnHandlers($gridField);
         $sortFields = $this->sortFields($gridField, $columns);
@@ -571,6 +588,16 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
         return false;
     }
 
+    private function offersAction(GridField $gridField, ModelData $record, string $name): bool
+    {
+        foreach ($gridField->getComponents() as $component) {
+            if (($this->postAction($component, $gridField, $record)['name'] ?? null) === $name) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * Components whose column content the envelope replaces with typed row actions
      */
@@ -813,18 +840,20 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
         } catch (HTTPResponse_Exception $exception) {
             return $this->asJsonError($exception->getResponse());
         } catch (ValidationException $exception) {
-            // RestoreAction gives 409 for a record that is not archived; anything without a client error code is a 403
+            // RestoreAction gives 409 for a record that is not archived
             $code = $exception->getCode();
-            return $this->jsonError($code >= 400 && $code < 500 ? $code : 403, $exception->getMessage());
+            return $code >= 400 && $code < 500
+                ? ShellSubmission::jsonError($code, $exception->getMessage())
+                : ShellSubmission::jsonError(400, $exception->getMessage(), 'invalid');
         } catch (Throwable $exception) {
             Injector::inst()->get(LoggerInterface::class)->error($exception->getMessage(), ['exception' => $exception]);
-            return $this->jsonError(500, Director::isDev() ? $exception->getMessage() : 'The grid could not be loaded');
+            return ShellSubmission::jsonError(500, Director::isDev() ? $exception->getMessage() : 'The grid could not be loaded');
         }
     }
 
     private function error(int $code, string $message): HTTPResponse_Exception
     {
-        return new HTTPResponse_Exception($this->jsonError($code, $message));
+        return new HTTPResponse_Exception(ShellSubmission::jsonError($code, $message));
     }
 
     private function asJsonError(HTTPResponse $response): HTTPResponse
@@ -832,19 +861,7 @@ class GridFieldRowsEndpoint extends AbstractGridFieldComponent implements GridFi
         if (str_contains((string) $response->getHeader('Content-Type'), 'application/json')) {
             return $response;
         }
-        $message = trim(strip_tags((string) $response->getBody()));
-        return $this->jsonError($response->getStatusCode(), $message ?: (string) $response->getStatusDescription());
-    }
-
-    /**
-     * The envelope AdminController::jsonError() sends, built here because a GridField component is no controller
-     */
-    private function jsonError(int $code, string $message): HTTPResponse
-    {
-        return $this->json($code, [
-            'status' => 'error',
-            'errors' => [['type' => 'error', 'code' => $code, 'value' => $message]],
-        ]);
+        return ShellSubmission::jsonError($response->getStatusCode(), ShellSubmission::errorText($response));
     }
 
     private function json(int $code, array $data): HTTPResponse

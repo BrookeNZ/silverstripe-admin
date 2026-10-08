@@ -7,7 +7,10 @@ use SilverStripe\Admin\Tests\UserInterface\CMSMainEditFormSubmissionTest\Rejecti
 use SilverStripe\CMS\Model\SiteTree;
 use SilverStripe\Control\HTTPResponse;
 use SilverStripe\Core\Config\Config;
+use SilverStripe\Core\Injector\Injector;
+use SilverStripe\Core\Kernel;
 use SilverStripe\Dev\FunctionalTest;
+use SilverStripe\Security\Group;
 use SilverStripe\Security\SecurityToken;
 use SilverStripe\Versioned\Versioned;
 
@@ -98,15 +101,56 @@ class CMSMainEditFormSubmissionTest extends FunctionalTest
         $this->assertSame('Alpha', SiteTree::get()->byID($page->ID)->Title);
     }
 
-    public function testPermissionDeniedAnswersAJsonForbidden(): void
+    public function testAnOfferedActionTheRecordRefusesAnswersAJsonForbidden(): void
     {
         $this->logInWithPermission('CMS_ACCESS_CMSMain');
-        $page = $this->objFromFixture(SiteTree::class, 'locked');
+        $alpha = $this->objFromFixture(SiteTree::class, 'alpha');
+        $locked = $this->objFromFixture(SiteTree::class, 'locked');
 
-        $body = $this->json($this->submit($page, 'save', ['Title' => 'Unlocked']), 403);
+        $response = $this->post(
+            'admin/pages/edit/EditForm/' . $alpha->ID . '/',
+            ['ID' => $locked->ID, 'Title' => 'Unlocked', 'action_save' => 1],
+            static::SHELL
+        );
+        $body = $this->json($response, 403);
 
         $this->assertSame('You do not have permission to do that to this page.', $body['errors'][0]['value']);
-        $this->assertSame('Locked', SiteTree::get()->byID($page->ID)->Title);
+        $this->assertSame('forbidden', $body['errors'][0]['reason']);
+        $this->assertSame('Locked', SiteTree::get()->byID($locked->ID)->Title);
+    }
+
+    public function testAnActionTheFormNoLongerOffersAnswersANeutralForbidden(): void
+    {
+        $page = $this->objFromFixture(SiteTree::class, 'alpha');
+
+        $body = $this->json($this->submit($page, 'unpublish', ['Title' => 'Alpha']), 403);
+
+        $this->assertSame(
+            'That action is no longer available for this page. Reload to see its current actions.',
+            $body['errors'][0]['value']
+        );
+        $this->assertSame('actionNotAvailable', $body['errors'][0]['reason']);
+    }
+
+    public function testAnExceptionThrownByTheActionAnswersTheJsonEnvelope(): void
+    {
+        $page = $this->objFromFixture(SiteTree::class, 'alpha');
+
+        $notFound = $this->json($this->submit($page, 'save', ['ID' => 999999, 'Title' => 'Alpha']), 404);
+        $this->assertSame('Bad record ID #999999', $notFound['errors'][0]['value']);
+        $this->assertSame('notFound', $notFound['errors'][0]['reason']);
+
+        $kernel = Injector::inst()->get(Kernel::class);
+        $environment = $kernel->getEnvironment();
+        $kernel->setEnvironment('live');
+        try {
+            $serverError = $this->json($this->submit($page, 'save', ['Title' => 'Explode']), 500);
+        } finally {
+            $kernel->setEnvironment($environment);
+        }
+        $this->assertSame('serverError', $serverError['errors'][0]['reason']);
+        $this->assertStringNotContainsString('exploded', $serverError['errors'][0]['value']);
+        $this->assertSame('Alpha', SiteTree::get()->byID($page->ID)->Title);
     }
 
     public function testAStaleSecurityTokenAnswersAJsonBadRequest(): void
@@ -118,6 +162,49 @@ class CMSMainEditFormSubmissionTest extends FunctionalTest
 
         $this->assertSame('Your session has expired. Please re-submit the form.', $body['errors'][0]['value']);
         $this->assertSame('Alpha', SiteTree::get()->byID($page->ID)->Title);
+    }
+
+    public function testAMissingSecurityTokenAnswersTheFrameworkWording(): void
+    {
+        SecurityToken::enable();
+        $page = $this->objFromFixture(SiteTree::class, 'alpha');
+
+        $response = $this->submit($page, 'save', ['Title' => 'Forged']);
+        $body = $this->json($response, 400);
+
+        $this->assertStringStartsWith('There seems to have been a technical problem.', $body['errors'][0]['value']);
+        $this->assertNull($response->getHeader('X-Reauthenticate'));
+        $this->assertSame('Alpha', SiteTree::get()->byID($page->ID)->Title);
+    }
+
+    public function testANewRecordIdIsRefusedBeforeAnyWrite(): void
+    {
+        $page = $this->objFromFixture(SiteTree::class, 'alpha');
+        $pagesBefore = SiteTree::get()->count();
+
+        $body = $this->json($this->submit($page, 'save', ['ID' => 'new-' . SiteTree::class . '-0', 'Title' => 'Created']), 400);
+
+        $this->assertSame('invalid', $body['errors'][0]['reason']);
+        $this->assertSame($pagesBefore, SiteTree::get()->count());
+        $this->assertSame('Alpha', SiteTree::get()->byID($page->ID)->Title);
+    }
+
+    public function testSchemaOfAPageTheMemberCannotViewAnswersAJsonForbidden(): void
+    {
+        $locked = $this->objFromFixture(SiteTree::class, 'locked');
+        $locked->CanViewType = 'OnlyTheseUsers';
+        $locked->ViewerGroups()->add($this->objFromFixture(Group::class, 'other'));
+        $locked->write();
+        $this->logInWithPermission('CMS_ACCESS_CMSMain');
+
+        $response = $this->get(
+            'admin/pages/edit/schema/EditForm/' . $locked->ID,
+            null,
+            ['X-Requested-With' => 'XMLHttpRequest', 'X-Formschema-Request' => 'schema,state,errors']
+        );
+        $body = $this->json($response, 403);
+
+        $this->assertSame('forbidden', $body['errors'][0]['reason']);
     }
 
     public function testAPostWithoutTheSchemaHeaderKeepsTheLegacyAnswer(): void

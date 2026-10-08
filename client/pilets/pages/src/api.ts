@@ -20,6 +20,8 @@ export interface PageNode {
   menuTitle: string;
   urlSegment: string;
   className: string;
+  /** A virtual page's copied page class, which the drop rules check in place of its own */
+  copiedClassName?: string;
   hasChildren: boolean;
   childCount: number;
   statusFlags: Array<StatusFlag>;

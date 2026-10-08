@@ -26,7 +26,7 @@
   "scripts": {
     "start": "pilet debug",
     "setup": "npm --prefix ../../shell ci && npm --prefix ../../shell run build:emulator && npm ci",
-    "build": "pilet build --target ../../dist/pilets/htmleditor/index.js --schema v2",
+    "build": "pilet build --fresh --target ../../dist/pilets/htmleditor/index.js --schema v2",
     "upgrade": "pilet upgrade",
     "postinstall": "pilet declaration",
     "typecheck": "tsc --noEmit",

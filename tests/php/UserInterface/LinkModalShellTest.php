@@ -103,6 +103,7 @@ class LinkModalShellTest extends FunctionalTest
         $body = $this->json($this->get("admin/modals/linkModalFormSchema/EditorFileLink/0?FileID={$hidden->ID}", null, static::SCHEMA));
 
         $this->assertStringNotContainsString($hidden->Name, json_encode($body['state']));
+        $this->assertSame($hidden->ID, $this->stateValue($body, 'FileID'));
     }
 
     public function testFileTreeRefusesToOpenAtAFolderTheMemberMayNotView(): void
@@ -166,6 +167,36 @@ class LinkModalShellTest extends FunctionalTest
         $body = $this->json($response);
 
         $this->assertSame(['FileID'], array_column($body['errors'], 'field'));
+    }
+
+    public function testFileLinkRefusesAFolderOrAMissingFile(): void
+    {
+        $folder = Folder::find_or_make('LinkModalShellTest-folder');
+        foreach ([$folder->ID, $folder->ID + 1000] as $id) {
+            $response = $this->post(
+                'admin/modals/linkModalForm/EditorFileLink/0',
+                ['FileID' => (string) $id, 'action_insert' => 1],
+                static::SUBMIT
+            );
+            $body = $this->json($response);
+
+            $this->assertSame(['FileID'], array_column($body['errors'], 'field'), "FileID $id");
+        }
+    }
+
+    public function testAShellRequestIsRefusedInTheErrorEnvelope(): void
+    {
+        $this->logOut();
+        $this->logInWithPermission(['CMS_ACCESS_CMSMain']);
+
+        $response = $this->get('admin/modals/linkModalFormSchema/EditorFileLink/0', null, static::SCHEMA);
+        $body = json_decode($response->getBody(), true);
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertStringContainsString('application/json', (string) $response->getHeader('Content-Type'));
+        $this->assertSame('error', $body['status']);
+        $this->assertSame(403, $body['errors'][0]['code']);
+        $this->assertSame('Linking to a file is not available', $body['errors'][0]['value']);
     }
 
     public function testInsertIsNotOfferedOutsideTheShell(): void

@@ -20,7 +20,9 @@ use SilverStripe\ORM\FieldType\DBHTMLVarchar;
  *
  * A cell is a plain `value` (the field's Nice() text, a DBField's raw value, or a scalar) unless the
  * component would emit markup the client cannot rebuild: a `setFieldCasting()` entry, a callable
- * `setFieldFormatting()` entry, an HTML field, or status flag badges. Those cells are sent as `html`.
+ * `setFieldFormatting()` entry, an HTML field, status flag badges, a plain value with a line break (which
+ * castValue() turns into `<br />` after escaping it), `setDoEscapeFields(false)` (which sends the value
+ * unescaped, as legacy does) or the grid's `FieldEscape` replacements. Those cells are sent as `html`.
  * String formats from `setFieldFormatting()`, which the framework evaluates with eval(), are never run;
  * the cell carries the casted value instead.
  *
@@ -92,15 +94,48 @@ class GridFieldDataColumnsSchema implements GridField_ColumnSchemaProvider
         $flags = $this->statusFlagMarkup($gridField, $record, $columnName);
         $casting = $this->columns->getFieldCasting()[$columnName] ?? null;
         if ($casting !== null) {
-            return ['html' => (string) $gridField->getCastedValue($value, $casting) . $flags];
+            return ['html' => $this->fieldEscape($gridField, (string) $gridField->getCastedValue($value, $casting)) . $flags];
+        }
+        if (!$this->columns->getDoEscapeFields()) {
+            return ['html' => $this->fieldEscape($gridField, $this->unescapedHtml($value)) . $flags];
         }
 
         $cell = $this->cellFor($value);
-        if ($flags === '') {
+        $text = isset($cell['html']) ? null : (string) ($cell['value'] ?? '');
+        if ($flags === '' && !$gridField->FieldEscape && ($text === null || !preg_match('/[\r\n]/', $text))) {
             return $cell;
         }
-        $html = $cell['html'] ?? nl2br(Convert::raw2xml((string) ($cell['value'] ?? '')));
-        return ['html' => $html . $flags];
+        $html = $cell['html'] ?? nl2br(Convert::raw2xml($text));
+        return ['html' => $this->fieldEscape($gridField, $html) . $flags];
+    }
+
+    /**
+     * What castValue() gives when the component does not escape: Nice() text, a raw value or a scalar,
+     * all treated as markup
+     */
+    private function unescapedHtml(mixed $value): string
+    {
+        if (is_object($value) && method_exists($value, 'Nice')) {
+            return (string) $value->Nice();
+        }
+        if ($value instanceof DBField && !$this->isHtmlField($value)) {
+            return (string) $value->RAW();
+        }
+        if (is_object($value) && method_exists($value, 'forTemplate')) {
+            return (string) $value->forTemplate();
+        }
+        return (string) $value;
+    }
+
+    /**
+     * GridFieldDataColumns::escapeValue(), whose replacements apply to the cell's markup
+     */
+    private function fieldEscape(GridField $gridField, string $html): string
+    {
+        foreach ($gridField->FieldEscape ?: [] as $search => $replace) {
+            $html = str_replace((string) $search, (string) $replace, $html);
+        }
+        return $html;
     }
 
     private function rawValue(GridField $gridField, ModelData $record, string $columnName): mixed

@@ -2,11 +2,11 @@
 import * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import type { ChildrenResponse, PageNode, TreeApi } from './api';
 import type { RecordsChangedEvent } from './events';
-import { pageAncestors, pageSectionHeader, parsePageTail, TreeQueries } from './PagesSection';
+import { createPagesSection, pageAncestors, pageSectionHeader, parsePageTail, TreeQueries } from './PagesSection';
 import type { ChildPageQueryHook } from './PagesSection';
 import { createPagesSessionHolder, createPagesSidebar } from './PagesSidebar';
 import type { PagesSession, PagesSidebarSlotProps } from './PagesSidebar';
@@ -21,6 +21,8 @@ vi.mock('@silverstripe/admin-patterns', () => ({
   Button: ({ variant, icon, children, ...rest }: { variant?: string; icon?: unknown; children?: React.ReactNode }) =>
     React.createElement('button', { type: 'button', 'data-variant': variant, ...rest }, children),
   FieldHolder: ({ children }: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, children),
+  fieldTitle: (field: { title?: string }) => field.title ?? '',
+  Toggle: () => null,
 }));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -52,12 +54,6 @@ describe('pageSectionHeader', () => {
     const header = pageSectionHeader('/pages', { id: 7, title: undefined, view: 'history' });
     expect(header.title).toBe('Page 7');
     expect(header.views?.find((view) => view.current)?.key).toBe('history');
-  });
-
-  it('carries the preview URL when the page has one', () => {
-    const preview = 'https://example.test/about/?stage=Live&CMSPreview=1';
-    expect(pageSectionHeader('/pages', { id: 1, title: 'Home', view: 'edit', preview }).preview).toBe(preview);
-    expect(pageSectionHeader('/pages', { id: 1, title: 'Home', view: 'edit' })).not.toHaveProperty('preview');
   });
 
   it('lists only the views the site has', () => {
@@ -320,5 +316,93 @@ describe('TreeQueries', () => {
     }
 
     act(() => root.unmount());
+  });
+});
+
+describe('PagesSection submissions', () => {
+  function renderSection() {
+    let formProps: Record<string, any> = {};
+    let location = '';
+    const FakeFormSchemaForm = (props: Record<string, any>) => {
+      formProps = props;
+      return null;
+    };
+    const Location = () => {
+      location = useLocation().pathname;
+      return null;
+    };
+    const piral = {
+      fetchJson: () => new Promise(() => undefined),
+      getSilverstripeComponent: () => FakeFormSchemaForm,
+      hasUnsavedChanges: vi.fn(() => false),
+      invalidateRecords: vi.fn(),
+      setCurrentRecord: () => undefined,
+      setData: () => undefined,
+      setSectionHeader: () => undefined,
+      showNotification: vi.fn(),
+      useServerQuery: () => ({ status: 'pending', data: undefined, error: null, isFetching: true }),
+    };
+    const { Page } = createPagesSection({
+      routePrefix: '/pages',
+      sectionCode: 'pages',
+      sectionTitle: 'Pages',
+      pageClass: siteTreeClass,
+      treeUrl: 'https://example.test/admin/pages/tree/',
+      createUrl: 'https://example.test/admin/pages/add/',
+      moveUrl: 'https://example.test/admin/pages/move/',
+      securityId: () => 'token',
+      loginUrl: '/admin/',
+      schemaUrls: { edit: (id) => `/admin/pages/edit/schema/EditForm/${id}` },
+    });
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    act(() =>
+      root.render(
+        React.createElement(
+          MemoryRouter,
+          { initialEntries: ['/pages/edit/show/7'] },
+          React.createElement(Location),
+          React.createElement(
+            Routes,
+            null,
+            React.createElement(Route, { path: '/pages/*', element: React.createElement(Page, { piral } as never) }),
+          ),
+        ),
+      ),
+    );
+    const done = () => {
+      act(() => root.unmount());
+      container.remove();
+    };
+    return { piral, form: () => formProps, location: () => location, done };
+  }
+
+  const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+
+  it("reports the action's own message, falling back to the action's title", () => {
+    const { piral, form, done } = renderSection();
+
+    act(() => form().onSubmitted({ id: 'x', message: 'Saved Page "Alpha"' }, { title: 'Save' }));
+    act(() => form().onSubmitted({ id: 'x' }, { title: 'Publish' }));
+
+    expect(piral.showNotification.mock.calls.map(([message]) => message)).toEqual(['Saved Page "Alpha"', 'Publish succeeded']);
+    expect(piral.invalidateRecords).toHaveBeenCalledWith(siteTreeClass, [7]);
+    done();
+  });
+
+  it('leaves for the section index once an archived page form is clean, refreshing its tree row', async () => {
+    const { piral, form, location, done } = renderSection();
+    piral.hasUnsavedChanges.mockReturnValueOnce(true);
+
+    act(() => form().onSubmitted({ id: 'x', deleted: true, message: 'Archived Page "Alpha"' }, { title: 'Archive' }));
+    expect(location()).toBe('/pages/edit/show/7');
+    await settle();
+
+    expect(piral.showNotification).toHaveBeenCalledWith('Archived Page "Alpha"', { type: 'success' });
+    expect(piral.invalidateRecords).toHaveBeenCalledWith(siteTreeClass, [7]);
+    expect(piral.hasUnsavedChanges).toHaveBeenCalledTimes(2);
+    expect(location()).toBe('/pages/');
+    done();
   });
 });

@@ -119,6 +119,13 @@ Examples: `SearchableMultiDropdownField` tries `SilverStripe\Forms\SearchableMul
 `SearchableDropdownField`; a project `SlugField extends TextField` tries `App\Forms\SlugField`,
 `TextField`, `SilverStripe\Forms\TextField`, then `SilverStripe\Forms\FormField`.
 
+A field that resolves to one of its ancestors' components still renders, but the shell treats it as a
+downgrade: it warns in the console once per field class per page load (`SiteTreeURLSegmentField has no
+registered component of its own, so it renders as its ancestor's TextField ...`) and lists each pair in
+`fieldDowngrades()` (`src/forms/downgrades.ts`, shell only). The declared component, the field's own class,
+a type default named after that class (`TextField` for `TextField`), a type default no ancestor is named
+after (`NumberField` for `NumericField`) and `ServerHtmlField` never count.
+
 Field components also receive `autofill(name, value)`, which sets another posted field by name (a
 focus point picker writing its X and Y fields), and `formId`, the id of the form element they are in.
 

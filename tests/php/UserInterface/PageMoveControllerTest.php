@@ -2,6 +2,7 @@
 
 namespace SilverStripe\Admin\Tests\UserInterface;
 
+use SilverStripe\Admin\Tests\UserInterface\PageWriteRulesTest\PlainPage;
 use SilverStripe\CMS\Model\SiteTree;
 use SilverStripe\Control\HTTPResponse;
 use SilverStripe\Dev\FunctionalTest;
@@ -10,6 +11,8 @@ use SilverStripe\Security\SecurityToken;
 class PageMoveControllerTest extends FunctionalTest
 {
     protected static $fixture_file = 'PageMoveControllerTest.yml';
+
+    protected static $extra_dataobjects = [PlainPage::class];
 
     public static function setUpBeforeClass(): void
     {
@@ -94,6 +97,37 @@ class PageMoveControllerTest extends FunctionalTest
         $this->assertSame($this->page('bravo')->ID, $this->reload($b1)->ParentID);
     }
 
+    public function testMoveOfAPageTheMemberCannotEditIsRefused(): void
+    {
+        $locked = $this->page('locked');
+
+        $response = $this->move(['id' => $locked->ID, 'parentId' => $this->page('alpha')->ID]);
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertSame('forbidden', $this->reason($response));
+        $this->assertSame(0, $this->reload($locked)->ParentID);
+    }
+
+    public function testDropOnAParentThatDoesNotExistIsRefused(): void
+    {
+        $b1 = $this->page('b1');
+
+        $response = $this->move(['id' => $b1->ID, 'parentId' => 999999]);
+
+        $this->assertSame(404, $response->getStatusCode());
+        $this->assertSame($this->page('bravo')->ID, $this->reload($b1)->ParentID);
+    }
+
+    public function testDropOnItselfIsRefused(): void
+    {
+        $b1 = $this->page('b1');
+
+        $response = $this->move(['id' => $b1->ID, 'parentId' => $b1->ID]);
+
+        $this->assertSame(400, $response->getStatusCode());
+        $this->assertSame($this->page('bravo')->ID, $this->reload($b1)->ParentID);
+    }
+
     public function testDropIntoItsOwnDescendantIsRefused(): void
     {
         $alpha = $this->page('alpha');
@@ -109,8 +143,8 @@ class PageMoveControllerTest extends FunctionalTest
         $hints = json_decode($this->get('admin/pages/move/hints')->getBody(), true);
 
         $this->assertTrue($hints['canOrganise']);
-        $this->assertContains(SiteTree::class, $hints['rootClasses']);
-        $this->assertContains(SiteTree::class, $hints['allowedChildren'][SiteTree::class]);
+        $this->assertContains(PlainPage::class, $hints['rootClasses']);
+        $this->assertContains(SiteTree::class, $hints['allowedChildren'][PlainPage::class]);
     }
 
     private function page(string $name): SiteTree

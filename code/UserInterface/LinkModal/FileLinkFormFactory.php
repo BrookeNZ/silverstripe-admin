@@ -4,6 +4,7 @@ namespace SilverStripe\Admin\UserInterface\LinkModal;
 
 use SilverStripe\Admin\Forms\LinkFormFactory;
 use SilverStripe\Admin\LeftAndMain;
+use SilverStripe\Admin\UserInterface\ShellSubmission;
 use SilverStripe\AssetAdmin\Controller\AssetAdmin;
 use SilverStripe\Assets\File;
 use SilverStripe\Assets\Folder;
@@ -22,7 +23,11 @@ use SilverStripe\Security\Permission;
  * tree, where folders open but cannot be chosen.
  *
  * Only for the shell and a member who may use the Files section, as the gallery was; the tree lists only what
- * the member may view. LeftAndMainLinkFormsExtension leaves it out of the client config otherwise
+ * the member may view. LeftAndMainLinkFormsExtension leaves it out of the client config otherwise.
+ *
+ * Departures: the form is built here, not by asset-admin's FileFormFactory with its insert-link context, so
+ * extensions of FileFormFactory (`updateFormFields`, `updateFormActions`, `updateForm`) do not run on it.
+ * Extend this factory instead.
  */
 class FileLinkFormFactory extends LinkFormFactory
 {
@@ -38,7 +43,13 @@ class FileLinkFormFactory extends LinkFormFactory
     public function getForm(?RequestHandler $controller = null, $name = FormFactory::DEFAULT_NAME, $context = [])
     {
         if (!static::isAvailable()) {
-            throw new HTTPResponse_Exception('Linking to a file is not available', 403);
+            $message = _t(__CLASS__ . '.NOT_AVAILABLE', 'Linking to a file is not available');
+            throw new HTTPResponse_Exception(
+                ShellSubmission::isShellRequest($controller?->getRequest())
+                    ? ShellSubmission::jsonError(403, $message)
+                    : $message,
+                403
+            );
         }
         return parent::getForm($controller, $name, $context);
     }

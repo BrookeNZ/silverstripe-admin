@@ -127,6 +127,7 @@ abstract class FormSchemaController extends AdminController
         if ($forShell && isset($data['schema'])) {
             $data['schema'] = FieldComponentCandidates::singleton()->addToSchema($data['schema'], $form);
             $data['schema'] = $fallback->addToSchema($data['schema'], $marked);
+            $this->extend('updateShellSchema', $data['schema'], $form);
         }
 
         if ($extraData) {

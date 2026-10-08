@@ -38,6 +38,17 @@ describe('recordRoute', () => {
     }
   });
 
+  it('keeps the view action, which asks for the read-only schema', () => {
+    for (const tail of ['/view', '/view/']) {
+      const record = route(`/redirects/${model}/EditForm/field/${model}/item/49${tail}`);
+      expect(record?.view).toBe(true);
+      expect(record && recordSchemaUrl(record)).toBe(`admin/redirects/${model}/EditForm/field/${model}/item/49/view/schema`);
+    }
+    const edit = route(`/redirects/${model}/EditForm/field/${model}/item/49/edit`);
+    expect(edit?.view).toBe(false);
+    expect(edit && recordSchemaUrl(edit)).toBe(`admin/redirects/${model}/EditForm/field/${model}/item/49/schema`);
+  });
+
   it('reads a new record and names the landing tab when the URL leaves it out', () => {
     const record = route(`/redirects/EditForm/field/${model}/item/new/edit`);
     expect(record?.id).toBeNull();

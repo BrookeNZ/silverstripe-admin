@@ -7,3 +7,7 @@ SilverStripe\Admin\UserInterface\PiletFeed:
   pilets:
     silverstripe-elemental:
       link: 'silverstripe/admin:client/dist/pilets/elemental/index.js'
+
+SilverStripe\Admin\FormSchemaController:
+  extensions:
+    - SilverStripe\Admin\UserInterface\Elemental\ElementalAreaBlocksExtension

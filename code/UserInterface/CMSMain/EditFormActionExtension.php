@@ -24,8 +24,9 @@ use SilverStripe\ORM\DataObject;
  * - an error status (CMSMain's permission failures are an empty 403): a JSON error with the same status
  *   and any `X-Reauthenticate` header
  *
- * A redirect passes through. A new record (an ID of `new-<class>-<parent>`) is not handled: the shell has no
- * add page flow yet.
+ * A redirect passes through. An exception thrown by the action, such as CMSMain's "Bad record ID" 404, is
+ * enveloped by ShellErrorResponseExtension. A posted ID that is not a positive integer never gets here:
+ * EditFormSubmissionExtension refuses it, and PageCreateController creates pages.
  *
  * @extends Extension<FormRequestHandler>
  */
@@ -84,7 +85,7 @@ class EditFormActionExtension extends Extension
         $message = match (true) {
             $code === 403 && (bool) $reauthenticate => ShellSubmission::loggedOutMessage(),
             $code === 403 => EditFormSubmissionExtension::permissionMessage(),
-            default => trim(strip_tags((string) $result->getBody())) ?: $result->getStatusDescription(),
+            default => ShellSubmission::errorText($result),
         };
         $response = ShellSubmission::jsonError($code, (string) $message);
         if ($reauthenticate) {

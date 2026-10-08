@@ -20,10 +20,13 @@ use Throwable;
 /**
  * JSON for the shell's add-page dialog at admin/pages/create: the page types a parent accepts, and creating a page.
  *
- * Applies the rules the legacy add form (CMSMainAddForm in silverstripe/cms) applies: a type is offered when it is
- * not a HiddenClass and its canCreate() passes with the parent as context, which runs the parent's allowed_children
- * and canAddChildren(); at the root, the type must allow can_be_root and the member must pass the site's
- * canCreateTopLevel(). canAddChildren() is checked here as well, since a type that overrides canCreate() skips it.
+ * Applies the rules the legacy add form (CMSMainAddForm in silverstripe/cms) applies: the types are the model's
+ * subclasses less the base class and SiteTree.hide_pagetypes (through the model's updateAllowedSubClasses hook), and
+ * one is offered when it is not a HiddenClass and its canCreate() passes with the parent as context, which runs the
+ * parent's allowed_children and canAddChildren(); at the root, the type must allow can_be_root and the member must
+ * pass the site's canCreateTopLevel(). canAddChildren() is checked here as well, since a type that overrides
+ * canCreate() skips it. `types` fires updateChildFilter with the refused classes and the parent ID, as legacy
+ * childfilter does; it only narrows the list offered, as legacy's only narrowed the add form.
  *
  * The record is built by CMSMain::getNewItem() with the legacy `new-<ClassName>-<ParentID>` ID, so the title, sort
  * and updateNewItem extensions match a page added in the legacy CMS. Writes need the CSRF token in X-SecurityID.
@@ -31,6 +34,8 @@ use Throwable;
  *
  * CMS 7 change: with no Form, CMSMain's updateDoAdd hook is not fired. Extensions adjust the new page through this
  * controller's updateCreatedPage hook instead, which runs after the first write and saves any change it makes.
+ *
+ * Departures: a parent that does not exist answers 404, where legacy doAdd created the page at the root.
  */
 class PageCreateController extends AdminController
 {
@@ -96,10 +101,14 @@ class PageCreateController extends AdminController
      */
     public function types(HTTPRequest $request): HTTPResponse
     {
-        if (!$request->isGET()) {
-            $this->throwError(405, 'methodNotAllowed', 'Only GET is supported');
+        if (!$request->isGET() && !$request->isHEAD()) {
+            $this->throwError(405, 'methodNotAllowed', 'Only GET is supported', null, ['Allow' => 'GET, HEAD']);
         }
-        $parent = $this->parentRecord((int) $request->param('ID'));
+        $parentId = (int) $request->param('ID');
+        $parent = $this->parentRecord($parentId);
+        $creatable = $this->creatableClasses($parent);
+        $disallowed = array_values(array_diff($this->pageTypes(), $creatable));
+        $this->extend('updateChildFilter', $disallowed, $parentId);
         $cms = Injector::inst()->get($this->config()->get('cms_controller'));
         $defaultIconClass = $cms->getRecordIconCssClass(DataObject::singleton($this->modelClass()));
         $types = array_map(function (string $class) use ($cms, $defaultIconClass) {
@@ -117,7 +126,7 @@ class PageCreateController extends AdminController
                 'iconClass' => $iconClass ?: null,
                 'iconUrl' => $iconUrl ?: null,
             ];
-        }, $this->creatableClasses($parent));
+        }, array_values(array_diff($creatable, $disallowed)));
         usort($types, fn (array $a, array $b) => strcasecmp($a['title'], $b['title']));
 
         return $this->jsonResponse(200, [
@@ -133,7 +142,7 @@ class PageCreateController extends AdminController
     public function page(HTTPRequest $request): HTTPResponse
     {
         if (!$request->isPOST()) {
-            $this->throwError(405, 'methodNotAllowed', 'Only POST is supported');
+            $this->throwError(405, 'methodNotAllowed', 'Only POST is supported', null, ['Allow' => 'POST']);
         }
         if (!SecurityToken::inst()->checkRequest($request)) {
             $this->throwError(400, 'invalidToken', 'The security token is missing or has expired');
@@ -175,12 +184,9 @@ class PageCreateController extends AdminController
         }
         $topLevel = $parent || $this->canCreateTopLevel();
         $classes = [];
-        foreach (ClassInfo::getValidSubClasses($this->modelClass()) as $class) {
+        foreach ($this->pageTypes() as $class) {
             $singleton = DataObject::singleton($class);
-            if ($singleton instanceof HiddenClass) {
-                continue;
-            }
-            if (!$parent && (!$topLevel || $singleton->config()->get('can_be_root') === false)) {
+            if (!$parent && (!$topLevel || !$singleton->config()->get('can_be_root'))) {
                 continue;
             }
             if ($singleton->canCreate(null, ['Parent' => $parent])) {
@@ -188,6 +194,22 @@ class PageCreateController extends AdminController
             }
         }
         return $classes;
+    }
+
+    /**
+     * The model's subclasses less the base class, SiteTree.hide_pagetypes and HiddenClass types, as
+     * CMSMain::getAllowedSubClasses() and the HiddenClass check after it
+     *
+     * @return array<string>
+     */
+    private function pageTypes(): array
+    {
+        $classes = ClassInfo::getValidSubClasses($this->modelClass());
+        DataObject::singleton($this->modelClass())->invokeWithExtensions('updateAllowedSubClasses', $classes);
+        return array_values(array_filter(
+            $classes,
+            fn (string $class) => !(DataObject::singleton($class) instanceof HiddenClass)
+        ));
     }
 
     private function canCreateTopLevel(): bool
@@ -231,11 +253,21 @@ class PageCreateController extends AdminController
     }
 
     /**
+     * @param array<string, string> $headers
      * @throws HTTPResponse_Exception
      */
-    private function throwError(int $code, string $reason, string $message, ?string $field = null): never
-    {
-        throw new HTTPResponse_Exception($this->errorResponse($code, $reason, $message, $field));
+    private function throwError(
+        int $code,
+        string $reason,
+        string $message,
+        ?string $field = null,
+        array $headers = []
+    ): never {
+        $response = $this->errorResponse($code, $reason, $message, $field);
+        foreach ($headers as $name => $value) {
+            $response->addHeader($name, $value);
+        }
+        throw new HTTPResponse_Exception($response);
     }
 
     private function errorResponse(int $code, string $reason, string $message, ?string $field = null): HTTPResponse

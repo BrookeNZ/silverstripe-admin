@@ -10,6 +10,8 @@ use SilverStripe\Control\HTTPResponse;
 use SilverStripe\Control\HTTPResponse_Exception;
 use SilverStripe\Core\ClassInfo;
 use SilverStripe\Core\Injector\Injector;
+use SilverStripe\Core\Validation\ValidationException;
+use SilverStripe\Core\Validation\ValidationResult;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\DB;
 use SilverStripe\ORM\HiddenClass;
@@ -27,14 +29,18 @@ use Throwable;
  * canCreateTopLevel() when the page leaves or joins the top level, and canEdit() on the page. The legacy tree also
  * refused, client side only, a drop on a parent without canAddChildren() or whose allowed_children leave out the
  * page's class, and a top-level drop of a class with can_be_root false; those are checked here too, along with a
- * drop on the page itself or its descendants. Sorting is legacy's: `siblingIds` renumbers from 1, the page by
- * write() and the rest by direct SQL so they are not marked modified. Without `siblingIds` a reparented page goes
- * last. The IDs a move changes, including dependent virtual pages, are returned as modified; the legacy status
- * hook is not fired because it needs CMSMain's tree markup.
+ * drop on the page itself or its descendants. A virtual page is checked by the class of the page it copies, as
+ * Hierarchy validation does. Like legacy TreeHints, `hints` leaves out the base page class and
+ * SiteTree.hide_pagetypes through the model's updateAllowedSubClasses hook.
  *
- * Departures: sibling IDs outside the new parent are ignored, where legacy renumbers whatever it is sent; a
- * moved page is written once when both its parent and sort change, where legacy writes twice. Errors share
- * PageTreeController's envelope.
+ * Sorting is legacy's: `siblingIds` renumbers from 1, the page by write() and the rest by direct SQL so they are not
+ * marked modified. The page is written before that SQL, so a write it refuses answers 403 with no sibling renumbered.
+ * The IDs a move changes, including dependent virtual pages, are returned as modified; the legacy status hook is not
+ * fired because it needs CMSMain's tree markup.
+ *
+ * Departures: sibling IDs outside the new parent are ignored, where legacy renumbers whatever it is sent; without
+ * `siblingIds` a reparented page goes last, where legacy leaves its sort untouched; a moved page is written once when
+ * both its parent and sort change, where legacy writes twice. Errors share PageTreeController's envelope.
  */
 class PageMoveController extends AdminController
 {
@@ -104,17 +110,17 @@ class PageMoveController extends AdminController
      */
     public function hints(HTTPRequest $request): HTTPResponse
     {
-        if (!$request->isGET()) {
-            $this->throwError(405, 'methodNotAllowed', 'Only GET is supported');
+        if (!$request->isGET() && !$request->isHEAD()) {
+            $this->throwError(405, 'methodNotAllowed', 'Only GET is supported', null, ['Allow' => 'GET, HEAD']);
         }
         $rootClasses = [];
         $allowedChildren = [];
-        foreach (ClassInfo::getValidSubClasses($this->modelClass()) as $class) {
+        foreach ($this->pageTypes() as $class) {
             $singleton = DataObject::singleton($class);
             if ($singleton instanceof HiddenClass) {
                 continue;
             }
-            if ($singleton->config()->get('can_be_root') !== false) {
+            if ($singleton->config()->get('can_be_root')) {
                 $rootClasses[] = $class;
             }
             $allowedChildren[$class] = array_values($singleton->allowedChildren());
@@ -135,7 +141,7 @@ class PageMoveController extends AdminController
     public function page(HTTPRequest $request): HTTPResponse
     {
         if (!$request->isPOST()) {
-            $this->throwError(405, 'methodNotAllowed', 'Only POST is supported');
+            $this->throwError(405, 'methodNotAllowed', 'Only POST is supported', null, ['Allow' => 'POST']);
         }
         if (!SecurityToken::inst()->checkRequest($request)) {
             $this->throwError(400, 'invalidToken', 'The security token is missing or has expired');
@@ -183,15 +189,20 @@ class PageMoveController extends AdminController
                 $node->$sortField = $this->lastSort($parentId, $sortField) + 1;
             }
         }
-        $sortChanged = $sortField && $siblingIds !== null;
-        $modified = [];
-        if ($sortChanged) {
-            $this->renumber($node, $parentId, $siblingIds, $sortField);
+        $siblingSorts = [];
+        if ($sortField && $siblingIds !== null) {
+            $siblingSorts = $this->siblingSorts($node, $parentId, $siblingIds, $sortField);
         }
+        $modified = [];
         if ($node->isChanged()) {
-            $node->write();
+            try {
+                $node->write();
+            } catch (ValidationException $exception) {
+                $this->throwValidationError($exception->getResult());
+            }
             $modified[(int) $node->ID] = [];
         }
+        $this->renumber($siblingSorts, $sortField);
 
         // Legacy's updateSaveTreeNodeStatusUpdates renders tree markup through CMSMain, which this
         // controller is not, so the virtual pages a reparent affects are marked modified here instead
@@ -217,7 +228,7 @@ class PageMoveController extends AdminController
     private function checkDrop(DataObject $node, int $parentId, bool $parentChanged): void
     {
         if ($parentId === 0) {
-            if ($parentChanged && $node->config()->get('can_be_root') === false) {
+            if ($parentChanged && !$node->config()->get('can_be_root')) {
                 $this->throwError(403, 'notAllowedHere', 'This page type cannot be at the top level', 'parentId');
             }
             return;
@@ -236,37 +247,64 @@ class PageMoveController extends AdminController
         if (!$parent->canAddChildren()) {
             $this->throwError(403, 'notAllowedHere', 'Pages cannot be added under this page', 'parentId');
         }
-        if ($parentChanged && !in_array($node->ClassName, $parent->allowedChildren(), true)) {
+        $subject = $node->hasMethod('getRecordForAllowedChildrenValidation')
+            ? $node->getRecordForAllowedChildrenValidation()
+            : $node;
+        if ($parentChanged && !in_array($subject->ClassName, $parent->allowedChildren(), true)) {
             $this->throwError(403, 'notAllowedHere', 'This page type is not allowed under this page', 'parentId');
         }
     }
 
     /**
-     * Numbers the siblings from 1 in the order given; only the moved page is written
+     * Numbers the siblings from 1 in the order given, setting the moved page's sort and returning the others'
      *
      * @param array<int> $siblingIds
+     * @return array<int, int> sort by sibling ID
      */
-    private function renumber(DataObject $node, int $parentId, array $siblingIds, string $sortField): void
+    private function siblingSorts(DataObject $node, int $parentId, array $siblingIds, string $sortField): array
     {
         $children = DataObject::get($this->modelClass())->filter('ParentID', $parentId)->column('ID');
         $children = array_flip(array_map('intval', $children));
-        $table = DataObject::getSchema()->baseDataTable($this->modelClass());
+        $sorts = [];
         $counter = 0;
         foreach (array_unique($siblingIds) as $siblingId) {
             if ($siblingId === (int) $node->ID) {
                 $node->$sortField = ++$counter;
             } elseif (isset($children[$siblingId])) {
-                DB::prepared_query(
-                    sprintf('UPDATE "%s" SET "%s" = ? WHERE "ID" = ?', $table, $sortField),
-                    [++$counter, $siblingId]
-                );
+                $sorts[$siblingId] = ++$counter;
             }
+        }
+        return $sorts;
+    }
+
+    /**
+     * Writes the siblings' sort by direct SQL so they are not marked modified
+     *
+     * @param array<int, int> $siblingSorts
+     */
+    private function renumber(array $siblingSorts, ?string $sortField): void
+    {
+        $table = DataObject::getSchema()->baseDataTable($this->modelClass());
+        foreach ($siblingSorts as $siblingId => $sort) {
+            DB::prepared_query(sprintf('UPDATE "%s" SET "%s" = ? WHERE "ID" = ?', $table, $sortField), [$sort, $siblingId]);
         }
     }
 
     private function lastSort(int $parentId, string $sortField): int
     {
         return (int) DataObject::get($this->modelClass())->filter('ParentID', $parentId)->max($sortField);
+    }
+
+    /**
+     * The model's subclasses less the base class and SiteTree.hide_pagetypes, as CMSMain::getAllowedSubClasses()
+     *
+     * @return array<string>
+     */
+    private function pageTypes(): array
+    {
+        $classes = ClassInfo::getValidSubClasses($this->modelClass());
+        DataObject::singleton($this->modelClass())->invokeWithExtensions('updateAllowedSubClasses', $classes);
+        return array_values($classes);
     }
 
     private function cms(): object
@@ -296,9 +334,37 @@ class PageMoveController extends AdminController
     /**
      * @throws HTTPResponse_Exception
      */
-    private function throwError(int $code, string $reason, string $message, ?string $field = null): never
+    private function throwValidationError(ValidationResult $result): never
     {
-        throw new HTTPResponse_Exception($this->errorResponse($code, $reason, $message, $field));
+        foreach ($result->getMessages() as $code => $message) {
+            if (($message['messageType'] ?? null) === ValidationResult::TYPE_ERROR) {
+                $this->throwError(
+                    403,
+                    is_string($code) ? $code : 'invalid',
+                    (string) $message['message'],
+                    ($message['fieldName'] ?? null) ?: null
+                );
+            }
+        }
+        $this->throwError(403, 'invalid', 'The page could not be moved');
+    }
+
+    /**
+     * @param array<string, string> $headers
+     * @throws HTTPResponse_Exception
+     */
+    private function throwError(
+        int $code,
+        string $reason,
+        string $message,
+        ?string $field = null,
+        array $headers = []
+    ): never {
+        $response = $this->errorResponse($code, $reason, $message, $field);
+        foreach ($headers as $name => $value) {
+            $response->addHeader($name, $value);
+        }
+        throw new HTTPResponse_Exception($response);
     }
 
     private function errorResponse(int $code, string $reason, string $message, ?string $field = null): HTTPResponse

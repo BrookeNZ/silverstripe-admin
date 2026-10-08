@@ -21,12 +21,18 @@ function textValue(value: unknown): string {
   return value == null ? '' : String(value);
 }
 
-export const TextField = ({ field, value, onChange, onBlur, error }: FieldProps) => (
+export interface TextFieldProps extends FieldProps {
+  /** The on-screen keyboard to offer, such as `decimal` for a number typed as text */
+  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
+}
+
+export const TextField = ({ field, value, onChange, onBlur, error, inputMode }: TextFieldProps) => (
   <FieldHolder field={field} error={error} labelFor={field.id}>
     <input
       {...controlProps(field, error)}
       className="admin-field__control"
       type="text"
+      inputMode={inputMode}
       maxLength={field.maxLength ?? undefined}
       value={textValue(value)}
       onChange={(event) => onChange(event.target.value)}

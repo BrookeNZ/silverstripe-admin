@@ -2,12 +2,14 @@
 
 namespace SilverStripe\Admin\Tests\UserInterface;
 
+use ReflectionProperty;
 use SilverStripe\Admin\Tests\UserInterface\PageTreeControllerTest\FailingExtension;
 use SilverStripe\Admin\UserInterface\PageTreeController;
 use SilverStripe\CMS\Model\SiteTree;
 use SilverStripe\Control\HTTPResponse;
 use SilverStripe\Core\Config\Config;
 use SilverStripe\Dev\FunctionalTest;
+use SilverStripe\ORM\DB;
 
 class PageTreeControllerTest extends FunctionalTest
 {
@@ -33,27 +35,87 @@ class PageTreeControllerTest extends FunctionalTest
     {
         $body = $this->getJson('admin/pages/tree/children/0');
 
-        $this->assertSame(['Alpha', 'Bravo', 'Wide'], array_column($body['items'], 'title'));
-        $this->assertSame(['totalCount' => 3, 'pageSize' => 50, 'page' => 1, 'hasMore' => false], $body['pageInfo']);
+        $this->assertSame(['Alpha', 'Bravo', 'Wide', 'Family'], array_column($body['items'], 'title'));
+        $this->assertSame(['totalCount' => 4, 'pageSize' => 50, 'page' => 1, 'hasMore' => false], $body['pageInfo']);
     }
 
-    public function testNodeShape(): void
+    public function testChildRowsCarryTheirFlagsAndPermissions(): void
     {
-        $body = $this->getJson('admin/pages/tree/children/0');
-        $bravo = $body['items'][1];
+        foreach (['family', 'familypublished', 'familymodified'] as $name) {
+            $this->objFromFixture(SiteTree::class, $name)->publishSingle();
+        }
+        $modified = $this->objFromFixture(SiteTree::class, 'familymodified');
+        $modified->Title = 'Family modified';
+        $modified->MenuTitle = 'Changed';
+        $modified->write();
 
-        $this->assertSame($this->idFor('bravo'), $bravo['id']);
-        $this->assertSame(0, $bravo['parentId']);
-        $this->assertSame('Bravo menu', $bravo['menuTitle']);
-        $this->assertSame('bravo', $bravo['urlSegment']);
-        $this->assertSame(SiteTree::class, $bravo['className']);
-        $this->assertTrue($bravo['hasChildren']);
-        $this->assertSame(1, $bravo['childCount']);
-        $this->assertSame(2, $bravo['sort']);
-        $this->assertIsBool($bravo['canEdit']);
-        $this->assertIsBool($bravo['canDelete']);
-        $this->assertContains('addedtodraft', array_column($bravo['statusFlags'], 'key'));
-        $this->assertFalse($body['items'][0]['hasChildren']);
+        $body = $this->getJson('admin/pages/tree/children/' . $this->idFor('family'));
+
+        $draft = [
+            'key' => 'addedtodraft',
+            'text' => 'Draft',
+            'title' => 'Item has not been published yet',
+        ];
+        $row = fn (string $name, string $title, int $sort, array $extra) => array_replace([
+            'id' => $this->idFor($name),
+            'parentId' => $this->idFor('family'),
+            'title' => $title,
+            'menuTitle' => $title,
+            'urlSegment' => str_replace(' ', '-', strtolower($title)),
+            'className' => SiteTree::class,
+            'hasChildren' => false,
+            'childCount' => 0,
+            'statusFlags' => [$draft],
+            'canEdit' => true,
+            'canDelete' => true,
+            'sort' => $sort,
+        ], $extra);
+        $expected = [
+            $row('familypublished', 'Family published', 1, ['statusFlags' => []]),
+            $row('familydraft', 'Family draft', 2, []),
+            $row('familymodified', 'Family modified', 3, [
+                'menuTitle' => 'Changed',
+                'statusFlags' => [[
+                    'key' => 'modified',
+                    'text' => 'Modified',
+                    'title' => 'Item has unpublished changes',
+                ]],
+            ]),
+            $row('familylocked', 'Family locked', 5, ['canEdit' => false, 'canDelete' => false]),
+            $row('familyguarded', 'Family guarded', 6, [
+                'hasChildren' => true,
+                'childCount' => 1,
+                'canDelete' => false,
+            ]),
+        ];
+        foreach ($expected as $index => $item) {
+            $this->assertSame(array_keys($item), array_keys($body['items'][$index]));
+            $this->assertSame($item, $body['items'][$index]);
+        }
+        $this->assertCount(5, $body['items']);
+        $this->assertSame(5, $body['pageInfo']['totalCount']);
+    }
+
+    public function testAdministratorsCanDeleteEveryRow(): void
+    {
+        $this->logInWithPermission('ADMIN');
+
+        $body = $this->getJson('admin/pages/tree/children/' . $this->idFor('family'));
+
+        $this->assertCount(6, $body['items']);
+        $this->assertSame(array_fill(0, 6, true), array_column($body['items'], 'canDelete'));
+        $this->assertSame(array_fill(0, 6, true), array_column($body['items'], 'canEdit'));
+    }
+
+    public function testQueriesDoNotGrowWithTheRows(): void
+    {
+        $url = 'admin/pages/tree/children/' . $this->idFor('wide');
+        $this->countQueries($url);
+
+        $one = $this->countQueries($url . '?limit=1');
+        $five = $this->countQueries($url . '?limit=5');
+
+        $this->assertSame($one, $five);
     }
 
     public function testChildrenArePaged(): void
@@ -242,6 +304,19 @@ class PageTreeControllerTest extends FunctionalTest
         Config::modify()->set(PageTreeController::class, 'model_class', 'App\\Missing\\Model');
 
         $this->assertError($this->get('admin/pages/tree/children/0', null, self::AJAX), 404, 'notFound');
+    }
+
+    /**
+     * The database counts queries only while showqueries is in the request; whitelist mode prints none of them
+     */
+    private function countQueries(string $url): int
+    {
+        $connection = DB::get_conn();
+        $counter = new ReflectionProperty($connection, 'queryCount');
+        $before = $counter->getValue($connection);
+        $separator = str_contains($url, '?') ? '&' : '?';
+        $this->getJson($url . $separator . 'showqueries=whitelist');
+        return $counter->getValue($connection) - $before;
     }
 
     private function getJson(string $url): array

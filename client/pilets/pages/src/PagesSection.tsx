@@ -29,8 +29,8 @@
  * a new store over the same cache.
  */
 import * as React from 'react';
-import { useParams } from 'react-router-dom';
-import type { PageComponentProps, SectionHeader } from '@silverstripe/admin-shell';
+import { useNavigate, useParams } from 'react-router-dom';
+import type { FormField, FormSchemaResponse, PageComponentProps, SectionHeader } from '@silverstripe/admin-shell';
 import { fieldTitle, Toggle } from '@silverstripe/admin-patterns';
 import { createPageApi, createTreeApi } from './api';
 import type { ChildrenResponse, TreeApi } from './api';
@@ -199,6 +199,8 @@ export function createPagesSection(options: PagesSectionOptions): PagesSectionCo
     const moveClient = React.useMemo(() => createMoveApi(options.moveUrl, options.securityId), []);
     useStoreVersion(store);
     const tail = useParams()['*'] ?? '';
+    const navigate = useNavigate();
+    const [leaving, setLeaving] = React.useState(false);
     const opened = parsePageTail(tail, availableViews);
     const currentId = opened?.id ?? null;
     const revealError = opened ? store.revealError(opened.id) : null;
@@ -233,14 +235,37 @@ export function createPagesSection(options: PagesSectionOptions): PagesSectionCo
     }, [piral, currentId]);
 
     const onSubmitted = React.useCallback(
-      (_response: unknown, action: Parameters<typeof fieldTitle>[0]) => {
-        piral.showNotification(`${fieldTitle(action)} succeeded`, { type: 'success' });
+      (response: FormSchemaResponse, action: FormField) => {
+        piral.showNotification(response.message || `${fieldTitle(action)} succeeded`, { type: 'success' });
         if (currentId !== null) {
           piral.invalidateRecords(options.pageClass, [currentId]);
+        }
+        if (response.deleted) {
+          setLeaving(true);
         }
       },
       [piral, currentId],
     );
+
+    // The unsaved changes guard would stop a navigation made while the archived form still reads dirty
+    React.useEffect(() => {
+      if (!leaving) {
+        return undefined;
+      }
+      let timer = 0;
+      const leave = (attempts: number) => {
+        timer = window.setTimeout(() => {
+          if (piral.hasUnsavedChanges() && attempts > 0) {
+            leave(attempts - 1);
+          } else {
+            setLeaving(false);
+            navigate(`${options.routePrefix}/`);
+          }
+        });
+      };
+      leave(10);
+      return () => window.clearTimeout(timer);
+    }, [leaving, piral, navigate]);
 
     const header = pageSectionHeader(
       options.routePrefix,

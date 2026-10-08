@@ -14,6 +14,7 @@ use SilverStripe\ORM\DataList;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\Hierarchy\Hierarchy;
 use SilverStripe\Security\InheritedPermissions;
+use SilverStripe\Security\Member;
 use SilverStripe\Security\Permission;
 use SilverStripe\Security\PermissionChecker;
 use SilverStripe\Security\Security;
@@ -74,7 +75,7 @@ class PageTreeController extends AdminController
     /**
      * @var array<string, bool>
      */
-    private array $overridesCanView = [];
+    private array $overrides = [];
 
     protected function init()
     {
@@ -321,7 +322,7 @@ class PageTreeController extends AdminController
         }
         $candidates = $this->visibleList()->filter('ParentID', $parentId)->toArray();
         $this->prepopulateVersionCache($candidates);
-        $viewable = array_flip($this->viewableIds(array_map(fn (DataObject $child) => (int) $child->ID, $candidates)));
+        $viewable = array_flip($this->viewableAmong($candidates));
         $children = array_values(array_filter($candidates, fn (DataObject $child) => isset($viewable[(int) $child->ID])));
         return $this->viewableChildren[$parentId] = $children;
     }
@@ -367,27 +368,13 @@ class PageTreeController extends AdminController
      */
     private function viewableIds(array $ids): array
     {
-        $checker = $this->permissionChecker();
-        $member = Security::getCurrentUser();
-        $viewAll = $member && Permission::checkMember($member, ['ADMIN', 'SITETREE_VIEW_ALL']);
         $viewable = [];
         foreach (array_chunk($ids, 500) as $chunk) {
             $records = DataObject::get($this->modelClass())->filter('ID', $chunk)->toArray();
             $this->prepopulateVersionCache($records);
-            $inherited = $checker instanceof InheritedPermissions && !$viewAll
-                ? $checker->canViewMultiple($chunk, $member, false)
-                : [];
-            $allowed = [];
-            foreach ($records as $record) {
-                if (!$checker instanceof InheritedPermissions || $this->overridesCanView($record)) {
-                    $allowed[(int) $record->ID] = (bool) $record->canView($member);
-                    continue;
-                }
-                $extended = $record->extendedCan('canView', $member);
-                $allowed[(int) $record->ID] = $extended ?? ($viewAll || !empty($inherited[(int) $record->ID]));
-            }
+            $allowed = array_flip($this->viewableAmong($records));
             foreach ($chunk as $id) {
-                if (!empty($allowed[$id])) {
+                if (isset($allowed[$id])) {
                     $viewable[] = $id;
                 }
             }
@@ -395,14 +382,45 @@ class PageTreeController extends AdminController
         return $viewable;
     }
 
-    private function overridesCanView(DataObject $record): bool
+    /**
+     * @param array<DataObject> $records
+     * @return array<int> IDs of the records the current member can view, in their order
+     */
+    private function viewableAmong(array $records): array
     {
-        $class = get_class($record);
-        if (!isset($this->overridesCanView[$class])) {
-            $declaring = (new ReflectionMethod($record, 'canView'))->getDeclaringClass()->getName();
-            $this->overridesCanView[$class] = $declaring !== $this->modelClass();
+        $checker = $this->permissionChecker();
+        $member = Security::getCurrentUser();
+        $viewAll = $member && Permission::checkMember($member, ['ADMIN', 'SITETREE_VIEW_ALL']);
+        $ids = array_map(fn (DataObject $record) => (int) $record->ID, $records);
+        $inherited = $checker instanceof InheritedPermissions && !$viewAll && $ids
+            ? $checker->canViewMultiple($ids, $member, false)
+            : [];
+        $viewable = [];
+        foreach ($records as $record) {
+            if (!$checker instanceof InheritedPermissions || $this->overrides($record, 'canView')) {
+                $allowed = (bool) $record->canView($member);
+            } else {
+                $allowed = $record->extendedCan('canView', $member)
+                    ?? ($viewAll || !empty($inherited[(int) $record->ID]));
+            }
+            if ($allowed) {
+                $viewable[] = (int) $record->ID;
+            }
         }
-        return $this->overridesCanView[$class];
+        return $viewable;
+    }
+
+    /**
+     * Whether the record's class replaces the model's own $method, so the batched checks here cannot stand in for it
+     */
+    private function overrides(DataObject $record, string $method): bool
+    {
+        $key = get_class($record) . '::' . $method;
+        if (!isset($this->overrides[$key])) {
+            $declaring = (new ReflectionMethod($record, $method))->getDeclaringClass()->getName();
+            $this->overrides[$key] = $declaring !== DataObject::getSchema()->baseDataClass($record);
+        }
+        return $this->overrides[$key];
     }
 
     private function pageOf(DataObject $record, int $limit): ?int
@@ -455,11 +473,7 @@ class PageTreeController extends AdminController
         }
         $ids = array_map(fn (DataObject $record) => (int) $record->ID, $records);
         $childCounts = $this->childCounts($ids);
-        $checker = $this->permissionChecker();
-        if ($checker instanceof InheritedPermissions) {
-            $checker->prePopulatePermissionCache(InheritedPermissions::EDIT, $ids);
-            $checker->prePopulatePermissionCache(InheritedPermissions::DELETE, $ids);
-        }
+        $deletable = $this->deletableAmong($records);
 
         $nodes = [];
         foreach ($records as $record) {
@@ -471,17 +485,127 @@ class PageTreeController extends AdminController
                 'menuTitle' => (string) ($record->MenuTitle ?: $record->Title),
                 'urlSegment' => (string) $record->URLSegment,
                 'className' => $record->ClassName,
+            ] + $this->copiedClassName($record) + [
                 'hasChildren' => $childCount > 0,
                 'childCount' => $childCount,
                 'statusFlags' => $this->statusFlags($record),
                 'canEdit' => (bool) $record->canEdit(),
-                'canDelete' => (bool) $record->canDelete(),
+                'canDelete' => $deletable[(int) $record->ID],
                 'sort' => (int) $record->Sort,
             ];
             $this->extend('updatePageTreeNode', $node, $record);
             $nodes[] = $node;
         }
         return $nodes;
+    }
+
+    /**
+     * The class a virtual page's drop rules check, which the legacy tree read from a `VirtualPage-<class>` CSS class
+     *
+     * @return array{copiedClassName?: string}
+     */
+    private function copiedClassName(DataObject $record): array
+    {
+        if (!$record->hasMethod('getRecordForAllowedChildrenValidation')) {
+            return [];
+        }
+        $subject = $record->getRecordForAllowedChildrenValidation();
+        if (!$subject || $subject === $record) {
+            return [];
+        }
+        return ['copiedClassName' => $subject->ClassName];
+    }
+
+    /**
+     * canDelete() for each record, keyed by ID. Where the model's canDelete() is SiteTree's, it is evaluated here:
+     * extensions first, then the edit-all permission, then the checker's rule that a page is deletable when it and
+     * every descendant is editable. The checker's own batch loads every descendant as a full record, which on a
+     * large tree costs more than the rest of the request; this walks the descendants by ID and ParentID only.
+     *
+     * @param array<DataObject> $records
+     * @return array<int, bool>
+     */
+    private function deletableAmong(array $records): array
+    {
+        $checker = $this->permissionChecker();
+        $member = Security::getCurrentUser();
+        $editAll = $member && Permission::checkMember($member, ['ADMIN', 'SITETREE_EDIT_ALL']);
+        if ($checker instanceof InheritedPermissions && !$editAll) {
+            $checker->prePopulatePermissionCache(
+                InheritedPermissions::EDIT,
+                array_map(fn (DataObject $record) => (int) $record->ID, $records)
+            );
+        }
+
+        $deletable = [];
+        $pending = [];
+        foreach ($records as $record) {
+            $id = (int) $record->ID;
+            if (!$checker instanceof InheritedPermissions || $this->overrides($record, 'canDelete')) {
+                $deletable[$id] = (bool) $record->canDelete($member);
+                continue;
+            }
+            $extended = $record->extendedCan('canDelete', $member);
+            if ($extended !== null || !$member || $editAll) {
+                $deletable[$id] = $extended ?? (bool) $member;
+                continue;
+            }
+            $pending[] = $id;
+        }
+        if ($pending) {
+            $deletable += $this->subtreesEditable($checker, $pending, $member);
+        }
+        return $deletable;
+    }
+
+    /**
+     * Whether each of $ids and all of its descendants in the current stage pass the checker's canEdit, as
+     * InheritedPermissions::canDeleteMultiple() decides deletion
+     *
+     * @param array<int> $ids
+     * @return array<int, bool>
+     */
+    private function subtreesEditable(InheritedPermissions $checker, array $ids, Member $member): array
+    {
+        $parentColumn = DataObject::getSchema()->sqlColumnForField($this->modelClass(), 'ParentID');
+        $idColumn = DataObject::getSchema()->sqlColumnForField($this->modelClass(), 'ID');
+        $parentOf = [];
+        $editable = [];
+        $level = $ids;
+        while ($level) {
+            $editable += $checker->canEditMultiple($level, $member);
+            $editableParents = array_keys(array_filter(array_intersect_key($editable, array_flip($level))));
+            $level = [];
+            foreach (array_chunk($editableParents, 500) as $chunk) {
+                $query = DataObject::get($this->modelClass())->filter('ParentID', $chunk)->dataQuery()->query();
+                $query->setSelect(['ID' => $idColumn, 'ParentID' => $parentColumn])->setOrderBy([]);
+                foreach ($query->execute() as $row) {
+                    $childId = (int) $row['ID'];
+                    // A child already in the batch keeps its parent link, so a blocked descendant still
+                    // reaches every ancestor
+                    if (!isset($parentOf[$childId])) {
+                        $parentOf[$childId] = (int) $row['ParentID'];
+                        if (!isset($editable[$childId])) {
+                            $level[] = $childId;
+                        }
+                    }
+                }
+            }
+        }
+
+        $blocked = [];
+        foreach ($parentOf as $childId => $parentId) {
+            if (empty($editable[$childId])) {
+                for ($id = $parentId; $id && !isset($blocked[$id]); $id = $parentOf[$id] ?? 0) {
+                    $blocked[$id] = true;
+                }
+            }
+        }
+        $result = [];
+        foreach ($ids as $id) {
+            $result[$id] = !empty($editable[$id]) && !isset($blocked[$id]);
+        }
+        return $result;
     }
 
     /**

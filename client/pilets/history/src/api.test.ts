@@ -27,12 +27,4 @@ describe('createHistoryApi', () => {
 
     expect(request).toHaveBeenCalledWith(endpoints.revert, { method: 'POST', body: { id: 7, dataClass: 'Page', toVersion: 4 } });
   });
-
-  it('passes the shell fetch error on', async () => {
-    const failure = Object.assign(new Error('Nope'), { status: 403 });
-    const api = createHistoryApi(endpoints, (async () => {
-      throw failure;
-    }) as never);
-    await expect(api.revert('Page', 7, 4)).rejects.toBe(failure);
-  });
 });

@@ -1,0 +1,16 @@
+/**
+ * Text and checkbox group
+ *
+ * A block title input that takes the free width, with its "Displayed" checkbox inline after it
+ */
+
+.elemental-text-checkbox-group {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--admin-gap-sm) var(--admin-gap-md);
+}
+
+.elemental-text-checkbox-group__text {
+  flex: 1 1 20rem;
+}

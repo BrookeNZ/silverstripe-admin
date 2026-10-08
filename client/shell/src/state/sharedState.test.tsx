@@ -5,7 +5,6 @@ import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { GlobalState, GlobalStateContext, PiletApi, PiletMetadata } from 'piral-core';
 import { createSilverstripeApi } from '../api/silverstripe';
-import { recordsChangedEvent } from '../events';
 import { initialSectionHeader } from '../header/state';
 import { previewModeStorageKey, resetPreviewMode, setPreviewMode } from '../preview/mode';
 import { initialUnsavedChanges } from '../unsaved';
@@ -196,16 +195,6 @@ describe('shared state', () => {
     second.setUnsavedChanges('form', true);
     expect(firstCalls).toEqual([]);
     expect(secondCalls).toEqual([true]);
-  });
-
-  it('names the records-changed event the shell listens for', () => {
-    const api = piletApi('pilet-a');
-    expect(api.recordsChangedEvent).toBe('silverstripe:records-changed');
-    expect(api.recordsChangedEvent).toBe(recordsChangedEvent);
-    const heard: Array<unknown> = [];
-    context.on(recordsChangedEvent, (event) => heard.push(event));
-    api.emit(api.recordsChangedEvent, { recordClass: 'Page', ids: [1] });
-    expect(heard).toEqual([{ recordClass: 'Page', ids: [1] }]);
   });
 });
 

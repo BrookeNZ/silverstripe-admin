@@ -31,3 +31,4 @@ SilverStripe\Control\RequestHandler:
 SilverStripe\Admin\LeftAndMain:
   extensions:
     - SilverStripe\Admin\UserInterface\ShellPermissionFailureExtension
+    - SilverStripe\Admin\UserInterface\ShellErrorResponseExtension

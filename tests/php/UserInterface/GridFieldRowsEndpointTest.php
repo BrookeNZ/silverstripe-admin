@@ -35,6 +35,8 @@ class GridFieldRowsEndpointTest extends FunctionalTest
 
     private const ARCHIVE = 'GridFieldRowsEndpointTest/Archive/field/Ships/';
 
+    private const ROSTER = 'GridFieldRowsEndpointTest/Roster/field/Players/';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -42,6 +44,8 @@ class GridFieldRowsEndpointTest extends FunctionalTest
         SecurityToken::enable();
         TestController::$withBadge = false;
         TestController::$nameFormat = null;
+        Player::$deletable = true;
+        Player::$deleteRefusal = null;
     }
 
     public function testEnvelopeShape(): void
@@ -285,7 +289,7 @@ class GridFieldRowsEndpointTest extends FunctionalTest
         $locked = $this->idFromFixture(Ship::class, 'locked');
 
         $archive = $this->postAction('archiverecord', ['RecordID' => $locked], $headers, static::FLEET);
-        $this->assertJsonError($archive, 403);
+        $this->assertJsonError($archive, 404);
         $this->assertNotNull(Ship::get()->byID($locked));
 
         $this->assertJsonError($this->postAction('deleterecord', ['RecordID' => $locked], $headers, static::FLEET), 404);
@@ -297,7 +301,7 @@ class GridFieldRowsEndpointTest extends FunctionalTest
         });
         $this->assertSame([], $this->getJson('rows', static::ARCHIVE)['rows'][0]['actions']);
         $restore = $this->postAction('restore', ['RecordID' => $locked], $headers, static::ARCHIVE);
-        $this->assertJsonError($restore, 403);
+        $this->assertJsonError($restore, 404);
         $this->assertNull(Ship::get()->byID($locked));
     }
 
@@ -377,6 +381,61 @@ class GridFieldRowsEndpointTest extends FunctionalTest
             Versioned::set_stage(Versioned::DRAFT);
             $this->assertSame('Endeavour', Ship::get()->byID($endeavour)?->Name);
         });
+    }
+
+    public function testUnlinkKeepsTheRecordAndARelationEditorHasNoDelete(): void
+    {
+        $this->session()->set('SecurityID', 'valid-token');
+        $headers = ['X-SecurityID' => 'valid-token'];
+        $first = $this->idFromFixture(Player::class, 'first');
+
+        $this->assertSame(['edit', 'unlinkrelation'], array_column($this->getJson('rows', static::ROSTER)['rows'][0]['actions'], 'name'));
+        $this->assertJsonError($this->postAction('deleterecord', ['RecordID' => $first], $headers, static::ROSTER), 404);
+
+        $response = $this->postAction('unlinkrelation', ['RecordID' => $first], $headers, static::ROSTER);
+        $this->assertSame(200, $response->getStatusCode(), $response->getBody());
+        $this->assertSame(['Second player'], $this->titles(json_decode($response->getBody(), true)));
+        $this->assertSame(0, (int) Player::get()->byID($first)?->TeamID, 'Unlinked, not deleted');
+    }
+
+    public function testEditWithoutDeleteOffersNoDelete(): void
+    {
+        $this->session()->set('SecurityID', 'valid-token');
+        Player::$deletable = false;
+        $first = $this->idFromFixture(Player::class, 'first');
+        $nested = GridFieldRowsEndpointTest::GRID . 'item/' . $this->idFromFixture(Team::class, 'alpha') . '/ItemEditForm/field/Players/';
+
+        $this->assertSame(['edit'], array_column($this->getJson('rows', $nested)['rows'][0]['actions'], 'name'));
+        $response = $this->postAction('deleterecord', ['RecordID' => $first], ['X-SecurityID' => 'valid-token'], $nested);
+        $this->assertJsonError($response, 404);
+        $this->assertNotNull(Player::get()->byID($first));
+    }
+
+    public function testAGridNeedingSudoModeIsServedReadOnly(): void
+    {
+        Config::modify()->set(Team::class, 'require_sudo_mode', true);
+        $body = $this->getJson('rows');
+
+        $this->assertTrue($body['grid']['readonly']);
+        $this->assertSame(['view'], array_column($body['rows'][0]['actions'], 'name'));
+        $alpha = $this->idFromFixture(Team::class, 'alpha');
+        $this->assertStringContainsString("/item/{$alpha}/view/", $body['rows'][0]['actions'][0]['url']);
+        $this->assertArrayNotHasKey('buttons-before-left', $body['slots'], 'No add button');
+    }
+
+    public function testABusinessRuleRefusalIsABadRequest(): void
+    {
+        $this->session()->set('SecurityID', 'valid-token');
+        Player::$deleteRefusal = 'This player has played this season.';
+        $first = $this->idFromFixture(Player::class, 'first');
+        $nested = GridFieldRowsEndpointTest::GRID . 'item/' . $this->idFromFixture(Team::class, 'alpha') . '/ItemEditForm/field/Players/';
+
+        $response = $this->postAction('deleterecord', ['RecordID' => $first], ['X-SecurityID' => 'valid-token'], $nested);
+        $this->assertJsonError($response, 400);
+        $error = json_decode($response->getBody(), true)['errors'][0];
+        $this->assertSame('invalid', $error['reason']);
+        $this->assertSame('This player has played this season.', $error['value']);
+        $this->assertNotNull(Player::get()->byID($first));
     }
 
     public function testWrongMethodsGetJsonErrors(): void

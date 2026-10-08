@@ -5,9 +5,10 @@
  * `<section>[/<tab>]/EditForm/field/<grid>/item/<id|new>[/edit|/view]`. A grid inside a record form
  * nests another `ItemEditForm/field/<grid>/item/<id|new>` before the action, to any depth.
  *
- * The form comes from `<item link>/schema` (GridFieldItemSchemaExtension in the admin module). The item
- * link always names the model tab for a ModelAdmin, because the server reads an unnamed one as a model
- * class.
+ * The form comes from `<item link>/schema`, or `<item link>/view/schema` for a view route, which the
+ * server serves read only as the legacy `view` action does (GridFieldItemSchemaExtension in the admin
+ * module). The item link always names the model tab for a ModelAdmin, because the server reads an unnamed
+ * one as a model class.
  */
 import type { FormSchemaRecord } from '../forms/types';
 import type { SectionHeader, SectionHeaderCrumb } from '../header/state';
@@ -22,6 +23,8 @@ export interface RecordRoute {
   id: number | null;
   /** The item link relative to the site base, without a trailing slash */
   itemUrl: string;
+  /** Opened at the `view` action, read only */
+  view: boolean;
   /** The record whose form holds this record's grid; null for a record in a section's own grid */
   parent: RecordRoute | null;
 }
@@ -32,8 +35,9 @@ const recordId = /^[1-9]\d*$/;
 
 export function recordRoute({ section, tab, unhandled }: SectionRoute): RecordRoute | null {
   const segments = [...unhandled];
+  let action: string | undefined;
   if (segments.length % 5 === 1) {
-    const action = segments.pop();
+    action = segments.pop();
     if (!itemActions.includes(action ?? '')) {
       return null;
     }
@@ -55,13 +59,13 @@ export function recordRoute({ section, tab, unhandled }: SectionRoute): RecordRo
       return null;
     }
     itemUrl = [itemUrl, form, 'field', grid, 'item', id].join('/');
-    route = { section, tab, grid, id: isNew ? null : Number(id), itemUrl, parent: route };
+    route = { section, tab, grid, id: isNew ? null : Number(id), itemUrl, view: isLast && action === 'view', parent: route };
   }
   return route;
 }
 
 export function recordSchemaUrl(route: RecordRoute): string {
-  return `${route.itemUrl}/schema`;
+  return route.view ? `${route.itemUrl}/view/schema` : `${route.itemUrl}/schema`;
 }
 
 /** Where the record's grid is: the parent record's form, its model tab, or the section's own form */

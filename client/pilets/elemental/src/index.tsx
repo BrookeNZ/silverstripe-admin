@@ -4,6 +4,7 @@ import { blockEditRoute, createBlockEditPage } from './BlockEditPage';
 import type { ElementType } from './blocks';
 import { createElementalAreaField } from './ElementalArea';
 import type { ElementalPiletApi } from './shell';
+import { TextCheckboxGroupField } from './TextCheckboxGroupField';
 import './elemental.css';
 
 const areaController = 'DNADesign\\Elemental\\Controllers\\ElementalAreaController';
@@ -30,6 +31,8 @@ export function adminRouterPath(url: string, adminUrl: string): string | null {
 }
 
 export function setup(api: PiletApi) {
+  // Block forms also open outside the area, in the archive section's block records
+  api.registerSilverstripeComponent('TextCheckboxGroupField', TextCheckboxGroupField);
   const config = api.getConfig();
   const section = config.sections.find((candidate) => candidate.name === areaController) as AreaSection | undefined;
   const schemaUrl = section?.form?.elementForm?.schemaUrl;

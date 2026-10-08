@@ -233,6 +233,11 @@ export function refetchShellServerQuery(key: ServerQueryKey): Promise<void> {
   return serverQueryClient.refetchQueries({ queryKey: key, exact: true, type: 'active' }, { cancelRefetch: false });
 }
 
+/** Refetches every read on screen and marks the rest stale, for a change that alters what the member may see */
+export function invalidateShellServerCache(): Promise<void> {
+  return serverQueryClient.invalidateQueries();
+}
+
 export function createServerCacheApi(queryClient: QueryClient = serverQueryClient): PiralPlugin<ServerCacheApi> {
   return (context) => {
     context.on(recordsChangedEvent, (event: RecordsChangedEvent) => {

@@ -57,6 +57,7 @@ interface AreaProps {
   'elemental-area-id'?: number;
   'page-id'?: number;
   'allowed-elements'?: Array<string>;
+  data?: { blocks?: Array<Block> };
 }
 
 /** The form id FormFieldSlot passes; derived from the field id (FormField::ID() is `<form id>_<name>`) on an older shell */
@@ -106,7 +107,7 @@ export function createElementalAreaField(options: ElementalAreaOptions): React.C
 
     React.useLayoutEffect(() => setAreaTitle(precedingHeading(root.current)), []);
 
-    const list = useBlockList({ api, client, types, pageClass, areaId, pageId });
+    const list = useBlockList({ api, client, types, pageClass, areaId, pageId, schemaBlocks: field.data?.blocks });
     const { blocks, load, notifyChanged } = list;
     const saving = useBlockSaving({
       api,

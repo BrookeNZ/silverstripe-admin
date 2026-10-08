@@ -1,6 +1,10 @@
 /**
  * The area's blocks as last read from elemental's endpoint, re-read when the page is saved or published
  * elsewhere, and the records-changed announcement for blocks this area changed.
+ *
+ * The field's schema carries the same list as `data.blocks`, so the first read is skipped when it is
+ * there. Each schema response (a refetch after a save or a records-changed event) brings a new list,
+ * which counts as the newest read.
  */
 import * as React from 'react';
 import type { Block, ElementalApi } from './api';
@@ -15,6 +19,8 @@ export interface BlockListOptions {
   pageClass: string;
   areaId: number;
   pageId: number;
+  /** The list the field's schema sent */
+  schemaBlocks?: Array<Block> | null;
 }
 
 export interface BlockList {
@@ -30,8 +36,8 @@ export interface BlockList {
   notifyChanged(changed: ReadonlyArray<Block>): void;
 }
 
-export function useBlockList({ api, client, types, pageClass, areaId, pageId }: BlockListOptions): BlockList {
-  const [blocks, setBlocks] = React.useState<Array<Block> | null>(null);
+export function useBlockList({ api, client, types, pageClass, areaId, pageId, schemaBlocks }: BlockListOptions): BlockList {
+  const [blocks, setBlocks] = React.useState<Array<Block> | null>(schemaBlocks ?? null);
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const blocksRef = React.useRef(blocks);
   blocksRef.current = blocks;
@@ -59,10 +65,16 @@ export function useBlockList({ api, client, types, pageClass, areaId, pageId }: 
   );
 
   React.useEffect(() => {
+    if (schemaBlocks) {
+      latestRead.current++;
+      setBlocks(schemaBlocks);
+      setLoadError(null);
+      return undefined;
+    }
     const abort = new AbortController();
     load(abort.signal);
     return () => abort.abort();
-  }, [load]);
+  }, [load, schemaBlocks]);
 
   const notifyChanged = React.useCallback(
     (changed: ReadonlyArray<Block>) => {

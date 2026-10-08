@@ -18,7 +18,7 @@ import type { SilverstripeMenuItem } from '../silverstripe';
 import { SectionLoadError } from './LoadError';
 import { RecordEditPage } from './RecordEditPage';
 import type { Notify } from './RecordEditPage';
-import { recordRoute } from './record';
+import { recordRoute, recordSchemaUrl } from './record';
 import { editFormSchemaUrl, menuSections, piletOwnsSection, resolveSectionRoute, sectionHeader } from './resolve';
 import type { SectionRoute, ShellSection } from './resolve';
 
@@ -62,7 +62,7 @@ export function createSectionPage(menu: Array<SilverstripeMenuItem>, Fallback: R
       return <Fallback owned />;
     }
     const record = recordRoute(route);
-    return record ? <RecordEditPage key={record.itemUrl} route={record} notify={notify} /> : <SectionView route={route} />;
+    return record ? <RecordEditPage key={recordSchemaUrl(record)} route={record} notify={notify} /> : <SectionView route={route} />;
   };
   SectionPage.displayName = 'SectionPage';
   return SectionPage;

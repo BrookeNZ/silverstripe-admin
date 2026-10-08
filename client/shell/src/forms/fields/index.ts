@@ -21,13 +21,16 @@ import type { FieldComponentProps } from '../types';
 import { FormSchemaForm } from '../FormSchemaForm';
 import { SchemaFormDialog } from '../SchemaFormDialog';
 import { serverHtmlComponent } from '../resolve';
+import { NumberField } from './NumberField';
 import { ServerHtmlField } from './ServerHtmlField';
 import { ShellFormAction } from './ShellFormAction';
+import { SudoModePasswordField } from './SudoModePasswordField';
 import { ToggleCompositeField, toggleCompositeFieldClass } from './ToggleCompositeField';
 import { UnsavedChangesIndicatorField } from './UnsavedChangesIndicatorField';
 
 export const builtInFields: Readonly<Record<string, ComponentType<FieldComponentProps<any>>>> = {
   TextField,
+  NumberField,
   HiddenField,
   CheckboxField,
   SingleSelectField,
@@ -45,6 +48,7 @@ export const builtInFields: Readonly<Record<string, ComponentType<FieldComponent
   PopoverField,
   MenuField,
   UnsavedChangesIndicator: UnsavedChangesIndicatorField,
+  SudoModePasswordField,
   [serverHtmlComponent]: ServerHtmlField,
 };
 

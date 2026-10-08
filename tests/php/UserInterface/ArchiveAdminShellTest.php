@@ -55,6 +55,21 @@ class ArchiveAdminShellTest extends FunctionalTest
         $this->assertSame($tab, end($tabs)['tab']);
     }
 
+    public function testLegacyOthersUrlRedirectsToTheOtherTabUnderTheShell(): void
+    {
+        Config::modify()->set(LeftAndMain::class, 'piral_shell', true);
+        $this->autoFollowRedirection = false;
+        $otherClass = array_keys(ArchiveAdmin::create()->getVersionedModels('other', true))[0];
+
+        $response = $this->get('admin/archive/?others=1', null, ['Accept' => 'text/html']);
+
+        $this->assertSame(302, $response->getStatusCode(), (string) $response->getBody());
+        $this->assertStringEndsWith(
+            'admin/archive/' . str_replace('\\', '-', $otherClass),
+            rtrim((string) $response->getHeader('Location'), '/')
+        );
+    }
+
     public function testTypeDropdownNamesThePiletComponentUnderTheShell(): void
     {
         Config::modify()->set(LeftAndMain::class, 'piral_shell', true);

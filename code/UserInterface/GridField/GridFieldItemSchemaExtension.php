@@ -12,6 +12,8 @@ use SilverStripe\Core\Extension;
 use SilverStripe\Core\Validation\ValidationResult;
 use SilverStripe\Forms\Form;
 use SilverStripe\Forms\GridField\GridFieldDetailForm_ItemRequest;
+use SilverStripe\Forms\GridField\GridFieldEditButton;
+use SilverStripe\Forms\GridField\GridFieldViewButton;
 use SilverStripe\Model\ModelData;
 
 /**
@@ -30,6 +32,17 @@ use SilverStripe\Model\ModelData;
  * A record the member cannot view answers the schema request with the same 404 as a missing one, so the
  * endpoint does not reveal which IDs exist.
  *
+ * `GET <item link>/view/schema` serves the form read only whatever the member may do, as the item request's
+ * `view` action renders it. A grid whose rows offer only `view` (a GridFieldViewButton and no
+ * GridFieldEditButton, as GridFieldConfig_RecordViewer, ArchiveAdmin and a read-only grid have) serves its
+ * records the same way at `<item link>/schema`. The record's other actions (restore, publish, delete) stay,
+ * gated by their own permissions, as legacy keeps them on its read-only form. A shell submission posted
+ * under a view URL is a 403.
+ *
+ * Departures: a view form drops its Save action, which legacy shows though the read-only form saves
+ * nothing, so a save posted to it is refused as a withheld action; and at a view-only grid's edit URL
+ * legacy renders an editable form to a member who may edit.
+ *
  * Only while `LeftAndMain.piral_shell` is on and the grid sits under a FormSchemaController.
  *
  * @extends Extension<GridFieldDetailForm_ItemRequest>
@@ -39,6 +52,28 @@ class GridFieldItemSchemaExtension extends Extension
     private static array $allowed_actions = [
         'schema',
     ];
+
+    private bool $viewing = false;
+
+    /**
+     * Answers `<item link>/view/schema`, which the item request's `$Action!` rule hands to `view` with
+     * `schema` left over
+     */
+    protected function beforeCallActionHandler(HTTPRequest $request, string $action): ?HTTPResponse
+    {
+        if ($action !== 'view' || !static::schemaController($this->getOwner()) || !LeftAndMain::config()->get('piral_shell')) {
+            return null;
+        }
+        if ($request->remaining() === 'schema') {
+            $request->shift();
+            $this->viewing = true;
+            return $this->schema($request);
+        }
+        if (ShellSubmission::isShellSubmission($request)) {
+            throw static::jsonError(403, static::permissionMessage());
+        }
+        return null;
+    }
 
     public function schema(HTTPRequest $request): HTTPResponse
     {
@@ -60,16 +95,37 @@ class GridFieldItemSchemaExtension extends Extension
         if (!$form instanceof Form) {
             throw static::jsonError(404, _t(__CLASS__ . '.NO_FORM', 'This record has no edit form.'));
         }
-        return $controller->getSchemaResponse($itemRequest->Link('schema'), $form, null, [
-            'record' => static::recordSummary($itemRequest, (bool) $record->ID),
+        $schemaLink = $itemRequest->Link($this->viewing ? 'view/schema' : 'schema');
+        return $controller->getSchemaResponse($schemaLink, $form, null, [
+            'record' => static::recordSummary($itemRequest, (bool) $record->ID, $this->isViewing() ? 'view' : 'edit'),
         ]);
+    }
+
+    /**
+     * Reached through a view URL, or in a grid whose rows offer only `view`
+     */
+    public function isViewing(): bool
+    {
+        if ($this->viewing) {
+            return true;
+        }
+        $config = $this->getOwner()->getGridField()->getConfig();
+        return $config->getComponentByType(GridFieldViewButton::class)
+            && !$config->getComponentByType(GridFieldEditButton::class);
     }
 
     protected function updateItemEditForm(Form $form): void
     {
         $itemRequest = $this->getOwner();
         $controller = static::schemaController($itemRequest);
-        if (!$controller || !ShellSubmission::isShellSubmission($itemRequest->getRequest())) {
+        if (!$controller || !ShellSubmission::isFormSchemaRequest($itemRequest->getRequest())) {
+            return;
+        }
+        if ($this->isViewing()) {
+            $form->makeReadonly();
+            $form->Actions()->removeByName('action_doSave');
+        }
+        if (!ShellSubmission::isShellSubmission($itemRequest->getRequest())) {
             return;
         }
         $schemaId = $itemRequest->Link('schema');
@@ -149,11 +205,14 @@ class GridFieldItemSchemaExtension extends Extension
 
     /**
      * What the shell shows of the record beside its form: the section header's title, the singular name
-     * for "New <name>", the class for the records-changed event, the edit link, which is null for a
-     * new record or one no longer in the grid's list, and for a nested record its parent's title
+     * for "New <name>", the class for the records-changed event, the edit (or view) link, which is null
+     * for a new record or one no longer in the grid's list, and for a nested record its parent's title
      */
-    public static function recordSummary(GridFieldDetailForm_ItemRequest $itemRequest, bool $inList): array
-    {
+    public static function recordSummary(
+        GridFieldDetailForm_ItemRequest $itemRequest,
+        bool $inList,
+        string $action = 'edit'
+    ): array {
         $record = $itemRequest->getRecord();
         $id = (int) ($record->ID ?: $record->OldID);
         return [
@@ -161,7 +220,7 @@ class GridFieldItemSchemaExtension extends Extension
             'className' => get_class($record),
             'title' => $record->ID && $record->hasMethod('getTitle') ? (string) $record->getTitle() : null,
             'singularName' => $record->hasMethod('i18n_singular_name') ? $record->i18n_singular_name() : null,
-            'link' => $inList ? $itemRequest->Link('edit') : null,
+            'link' => $inList ? $itemRequest->Link($action) : null,
             'parentTitle' => static::parentTitle($itemRequest),
         ];
     }

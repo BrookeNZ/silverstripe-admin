@@ -12,24 +12,14 @@ describe('blockStatus', () => {
 });
 
 describe('afterBlockId and moveBlock', () => {
-  it('moves to the top after block 0', () => {
-    expect(afterBlockId(list, 3, 0)).toBe(0);
-    expect(moveBlock(list, 3, 0).map((block) => block.id)).toEqual([3, 1, 2, 4]);
-  });
-
-  it('moves up one place after the block two above', () => {
-    expect(afterBlockId(list, 3, 1)).toBe(1);
-    expect(moveBlock(list, 3, 1).map((block) => block.id)).toEqual([1, 3, 2, 4]);
-  });
-
-  it('moves down one place after the block that was below', () => {
-    expect(afterBlockId(list, 2, 2)).toBe(3);
-    expect(moveBlock(list, 2, 2).map((block) => block.id)).toEqual([1, 3, 2, 4]);
-  });
-
-  it('moves to the end after the last other block', () => {
-    expect(afterBlockId(list, 1, 3)).toBe(4);
-    expect(moveBlock(list, 1, 3).map((block) => block.id)).toEqual([2, 3, 4, 1]);
+  it.each([
+    ['to the top after block 0', 3, 0, 0, [3, 1, 2, 4]],
+    ['up one place after the block two above', 3, 1, 1, [1, 3, 2, 4]],
+    ['down one place after the block that was below', 2, 2, 3, [1, 3, 2, 4]],
+    ['to the end after the last other block', 1, 3, 4, [2, 3, 4, 1]],
+  ])('moves %s', (_, id, index, after, order) => {
+    expect(afterBlockId(list, id, index)).toBe(after);
+    expect(moveBlock(list, id, index).map((block) => block.id)).toEqual(order);
   });
 });
 

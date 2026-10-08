@@ -13,7 +13,11 @@ use SilverStripe\VersionedAdmin\ArchiveAdmin;
  * Gives the shell the Archive section's legacy views instead of one model tab per versioned class: Pages,
  * Blocks and Files, then "Other", whose type dropdown (the archive pilet's ArchiveTypeField) loads the chosen
  * type. "Other" points at the type of the current request, else the dropdown's first type, so every type the
- * dropdown reaches is a model tab the shell resolves on that page load.
+ * dropdown reaches is a model tab the shell resolves on that page load. A member who cannot view the section is
+ * sent no tabs, as legacy's client config listed no classes.
+ *
+ * Departures: the Other tab opens the first other type's archive grid, where legacy's `?others=1` showed the type
+ * dropdown over an empty list. A page navigation to legacy's `?others=1` URL is redirected to the Other tab.
  *
  * @extends Extension<ArchiveAdmin>
  */
@@ -25,12 +29,15 @@ class ArchiveAdminShellExtension extends Extension
     protected function updateClientConfig(array &$clientConfig): void
     {
         $admin = $this->getOwner();
+        $clientConfig['modelTabs'] = [];
+        if (!$admin->canView()) {
+            return;
+        }
         $mainClasses = array_keys($admin->getVersionedModels('main', true));
         $otherClasses = array_keys($admin->getVersionedModels('other', true));
         $requested = $this->requestedClass();
         $otherClass = in_array($requested, $otherClasses, true) ? $requested : ($otherClasses[0] ?? null);
 
-        $clientConfig['modelTabs'] = [];
         foreach ($admin->getManagedModelTabs() as $tab) {
             $class = in_array($tab->ClassName, $mainClasses, true) ? $tab->ClassName : $otherClass;
             if ($class) {
@@ -54,6 +61,25 @@ class ArchiveAdminShellExtension extends Extension
             return '';
         }
         return str_replace('-', '\\', explode('/', substr($path, strlen($prefix)))[0]);
+    }
+
+    protected function onAfterInit(): void
+    {
+        $admin = $this->getOwner();
+        $request = $admin->getRequest();
+        if (!LeftAndMain::config()->get('piral_shell')
+            || $admin->getResponse()->isFinished()
+            || !$request->isGET()
+            || $request->isAjax()
+            || !$request->getVar('others')
+            || $request->param('ModelClass')
+        ) {
+            return;
+        }
+        $otherClass = array_key_first($admin->getVersionedModels('other', true));
+        if ($otherClass) {
+            $admin->redirect($admin->Link(str_replace('\\', '-', $otherClass)));
+        }
     }
 
     protected function updateEditForm(Form $form): void

@@ -67,14 +67,14 @@ class CMSPageSettingsSubmissionTest extends FunctionalTest
         $this->assertSame(0, (int) SiteTree::get()->byID($page->ID)->ParentID);
     }
 
-    public function testPermissionDeniedAnswersAJsonForbidden(): void
+    public function testASaveWithheldFromTheMemberAnswersAJsonForbidden(): void
     {
         $this->logInWithPermission('CMS_ACCESS_CMSMain');
         $page = $this->objFromFixture(SiteTree::class, 'locked');
 
         $body = $this->json($this->submit($page, 'save', ['CanViewType' => 'Anyone']), 403);
 
-        $this->assertSame('You do not have permission to do that to this page.', $body['errors'][0]['value']);
+        $this->assertSame('actionNotAvailable', $body['errors'][0]['reason']);
         $this->assertSame('Inherit', SiteTree::get()->byID($page->ID)->CanViewType);
     }
 
