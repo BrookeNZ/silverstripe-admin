@@ -14,6 +14,9 @@ export interface BlockSchema {
   actions: { edit?: string | null };
   /** The block's summary, plain text */
   content?: string | null;
+  /** A thumbnail of the block's image, on blocks that have one */
+  fileURL?: string | null;
+  fileTitle?: string | null;
 }
 
 export interface Block {

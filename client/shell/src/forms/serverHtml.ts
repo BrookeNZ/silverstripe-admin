@@ -126,8 +126,10 @@ export function readControls(html: string): Array<HtmlControl> {
   }));
 }
 
-// Every merge of the field tree asks again, and each answer sanitises and parses the HTML
+// Every merge of the field tree asks again, and each answer sanitises and parses the HTML. Capped, oldest
+// out first, so a long session does not keep every snippet it has seen
 const bindings = new Map<string, ServerHtmlBinding>();
+const maxBindings = 200;
 
 export function bindServerHtml(name: string, html: string): ServerHtmlBinding {
   const key = `${name}\n${html}`;
@@ -135,6 +137,9 @@ export function bindServerHtml(name: string, html: string): ServerHtmlBinding {
   if (!binding) {
     binding = serverHtmlBinding(name, readControls(html));
     bindings.set(key, binding);
+    if (bindings.size > maxBindings) {
+      bindings.delete(bindings.keys().next().value!);
+    }
   }
   return binding;
 }

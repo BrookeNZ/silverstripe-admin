@@ -82,6 +82,7 @@ export const BlockRow = (props: BlockRowProps) => {
   const status = blockStatus(block);
   const regionId = `elemental-block-${block.id}-form`;
   const inline = Boolean(type?.inlineEditable);
+  const { content, fileURL, fileTitle } = block.blockSchema;
 
   // The drag offset is data for the stylesheet. Only a moving row gets a transform, which would otherwise
   // make every row a stacking context that the next row's paint covers an open menu with
@@ -120,7 +121,14 @@ export const BlockRow = (props: BlockRowProps) => {
             {status !== 'published' && <span className="elemental-block__flag">{statusLabels[status]}</span>}
           </span>
           <span className="elemental-block__meta">{type?.title || block.obsoleteClassName || 'Unknown block type'}</span>
-          {block.blockSchema.content && <span className="elemental-block__summary">{block.blockSchema.content}</span>}
+          {(fileURL || content) && (
+            <span className="elemental-block__preview">
+              {fileURL && (
+                <img className="elemental-block__thumbnail" src={fileURL} alt={fileTitle ?? ''} loading="lazy" decoding="async" />
+              )}
+              {content && <span className="elemental-block__summary">{content}</span>}
+            </span>
+          )}
         </div>
         <div className="elemental-block__controls">
           {actions.length > 0 && (

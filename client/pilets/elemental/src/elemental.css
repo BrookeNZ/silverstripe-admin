@@ -96,9 +96,26 @@
   color: var(--admin-meta-fg-color);
 }
 
+/* Figma has no thumbnail in the block row, so its size, radius and place beside the summary follow legacy elemental */
+.elemental-block__preview {
+  align-items: center;
+  display: flex;
+  gap: var(--admin-gap-sm);
+}
+
+.elemental-block__thumbnail {
+  block-size: 3.6rem;
+  border-radius: calc(var(--admin-radius) / 2);
+  flex-shrink: 0;
+}
+
 .elemental-block__summary {
   color: var(--admin-meta-fg-color);
   line-height: 1.4;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .elemental-block__flag {

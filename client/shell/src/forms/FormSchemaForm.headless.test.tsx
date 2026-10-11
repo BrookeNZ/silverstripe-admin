@@ -11,6 +11,8 @@ import { FormSchemaForm } from './FormSchemaForm';
 import { fetchFormSchema, FormSchemaRequestError, submitFormSchema } from './schema';
 import { serverQueryClient } from '../state/serverCache';
 import type { FieldComponentProps, FormSchemaFormHandle } from './types';
+import { RecordLoadError, SectionLoadError } from '../sections/LoadError';
+import type { ShellSection } from '../sections/resolve';
 
 vi.mock('piral-core', () => ({
   useGlobalStateContext: () => ({}),
@@ -363,8 +365,17 @@ describe('FormSchemaForm load failure', () => {
   it('offers to log in again, back to the current page, when the session has ended', async () => {
     vi.mocked(fetchFormSchema).mockRejectedValue(new FormSchemaRequestError(403, null, true));
     await render(<FormSchemaForm schemaUrl="schema/Block" />);
-    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Your CMS session has ended');
+    expect([...container.querySelectorAll('[role="alert"]')].map((node) => node.textContent)).toEqual([expect.stringContaining('Your CMS session has ended')]);
     expect(container.querySelector('a')?.getAttribute('href')).toContain('Security/login?BackURL=');
+  });
+
+  it.each([
+    ['a section', (error: unknown) => <SectionLoadError error={error} section={{ title: 'Settings' } as ShellSection} />],
+    ['a record', (error: unknown) => <RecordLoadError error={error} title="Default Admin" />],
+  ])('announces the ended session once on %s page', async (_page, renderLoadError) => {
+    vi.mocked(fetchFormSchema).mockRejectedValue(new FormSchemaRequestError(403, null, true));
+    await render(<FormSchemaForm schemaUrl="schema/Block" renderLoadError={renderLoadError} />);
+    expect([...container.querySelectorAll('[role="alert"]')].map((node) => node.textContent)).toEqual([expect.stringContaining('Your CMS session has ended')]);
   });
 
   it('names any other failure, with no login link', async () => {

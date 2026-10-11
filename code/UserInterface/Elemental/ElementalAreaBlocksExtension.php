@@ -84,6 +84,7 @@ class ElementalAreaBlocksExtension extends Extension
         $controller = ElementalAreaController::create();
         $controller->setRequest($request);
         try {
+            ElementVersionsExtension::prepopulateFor($areaId);
             $response = $controller->apiReadElements($request);
         } catch (HTTPResponse_Exception) {
             return null;

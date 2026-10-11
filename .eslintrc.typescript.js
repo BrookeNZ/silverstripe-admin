@@ -4,9 +4,9 @@
  * Every tsconfig uses the automatic JSX runtime (react-jsx), so React is not imported for JSX alone.
  * react-hooks 7 ships its recommended config as flat-only, so its rules are listed by hand:
  * - static-components, purity, immutability, preserve-manual-memoization, incompatible-library are off: React Compiler checks, the compiler is not in use
- * - exhaustive-deps, refs and set-state-in-effect warn while existing code is brought into line
  * - globals is off in tests, which mutate module state on purpose
  * anchor-has-content is off in the Link and TabStrip wrappers, whose bare `<a {...props} />` gets its children from callers; the rule's `components` option adds elements to check rather than exempting them
+ * Server HTML goes through DOMPurify (client/shell/src/forms/serverHtml.ts) and onto the page as nodes, so no-danger is an error.
  * no-explicit-any warns in the ported legacy field code and in tests, which wrap untyped libraries and mocks.
  * Type-aware rules run only on files their package tsconfig includes; *.d.ts and patterns tests sit outside it.
  */
@@ -51,15 +51,19 @@ module.exports = {
     'react/prop-types': 'off',
     'react/display-name': 'off',
     'react-hooks/rules-of-hooks': 'error',
-    'react-hooks/exhaustive-deps': 'warn',
-    'react-hooks/refs': 'warn',
-    'react-hooks/set-state-in-effect': 'warn',
+    'react-hooks/exhaustive-deps': 'error',
+    'react-hooks/refs': 'error',
+    'react-hooks/set-state-in-effect': 'error',
     'react-hooks/static-components': 'off',
     'react-hooks/purity': 'off',
     'react-hooks/immutability': 'off',
     'react-hooks/preserve-manual-memoization': 'off',
     'react-hooks/incompatible-library': 'off',
     'jsx-a11y/no-autofocus': ['error', { ignoreNonDOM: true }],
+    'react/no-danger': 'error',
+    'react/jsx-no-script-url': 'error',
+    'no-eval': 'error',
+    'no-new-func': 'error',
   },
   overrides: [
     {

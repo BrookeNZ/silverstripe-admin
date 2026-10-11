@@ -159,6 +159,67 @@ describe('TreeDropdownField', () => {
     expect(options).toEqual(['Contact formContact us/']);
   });
 
+  it('reads the tree on first focus, not on mount, when the schema names the value', async () => {
+    const fetch = vi.fn(() => Promise.resolve(tree));
+    container = document.createElement('div');
+    document.body.append(container);
+    await act(async () => createRoot(container).render(
+      <ConnectedTreeDropdownField
+        id="Form_DeferredParentID"
+        name="ParentID"
+        data={{ urlTree: 'admin/tree', valueObject: { id: 2, title: 'Documents' } }}
+        value={2}
+        fetch={fetch}
+        onChange={vi.fn()}
+      />,
+    ));
+    expect(fetch).not.toHaveBeenCalled();
+    expect(input().value).toBe('Documents');
+
+    await act(async () => input().focus());
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await act(async () => input().blur());
+    await act(async () => input().focus());
+    press(input(), 'ArrowDown');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the values of a multiple field from the schema without reading the tree', async () => {
+    const fetch = vi.fn(() => Promise.resolve(tree));
+    container = document.createElement('div');
+    document.body.append(container);
+    await act(async () => createRoot(container).render(
+      <ConnectedTreeDropdownField
+        id="Form_DeferredGroups"
+        name="Groups"
+        data={{ urlTree: 'admin/tree', multiple: true, valueObjects: [{ id: 1, title: 'Photography' }] }}
+        value={[1]}
+        fetch={fetch}
+        onChange={vi.fn()}
+      />,
+    ));
+    expect(fetch).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('Photography');
+  });
+
+  it('reads the tree on mount when only the tree can name the value', async () => {
+    const fetch = vi.fn((url: string) => Promise.resolve(url && tree));
+    container = document.createElement('div');
+    document.body.append(container);
+    await act(async () => createRoot(container).render(
+      <ConnectedTreeDropdownField
+        id="Form_UnnamedParentID"
+        name="ParentID"
+        data={{ urlTree: 'admin/tree' }}
+        value={2}
+        fetch={fetch}
+        onChange={vi.fn()}
+      />,
+    ));
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(new URL(fetch.mock.calls[0][0]).searchParams.get('forceValue')).toBe('2');
+  });
+
   it('takes a value picked before the tree has loaded, and loads a level whose children are missing', () => {
     const onChange = vi.fn();
     const actions = { treeDropdownField: { addSelectedValues: vi.fn(), setSearch: vi.fn(), beginTreeUpdating: vi.fn() } };

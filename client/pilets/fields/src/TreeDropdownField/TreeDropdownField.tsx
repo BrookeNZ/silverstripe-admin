@@ -48,6 +48,8 @@ class TreeDropdownField extends Component<any, any> {
 
   searchTimer: ReturnType<typeof setTimeout> | null;
 
+  initialised = false;
+
   inputRef = React.createRef<HTMLInputElement>();
 
   constructor(props) {
@@ -67,6 +69,7 @@ class TreeDropdownField extends Component<any, any> {
     this.handleOpen = this.handleOpen.bind(this);
     this.handleClose = this.handleClose.bind(this);
     this.handleOpenChange = this.handleOpenChange.bind(this);
+    this.handleFirstUse = this.handleFirstUse.bind(this);
 
     this.filterOption = this.filterOption.bind(this);
     this.noOptionsMessage = this.noOptionsMessage.bind(this);
@@ -80,28 +83,28 @@ class TreeDropdownField extends Component<any, any> {
   }
 
   componentDidMount() {
-    // Ensure root node is loaded, force invalidating the cache when not readonly or disabled
-    if (!this.props.readOnly && !this.props.disabled) {
-      this.initialise();
+    const selected = this.schemaValueObjects();
+    if (selected.length) {
+      this.props.actions.treeDropdownField.addSelectedValues(this.props.id, selected);
     }
 
-    const id = this.props.id;
-    const values = (this.props.data.multiple)
-      ? this.props.data.valueObjects || []
-      : [this.props.data.valueObject];
-    const selected = values.filter((item) => item);
-
-    if (selected.length) {
-      this.props.actions.treeDropdownField.addSelectedValues(id, selected);
+    if (this.props.readOnly || this.props.disabled) {
+      return;
+    }
+    if (this.valueNeedsTree(selected)) {
+      this.initialise();
+    } else {
+      this.inputRef.current?.addEventListener('focus', this.handleFirstUse);
     }
   }
 
   componentWillUnmount() {
     clearTimeout(this.searchTimer);
+    this.inputRef.current?.removeEventListener('focus', this.handleFirstUse);
   }
 
   componentDidUpdate(oldProps) {
-    if (this.props.readOnly || this.props.disabled) {
+    if (this.props.readOnly || this.props.disabled || !this.initialised) {
       return;
     }
 
@@ -137,10 +140,30 @@ class TreeDropdownField extends Component<any, any> {
     return breadcrumbsFor(this.props.tree, path);
   }
 
+  schemaValueObjects(): Array<TreeDropdownFieldNode> {
+    const values = this.props.data.multiple ? this.props.data.valueObjects || [] : [this.props.data.valueObject];
+    return values.filter((item) => item);
+  }
+
+  /** Whether a value has no title from the schema, so only the tree can name it */
+  valueNeedsTree(named: Array<TreeDropdownFieldNode>) {
+    const ids = (Array.isArray(this.props.value) ? this.props.value : [this.props.value]).filter((id) => id);
+    return ids.some((id) => !named.some((node) => String(node.id) === String(id)));
+  }
+
+  /** The tree is read on the first focus or open, not on mount, since the schema already names the value */
+  handleFirstUse() {
+    this.inputRef.current?.removeEventListener('focus', this.handleFirstUse);
+    if (!this.initialised) {
+      this.initialise();
+    }
+  }
+
   /**
    * Loads the top level and, for a single selected value, shows the level that holds it
    */
   initialise() {
+    this.initialised = true;
     return loadTree(this.props, [], this.props.search)
       .then((treeData) => {
         let newPath = [];
@@ -171,6 +194,7 @@ class TreeDropdownField extends Component<any, any> {
   }
 
   handleOpen() {
+    this.handleFirstUse();
     this.setState({ opened: true, levelMessage: '' });
 
     this.handleSearchReset();

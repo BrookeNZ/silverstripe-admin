@@ -7,7 +7,6 @@ import {
   FieldGroup,
   HeaderField,
   HiddenField,
-  LiteralField,
   MenuField,
   OptionsetField,
   PopoverField,
@@ -22,6 +21,7 @@ import { FormSchemaForm } from '../FormSchemaForm';
 import { SchemaFormDialog } from '../SchemaFormDialog';
 import { serverHtmlComponent } from '../resolve';
 import { DateField } from './DateField';
+import { LiteralField } from './LiteralField';
 import { HtmlReadonlyField } from './HtmlReadonlyField';
 import { LabelField } from './LabelField';
 import { ListboxField } from './ListboxField';

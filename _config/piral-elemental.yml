@@ -11,3 +11,7 @@ SilverStripe\Admin\UserInterface\PiletFeed:
 SilverStripe\Admin\FormSchemaController:
   extensions:
     - SilverStripe\Admin\UserInterface\Elemental\ElementalAreaBlocksExtension
+
+DNADesign\Elemental\Controllers\ElementalAreaController:
+  extensions:
+    - SilverStripe\Admin\UserInterface\Elemental\ElementVersionsExtension

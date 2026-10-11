@@ -105,6 +105,10 @@ same-version tarball is reinstalled because its integrity changes); every pilet 
 - 2026-10-11: `SchemaFormDialog` takes `omitFields`, as FormSchemaForm does.
 - 2026-10-11: `useFormFieldValue(name)`, for a field component that reads another field of its form (see
   **Reading another field**).
+- 2026-10-12: the shared classes a pilet may write into its own markup are part of the API (see
+  **Shared classes**): `admin-field__control`, `admin-field__check`, `admin-field__description`,
+  `admin-icon`, `shell-page` and `shell-form` join `admin-visually-hidden`, `admin-error-text`,
+  `admin-badge` and `shell-page__inset`, with the tokens each lists. Renaming or removing one is breaking.
 
 ## Verbs
 
@@ -878,18 +882,42 @@ used at runtime and its stylesheet is loaded by the shell, so pilets ship neithe
 
 ## Shared classes
 
-Classes the shell's stylesheets define for pilet markup, so a pilet does not restyle what they cover:
+Classes the shell's stylesheets define that a pilet may write into its own markup, without rendering the
+component that owns them, so it does not restyle what they cover. They are part of the Pilet API:
+**renaming or removing one, or a modifier or token listed here, is a breaking change and is listed under
+Changes.** A pilet reassigns the tokens named here on its own element, never on `:root`, and does not
+select these classes from its own CSS.
 
-- `admin-visually-hidden` (patterns package): text read by assistive technology and not drawn, such as
-  an icon-only control's name, a live region or a hint. It clips the box rather than removing it, so the
-  text stays in the accessibility tree.
-- `admin-badge` (patterns package): the small uppercase tag on the modified ground, as on a draft
-  page or file. A host retints it through the `--admin-badge-*` tokens.
-- `admin-error-text` (patterns package): a line of error copy with no margin. A boxed message with an
-  icon is the `Alert` component.
-- `shell-page__inset` (shell): the content column's inline inset, `--shell-inset`, which form fields
-  read too. Content a pilet draws beside or around a form (a notice, a preview) takes it to line up with
-  the fields; inside the details panel it is the panel's 20px.
+| Class | Owner | For | Element | Modifiers and tokens |
+|---|---|---|---|---|
+| `admin-visually-hidden` | components | Text read by assistive technology and not drawn: an icon-only control's name, a live region, a hint. The box is clipped, so it stays in the accessibility tree | Any text element; a live region is a `<p>` or `<div>` with `role="status"` | none |
+| `admin-error-text` | components | A line of error copy with no margin: a failed load, a missing file. `FieldHolder` draws it for a field's own error; a boxed message with an icon is `Alert` | `<p>`, with `role="alert"` when it appears after the page has loaded | none |
+| `admin-badge` | components | The small uppercase tag on the modified ground, as on a draft page or file | `<span>` | `--admin-badge-bg-color`, `--admin-badge-fg-color`, `--admin-badge-border-radius`, `--admin-badge-font-size`, `--admin-badge-padding` |
+| `admin-field__control` | components | The bordered look of a text control, with its focus ring and `aria-invalid` border, for a control a pilet draws itself inside `FieldHolder` | `<input>`, `<textarea>` or `<select>`; `admin-field__control--select` on a `<select>` | `--admin-field-control-bg-color`, `--admin-field-control-fg-color`, `--admin-field-control-padding`, `--admin-field-control-line-height`, on the control or its holder |
+| `admin-field__check` | components | A native checkbox or radio at the design's size and accent colour, with its focus ring, where no field holder fits (a tile's select box) | `<input type="checkbox">` or `type="radio"` | `--admin-check-size` |
+| `admin-field__description` | components | A second line of help under a control inside `FieldHolder`, which draws the field's own description already | `<p>` with an id the control's `aria-describedby` names | none |
+| `admin-icon` | components | An icon from the server, such as a page type's, at the icon size. An SVG icon is a component from the package's icons | `<img alt="">` | `--admin-icon-size` |
+| `shell-page` | shell | The column a page registered with `registerPage` draws into, with the top gap the shell's own pages have | `<div>`, the page's outermost element | none |
+| `shell-page__inset` | shell | The content column's inline inset, `--shell-inset`, which form fields read too. Content beside or around a form (a notice, a preview) takes it to line up with the fields; inside the details panel it is the panel's 20px | Any block element | `--shell-inset` is the shell's to set |
+| `shell-form` | shell | The element `FormSchemaForm` renders around its fields. A pilet may match it (`closest('.shell-form')`) to find the form a field sits in; it never adds the class | read only | none |
+
+Classes a component exists for are not written by hand: render the component, which keeps its markup,
+ids and ARIA together. That covers `admin-field`, `admin-field--inline`, `admin-field--option`,
+`admin-field__label`, `admin-field__option` and `admin-field__choices` (`FieldHolder`, `CheckboxField`,
+`OptionsetField`), `admin-button*` (`Button`), `admin-link*` (`Link`), `admin-alert*` (`Alert`) and
+`admin-dialog*` (`Dialog`). Uses still to move over:
+
+- htmleditor `SourceCodeDialog.tsx` writes the `admin-field` holder and `admin-field__label` by hand; it
+  should render `FieldHolder`.
+- pages `AddPageDialog.tsx` writes each page type's radio row (`admin-field admin-field--inline
+  admin-field--option`, `admin-field__option`, `admin-field__choices`, a `legend.admin-field__label`) by
+  hand, because `OptionsetField` has no slot for an option's icon and description; the component needs
+  that slot first.
+- pages `PageTree.tsx` puts `admin-button admin-button--tertiary admin-button--sm` on a `<span>` for the
+  tree's "more" row, which must stay non-interactive inside its tree item; either `Button` gains a
+  non-interactive look or the row takes a class of its own.
+- Pilet tests select `admin-dialog__title` and `admin-dialog__actions` inside `Dialog`; they read the
+  component's markup, which is not part of this contract, and should find the dialog by role and name.
 
 ## Building
 

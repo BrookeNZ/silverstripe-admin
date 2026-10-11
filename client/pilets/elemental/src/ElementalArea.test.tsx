@@ -247,6 +247,18 @@ describe('ElementalArea', () => {
     expect(client.readElements).toHaveBeenCalledWith(21, expect.anything());
   });
 
+  it('draws the thumbnail of a block with an image, named by its file title', async () => {
+    stored[0].blockSchema = { ...stored[0].blockSchema, fileURL: '/assets/quote.jpg', fileTitle: 'Quote portrait' };
+    await render();
+    const [withImage, withoutImage] = container.querySelectorAll('.elemental-block');
+    const thumbnail = withImage.querySelector('img.elemental-block__thumbnail');
+    expect(thumbnail?.getAttribute('src')).toBe('/assets/quote.jpg');
+    expect(thumbnail?.getAttribute('alt')).toBe('Quote portrait');
+    expect(thumbnail?.getAttribute('loading')).toBe('lazy');
+    expect(withImage.querySelector('.elemental-block__summary')?.textContent).toBe('Opening quote summary');
+    expect(withoutImage.querySelector('img')).toBeNull();
+  });
+
   it('shows the empty state', async () => {
     stored = [];
     await render();

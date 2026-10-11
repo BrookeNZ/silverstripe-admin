@@ -1,5 +1,5 @@
 /**
- * Fields without a value of their own: groups, tabs, headings and server-authored HTML
+ * Fields without a value of their own: groups, tabs and headings
  */
 import * as React from 'react';
 import { flushSync } from 'react-dom';
@@ -29,11 +29,6 @@ export const HeaderField = <F extends FieldDescriptor>({ field }: FieldProps<unk
     </Heading>
   );
 };
-
-export const LiteralField = <F extends FieldDescriptor>({ field, value }: FieldProps<unknown, F>) => (
-  // The value is server-authored HTML, rendered the way the legacy LiteralField renders it
-  <div className="admin-literal" id={field.id} dangerouslySetInnerHTML={{ __html: String(value ?? '') }} />
-);
 
 export const TabItem = <F extends FieldDescriptor>({ field, renderFields }: FieldProps<unknown, F>) => <>{renderFields(field.children)}</>;
 

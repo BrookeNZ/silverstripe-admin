@@ -5,7 +5,9 @@ namespace SilverStripe\Admin\Tests\UserInterface;
 use LogicException;
 use SilverStripe\Admin\LeftAndMain;
 use SilverStripe\Admin\Tests\UserInterface\FieldComponentCandidatesTest\SchemaController;
+use SilverStripe\Admin\Tests\UserInterface\ServerHtmlFallbackTest\ComponentMaskingComposite;
 use SilverStripe\Admin\Tests\UserInterface\ServerHtmlFallbackTest\CountingField;
+use SilverStripe\Admin\Tests\UserInterface\ServerHtmlFallbackTest\SchemaDataCountingField;
 use SilverStripe\Admin\Tests\UserInterface\ServerHtmlFallbackTest\TemplateOnlyField;
 use SilverStripe\Admin\UserInterface\ServerHtmlFallback;
 use SilverStripe\Control\HTTPRequest;
@@ -17,6 +19,8 @@ use SilverStripe\Forms\FieldList;
 use SilverStripe\Forms\Form;
 use SilverStripe\Forms\FormAction;
 use SilverStripe\Forms\FormField;
+use SilverStripe\Forms\Tab;
+use SilverStripe\Forms\TabSet;
 use SilverStripe\Forms\TextField;
 
 class ServerHtmlFallbackTest extends SapphireTest
@@ -33,6 +37,52 @@ class ServerHtmlFallbackTest extends SapphireTest
 
         ServerHtmlFallback::singleton()->restore($marked);
         $this->assertNull($form->Fields()->dataFieldByName('Legacy')->getSchemaComponent());
+    }
+
+    public function testNestedComponentDeclaredThroughSetSchemaDataIsNotMarked(): void
+    {
+        $declared = TemplateOnlyField::create('Declared')->setSchemaData(['component' => 'DeclaredField']);
+        $form = Form::create(
+            null,
+            'TestForm',
+            FieldList::create(TabSet::create('Root', Tab::create('Main', $declared, TemplateOnlyField::create('Legacy')))),
+            FieldList::create()
+        );
+
+        $marked = ServerHtmlFallback::singleton()->mark($form);
+        ServerHtmlFallback::singleton()->restore($marked);
+
+        $this->assertSame(['Form_TestForm_Legacy'], array_keys($marked));
+    }
+
+    public function testChildrenOfACompositeThatRewritesThemAreJudgedOnTheirOwnData(): void
+    {
+        $form = Form::create(
+            null,
+            'TestForm',
+            FieldList::create(ComponentMaskingComposite::create(TemplateOnlyField::create('Legacy'))),
+            FieldList::create()
+        );
+
+        $marked = ServerHtmlFallback::singleton()->mark($form);
+        ServerHtmlFallback::singleton()->restore($marked);
+
+        $this->assertSame(['Form_TestForm_Legacy'], array_keys($marked));
+    }
+
+    public function testNestedFieldSchemaDataIsBuiltOnceWhenMarking(): void
+    {
+        SchemaDataCountingField::$builds = 0;
+        $form = Form::create(
+            null,
+            'TestForm',
+            FieldList::create(TabSet::create('Root', Tab::create('Main', SchemaDataCountingField::create('Counted')))),
+            FieldList::create()
+        );
+
+        ServerHtmlFallback::singleton()->mark($form);
+
+        $this->assertSame(1, SchemaDataCountingField::$builds);
     }
 
     public function testShellSchemaCarriesTheNestedFieldsHolderHtml(): void

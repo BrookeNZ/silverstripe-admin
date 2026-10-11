@@ -4,7 +4,11 @@ namespace SilverStripe\Admin\UserInterface;
 
 use Psr\Log\LoggerInterface;
 use SilverStripe\Admin\UserInterface\GridField\GridFieldRowsEndpoint;
+use ReflectionMethod;
+use ReflectionProperty;
 use SilverStripe\Core\Injector\Injectable;
+use SilverStripe\Forms\CompositeField;
+use SilverStripe\Forms\FieldList;
 use SilverStripe\Forms\Form;
 use SilverStripe\Forms\FormField;
 use SilverStripe\Forms\GridField\GridField;
@@ -20,7 +24,11 @@ use WeakMap;
  * is a 500. Before the schema is built, mark() gives each such field a placeholder component name, and
  * restore() takes it away again straight after, so the form is left as it was. mark() reads the field's
  * emitted getSchemaData(), the same data FormSchema checks, so a component supplied through
- * setSchemaData() or an overridden getSchemaDataDefaults() keeps the field out of the fallback.
+ * setSchemaData() or an overridden getSchemaDataDefaults() keeps the field out of the fallback. A plain
+ * CompositeField's data already holds each child's getSchemaData() under `children`, so mark() reads a
+ * nested field's data from there instead of rebuilding the subtree once per ancestor; children of a
+ * composite that overrides either method, or was given `children` through setSchemaData(), are asked
+ * directly. All data is read before any field is marked.
  * addToSchema() then sets the entry's `component` back to null and adds `fallback.html`, the field's
  * FieldHolder() HTML, which the shell's transitional ServerHtmlField renders. Only fields the
  * framework would reject get the fallback: a field naming a component the shell lacks still shows the
@@ -51,6 +59,11 @@ class ServerHtmlFallback
 
     private WeakMap $originalComponents;
 
+    /**
+     * @var array<class-string, bool>
+     */
+    private array $passesChildrenThrough = [];
+
     public function __construct()
     {
         $this->originalComponents = new WeakMap();
@@ -67,9 +80,10 @@ class ServerHtmlFallback
      */
     public function mark(Form $form): array
     {
+        $emitted = $this->emittedSchemaData($form->Fields(), new WeakMap());
         $marked = [];
         foreach ($form->Fields()->flattenFields() as $field) {
-            $data = $field->getSchemaData();
+            $data = $emitted[$field] ?? $field->getSchemaData();
             if (empty($data['schemaType']) && empty($data['component'])) {
                 $this->originalComponents[$field] = $field->getSchemaComponent();
                 $field->setSchemaComponent(static::PLACEHOLDER_COMPONENT);
@@ -77,6 +91,47 @@ class ServerHtmlFallback
             }
         }
         return $marked;
+    }
+
+    /**
+     * @param WeakMap<FormField, array> $emitted
+     * @param array<int, array>|null $fromParent The parent's emitted `children`, when they can be trusted
+     * @return WeakMap<FormField, array>
+     */
+    private function emittedSchemaData(FieldList $fields, WeakMap $emitted, ?array $fromParent = null): WeakMap
+    {
+        $index = 0;
+        foreach ($fields as $field) {
+            $childData = $fromParent[$index++] ?? null;
+            $data = is_array($childData) && ($childData['id'] ?? null) === $field->ID()
+                ? $childData
+                : $field->getSchemaData();
+            $emitted[$field] = $data;
+            if ($field instanceof CompositeField) {
+                $children = $field->getChildren();
+                $trusted = $this->passesChildrenThrough($field)
+                    && is_array($data['children'] ?? null)
+                    && count($data['children']) === $children->count();
+                $this->emittedSchemaData($children, $emitted, $trusted ? $data['children'] : null);
+            }
+        }
+        return $emitted;
+    }
+
+    /**
+     * Whether the composite's `children` are exactly its children's getSchemaData(), in order
+     */
+    private function passesChildrenThrough(CompositeField $field): bool
+    {
+        $class = get_class($field);
+        $this->passesChildrenThrough[$class] ??=
+            (new ReflectionMethod($class, 'getSchemaDataDefaults'))->class === CompositeField::class
+            && (new ReflectionMethod($class, 'getSchemaData'))->class === FormField::class;
+        if (!$this->passesChildrenThrough[$class]) {
+            return false;
+        }
+        $assigned = (new ReflectionProperty(FormField::class, 'schemaData'))->getValue($field);
+        return !array_key_exists('children', (array) $assigned);
     }
 
     /**

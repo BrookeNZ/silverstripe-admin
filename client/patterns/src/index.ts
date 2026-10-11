@@ -12,7 +12,7 @@ export { describedBy, FieldHolder, fieldTitle } from './FieldHolder';
 export type { FieldHolderProps } from './FieldHolder';
 export { CheckboxField, DatetimeField, HiddenField, OptionsetField, ReadonlyField, SingleSelectField, TextField } from './inputs';
 export type { TextFieldProps } from './inputs';
-export { CompositeField, FieldGroup, HeaderField, LiteralField, TabItem, Tabs } from './structure';
+export { CompositeField, FieldGroup, HeaderField, TabItem, Tabs } from './structure';
 export { Stack } from './Stack';
 export type { StackProps, StackSpacing } from './Stack';
 export { Disclosure } from './Disclosure';

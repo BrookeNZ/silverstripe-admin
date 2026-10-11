@@ -45,5 +45,6 @@ export const Link = ({ icon, iconPosition = 'end', external = false, renderLink 
       </a>
     );
   }
+  // eslint-disable-next-line react-hooks/refs -- the ref is handed on for renderLink to attach, not read
   return renderLink({ ...anchor, ref: ref ?? null, className: classes, children: content });
 };
