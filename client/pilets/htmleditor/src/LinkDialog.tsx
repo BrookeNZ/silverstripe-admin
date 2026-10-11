@@ -1,16 +1,24 @@
 /**
- * The editor's link dialog: a choice of link kind above the chosen kind's server form, in the shell's
- * `SchemaFormDialog`. The form posts to the server, which validates it (an email address, the link text
- * when the selection had none) and answers with the accepted values; the editor writes the link from them.
+ * The editor's link dialog, the named modal `InsertLinkModal`: a choice of link kind above the chosen kind's
+ * server form, the shell's `SchemaFormDialog` drawn in the shell's modal frame. The form posts to the server,
+ * which validates it (an email address, the link text when the selection had none) and answers with the
+ * accepted values; the editor writes the link from them.
  *
  * An existing link opens on its own kind with its values in the schema URL's query, which the server loads
  * into the form; another kind starts empty.
+ *
+ * The modal unmounts when it closes, after the frame has put focus back where it was, so the editor hears
+ * the outcome as the modal unmounts (`onInsert` after a post the server accepted, else `onCancel`) and can
+ * then move focus into itself.
  */
 import * as React from 'react';
 import { Toggle } from '@silverstripe/admin-patterns';
 import { linkSchemaUrl, stateValues } from './links';
 import type { LinkKind, LinkValues } from './links';
-import type { SchemaFormDialogProps } from './shell';
+import type { ModalComponentProps } from './shell';
+
+// The legacy name of the link modal container
+export const insertLinkModal = 'InsertLinkModal';
 
 export interface LinkDialogRequest {
   kind: string;
@@ -21,38 +29,50 @@ export interface LinkDialogRequest {
   itemId: number;
 }
 
-export interface LinkDialogProps {
-  request: LinkDialogRequest | null;
+export interface InsertLinkModalOptions {
+  request: LinkDialogRequest;
   kinds: ReadonlyArray<{ kind: LinkKind; schemaUrl: string }>;
-  FormDialog: React.ComponentType<SchemaFormDialogProps>;
-  onClose: () => void;
-  onSubmit: (kind: LinkKind, values: Record<string, unknown>) => void;
+  onInsert: (kind: LinkKind, values: Record<string, unknown>) => void;
+  onCancel: () => void;
 }
 
-export const LinkDialog = ({ request, kinds, FormDialog, onClose, onSubmit }: LinkDialogProps) => {
-  const [selected, setSelected] = React.useState(request?.kind ?? '');
-  // The last request stays drawn while the dialog closes, and a new one opens on its own kind
-  const [last, setLast] = React.useState(request);
-  if (request && request !== last) {
-    setLast(request);
-    setSelected(request.kind);
-  }
+export const InsertLinkModal = ({ onClose, options, piral }: ModalComponentProps<typeof insertLinkModal>) => {
+  const FormDialog = piral.getSilverstripeComponent('SchemaFormDialog');
+  const [selected, setSelected] = React.useState(options?.request.kind ?? '');
+  const inserted = React.useRef<[LinkKind, Record<string, unknown>] | null>(null);
+  const [opened] = React.useState(options);
 
-  const current = kinds.find(({ kind }) => kind.name === selected) ?? kinds.find(({ kind }) => kind.name === last?.kind) ?? kinds[0];
-  if (!current || !last) {
+  React.useEffect(
+    () => () => {
+      if (inserted.current) {
+        opened?.onInsert(...inserted.current);
+      } else {
+        opened?.onCancel();
+      }
+    },
+    [opened],
+  );
+
+  if (!options) {
+    return null;
+  }
+  const { request, kinds } = options;
+  const current = kinds.find(({ kind }) => kind.name === selected) ?? kinds[0];
+  if (!current) {
     return null;
   }
   const schemaUrl = linkSchemaUrl(current.schemaUrl, {
-    itemId: last.itemId,
-    requireText: last.requireText,
-    editing: last.editing,
-    values: current.kind.name === last.kind ? last.values : {},
+    itemId: request.itemId,
+    requireText: request.requireText,
+    editing: request.editing,
+    values: current.kind.name === request.kind ? request.values : {},
   });
 
   return (
     <FormDialog
-      open={request !== null}
-      header={last.editing ? 'Edit link' : 'Insert link'}
+      open
+      modal
+      header={request.editing ? 'Edit link' : 'Insert link'}
       intro={
         <Toggle
           label="Link to"
@@ -63,7 +83,10 @@ export const LinkDialog = ({ request, kinds, FormDialog, onClose, onSubmit }: Li
       }
       schemaUrl={schemaUrl}
       onClose={onClose}
-      onSubmitted={(response) => onSubmit(current.kind, stateValues(response.state))}
+      onSubmitted={(response) => {
+        inserted.current = [current.kind, stateValues(response.state)];
+        onClose();
+      }}
     />
   );
 };

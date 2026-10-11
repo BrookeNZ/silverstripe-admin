@@ -106,7 +106,7 @@ const LoadedForm = ({
   const form = useForm<FormValues>({
     defaultValues: defaultValues(valueFields),
   });
-  const { control, reset, setValue, formState } = form;
+  const { control, reset, setValue, getValues, watch, formState } = form;
   const reportDirty = React.useEffectEvent((dirty: boolean) => onDirtyChange?.(dirty));
   React.useEffect(() => reportDirty(formState.isDirty), [formState.isDirty]);
 
@@ -157,8 +157,13 @@ const LoadedForm = ({
           setValue(key, value, { shouldDirty: true });
         }
       },
+      getValue: (key: string) => getValues(key),
+      subscribeValues(listener: () => void) {
+        const subscription = watch(() => listener());
+        return () => subscription.unsubscribe();
+      },
     };
-  }, [formId, schema, control, valueFields, setValue]);
+  }, [formId, schema, control, valueFields, setValue, getValues, watch]);
   // Reused elements let a dirty change skip every field; fields reach submitting through its own context
   const renderedFields = React.useMemo(() => renderTopLevelFields(fields), [fields]);
 

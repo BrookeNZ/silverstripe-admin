@@ -1,0 +1,21 @@
+SilverStripe\Security\Group:
+  other:
+    Title: Other
+
+SilverStripe\CMS\Model\SiteTree:
+  parent:
+    Title: Parent
+    URLSegment: parent
+  child:
+    Title: Child
+    URLSegment: child
+    Parent: =>SilverStripe\CMS\Model\SiteTree.parent
+  sibling:
+    Title: Taken
+    URLSegment: taken
+    Parent: =>SilverStripe\CMS\Model\SiteTree.parent
+  locked:
+    Title: Locked
+    URLSegment: locked
+    CanEditType: OnlyTheseUsers
+    EditorGroups: =>SilverStripe\Security\Group.other

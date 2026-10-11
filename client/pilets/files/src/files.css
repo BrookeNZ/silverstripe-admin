@@ -21,6 +21,11 @@
 
 .files {
   --files-inset: 2rem;
+
+  /* Fills the shell's body column, so the drop zone below the toolbar reaches the bottom, as legacy's did */
+  display: flex;
+  flex: 1;
+  flex-direction: column;
 }
 
 .files__body {
@@ -377,4 +382,69 @@
 .files-preview__status {
   color: var(--admin-error-fg-color);
   margin: 0;
+}
+
+/* Upload queue (Uploads.tsx): no Figma state, so the file tile's own parts */
+.files-dropzone {
+  flex: 1;
+  position: relative;
+}
+
+/* Legacy's dropzone overlay: the page ground at 90% over the whole zone */
+.files-dropzone__overlay {
+  align-items: start;
+  background-color: color-mix(in srgb, var(--admin-bg-color) 90%, transparent);
+  border: var(--admin-focus-outline) var(--admin-accent-color);
+  display: flex;
+  font-weight: var(--admin-font-weight-medium);
+  inset: 0;
+  justify-content: center;
+  position: absolute;
+
+  /* Above the tiles' raised checkboxes */
+  z-index: 2;
+}
+
+/* Held mid-viewport, as a long folder's zone runs past the screen */
+.files-dropzone__message {
+  inset-block-start: 50%;
+  position: sticky;
+}
+
+.files-tile--failed {
+  --files-tile-border-color: var(--admin-danger-color);
+  --files-tile-hover-border-color: var(--admin-danger-color);
+}
+
+.files-upload {
+  align-items: center;
+  display: flex;
+  grid-area: 1 / 1;
+  justify-content: center;
+  padding: var(--admin-gap-md);
+  place-self: stretch;
+  text-align: center;
+}
+
+.files-upload__progress {
+  accent-color: var(--admin-accent-color);
+  inline-size: 100%;
+  max-inline-size: 20rem;
+}
+
+.files-upload__error {
+  color: var(--admin-error-fg-color);
+}
+
+.files-upload__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Above the tile's stretched link, as the checkbox is */
+.files-upload__action {
+  flex: none;
+  position: relative;
+  z-index: 1;
 }

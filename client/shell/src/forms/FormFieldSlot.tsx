@@ -3,8 +3,8 @@
  * library; any other field gets its schema value and no-op handlers. Either way the component sees
  * only FieldComponentProps, after the `updateFieldProps` hook.
  *
- * Each top-level field sits in a `shell-form__field` wrapper that carries the content inset, so a field
- * whose registered component declares `fullWidth` (the GridField) reaches the edges of the content column.
+ * Each top-level field sits in a `shell-form__field` wrapper; the field holder inside carries the content
+ * inset, so a field whose registered component declares `fullWidth` (the GridField) reaches the edges.
  * A top-level tab set (every CMS edit form's Root) spans the column too, insets its tab strip, and lays
  * out each panel's fields by these same top-level rules, so a GridField inside a tab reaches the edges
  * while a text field keeps its inset. A tab set inside a panel is top-level by that rule, so it nests.

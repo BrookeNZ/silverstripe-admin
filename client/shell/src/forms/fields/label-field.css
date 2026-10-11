@@ -1,0 +1,10 @@
+/**
+ * Label field
+ *
+ * A label with no field holder round it, inset as a holder is
+ */
+
+.shell-label-field {
+  display: block;
+  padding-inline: var(--admin-field-padding-inline);
+}

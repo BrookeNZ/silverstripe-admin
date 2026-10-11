@@ -16,6 +16,7 @@ import type { UseFormReturn } from 'react-hook-form';
 import { useGlobalStateContext } from 'piral-core';
 import { revealField } from '@silverstripe/admin-patterns';
 import { announceRecords } from '../state/serverCache';
+import { ServerRequestError } from '../state/serverRequest';
 import { runAfterHook, runBeforeHook, runUpdateHook } from '../hooks/registry';
 import type { FormValidationErrors } from '../hooks/types';
 import { collectValueFields, defaultValues, encodeSubmission, errorField, isGoodMessage, mergeFields, submitFormSchema, uniqueMessages } from './schema';
@@ -65,7 +66,11 @@ function validationMessages(errors: FormValidationErrors): Array<SchemaMessage> 
   return Object.entries(errors).flatMap(([field, messages]) => messages.map((value) => ({ type: 'error', value, field })));
 }
 
+// What the server said about a refused request, else the request's own status text
 function errorMessage(error: unknown): string {
+  if (error instanceof ServerRequestError && error.serverMessage) {
+    return error.serverMessage;
+  }
   return error instanceof Error ? error.message : String(error);
 }
 

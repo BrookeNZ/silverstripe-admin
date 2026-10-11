@@ -1,0 +1,10 @@
+/**
+ * Toggle composite field
+ *
+ * Insets the disclosure as a field holder is inset. Its panel zeroes the inset for the fields inside,
+ * which sit in the panel's own padding
+ */
+
+.shell-toggle-composite-field {
+  margin-inline: var(--admin-field-padding-inline);
+}

@@ -7,6 +7,8 @@ import type { Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RawEditorOptions, TinyMCE } from 'tinymce';
 import { createHtmlEditorField } from './HtmlEditorField';
+import { InsertLinkModal, insertLinkModal } from './LinkDialog';
+import type { InsertLinkModalOptions } from './LinkDialog';
 import type { HtmlEditorFieldProps, SchemaFormDialogProps, UpdateFormValuesHandler } from './shell';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -158,6 +160,15 @@ let changes: Array<string>;
 let blurs: number;
 let setOuterValue: (value: string) => void;
 
+let setModal: (modal: React.ReactNode) => void = () => undefined;
+
+// Stands in for the shell's modal host: piral-modals mounts the registered component and unmounts it on close
+const FakeModals = () => {
+  const [modal, set] = React.useState<React.ReactNode>(null);
+  setModal = set;
+  return modal;
+};
+
 const Harness = ({ initial, Field, field, error }: { initial: string; Field: React.ComponentType<HtmlEditorFieldProps>; field: HtmlEditorFieldProps['field']; error?: string }) => {
   const [value, setValue] = React.useState(initial);
   setOuterValue = setValue;
@@ -180,6 +191,7 @@ const Harness = ({ initial, Field, field, error }: { initial: string; Field: Rea
         formId="Form_EditForm"
       />
       <output data-dirty={String(value !== initial)} />
+      <FakeModals />
     </>
   );
 };
@@ -423,6 +435,12 @@ describe('HtmlEditorField links', () => {
       getSilverstripeComponent: (name: string) => (name === 'SchemaFormDialog' ? FakeFormDialog : () => null),
       getConfig: () => ({ sections: [linkSection] }),
       getData: () => 7,
+      showModal: (name: string, options: InsertLinkModalOptions) => {
+        expect(name).toBe(insertLinkModal);
+        const close = () => setModal(null);
+        setModal(<InsertLinkModal onClose={close} options={options} piral={api} />);
+        return close;
+      },
     });
   });
 
@@ -482,6 +500,39 @@ describe('HtmlEditorField links', () => {
     press('Cancel');
     expect(dialog()).toBeNull();
     expect(editor.execCommand).not.toHaveBeenCalled();
+  });
+
+  it("opens from the context menu, a link's context toolbar and Ctrl/Cmd+K", async () => {
+    const { editor } = await render('Hello');
+    const shortcut = editor.addShortcut.mock.calls.find(([keys]) => keys === 'Meta+K')![2] as () => void;
+    for (const open of [() => editor.menuItems.get('sslink')!.onAction(), () => editor.buttons.get('sslink-edit')!.onAction(), shortcut]) {
+      act(() => open());
+      expect(dialog()).not.toBeNull();
+      press('Cancel');
+      expect(dialog()).toBeNull();
+    }
+  });
+
+  it('puts focus and the selection back in the editor on Cancel and after inserting', async () => {
+    const { editor } = await render('Hello');
+    act(() => editor.buttons.get('sslink')!.onAction());
+    press('Cancel');
+    expect(editor.focus).toHaveBeenCalledTimes(1);
+    expect(editor.selection.moveToBookmark).toHaveBeenCalledWith('bookmark');
+    expect(editor.execCommand).not.toHaveBeenCalled();
+    act(() => editor.buttons.get('sslink')!.onAction());
+    submitState = [{ name: 'PageID', value: 4 }, { name: 'Text', value: 'About' }];
+    press('Insert link');
+    expect(editor.focus).toHaveBeenCalledTimes(2);
+    expect(editor.selection.setNode).toHaveBeenCalled();
+  });
+
+  it('closes its modal when the field unmounts', async () => {
+    const { editor } = await render('Hello');
+    act(() => editor.buttons.get('sslink')!.onAction());
+    expect(dialog()).not.toBeNull();
+    act(() => root.render(<FakeModals />));
+    expect(dialog()).toBeNull();
   });
 
   it('removes the link at the cursor', async () => {

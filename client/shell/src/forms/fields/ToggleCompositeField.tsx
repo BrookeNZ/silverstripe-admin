@@ -7,6 +7,7 @@
  */
 import { Disclosure, fieldTitle } from '@silverstripe/admin-patterns';
 import type { FieldComponentProps } from '../types';
+import './toggle-composite-field.css';
 
 export const toggleCompositeFieldClass = 'SilverStripe\\Forms\\ToggleCompositeField';
 
@@ -20,6 +21,7 @@ export function startsClosed(field: FieldComponentProps['field']): boolean {
 
 export const ToggleCompositeField = ({ field, renderFields }: FieldComponentProps) => (
   <Disclosure
+    className="shell-toggle-composite-field"
     id={field.id}
     title={fieldTitle(field)}
     headingLevel={field.headingLevel ?? 3}

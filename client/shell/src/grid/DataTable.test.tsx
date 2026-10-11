@@ -3,6 +3,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Button, Menu } from '@silverstripe/admin-patterns';
 import { DataTable, nextSort } from './DataTable';
 import type { DataTableColumn, DataTableProps, DataTableRow } from './DataTable';
 
@@ -158,6 +159,43 @@ describe('DataTable', () => {
     handled.focus();
     press('ArrowDown');
     expect(document.activeElement).toBe(handled);
+  });
+
+  it('leaves arrow keys to a select in a cell', () => {
+    const cells = (id: number) => ({
+      title: <a href={`#${id}`}>Row {id}</a>,
+      size: (
+        <select aria-label={`Choice ${id}`}>
+          <option>a</option>
+          <option>b</option>
+        </select>
+      ),
+      modified: '',
+    });
+    render({ rows: [1, 2].map((id) => ({ id, label: `Row ${id}`, cells: cells(id) })) });
+    const select = container.querySelector<HTMLSelectElement>('select[aria-label="Choice 1"]')!;
+    select.focus();
+    press('ArrowDown');
+    expect(document.activeElement).toBe(select);
+  });
+
+  it('keeps End inside an open row actions menu', () => {
+    const cells = (id: number) => ({
+      title: <a href={`#${id}`}>Row {id}</a>,
+      size:
+        id === 1 ? (
+          <Menu id={`menu-${id}`} label={`Actions for Row ${id}`}>
+            <Button variant="tertiary">Archive</Button>
+            <Button variant="tertiary">Delete</Button>
+          </Menu>
+        ) : null,
+      modified: '',
+    });
+    render({ rows: [1, 2].map((id) => ({ id, label: `Row ${id}`, cells: cells(id) })) });
+    act(() => container.querySelector<HTMLButtonElement>('#menu-1')!.click());
+    container.querySelector<HTMLButtonElement>('[role="menu"] button')!.focus();
+    press('End');
+    expect(document.activeElement?.textContent).toBe('Delete');
   });
 
   it('keeps the column when moving from a later control in the row', () => {

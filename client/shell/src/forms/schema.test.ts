@@ -340,8 +340,8 @@ describe('encodeSubmission', () => {
   const encode = (values: Record<string, unknown>) =>
     [...encodeSubmission(fields, Object.fromEntries(fields.map((field) => [field.key, values[field.name]])), 'action_save')];
 
-  it('posts scalars, booleans and missing values as single entries', () => {
-    expect(encode({ Title: 'Home', ShowInMenus: true })).toEqual([
+  it('posts scalars, booleans and null values as single entries', () => {
+    expect(encode({ Title: 'Home', ShowInMenus: true, HeroImage: null, Rows: null })).toEqual([
       ['Title', 'Home'],
       ['ShowInMenus', '1'],
       ['HeroImage', ''],
@@ -372,6 +372,54 @@ describe('encodeSubmission', () => {
         ['Rows[0][Value]', 'b'],
       ]),
     );
+  });
+
+  it('leaves out an undefined value, so the merge keeps the saved one instead of clearing it', () => {
+    expect(encode({ Title: 'Home', ShowInMenus: false, HeroImage: { Files: [12], Caption: undefined } })).toEqual([
+      ['Title', 'Home'],
+      ['ShowInMenus', '0'],
+      ['HeroImage[Files][]', '12'],
+      ['action_save', '1'],
+    ]);
+  });
+
+  it('posts a nested object that has a value key in full, unless it is shaped like an option', () => {
+    expect(encode({ Rows: { value: 'b', Key: 'a' } })).toEqual(
+      expect.arrayContaining([
+        ['Rows[value]', 'b'],
+        ['Rows[Key]', 'a'],
+      ]),
+    );
+    expect(encode({ Rows: { value: 7, label: 'Seven', selected: true } })).toContainEqual(['Rows', '7']);
+  });
+
+  it('posts an option whose value is an object as that nested value', () => {
+    expect(encode({ Rows: { value: { ID: 5, Class: 'Page' }, label: 'Home' } })).toEqual(
+      expect.arrayContaining([
+        ['Rows[ID]', '5'],
+        ['Rows[Class]', 'Page'],
+      ]),
+    );
+  });
+
+  it('posts a date as the ISO format its field parses, and refuses a file', () => {
+    const dated = mergeFields(
+      [
+        { ...schemaField('Published', 'Form_Published'), schemaType: 'Date' },
+        { ...schemaField('Embargo', 'Form_Embargo'), schemaType: 'Datetime' },
+        { ...schemaField('Opens', 'Form_Opens'), schemaType: 'Time' },
+      ],
+      undefined,
+    );
+    const when = new Date(2026, 9, 11, 9, 5, 7);
+    const values = Object.fromEntries(dated.map((field) => [field.key, when]));
+    expect([...encodeSubmission(dated, values, 'action_save')]).toEqual([
+      ['Published', '2026-10-11'],
+      ['Embargo', '2026-10-11T09:05:07'],
+      ['Opens', '09:05:07'],
+      ['action_save', '1'],
+    ]);
+    expect(() => encode({ HeroImage: new File(['x'], 'x.txt') })).toThrow(/File/);
   });
 
   it('posts nothing for an empty array, so a cleared upload detaches', () => {

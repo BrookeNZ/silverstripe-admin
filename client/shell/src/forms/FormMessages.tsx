@@ -17,6 +17,6 @@ export function messageAlertType(message: SchemaMessage): AlertType {
 export const FormMessages = ({ messages }: { messages: Array<SchemaMessage> }) =>
   messages.map((message) => (
     <div className="shell-form__field" key={`${message.type}:${message.field ?? ''}:${message.value}`}>
-      <Alert type={messageAlertType(message)}>{message.value}</Alert>
+      <Alert className="shell-form__message" type={messageAlertType(message)}>{message.value}</Alert>
     </div>
   ));

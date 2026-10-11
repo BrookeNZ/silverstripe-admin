@@ -12,6 +12,7 @@
     "dompurify": "^3.4.16",
     "piral-base": "1.12.4",
     "piral-core": "1.12.4",
+    "piral-modals": "1.12.4",
     "piral-notifications": "^1.12.4",
     "react": "^19",
     "react-dom": "^19",

@@ -6,8 +6,10 @@ import type { Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as SchemaModule from './schema';
 import { SchemaFormDialog } from './SchemaFormDialog';
-import { fetchFormSchema, submitFormSchema } from './schema';
+import { FormSchemaRequestError, fetchFormSchema, submitFormSchema } from './schema';
 import { serverQueryClient } from '../state/serverCache';
+import { ModalFrameContext } from '../modalFrame';
+import type { ModalFrame } from '../modalFrame';
 import type { FieldComponentProps } from './types';
 
 vi.mock('piral-core', () => ({
@@ -182,6 +184,24 @@ describe('SchemaFormDialog', () => {
     expect(onSubmitted).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['what the server said', 'You do not have permission to add files', 'You do not have permission to add files'],
+    ['the status, when the server said nothing', null, 'The form endpoint answered 403'],
+  ])('shows a refused post in the body as %s and does not hand it over', async (_case, serverMessage, shown) => {
+    vi.mocked(submitFormSchema).mockRejectedValue(new FormSchemaRequestError(403, serverMessage, false));
+    const onSubmitted = vi.fn();
+    await render(<SchemaFormDialog open header="Add link" schemaUrl="schema/LinkForm" onClose={() => undefined} onSubmitted={onSubmitted} />);
+    await act(async () => footerButtons()[1].click());
+    await flush();
+    expect(container.querySelector('.admin-dialog__body [role="alert"]')?.textContent).toBe(shown);
+    expect(onSubmitted).not.toHaveBeenCalled();
+  });
+
+  it('leaves out the fields the host names', async () => {
+    await render(<SchemaFormDialog open header="Add link" schemaUrl="schema/LinkForm" omitFields={['Title']} onClose={() => undefined} />);
+    expect(container.querySelector('#Form_LinkForm_Title')).toBeNull();
+  });
+
   it('closes through the host on Cancel and on Escape', async () => {
     const onClose = vi.fn();
     await render(<SchemaFormDialog open header="Add link" schemaUrl="schema/LinkForm" onClose={onClose} />);
@@ -217,5 +237,38 @@ describe('SchemaFormDialog', () => {
     await render(<SchemaFormDialog open={false} header="Add link" schemaUrl="schema/LinkForm" onClose={() => undefined} />);
     expect(fetchFormSchema).not.toHaveBeenCalled();
     expect(footerButtons().map((button) => button.textContent)).toEqual(['Cancel']);
+  });
+
+  describe('as a named modal', () => {
+    it('hands its header and actions to the frame and draws no Dialog of its own', async () => {
+      const frames: Array<ModalFrame> = [];
+      await render(
+        <ModalFrameContext.Provider value={(frame) => frames.push(frame)}>
+          <SchemaFormDialog open modal header="Insert link" schemaUrl="schema/LinkForm" onClose={() => undefined} />
+        </ModalFrameContext.Provider>,
+      );
+      expect(container.querySelector('dialog')).toBeNull();
+      expect(container.querySelector('#Form_LinkForm_Title')).not.toBeNull();
+      const latest = frames[frames.length - 1];
+      expect(latest.header).toBe('Insert link');
+      const footer = document.createElement('div');
+      const footerRoot = createRoot(footer);
+      act(() => footerRoot.render(<>{latest.footer}</>));
+      expect(Array.from(footer.querySelectorAll('button')).map((button) => button.textContent)).toEqual(['Cancel', 'Create link', 'Test link']);
+      act(() => footerRoot.unmount());
+    });
+
+    // An inline caller such as LinkField's edit dialog may sit inside a named modal's content
+    it('keeps its own Dialog and leaves the frame alone without `modal`', async () => {
+      const frames: Array<ModalFrame> = [];
+      await render(
+        <ModalFrameContext.Provider value={(frame) => frames.push(frame)}>
+          <SchemaFormDialog open header="Add link" schemaUrl="schema/LinkForm" onClose={() => undefined} />
+        </ModalFrameContext.Provider>,
+      );
+      expect(container.querySelector('dialog .admin-dialog__title')?.textContent).toBe('Add link');
+      expect(footerButtons().map((button) => button.textContent)).toEqual(['Cancel', 'Create link', 'Test link']);
+      expect(frames).toEqual([]);
+    });
   });
 });

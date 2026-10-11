@@ -12,6 +12,7 @@
   background-color: var(--shell-unknown-field-bg-color);
   border: var(--shell-unknown-field-border);
   border-radius: var(--admin-radius);
+  margin-inline: var(--admin-field-padding-inline);
   padding: var(--admin-gap-sm) var(--admin-gap-md);
 }
 

@@ -9,6 +9,9 @@ import type * as React from 'react';
 import { Link } from 'react-router-dom';
 import type { DataTableColumn, DataTableProps, DataTableRow, DataTableSort } from '@silverstripe/admin-shell';
 import type { FileItem, FileSort } from './api';
+import type { QueuedUpload } from './uploadQueue';
+import { uploadRows } from './Uploads';
+import type { UploadActions } from './Uploads';
 // Figma "File list item" Type=PDF 2:6683, its 24px document glyph
 import documentIcon from './assets/document-small.svg';
 // Figma "Folder" icon in Royal Blue, as on the gallery tile
@@ -26,6 +29,9 @@ export interface FileTableProps {
   Table: React.ComponentType<DataTableProps>;
   /** The file open in the details panel */
   activeId?: number | null;
+  /** The folder's upload queue, listed after its folders and ahead of its files */
+  uploads?: ReadonlyArray<QueuedUpload>;
+  uploadActions?: UploadActions;
 }
 
 const columnField: Record<string, string> = { title: 'title', modified: 'lastEdited' };
@@ -88,14 +94,21 @@ export function fileRows(items: ReadonlyArray<FileItem>, itemPath: (item: FileIt
   }));
 }
 
-export const FileTable = ({ items, sort, onSort, itemPath, onOpen, Table, activeId = null }: FileTableProps) => {
+const noUploads: ReadonlyArray<QueuedUpload> = [];
+
+const ignore = () => undefined;
+
+export const FileTable = ({ items, sort, onSort, itemPath, onOpen, Table, activeId = null, uploads = noUploads, uploadActions }: FileTableProps) => {
   const byId = new Map(items.map((item) => [item.id, item]));
+  const folderCount = items.filter((item) => item.type === 'folder').length;
+  const listed = fileRows(items, itemPath);
+  const queued = uploadRows(uploads, { onCancel: uploadActions?.onCancel ?? ignore, onRemove: uploadActions?.onRemove ?? ignore });
   return (
     <Table
       caption="Files"
       className="files-table"
       columns={fileColumns}
-      rows={fileRows(items, itemPath)}
+      rows={[...listed.slice(0, folderCount), ...queued, ...listed.slice(folderCount)]}
       currentRowId={activeId}
       sort={tableSort(sort)}
       onSort={(next) => onSort(fileSort(next))}

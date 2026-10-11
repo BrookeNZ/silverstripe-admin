@@ -127,28 +127,30 @@ export const SectionSidebar = ({ title, section, hidden = false }: SectionSideba
           </Button>
         )}
       </div>
-      <div className="shell-section-sidebar__body" id={bodyId} hidden={collapsed}>
-        <ExtensionSlot
-          name={sectionSidebarSlotName(section)}
-          params={params}
-          render={(children: Array<React.ReactNode>) => <>{children[children.length - 1] ?? null}</>}
-        />
-      </div>
-      <div className="shell-section-sidebar__footer">
-        <Button
-          className="shell-section-sidebar__collapse"
-          variant="tertiary"
-          iconOnly
-          icon={collapsed ? <ExpandMenuIcon /> : <CollapseMenuIcon />}
-          aria-expanded={!collapsed}
-          aria-controls={bodyId}
-          onClick={() => {
-            setSearchOpen(false);
-            setCollapsed(!collapsed);
-          }}
-        >
-          {collapsed ? `Expand ${title}` : `Collapse ${title}`}
-        </Button>
+      <div className="shell-section-sidebar__scroll">
+        <div className="shell-section-sidebar__body" id={bodyId} hidden={collapsed}>
+          <ExtensionSlot
+            name={sectionSidebarSlotName(section)}
+            params={params}
+            render={(children: Array<React.ReactNode>) => <>{children[children.length - 1] ?? null}</>}
+          />
+        </div>
+        <div className="shell-section-sidebar__footer">
+          <Button
+            className="shell-section-sidebar__collapse"
+            variant="tertiary"
+            iconOnly
+            icon={collapsed ? <ExpandMenuIcon /> : <CollapseMenuIcon />}
+            aria-expanded={!collapsed}
+            aria-controls={bodyId}
+            onClick={() => {
+              setSearchOpen(false);
+              setCollapsed(!collapsed);
+            }}
+          >
+            {collapsed ? `Expand ${title}` : `Collapse ${title}`}
+          </Button>
+        </div>
       </div>
     </div>
   );

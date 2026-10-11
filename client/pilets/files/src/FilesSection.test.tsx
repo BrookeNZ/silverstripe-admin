@@ -6,9 +6,9 @@ import type { Root } from 'react-dom/client';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import type { DataTableProps, PageComponentProps } from '@silverstripe/admin-shell';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createFilesSection, filesSectionHeader } from './FilesSection';
+import { createFilesSection, filesSectionHeader, folderStaleTime } from './FilesSection';
 import type { FilesSectionOptions } from './FilesSection';
-import type { FolderListing } from './api';
+import type { FileItem, FolderListing } from './api';
 import { fileSort, formatModified, tableSort } from './FileTable';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -18,6 +18,7 @@ const options: FilesSectionOptions = { routePrefix: '/assets', sectionTitle: 'Fi
 const listing = (overrides: Partial<FolderListing>): FolderListing => ({
   id: 9,
   title: 'Logos',
+  canEdit: true,
   ancestors: [],
   items: [],
   totalCount: 0,
@@ -65,9 +66,15 @@ let container: HTMLDivElement;
 let root: Root;
 let fetchJson: ReturnType<typeof vi.fn>;
 let headers: Array<unknown>;
+let queryOptions: unknown;
 
 // Stands in for the shell's server cache: runs the fetcher per key with the shell fetch, which is the mocked boundary
-function useServerQuery(key: ReadonlyArray<unknown>, fetcher: (context: { signal: AbortSignal; request: typeof fetchJson }) => Promise<unknown>) {
+function useServerQuery(
+  key: ReadonlyArray<unknown>,
+  fetcher: (context: { signal: AbortSignal; request: typeof fetchJson }) => Promise<unknown>,
+  options?: unknown,
+) {
+  queryOptions = options;
   const serialised = JSON.stringify(key);
   const [state, setState] = React.useState<{ key: string; data?: unknown; error?: unknown } | null>(null);
   React.useEffect(() => {
@@ -207,6 +214,12 @@ describe('the folder page', () => {
   it('reads the folder named in the route at the page in the query', async () => {
     await render('/assets/show/9?page=2');
     expect(fetchJson).toHaveBeenCalledWith('https://cms.test/admin/assets/api/read/9?page=2', expect.anything());
+  });
+
+  it('trusts the listing across a remount for its staleTime, and names its rows so an event about one refetches it', async () => {
+    await render('/assets/show/9');
+    expect(queryOptions).toMatchObject({ staleTime: folderStaleTime, keepPrevious: true });
+    expect((queryOptions as { records: (listing: FolderListing) => Array<number> }).records(listing({ items: [{ id: 40 } as FileItem] }))).toEqual([40]);
   });
 
   it('reads the root folder at /assets', async () => {

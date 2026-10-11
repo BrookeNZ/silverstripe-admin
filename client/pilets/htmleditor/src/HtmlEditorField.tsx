@@ -13,14 +13,14 @@
  * The field id stays on the hidden textarea TinyMCE replaces, where the shell's form looks for the control
  * to focus after a server error; its `focus()` is pointed at the editor.
  *
- * Links go through the shell's link dialog (`LinkDialog`), opened from the toolbar, the context menu, a
- * link's context toolbar or Ctrl/Cmd+K. The source code button opens the shell's `SourceCodeDialog`.
+ * Links go through the named modal `InsertLinkModal` (LinkDialog.tsx), opened from the toolbar, the context
+ * menu, a link's context toolbar or Ctrl/Cmd+K. The source code button opens the shell's `SourceCodeDialog`.
  */
 import type { PiletApi } from '@silverstripe/admin-shell';
 import * as React from 'react';
 import { describedBy, FieldHolder } from '@silverstripe/admin-patterns';
 import type { Editor, TinyMCE } from 'tinymce';
-import { LinkDialog } from './LinkDialog';
+import { insertLinkModal } from './LinkDialog';
 import type { LinkDialogRequest } from './LinkDialog';
 import { availableKinds, kindForHref } from './links';
 import type { LinkFormSection, LinkKind } from './links';
@@ -87,8 +87,6 @@ function currentPageId(api: PiletApi): number {
 }
 
 export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300 }: HtmlEditorFieldOptions) {
-  const FormDialog = api.getSilverstripeComponent?.('SchemaFormDialog');
-
   const HtmlEditorField = ({ field, value, onChange, onBlur, error, formId }: HtmlEditorFieldProps) => {
     const configText = textValue(rawConfig(field));
     const config = React.useMemo(() => parseEditorConfig(configText), [configText]);
@@ -107,8 +105,8 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
     const readOnly = Boolean(field.readOnly || field.disabled);
     const labelId = `${field.id}_label`;
     const descriptionIds = describedBy(field, error);
-    const linkKinds = React.useMemo(() => (FormDialog ? linkKindsFromConfig(api) : []), []);
-    const [linkRequest, setLinkRequest] = React.useState<LinkDialogRequest | null>(null);
+    const linkKinds = React.useMemo(() => linkKindsFromConfig(api), []);
+    const closeLink = React.useRef<(() => void) | null>(null);
     const linkBookmark = React.useRef<unknown>(null);
     const [sourceCode, setSourceCode] = React.useState<string | null>(null);
     const [sourceCodeKey, setSourceCodeKey] = React.useState(0);
@@ -149,21 +147,26 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
       const kind = kindForHref(attributes?.href ?? '', linkKinds.map((entry) => entry.kind)) ?? linkKinds[0].kind;
       editorAnchors.current = anchorsIn(editor);
       linkBookmark.current = editor.selection.getBookmark(2, true);
-      setLinkRequest({
+      const request: LinkDialogRequest = {
         kind: link ? kind.name : linkKinds[0].kind.name,
         values: attributes ? kind.values(attributes) : {},
         editing: link !== null,
         requireText: link === null && editor.selection.isCollapsed(),
         itemId: currentPageId(api),
+      };
+      closeLink.current = api.showModal(insertLinkModal, {
+        request,
+        kinds: linkKinds,
+        onInsert: (chosen, values) => insertLink(request, chosen, values),
+        onCancel: cancelLink,
       });
     });
 
-    const insertLink = (kind: LinkKind, values: Record<string, unknown>) => {
+    const insertLink = (request: LinkDialogRequest, kind: LinkKind, values: Record<string, unknown>) => {
       const editor = editorRef.current;
-      const request = linkRequest;
-      setLinkRequest(null);
+      closeLink.current = null;
       editorAnchors.current = [];
-      if (!editor || !request) {
+      if (!editor) {
         return;
       }
       editor.focus();
@@ -176,16 +179,16 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
 
     // The control that opened the dialog (a context toolbar button) may be gone, so focus goes back to the editor
     const cancelLink = () => {
+      const editor = editorRef.current;
+      closeLink.current = null;
       editorAnchors.current = [];
-      setLinkRequest(null);
-      requestAnimationFrame(() => {
-        const editor = editorRef.current;
-        editor?.focus();
-        if (editor && linkBookmark.current) {
-          editor.selection.moveToBookmark(linkBookmark.current as never);
-        }
-      });
+      editor?.focus();
+      if (editor && linkBookmark.current) {
+        editor.selection.moveToBookmark(linkBookmark.current as never);
+      }
     };
+
+    React.useEffect(() => () => closeLink.current?.(), []);
 
     const openSourceCode = React.useCallback(() => {
       const editor = editorRef.current;
@@ -367,9 +370,6 @@ export function createHtmlEditorField({ api, load = loadTinyMce, syncDelay = 300
           <div className={focused ? 'htmleditor-field htmleditor-field--focused' : 'htmleditor-field'} ref={host} aria-busy={status === 'loading'} />
         </FieldHolder>
         <SourceCodeDialog key={sourceCodeKey} content={sourceCode} onCancel={() => setSourceCode(null)} onSave={saveSourceCode} />
-        {FormDialog && (
-          <LinkDialog request={linkRequest} kinds={linkKinds} FormDialog={FormDialog} onClose={cancelLink} onSubmit={insertLink} />
-        )}
       </>
     );
   };

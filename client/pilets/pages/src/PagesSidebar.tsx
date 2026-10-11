@@ -1,7 +1,8 @@
 /**
- * The page tree column: the page search, the toolbar with "Add new" and the tree, drawn by the shell in
- * the sidebar column its layout puts beside the section header and the page edit form (registered with
- * `registerSectionSidebar`). The search shows while the shell's header search button has it open, and
+ * The page tree column: the page search, the toolbar with "Add new" and the tree (`PagesTreePane`), drawn
+ * by the shell in the sidebar column its layout puts beside the section header and the page edit form
+ * (registered with `registerSectionSidebar`). The section index draws the same pane across its content
+ * area (PagesIndex.tsx). The search shows while the shell's header search button has it open, and
  * closing it clears the query; a shell that passes no `searchOpen` gets the field always shown. It lives
  * outside the section's route, so it shares the tree with the page through a session the page opens while
  * it is mounted: the tree store (a selector over the cached tree pages, whose reads the page drives) and
@@ -20,6 +21,7 @@ import type { CreatePageApi, TreeApi } from './api';
 import type { MoveApi } from './move';
 import { PageSearch } from './PageSearch';
 import { PageTree } from './PageTree';
+import type { PageTreeExpansion } from './PageTree';
 import { TreeToolbar } from './TreeToolbar';
 import type { TreeStore } from './treeStore';
 
@@ -28,6 +30,8 @@ export interface PagesSession {
   store: TreeStore;
   createClient: CreatePageApi;
   moveClient: MoveApi;
+  /** The tree's open nodes, kept across the index and sidebar trees */
+  expandedItems: PageTreeExpansion;
 }
 
 export interface PagesSessionHolder {
@@ -95,104 +99,129 @@ const SessionExpired = ({ loginUrl }: { loginUrl: string }) => (
   </p>
 );
 
+export interface PagesTreePaneProps extends PagesSidebarSlotProps {
+  piral: Pick<PiletApi, 'showNotification' | 'useSharedState' | 'useServerQuery'>;
+  session: PagesSession;
+  recordClass: string;
+  editPath: (id: number) => string;
+  loginUrl: string;
+  /** Drawn at the end of the toolbar row */
+  toolbarEnd?: React.ReactNode;
+  /** Fills the section index rather than the sidebar column */
+  fill?: boolean;
+}
+
+/** The search, toolbar and tree, in the sidebar column or filling the section index */
+export const PagesTreePane = ({
+  piral,
+  session,
+  recordClass,
+  editPath,
+  loginUrl,
+  titleId,
+  searchId,
+  searchOpen,
+  closeSearch,
+  toolbarEnd,
+  fill = false,
+}: PagesTreePaneProps) => {
+  const { api, store, createClient, moveClient, expandedItems } = session;
+  useStoreVersion(store);
+  const record = piral.useSharedState((state) => state.currentRecord);
+  const currentId = record?.recordClass === recordClass ? record.id : null;
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const [query, setQuery] = React.useState('');
+  const [adding, setAdding] = React.useState(false);
+  const [creating, setCreating] = React.useState(false);
+  const [createError, setCreateError] = React.useState<string | null>(null);
+
+  const showSearch = searchOpen ?? true;
+
+  // A route change or the shell closing the search clears the query
+  const searchPlace = `${String(showSearch)} ${pathname}`;
+  const [shownSearchPlace, setShownSearchPlace] = React.useState(searchPlace);
+  if (searchPlace !== shownSearchPlace) {
+    setShownSearchPlace(searchPlace);
+    setQuery('');
+  }
+
+  const closeAdd = () => {
+    setAdding(false);
+    setCreateError(null);
+  };
+  const create = (className: string) => {
+    setCreating(true);
+    setCreateError(null);
+    addPage(
+      {
+        client: createClient,
+        store,
+        land: (page) => {
+          setAdding(false);
+          piral.showNotification(`Created "${page.title}"`, { type: 'success' });
+          navigate(editPath(page.id));
+        },
+      },
+      currentId ?? 0,
+      className,
+    )
+      .catch((failure: unknown) => setCreateError(failure instanceof Error ? failure.message : String(failure)))
+      .finally(() => setCreating(false));
+  };
+
+  return (
+    <>
+      <nav
+        className={fill ? 'pages-sidebar pages-sidebar--index' : 'pages-sidebar'}
+        aria-labelledby={titleId}
+        aria-label={titleId ? undefined : 'Page tree'}
+      >
+        {showSearch && (
+          <PageSearch
+            id={searchId}
+            api={api}
+            useServerQuery={piral.useServerQuery}
+            recordClass={recordClass}
+            editPath={editPath}
+            query={query}
+            onQueryChange={setQuery}
+            onClose={closeSearch}
+          />
+        )}
+        <TreeToolbar onAdd={() => setAdding(true)} end={toolbarEnd} />
+        {store.sessionExpired && <SessionExpired loginUrl={loginUrl} />}
+        <PageTree
+          store={store}
+          currentId={currentId}
+          hidden={query.trim().length > 0}
+          onSelect={(id) => navigate(editPath(id))}
+          mover={{ client: moveClient, notify: (message, type) => piral.showNotification(message, { type }) }}
+          expansion={expandedItems}
+        />
+      </nav>
+      <AddPageDialog
+        open={adding}
+        parentId={currentId ?? 0}
+        client={createClient}
+        creating={creating}
+        error={createError}
+        onCreate={create}
+        onClose={closeAdd}
+      />
+    </>
+  );
+};
+
 export function createPagesSidebar({ holder, recordClass, editPath, loginUrl }: PagesSidebarOptions) {
   const PagesSidebar = ({
     piral,
-    titleId,
-    searchId,
-    searchOpen,
-    closeSearch,
-  }: PagesSidebarSlotProps & { piral: Pick<PiletApi, 'showNotification' | 'useSharedState' | 'useServerQuery'> }) => {
+    ...slot
+  }: PagesSidebarSlotProps & { piral: PagesTreePaneProps['piral'] }) => {
     const session = usePagesSession(holder);
-    useStoreVersion(session?.store);
-    const record = piral.useSharedState((state) => state.currentRecord);
-    const currentId = record?.recordClass === recordClass ? record.id : null;
-    const navigate = useNavigate();
-    const { pathname } = useLocation();
-    const [query, setQuery] = React.useState('');
-    const [adding, setAdding] = React.useState(false);
-    const [creating, setCreating] = React.useState(false);
-    const [createError, setCreateError] = React.useState<string | null>(null);
-
-    const showSearch = searchOpen ?? true;
-
-    // A route change or the shell closing the search clears the query
-    const searchPlace = `${String(showSearch)} ${pathname}`;
-    const [shownSearchPlace, setShownSearchPlace] = React.useState(searchPlace);
-    if (searchPlace !== shownSearchPlace) {
-      setShownSearchPlace(searchPlace);
-      setQuery('');
-    }
-
-    if (!session) {
-      return null;
-    }
-    const { api, store, createClient, moveClient } = session;
-
-    const closeAdd = () => {
-      setAdding(false);
-      setCreateError(null);
-    };
-    const create = (className: string) => {
-      setCreating(true);
-      setCreateError(null);
-      addPage(
-        {
-          client: createClient,
-          store,
-          land: (page) => {
-            setAdding(false);
-            piral.showNotification(`Created "${page.title}"`, { type: 'success' });
-            navigate(editPath(page.id));
-          },
-        },
-        currentId ?? 0,
-        className,
-      )
-        .catch((failure: unknown) => setCreateError(failure instanceof Error ? failure.message : String(failure)))
-        .finally(() => setCreating(false));
-    };
-
-    return (
-      <>
-        <nav
-          className="pages-sidebar"
-          aria-labelledby={titleId}
-          aria-label={titleId ? undefined : 'Page tree'}
-        >
-          {showSearch && (
-            <PageSearch
-              id={searchId}
-              api={api}
-              useServerQuery={piral.useServerQuery}
-              recordClass={recordClass}
-              editPath={editPath}
-              query={query}
-              onQueryChange={setQuery}
-              onClose={closeSearch}
-            />
-          )}
-          <TreeToolbar onAdd={() => setAdding(true)} />
-          {store.sessionExpired && <SessionExpired loginUrl={loginUrl} />}
-          <PageTree
-            store={store}
-            currentId={currentId}
-            hidden={query.trim().length > 0}
-            onSelect={(id) => navigate(editPath(id))}
-            mover={{ client: moveClient, notify: (message, type) => piral.showNotification(message, { type }) }}
-          />
-        </nav>
-        <AddPageDialog
-          open={adding}
-          parentId={currentId ?? 0}
-          client={createClient}
-          creating={creating}
-          error={createError}
-          onCreate={create}
-          onClose={closeAdd}
-        />
-      </>
-    );
+    return session ? (
+      <PagesTreePane piral={piral} session={session} recordClass={recordClass} editPath={editPath} loginUrl={loginUrl} {...slot} />
+    ) : null;
   };
   PagesSidebar.displayName = 'PagesSidebar';
   return PagesSidebar;

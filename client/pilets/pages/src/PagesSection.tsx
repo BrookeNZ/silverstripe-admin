@@ -16,6 +16,9 @@
  * showing its row; the shell matches classes by ancestry, so an event for a page's own class (a history
  * revert) reaches the listing too.
  *
+ * With no page open the index draws the tree across the content area under the section header, with
+ * no sidebar column, as legacy CMSMain's index did (PagesIndex.tsx); opening a page brings the column back.
+ *
  * The section header carries the page title (from the tree, so a save that renames the page retitles
  * it), the page's ancestors as its breadcrumb and the page's views; the index has the section title and
  * no back button. A deep link shows the ancestors the tree has loaded and fills in as the tree loads.
@@ -37,6 +40,7 @@ import { createPageApi, createTreeApi } from './api';
 import type { ChildrenResponse, TreeApi } from './api';
 import { createMoveApi } from './move';
 import { createPagesSessionHolder, createPagesSidebar, useStoreVersion } from './PagesSidebar';
+import { PagesIndex } from './PagesIndex';
 import { stageOptions } from './stage';
 import type { PageStage } from './stage';
 import { childPageKey, childPageRecords, TreeStore } from './treeStore';
@@ -207,13 +211,17 @@ export function createPagesSection(options: PagesSectionOptions): PagesSectionCo
     const [links, setLinks] = React.useState<PreviewLinks>({});
     const [shownTail, setShownTail] = React.useState(tail);
     const FormSchemaForm = React.useMemo(() => piral.getSilverstripeComponent('FormSchemaForm'), [piral]);
+    const expandedItems = React.useRef<Array<string>>([]);
+    const session = React.useMemo(
+      () => ({ api, store, createClient, moveClient, expandedItems }),
+      [api, store, createClient, moveClient],
+    );
 
     // Layout effects, so the session is open with the current page before the header draws the sidebar
     React.useLayoutEffect(() => {
-      const session = { api, store, createClient, moveClient };
       holder.open(session);
       return () => holder.close(session);
-    }, [api, store, createClient, moveClient]);
+    }, [session]);
 
     React.useLayoutEffect(
       () => (currentId === null ? undefined : piral.setCurrentRecord({ recordClass: options.pageClass, id: currentId })),
@@ -275,7 +283,9 @@ export function createPagesSection(options: PagesSectionOptions): PagesSectionCo
         : null,
       availableViews,
     );
-    header.sidebar = sidebar;
+    if (opened) {
+      header.sidebar = sidebar;
+    }
     const headerKey = JSON.stringify(header);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- headerKey stands in for header, a new object every render
     React.useEffect(() => piral.setSectionHeader(header), [piral, headerKey]);
@@ -318,12 +328,19 @@ export function createPagesSection(options: PagesSectionOptions): PagesSectionCo
       );
     } else {
       main = (
-        <p className="pages__empty pages__inset">Select a page in the tree to edit it.</p>
+        <PagesIndex
+          piral={piral}
+          session={session}
+          recordClass={options.pageClass}
+          editPath={editPath}
+          loginUrl={options.loginUrl}
+          sectionTitle={options.sectionTitle}
+        />
       );
     }
 
     return (
-      <div className="pages">
+      <div className={opened ? 'pages' : 'pages pages--index'}>
         {main}
         <TreeQueries store={store} api={api} useServerQuery={piral.useServerQuery} />
       </div>

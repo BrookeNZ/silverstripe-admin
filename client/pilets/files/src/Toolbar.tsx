@@ -3,10 +3,13 @@
  * left, then on the right the gallery's sort menu and the toggle to the other view. The list view drops the sort,
  * as its column headers sort. Below 576px the gallery's row splits into the two buttons above the sort and toggle.
  *
- * Upload and Add a folder are disabled placeholders until their slices land.
+ * Upload opens the browser's file picker (see Uploads.tsx), and is disabled where the member cannot add files.
+ * Add a folder is the host's (AddFolder.tsx), and a disabled placeholder without it.
  */
+import type * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, ImportIcon, ListViewIcon, Menu } from '@silverstripe/admin-patterns';
+import type { ButtonProps } from '@silverstripe/admin-patterns';
 import { sortLabel, sortOptions } from './api';
 import type { FileSort } from './api';
 // Figma "White buttons" Add a folder in 2:6855; the patterns package has no folder glyph
@@ -21,20 +24,27 @@ export interface ToolbarProps {
   /** The path of the folder in the other view */
   otherViewPath: string;
   onSort: (sort: FileSort) => void;
+  /** Opens the file picker; without it Upload is disabled */
+  onUpload?: () => void;
+  /** Typed with the pilet's React; the patterns package carries its own React types */
+  uploadRef?: React.Ref<HTMLButtonElement>;
+  addFolder?: React.ReactNode;
 }
 
-export const Toolbar = ({ view, sort, otherViewPath, onSort }: ToolbarProps) => {
+export const Toolbar = ({ view, sort, otherViewPath, onSort, onUpload, uploadRef, addFolder }: ToolbarProps) => {
   const navigate = useNavigate();
   const isGallery = view === 'gallery';
   return (
     <div className={isGallery ? 'files-toolbar files-toolbar--sorted' : 'files-toolbar'}>
       <div className="files-toolbar__actions">
-        <Button variant="tertiary" icon={<ImportIcon />} disabled>
+        <Button variant="tertiary" icon={<ImportIcon />} disabled={!onUpload} onClick={onUpload} ref={uploadRef as ButtonProps['ref']}>
           Upload
         </Button>
-        <Button variant="tertiary" icon={<img src={addFolderIcon} alt="" />} disabled>
-          Add a folder
-        </Button>
+        {addFolder ?? (
+          <Button variant="tertiary" icon={<img src={addFolderIcon} alt="" />} disabled>
+            Add a folder
+          </Button>
+        )}
       </div>
       <div className="files-toolbar__view">
         {isGallery && (

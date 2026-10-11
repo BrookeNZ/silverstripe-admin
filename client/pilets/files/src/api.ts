@@ -37,6 +37,8 @@ export interface FolderListing {
   id: number;
   /** Null for the root */
   title: string | null;
+  /** Whether the folder takes new files and folders; the root's is apiRead's `Folder::singleton()`; null when left out */
+  canEdit: boolean | null;
   /** From the top-level folder down to the parent */
   ancestors: Array<FolderCrumb>;
   items: Array<FileItem>;
@@ -59,6 +61,7 @@ interface ReadNode {
   size?: string | null;
   lastEdited?: string | null;
   draft?: boolean;
+  canEdit?: boolean;
   ancestors?: Array<ReadNode>;
   children?: { pageInfo?: { totalCount?: number }; nodes?: Array<ReadNode> };
 }
@@ -134,6 +137,7 @@ export async function readFolder(
     return {
       id: folderId,
       title: folderId === 0 ? null : nodeTitle(body ?? {}),
+      canEdit: typeof body?.canEdit === 'boolean' ? body.canEdit : null,
       ancestors: (body?.ancestors ?? []).map((node) => ({ id: Number(node.id), title: nodeTitle(node) })),
       items: (body?.children?.nodes ?? []).map(toItem),
       totalCount,

@@ -98,6 +98,13 @@ same-version tarball is reinstalled because its integrity changes); every pilet 
   button. A form schema sent to the shell names its record class (`FormSchemaTree.recordClass`), and a save
   whose record names no class announces under it. `DataTable` row keys work only from a link, button or
   checkbox in a cell. Toasts that arrive together are read one after another.
+- 2026-10-11: named modals from piral-modals: `registerModal`, `showModal`, `unregisterModal`, with the
+  shell drawing each one in the patterns package's `Dialog`; `useModalFrame` for content that sets the
+  frame's header, footer or alert; `SchemaFormDialog` takes `modal` to draw into that frame (see
+  **Modals**). The HTML editor's link dialog is the first, `InsertLinkModal`.
+- 2026-10-11: `SchemaFormDialog` takes `omitFields`, as FormSchemaForm does.
+- 2026-10-11: `useFormFieldValue(name)`, for a field component that reads another field of its form (see
+  **Reading another field**).
 
 ## Verbs
 
@@ -131,6 +138,11 @@ piral-notifications, ...):
 | `openPanel({ id, title, badge?, meta?, content, footer?, onClose, closeLabel?, returnFocus? }): Disposable` | Show the details panel beside the section's content until the disposer runs; see **Details panel** |
 | `closePanel(id): void` | Close this pilet's panel `id` if it is showing, without calling its `onClose` |
 | `usePanel(): { id, title, owner } \| null` | The panel showing, for a page that marks the item it shows |
+| `registerModal(name, Component, defaults?, layout?): Disposable` | From piral-modals: register a modal any pilet can open by name. `layout` takes `header` and `focusHeading`; see **Modals** |
+| `showModal(name, options?): () => void` | From piral-modals: open a registered modal by name, from any pilet; returns a function that closes it |
+| `unregisterModal(name)` | From piral-modals: remove this pilet's modal `name`; unloading the pilet removes its modals |
+| `useFormFieldValue(name): unknown` | In a field component: another posted field's current value in the same form, by its posted name, re-rendering as it changes; see **Reading another field** |
+| `useModalFrame({ header?, footer?, alert? }): boolean` | In a modal's content: set the frame's header, footer and alert on every render. False outside a named modal; see **Modals** |
 
 No `registerFormField`: binding a field to the form is decided by the schema (`schemaType`, read-only
 state, the posted set), not by the registration; holders are a component (`FieldHolder` in
@@ -176,6 +188,22 @@ form too.
 Exported types: `FieldComponentProps`, `FormField`, `FormFieldBase`, `FieldProps`, `FieldDescriptor`,
 `ChoiceOption`, `SourceOption`, `FieldSchema`, `FieldState`, `SchemaMessage`, `SchemaData`,
 `FormSchemaTree`, `FormSchemaState`, `FormSchemaResponse`, `SchemaFormDialogProps`.
+
+### Reading another field
+
+A field that reacts to a sibling (a page Title keeping the URL segment in step) reads it with
+`useFormFieldValue(name)`, a hook for the field's component, not the pilet's setup. `name` is the posted
+name (`Title`, `Content[0]`); the value is what the form holds now, typed or loaded, and the component
+re-renders when it changes. It reads the FormSchemaForm the component is rendered in; outside one, or for
+a name that form does not post (a literal, a group, a field another hook removed), it is `undefined`.
+Unmounting the component ends the watch. To write the sibling, use the `autofill(name, value)` prop.
+
+```tsx
+const UrlPreview = ({ field }: FieldComponentProps) => {
+  const segment = piral.useFormFieldValue('URLSegment');
+  return <FieldHolder field={field}>{String(segment ?? '')}</FieldHolder>;
+};
+```
 
 ## Component resolution
 
@@ -380,7 +408,7 @@ event itself; the pilet that knows the record class emits it from `onSubmitted`.
 its rows on every records-changed event.
 
 A form in a dialog is the shell's `SchemaFormDialog` (`getSilverstripeComponent('SchemaFormDialog')`,
-props `SchemaFormDialogProps`: `open`, `header`, `intro` (controls above the form, such as the HTML editor's choice of link kind), `schemaUrl`, `onClose()`, `onSubmitted(response, action)`):
+props `SchemaFormDialogProps`: `open`, `header`, `intro` (controls above the form, such as the HTML editor's choice of link kind), `schemaUrl`, `omitFields` (as on FormSchemaForm), `onClose()`, `onSubmitted(response, action)`):
 the shared Dialog with the form headless in its body and Cancel, then the form's actions, in its footer.
 Each action button posts its own action and shows `loading` while it runs; errors show in the body.
 `onClose` is Cancel and Escape, and the host closes the dialog from `onSubmitted` as well.
@@ -813,6 +841,32 @@ For a message that stays in place (a form's error or warning, a note in a dialog
 the patterns package instead: `children` the message and `type` (`'info'` default, `'success'`,
 `'warning'`, `'error'`), drawn with the toast's icon for that type and no close button. Errors and
 warnings are `role="alert"`, success and info `role="status"`.
+
+## Modals
+
+A dialog one pilet opens by name and another provides is a named modal; a dialog owned by one component
+stays inline, rendering the patterns package's `Dialog` itself. Names follow legacy's Injector names
+where one exists (`InsertLinkModal`). The shell draws every named modal in the components `Dialog`, so
+focus handling and styling are the shell's: the registration supplies the content and its props.
+
+```tsx
+api.registerModal('InsertLinkModal', InsertLinkModal, undefined, { header: 'Insert link', focusHeading: true });
+const close = api.showModal('InsertLinkModal', { editing: false, onInsert, onCancel });
+```
+
+- The content component gets `onClose` and `options` (the registration's `defaults` overlaid by the
+  `showModal` options), plus `piral`, the owning pilet's API. Options are typed by augmenting
+  `PiralCustomModalsMap` in `@silverstripe/admin-shell` with the modal's name.
+- `layout.header` is the heading until the content sets one; `layout.focusHeading` focuses the heading as
+  the modal opens rather than its first control, for content that loads its controls.
+- `piral.useModalFrame({header, footer, alert})` sets those parts of the frame from the content, on every
+  render, so a header that names what is being edited or a footer of actions can change while it is open.
+- Escape, `onClose` and the function `showModal` returns all close the modal, which unmounts the content.
+  Focus goes back to the element that had it when the modal opened, if it is still in the page; an opener
+  that wants focus elsewhere (an editor whose toolbar button may have gone) moves it after closing. A
+  pilet that must know the modal closed passes a callback in its options and calls it from the content.
+- `SchemaFormDialog` with `modal` (and `open`) draws into the frame: its header and actions go to the
+  frame's header and footer. Without `modal` it draws its own `Dialog`, also inside a named modal.
 
 ## Patterns package
 

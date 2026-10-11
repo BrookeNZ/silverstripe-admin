@@ -72,8 +72,8 @@ describe('FormSchemaForm messages', () => {
     await renderWithMessages([{ type: 'good', value: 'Saved.' }, { type: 'success', value: 'Published.' }]);
     const alerts = Array.from(container.querySelectorAll('.admin-alert'));
     expect(alerts.map((alert) => [alert.getAttribute('role'), alert.className, alert.textContent])).toEqual([
-      ['status', 'admin-alert admin-alert--success', 'Saved.'],
-      ['status', 'admin-alert admin-alert--success', 'Published.'],
+      ['status', 'admin-alert admin-alert--success shell-form__message', 'Saved.'],
+      ['status', 'admin-alert admin-alert--success shell-form__message', 'Published.'],
     ]);
   });
 

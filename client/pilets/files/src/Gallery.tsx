@@ -9,6 +9,9 @@
 import { Link } from 'react-router-dom';
 import { PreviewIcon } from '@silverstripe/admin-patterns';
 import type { FileItem } from './api';
+import type { QueuedUpload } from './uploadQueue';
+import { UploadTile } from './Uploads';
+import type { UploadActions } from './Uploads';
 // Figma "Image/doc file" Type=Document 2:6521, the 50px document glyph
 import documentIcon from './assets/document.svg';
 // Figma "Folder" 2:6464 icon in Royal Blue; the patterns package has no folder glyph
@@ -20,6 +23,9 @@ export interface GalleryProps {
   filePath: (id: number) => string;
   /** The file open in the details panel */
   activeId?: number | null;
+  /** The folder's upload queue, drawn ahead of its files */
+  uploads?: ReadonlyArray<QueuedUpload>;
+  uploadActions?: UploadActions;
 }
 
 // Legacy's AssetAdmin.EMPTY
@@ -61,8 +67,12 @@ const FileTile = ({ item, to, active = false }: TileProps) => (
   </li>
 );
 
-export const Gallery = ({ items, folderPath, filePath, activeId = null }: GalleryProps) => {
-  if (items.length === 0) {
+const noUploads: ReadonlyArray<QueuedUpload> = [];
+
+const ignore = () => undefined;
+
+export const Gallery = ({ items, folderPath, filePath, activeId = null, uploads = noUploads, uploadActions }: GalleryProps) => {
+  if (items.length === 0 && uploads.length === 0) {
     return <p className="files__message files__inset">{emptyFolderText}</p>;
   }
   const folders = items.filter((item) => item.type === 'folder');
@@ -76,8 +86,11 @@ export const Gallery = ({ items, folderPath, filePath, activeId = null }: Galler
           ))}
         </ul>
       )}
-      {files.length > 0 && (
+      {files.length + uploads.length > 0 && (
         <ul className="files-gallery__group" aria-label="Files">
+          {uploads.map((upload) => (
+            <UploadTile key={upload.key} upload={upload} onCancel={uploadActions?.onCancel ?? ignore} onRemove={uploadActions?.onRemove ?? ignore} />
+          ))}
           {files.map((item) => (
             <FileTile key={item.id} item={item} to={filePath(item.id)} active={item.id === activeId} />
           ))}

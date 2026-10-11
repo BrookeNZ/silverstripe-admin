@@ -91,8 +91,14 @@ describe('readFolder', () => {
     ]);
   });
 
+  it("reads whether the folder takes new folders from the folder's own canEdit", async () => {
+    const listing = await readFolder(vi.fn().mockResolvedValue({ ...body, canEdit: false }), endpoint, 9, 3, 'title');
+    expect(listing.canEdit).toBe(false);
+  });
+
   it('gives the root no title and an empty folder one page', async () => {
-    const listing = await readFolder(vi.fn().mockResolvedValue({ title: null, children: { pageInfo: { totalCount: 0 }, nodes: [] } }), endpoint, 0, 1, 'title');
-    expect(listing).toMatchObject({ id: 0, title: null, ancestors: [], items: [], pageCount: 1 });
+    const root = { title: null, canEdit: true, children: { pageInfo: { totalCount: 0 }, nodes: [] } };
+    const listing = await readFolder(vi.fn().mockResolvedValue(root), endpoint, 0, 1, 'title');
+    expect(listing).toMatchObject({ id: 0, title: null, canEdit: true, ancestors: [], items: [], pageCount: 1 });
   });
 });

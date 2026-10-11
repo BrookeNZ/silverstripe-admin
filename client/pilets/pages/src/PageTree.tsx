@@ -42,6 +42,11 @@ export interface PageTreeMover {
   notify: MoveSteps['notify'];
 }
 
+/** Holds the open nodes while the tree unmounts, so a remounted tree opens the same nodes */
+export interface PageTreeExpansion {
+  current: Array<string>;
+}
+
 export interface PageTreeProps {
   store: TreeStore;
   currentId: number | null;
@@ -53,6 +58,7 @@ export interface PageTreeProps {
   dragDisabled?: boolean;
   /** Drawn at the start of each page row, before the expander */
   rowStart?: (node: PageNode) => React.ReactNode;
+  expansion?: PageTreeExpansion;
 }
 
 const typeaheadResetMs = 500;
@@ -140,6 +146,10 @@ interface TreeRowContentProps {
 
 const TreeRowContent = ({ item, showHandle, rowStart }: TreeRowContentProps) => {
   const entry = item.getItemData();
+  if (entry.kind === 'more') {
+    // Styled as a tertiary button but kept a span, as the row itself is the tree item that activates
+    return <span className="admin-button admin-button--tertiary admin-button--sm pages-tree__more">{entryName(entry)}</span>;
+  }
   if (entry.kind !== 'page') {
     return <span className="pages-tree__note">{entryName(entry)}</span>;
   }
@@ -189,8 +199,14 @@ export const PageTree = ({
   mover,
   dragDisabled,
   rowStart,
+  expansion,
 }: PageTreeProps) => {
-  const [expandedItems, setExpandedItems] = React.useState<Array<string>>([]);
+  const [expandedItems, setExpandedItems] = React.useState<Array<string>>(() => expansion?.current ?? []);
+  React.useEffect(() => {
+    if (expansion) {
+      expansion.current = expandedItems;
+    }
+  }, [expansion, expandedItems]);
   const [focusedItem, setFocusedItem] = React.useState<string | null>(null);
   const [, rerender] = React.useReducer((count: number) => count + 1, 0);
   const scrollRef = React.useRef<HTMLDivElement | null>(null);

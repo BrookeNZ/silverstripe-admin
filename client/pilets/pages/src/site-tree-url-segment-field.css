@@ -1,0 +1,23 @@
+/**
+ * URL segment field
+ *
+ * The page URL with its Edit button on one row, and in edit mode the segment input with OK and Cancel
+ * beside it, wrapping below each other when the column is narrow. A long URL breaks anywhere rather than
+ * widening the form
+ */
+
+.pages-url-segment {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--admin-gap-sm) var(--admin-gap-md);
+}
+
+.pages-url-segment__link {
+  overflow-wrap: anywhere;
+}
+
+.pages-url-segment__input {
+  flex: 1 1 20rem;
+  min-width: 0;
+}

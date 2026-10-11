@@ -281,35 +281,68 @@ function multiSelectValue(field: FormField): unknown {
   return field.value.map((item) => (item !== null && typeof item === 'object' && 'Value' in item ? item.Value : item));
 }
 
+const optionKeys = new Set(['value', 'label', 'title', 'selected']);
+
+/** A select option, as FormSchema state and SearchableDropdownField send them: a value with its label and nothing more */
 function isOption(value: object): value is { value: unknown } {
-  return 'value' in value && !Array.isArray(value);
+  if (Array.isArray(value) || !('value' in value) || !('label' in value || 'title' in value)) {
+    return false;
+  }
+  return Object.keys(value).every((key) => optionKeys.has(key));
 }
 
-// An option object posts its value, the shape FormSchema state sends select values in
-function postedValue(value: unknown): string {
-  if (value !== null && typeof value === 'object' && isOption(value)) {
-    return postedValue(value.value);
+const pad = (part: number) => String(part).padStart(2, '0');
+
+/**
+ * The HTML5 ISO formats DateField, DatetimeField and TimeField parse, in local wall-clock time as a native
+ * input posts it; the server reads it in the field's own timezone, so a UTC `toISOString()` would not parse
+ */
+function postedDate(date: Date, schemaType: string | null): string {
+  if (Number.isNaN(date.getTime())) {
+    return '';
   }
-  return value == null ? '' : String(value);
+  const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  const time = `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  if (schemaType === 'Date') {
+    return day;
+  }
+  return schemaType === 'Time' ? time : `${day}T${time}`;
+}
+
+function refuseFile(name: string): void {
+  const message = `${name} holds a File, which a FormSchema submission cannot post; uploads send their own request`;
+  if (process.env.NODE_ENV !== 'production') {
+    throw new Error(message);
+  }
+  console.warn(message);
 }
 
 /**
  * Appends a value under a PHP POST name the way the legacy admin's qs.stringify did: nested objects as
- * `Name[Key]`, an empty array as nothing. Scalar lists post as `Name[]`; a list holding objects keeps
- * indices so each object's keys stay together when PHP parses them
+ * `Name[Key]`, an empty array and `undefined` as nothing, `null` as an empty value. Scalar lists post as
+ * `Name[]`; a list holding objects keeps indices so each object's keys stay together when PHP parses them
  */
-function appendValue(body: URLSearchParams, name: string, value: unknown): void {
-  if (Array.isArray(value)) {
-    const indexed = value.some((item) => item !== null && typeof item === 'object' && !isOption(item));
-    value.forEach((item, index) => appendValue(body, indexed ? `${name}[${index}]` : `${name}[]`, item));
-  } else if (value !== null && typeof value === 'object' && !isOption(value)) {
+function appendValue(body: URLSearchParams, name: string, value: unknown, schemaType: string | null): void {
+  if (value === undefined) {
+    return;
+  }
+  if (typeof Blob !== 'undefined' && value instanceof Blob) {
+    refuseFile(name);
+  } else if (value instanceof Date) {
+    body.append(name, postedDate(value, schemaType));
+  } else if (Array.isArray(value)) {
+    const indexed = value.some((item) => item !== null && typeof item === 'object' && !isOption(item) && !(item instanceof Date));
+    value.forEach((item, index) => appendValue(body, indexed ? `${name}[${index}]` : `${name}[]`, item, schemaType));
+  } else if (value !== null && typeof value === 'object' && isOption(value)) {
+    appendValue(body, name, value.value, schemaType);
+  } else if (value !== null && typeof value === 'object') {
     for (const [key, item] of Object.entries(value)) {
-      appendValue(body, `${name}[${key}]`, item);
+      appendValue(body, `${name}[${key}]`, item, schemaType);
     }
   } else if (typeof value === 'boolean') {
     body.append(name, value ? '1' : '0');
   } else {
-    body.append(name, postedValue(value));
+    body.append(name, value == null ? '' : String(value));
   }
 }
 
@@ -321,9 +354,9 @@ export function encodeSubmission(valueFields: Array<FormField>, values: FormValu
     const isMulti = field.name.endsWith('[]') || field.schemaType === 'MultiSelect';
     if (isMulti) {
       const name = field.name.endsWith('[]') ? field.name.slice(0, -2) : field.name;
-      appendValue(body, name, Array.isArray(value) ? value : value == null ? [] : [value]);
+      appendValue(body, name, Array.isArray(value) ? value : value == null ? [] : [value], field.schemaType);
     } else {
-      appendValue(body, field.name, value);
+      appendValue(body, field.name, value, field.schemaType);
     }
   }
   body.append(action, '1');

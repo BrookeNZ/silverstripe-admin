@@ -5,9 +5,9 @@
  * bar. The fields, groups, headings and form messages (Alert) inside it are styled by
  * @silverstripe/admin-patterns.
  *
- * The form has no inset of its own: each top-level field and message sits in a `shell-form__field`
- * wrapper that pads it by --shell-form-inset, so a full-width field (`--full`, the GridField) and the
- * action bar touch the sides of the content column. A tab set (`--tabs`) spans the column with its tab
+ * The form has no inset of its own: each field holder (`admin-field`) pads itself by --shell-form-inset
+ * through --admin-field-padding-inline, as do the messages, the status line and the load failure alert,
+ * so a full-width field (the GridField) and the action bar touch the sides of the content column. A tab set (`--tabs`) spans the column with its tab
  * strip inset, and its panels' fields take the same wrappers. A nested form (`--nested`, a block's form
  * inside the page form) already sits in an inset field, so its own fields take none.
  *
@@ -59,6 +59,7 @@
   --shell-form-alert-bg-color: var(--admin-error-bg-color);
   --shell-form-alert-border: 0.4rem solid;
   --shell-form-alert-color: var(--admin-error-fg-color);
+  --admin-field-padding-inline: var(--shell-form-inset);
   --shell-form-inset: var(--shell-inset);
 
   flex: 1;
@@ -68,35 +69,30 @@
   --shell-form-inset: 0rem;
 }
 
-.shell-form__field {
-  --shell-form-field-inset: var(--shell-form-inset);
-
-  padding-inline: var(--shell-form-field-inset);
-}
-
 .shell-form__field:empty {
   display: none;
 }
 
-.shell-form__field--full {
-  --shell-form-field-inset: 0rem;
-}
-
 .shell-form__field--tabs {
   --admin-tab-strip-padding-inline: var(--shell-form-inset);
-  --shell-form-field-inset: 0rem;
+}
+
+.shell-form__message {
+  margin-inline: var(--admin-field-padding-inline);
 }
 
 .shell-form__alert {
   background-color: var(--shell-form-alert-bg-color);
   border-inline-start: var(--shell-form-alert-border) var(--shell-form-alert-color);
   color: var(--shell-form-alert-color);
-  margin: 0;
+  margin-block: 0;
+  margin-inline: var(--admin-field-padding-inline);
   padding: var(--admin-gap-sm) var(--admin-gap-md);
 }
 
 .shell-form__status {
   color: var(--admin-muted-fg-color);
+  padding-inline: var(--admin-field-padding-inline);
 }
 
 .shell-form__actions {

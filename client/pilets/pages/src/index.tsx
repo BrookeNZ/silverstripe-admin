@@ -1,6 +1,12 @@
 import type { PiletApi } from '@silverstripe/admin-shell';
 import { createPagesSection } from './PagesSection';
 import type { PagesSidebarSlotProps } from './PagesSidebar';
+import {
+  createSiteTreeURLSegmentField,
+  siteTreeURLSegmentFieldClass,
+  siteTreeURLSegmentFieldReadonlyClass,
+} from './SiteTreeURLSegmentField';
+import { createSiteTreeTitleField, siteTreeTitleFieldName, titleFieldSchema } from './SiteTreeTitleField';
 import { siteTreeClass } from './treeStore';
 import './pages.css';
 
@@ -18,6 +24,13 @@ function editFormSchemaUrl(sectionUrl: string | undefined): ((id: number) => str
  * its sections are absent and nothing registers
  */
 export function setup(api: PiletApi) {
+  // Page forms also open in the archive and history sections. The read-only subclass is registered too,
+  // since the Text type default would outrank its parent class in resolution
+  const urlSegmentField = createSiteTreeURLSegmentField(api.fetchJson);
+  api.registerSilverstripeComponent(siteTreeURLSegmentFieldClass, urlSegmentField);
+  api.registerSilverstripeComponent(siteTreeURLSegmentFieldReadonlyClass, urlSegmentField);
+  api.registerSilverstripeComponent(siteTreeTitleFieldName, createSiteTreeTitleField({ request: api.fetchJson, useFormFieldValue: api.useFormFieldValue }));
+  api.registerHook('updateFormSchema', titleFieldSchema, { id: 'title-url-segment' });
   const config = api.getConfig();
   const section = config.sections.find((candidate) => candidate.name === cmsMain);
   const sectionUrl = (name: string) => config.sections.find((candidate) => candidate.name === name)?.url;

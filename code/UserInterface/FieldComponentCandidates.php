@@ -3,6 +3,7 @@
 namespace SilverStripe\Admin\UserInterface;
 
 use ReflectionClass;
+use SilverStripe\CMS\Forms\SiteTreeURLSegmentField;
 use SilverStripe\Core\Injector\Injectable;
 use SilverStripe\Forms\Form;
 use SilverStripe\Forms\FormField;
@@ -29,7 +30,10 @@ use SilverStripe\Forms\ToggleCompositeField;
  * `component` and `schemaType` alone.
  *
  * The same walk gives a ToggleCompositeField `data.headingLevel` and `data.startClosed`, which its schema
- * leaves out (the start state is only in its class attribute).
+ * leaves out (the start state is only in its class attribute), and a SiteTreeURLSegmentField the URL prefix,
+ * suffix and help text its template drew, the default segment its `data-default-url` carried, and the URL
+ * of its `suggest` action when it is editable. The CMS
+ * module is optional, and `instanceof` an absent class is simply false.
  *
  * Departures: legacy sends only `component` and the field's short class name in `extraClass`;
  * `componentCandidates`, sent only on shell schema requests, also exposes the field's class names up to
@@ -106,11 +110,29 @@ class FieldComponentCandidates
                     'startClosed' => (bool) $field->getStartClosed(),
                 ]);
             }
+            if ($field instanceof SiteTreeURLSegmentField) {
+                $entries[$index]['data'] = array_merge((array) ($entry['data'] ?? []), $this->urlSegmentData($field));
+            }
             if (isset($entry['children']) && is_array($entry['children'])) {
                 $entries[$index]['children'] = $this->decorate($entry['children'], $fieldsById);
             }
         }
         return $entries;
+    }
+
+    private function urlSegmentData(SiteTreeURLSegmentField $field): array
+    {
+        $data = [
+            'urlPrefix' => $field->getURLPrefix(),
+            'urlSuffix' => (string) $field->getURLSuffix(),
+            'defaultUrl' => (string) $field->getDefaultURL(),
+            // The help text is built by concatenation and can start with a space
+            'helpText' => trim((string) $field->getHelpText()),
+        ];
+        if (!$field->isReadonly() && $field->getForm()) {
+            $data['suggestUrl'] = $field->Link('suggest');
+        }
+        return $data;
     }
 
     private function declaredComponent(string $class): ?string

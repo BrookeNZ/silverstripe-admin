@@ -15,6 +15,7 @@ import { registerShellValidation } from './forms/validation';
 import { registerGridComponents } from './grid';
 import { initialSectionHeader } from './header/state';
 import { createLayout, createRouter, errors, Home, readMenu, SectionWithoutPilet } from './layout';
+import { createShellModalsApi } from './modals';
 import { createShellNotificationsApi } from './notifications';
 import { readTopBar } from './topbar/TopBar';
 import { chosenPreviewMode } from './preview/mode';
@@ -55,7 +56,7 @@ const instance = createInstance({
     unsavedChanges: initialUnsavedChanges,
     viewMode: chosenPreviewMode(),
   },
-  plugins: [createShellNotificationsApi(), createSilverstripeApi(), createServerCacheApi()],
+  plugins: [createShellNotificationsApi(), createShellModalsApi(), createSilverstripeApi(), createServerCacheApi()],
   requestPilets: createRequestPilets(root, feedUrl),
 });
 

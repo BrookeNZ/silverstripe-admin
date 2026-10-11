@@ -83,7 +83,7 @@ export const OptionsetField = <F extends FieldDescriptor>({ field, value, onChan
     {field.source.map((option) => {
       const id = `${field.id}_${option.value}`;
       return (
-        <div className="admin-field admin-field--inline" key={option.value}>
+        <div className="admin-field admin-field--inline admin-field--option" key={option.value}>
           <input
             className="admin-field__check"
             type="radio"

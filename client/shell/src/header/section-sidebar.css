@@ -15,6 +15,10 @@
  * From 1024px the column sticks below the shell's top bar at the viewport's height and its body scrolls
  * on its own; the header row's height follows the section header's measured height (header.css). Below
  * 1024px the column stacks above the content and scrolls with the page, and the body sets its own height.
+ *
+ * The body and the footer share one scroller that runs to the bottom edge. The footer sticks to its foot,
+ * fading from transparent into the column's ground, and passes pointer events through to the rows under
+ * the fade. Below 1024px the scroller caps its own height
  */
 
 :root {
@@ -26,6 +30,7 @@
   --shell-section-sidebar-height: auto;
   --shell-section-sidebar-inline-size: auto;
   --shell-section-sidebar-position: static;
+  --shell-section-sidebar-scroll-max-height: 40vh;
 
   /* Figma: Inter Medium 16px, New/Black */
   --shell-section-sidebar-title-font-size: var(--admin-font-size-lg);
@@ -38,6 +43,7 @@
     --shell-section-sidebar-height: calc(100vh - var(--shell-sticky-top));
     --shell-section-sidebar-inline-size: 33rem;
     --shell-section-sidebar-position: sticky;
+    --shell-section-sidebar-scroll-max-height: none;
   }
 }
 
@@ -51,11 +57,13 @@
   --shell-section-sidebar-collapse-shadow: var(--admin-raised-shadow);
   --shell-section-sidebar-collapse-size: 2.5rem;
   --shell-section-sidebar-display: flex;
+  --shell-section-sidebar-footer-fade-size: 2rem;
   --shell-section-sidebar-footer-justify: flex-end;
-  --shell-section-sidebar-footer-padding: 0 2rem 2rem;
+  --shell-section-sidebar-footer-padding-block-end: 2rem;
+  --shell-section-sidebar-footer-padding-inline: 2rem;
   --shell-section-sidebar-header-border: var(--admin-border) var(--admin-divider-color);
   --shell-section-sidebar-header-direction: row;
-  --shell-section-sidebar-title-padding-block-start: 0rem;
+  --shell-section-sidebar-title-padding-inline-end: 0rem;
   --shell-section-sidebar-title-writing-mode: horizontal-tb;
   --shell-section-sidebar-title-transform: none;
 
@@ -76,17 +84,17 @@
   --shell-section-sidebar-body-display: none;
 }
 
-/* Figma 2:3681: 61px Blue 100 rail, title Inter Medium 16px turned -90 degrees */
+/* Figma 2:3681: 61px Blue 100 rail, title Inter Medium 16px turned -90 degrees, its inline end the visual top */
 @media (width >= 1024px) {
   .shell-section-sidebar--collapsed {
     --shell-section-sidebar-bg-color: var(--admin-sunken-bg-color);
     --shell-section-sidebar-footer-justify: center;
-    --shell-section-sidebar-footer-padding: 0 0 2rem;
+    --shell-section-sidebar-footer-padding-inline: 0rem;
     --shell-section-sidebar-header-border: none;
     --shell-section-sidebar-header-direction: column;
     --shell-section-sidebar-header-padding-inline: 0rem;
     --shell-section-sidebar-inline-size: 6.1rem;
-    --shell-section-sidebar-title-padding-block-start: 6.3rem;
+    --shell-section-sidebar-title-padding-inline-end: 6.3rem;
     --shell-section-sidebar-title-transform: rotate(180deg);
     --shell-section-sidebar-title-writing-mode: vertical-rl;
   }
@@ -113,24 +121,38 @@
   color: var(--admin-fg-color);
   font-size: var(--shell-section-sidebar-title-font-size);
   font-weight: var(--shell-section-sidebar-title-font-weight);
-  padding-block-start: var(--shell-section-sidebar-title-padding-block-start);
+  padding-inline-end: var(--shell-section-sidebar-title-padding-inline-end);
   transform: var(--shell-section-sidebar-title-transform);
   writing-mode: var(--shell-section-sidebar-title-writing-mode);
 }
 
-.shell-section-sidebar__body {
-  display: var(--shell-section-sidebar-body-display);
+.shell-section-sidebar__scroll {
+  display: flex;
   flex: 1;
   flex-direction: column;
+  max-height: var(--shell-section-sidebar-scroll-max-height);
   min-height: 0;
+  overflow-y: auto;
+}
+
+.shell-section-sidebar__body {
+  display: var(--shell-section-sidebar-body-display);
+  flex-direction: column;
 }
 
 .shell-section-sidebar__footer {
+  background-image: linear-gradient(
+    transparent,
+    var(--shell-section-sidebar-bg-color) var(--shell-section-sidebar-footer-fade-size)
+  );
   display: flex;
-  flex: none;
+  inset-block-end: 0;
   justify-content: var(--shell-section-sidebar-footer-justify);
   margin-block-start: auto;
-  padding: var(--shell-section-sidebar-footer-padding);
+  padding-block: var(--shell-section-sidebar-footer-fade-size) var(--shell-section-sidebar-footer-padding-block-end);
+  padding-inline: var(--shell-section-sidebar-footer-padding-inline);
+  pointer-events: none;
+  position: sticky;
 }
 
 .shell-section-sidebar__collapse {
@@ -144,6 +166,7 @@
   --admin-icon-size: var(--shell-section-sidebar-collapse-icon-size);
 
   box-shadow: var(--shell-section-sidebar-collapse-shadow);
+  pointer-events: auto;
 
   &:hover {
     --shell-section-sidebar-collapse-shadow: var(--shell-section-sidebar-collapse-hover-shadow);

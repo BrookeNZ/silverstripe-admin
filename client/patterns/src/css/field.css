@@ -9,6 +9,10 @@
  * Grey 200 ground with New Grey 700 text, 2.88:1 and kept as designed. Its caret stays the browser's
  */
 
+:root {
+  --admin-field-padding-inline: var(--admin-gap-md);
+}
+
 .admin-field {
   --admin-field-align: stretch;
   --admin-field-control-bg-color: var(--admin-input-bg-color);
@@ -23,11 +27,17 @@
   flex-flow: var(--admin-field-direction) wrap;
   gap: var(--admin-gap-xs);
   max-width: var(--admin-field-max-width);
+  padding-inline: var(--admin-field-padding-inline);
 }
 
 .admin-field--inline {
   --admin-field-align: center;
   --admin-field-direction: row;
+}
+
+/* An option row sits inside its group's padded fieldset */
+.admin-field--option {
+  --admin-field-padding-inline: 0rem;
 }
 
 .admin-field__label {
@@ -94,7 +104,8 @@
   gap: var(--admin-gap-xs);
   max-width: var(--admin-field-max-width);
   margin: 0;
-  padding: 0;
+  padding-block: 0;
+  padding-inline: var(--admin-field-padding-inline);
 }
 
 .admin-field__readonly {

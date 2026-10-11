@@ -21,7 +21,8 @@ vi.mock('./schema', async (importOriginal) => ({
 }));
 vi.mock('./useFieldComponent', async () => {
   const { TabItem, Tabs } = await import('@silverstripe/admin-patterns');
-  const structural: Record<string, React.ComponentType<FieldComponentProps>> = { Tabs, TabItem };
+  const { ToggleCompositeField } = await import('./fields/ToggleCompositeField');
+  const structural: Record<string, React.ComponentType<FieldComponentProps>> = { Tabs, TabItem, ToggleCompositeField };
   return {
     useFullWidthField: (field: { name: string }) => field.name.endsWith('Grid'),
     useFieldComponent:
@@ -31,7 +32,10 @@ vi.mock('./useFieldComponent', async () => {
         if (Structural) {
           return <Structural {...props} />;
         }
-        return props.field.name === 'Nothing' ? null : <div id={props.field.id} />;
+        if (props.field.name === 'Nothing') {
+          return null;
+        }
+        return <div id={props.field.id} className={props.field.name.endsWith('Grid') ? undefined : 'admin-field'} />;
       },
   };
 });
@@ -83,6 +87,18 @@ const settle = () => act(async () => {
 
 const wrapperOf = (id: string) => container.querySelector(`#${id}`)?.parentElement?.className;
 
+// The stylesheets are not loaded by the test runner, and the inset is a token chain across them
+const loadStyles = (...paths: Array<string>) => {
+  const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
+  const style = document.createElement('style');
+  style.textContent = `:root { --shell-inset: 1.6rem; } ${paths.map(read).join(' ')}`;
+  document.head.append(style);
+  return style;
+};
+
+const insetOf = (element: Element | null | undefined, property: 'margin-inline' | 'padding-inline') =>
+  element ? getComputedStyle(element).getPropertyValue(property) : null;
+
 describe('FormSchemaForm content inset', () => {
   it('wraps each top-level field and message in an inset wrapper, and a full-width field in its modifier', async () => {
     await render(<FormSchemaForm schemaUrl="admin/form" />);
@@ -121,6 +137,30 @@ describe('FormSchemaForm content inset', () => {
     expect(container.querySelector('.shell-form')?.className).toBe('shell-form shell-form--nested');
   });
 
+  it('insets a form message by the form inset, and not in a nested form', async () => {
+    const style = loadStyles('./form.css', '../../../patterns/src/css/field.css');
+    await render(<FormSchemaForm schemaUrl="admin/form" />);
+    expect(insetOf(container.querySelector('.admin-alert'), 'margin-inline')).toBe('1.6rem');
+    container.remove();
+    serverQueryClient.clear();
+    await render(<FormSchemaForm schemaUrl="admin/form" headless />);
+    expect(insetOf(container.querySelector('.admin-alert'), 'margin-inline')).toBe('0rem');
+    style.remove();
+  });
+
+  it('insets a disclosure and leaves its fields to the panel padding', async () => {
+    const style = loadStyles(
+      './form.css',
+      './fields/toggle-composite-field.css',
+      '../../../patterns/src/css/disclosure.css',
+      '../../../patterns/src/css/field.css',
+    );
+    await render(<FormSchemaForm schemaUrl="admin/form" />, [field('Group', 'Structural', 'ToggleCompositeField', [field('Inside')])]);
+    expect(insetOf(container.querySelector('#Form_EditForm_Group'), 'margin-inline')).toBe('1.6rem');
+    expect(insetOf(container.querySelector('#Form_EditForm_Inside'), 'padding-inline')).toBe('0rem');
+    style.remove();
+  });
+
   describe('inside a tab set', () => {
     const tabbedFields = [
       tabSet('Root', [
@@ -133,15 +173,15 @@ describe('FormSchemaForm content inset', () => {
       // The stylesheets are not loaded by the test runner, and the inset is a token chain across both
       const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
       const style = document.createElement('style');
-      style.textContent = `:root { --shell-inset: 1.6rem; } ${read('./form.css')} ${read('../../../patterns/src/css/tab-strip.css')}`;
+      style.textContent = `:root { --shell-inset: 1.6rem; } ${read('./form.css')} ${read('../../../patterns/src/css/tab-strip.css')} ${read('../../../patterns/src/css/field.css')}`;
       document.head.append(style);
       await render(<FormSchemaForm schemaUrl="admin/form" />, tabbedFields);
       const paddingOf = (element: Element | null | undefined) => (element ? getComputedStyle(element).getPropertyValue('padding-inline') : null);
       expect(wrapperOf('Form_EditForm_Root')).toBe('shell-form__field shell-form__field--tabs');
-      expect(paddingOf(container.querySelector('#Form_EditForm_Root')?.parentElement)).toBe('0rem');
       expect(paddingOf(container.querySelector('#Form_EditForm_Root > .admin-tab-strip'))).toBe('1.6rem');
-      expect(paddingOf(container.querySelector('#Form_EditForm_Content')?.parentElement)).toBe('1.6rem');
-      expect(paddingOf(container.querySelector('#Form_EditForm_PageGrid')?.parentElement)).toBe('0rem');
+      const contentHolder = container.querySelector('#Form_EditForm_Content')?.closest('.admin-field');
+      expect(paddingOf(contentHolder)).toBe('1.6rem');
+      expect(container.querySelector('#Form_EditForm_PageGrid')?.closest('.admin-field')).toBeNull();
       style.remove();
     });
 

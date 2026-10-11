@@ -64,6 +64,9 @@
 }
 
 .admin-disclosure__panel {
+  /* Fields inside sit in the panel's own padding */
+  --admin-field-padding-inline: 0rem;
+
   display: flex;
   flex-direction: column;
   gap: var(--admin-gap-md);

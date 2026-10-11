@@ -12,6 +12,10 @@ export interface FormRenderContextValue {
   boundKeys: ReadonlySet<string>;
   renderFields: (fields: ReadonlyArray<FormField>) => React.ReactNode;
   autofill: (name: string, value: unknown) => void;
+  /** A bound field's current value, by key */
+  getValue: (key: string) => unknown;
+  /** Calls `listener` after any value in the form changes; returns the unsubscribe */
+  subscribeValues: (listener: () => void) => () => void;
 }
 
 export const FormRenderContext = React.createContext<FormRenderContextValue | null>(null);

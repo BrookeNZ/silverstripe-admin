@@ -172,10 +172,17 @@ export interface SchemaFormDialogProps {
   /** Controls above the form, such as a choice of which form to show; the first field still takes focus on load */
   intro?: ReactNode;
   schemaUrl: string;
+  /** Fields left out at any depth, as on FormSchemaForm, such as a header group the dialog's own heading repeats */
+  omitFields?: ReadonlyArray<string>;
   /** Cancel or Escape; the dialog stays open until the host sets `open` false */
   onClose: () => void;
   /** A post the server accepted; the host closes the dialog here */
   onSubmitted?: (response: FormSchemaResponse, action: FormField) => void;
+  /**
+   * As a named modal's content: the header and the actions go to the shell's modal frame and no Dialog of
+   * its own is drawn. Pass `open` too; outside a named modal it draws its own Dialog as usual
+   */
+  modal?: boolean;
 }
 
 export type * from '../hooks/types';

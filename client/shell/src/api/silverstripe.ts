@@ -53,6 +53,7 @@ import type { AddNewButtonProps } from '../grid/AddNewButton';
 import type { GridCellProps } from '../grid/types';
 import type { DataTableColumn, DataTableProps, DataTableRow, DataTableSelection, DataTableSort, DataTableSortDirection } from '../grid/DataTable';
 import { clearPanelOf, closePanel, openPanel, usePanel } from '../panel/state';
+import { useFormFieldValue } from '../forms/useFormFieldValue';
 import type { OpenPanel, PanelOptions } from '../panel/state';
 
 export type { DataTableColumn, DataTableProps, DataTableRow, DataTableSelection, DataTableSort, DataTableSortDirection };
@@ -219,6 +220,11 @@ export interface SilverstripeApi {
   closePanel: (id: string) => void;
   /** The panel showing, from any pilet, or null; re-renders when it opens, closes or is replaced */
   usePanel: () => OpenPanel | null;
+  /**
+   * In a field component: the current value of the posted field `name` in the same form, re-rendering
+   * when it changes, and unsubscribing on unmount. `undefined` outside a form or for a name it does not post
+   */
+  useFormFieldValue: (name: string) => unknown;
 }
 
 declare module 'piral-core/lib/types/custom' {
@@ -386,6 +392,7 @@ export function createSilverstripeApi(): PiralPlugin<SilverstripeApi> {
           closePanel(context, meta.name, id);
         },
         usePanel,
+        useFormFieldValue,
       };
     };
   };

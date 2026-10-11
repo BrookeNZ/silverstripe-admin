@@ -2,7 +2,8 @@
 import * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import type { NavigateFunction } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import type * as AdminComponents from '@silverstripe/admin-patterns';
 import type { ChildrenResponse, PageNode, TreeApi } from './api';
@@ -23,7 +24,8 @@ vi.mock('@silverstripe/admin-patterns', async (importOriginal) => {
     navigatorField,
     previewLinks,
     AddIcon: () => null,
-    Button: ({ variant, icon: _icon, children, ...rest }: { variant?: string; icon?: unknown; children?: React.ReactNode }) =>
+    SearchIcon: () => null,
+    Button: ({ variant, icon: _icon, iconOnly: _iconOnly, children, ...rest }: { variant?: string; icon?: unknown; iconOnly?: boolean; children?: React.ReactNode }) =>
       React.createElement('button', { type: 'button', 'data-variant': variant, ...rest }, children),
     FieldHolder: ({ children }: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, children),
     fieldTitle: (field: { title?: string }) => field.title ?? '',
@@ -116,7 +118,7 @@ describe('pageAncestors', () => {
 });
 
 describe('createPagesSessionHolder', () => {
-  const session = (): PagesSession => ({ api: {} as never, store: {} as never, createClient: {} as never, moveClient: {} as never });
+  const session = (): PagesSession => ({ api: {} as never, store: {} as never, createClient: {} as never, moveClient: {} as never, expandedItems: { current: [] } });
 
   it('shares the open session with subscribers', () => {
     const holder = createPagesSessionHolder();
@@ -334,7 +336,7 @@ describe('TreeQueries', () => {
 });
 
 describe('PagesSection submissions', () => {
-  function renderSection({ formClearsOnUnmount = true } = {}) {
+  function renderSection({ formClearsOnUnmount = true, path = '/pages/edit/show/7' } = {}) {
     let formProps: Record<string, any> = {};
     const locations: Array<string> = [];
     let unsaved = false;
@@ -356,8 +358,10 @@ describe('PagesSection submissions', () => {
       }, []);
       return null;
     };
+    let navigate: NavigateFunction = () => undefined;
     const Location = () => {
       const { pathname } = useLocation();
+      navigate = useNavigate();
       React.useEffect(() => {
         locations.push(pathname);
       }, [pathname]);
@@ -369,7 +373,7 @@ describe('PagesSection submissions', () => {
       invalidateRecords: vi.fn(),
       setCurrentRecord: () => undefined,
       setData: () => undefined,
-      setSectionHeader: () => undefined,
+      setSectionHeader: vi.fn((_header: { title: string; sidebar?: unknown }) => () => undefined),
       showNotification: vi.fn(),
       useServerQuery: () => ({ status: 'pending', data: undefined, error: null, isFetching: true }),
       useSharedState: (selector: (state: { unsavedChanges: boolean }) => unknown) =>
@@ -393,7 +397,7 @@ describe('PagesSection submissions', () => {
       root.render(
         React.createElement(
           MemoryRouter,
-          { initialEntries: ['/pages/edit/show/7'] },
+          { initialEntries: [path] },
           React.createElement(Location),
           React.createElement(
             Routes,
@@ -407,7 +411,9 @@ describe('PagesSection submissions', () => {
       act(() => root.unmount());
       container.remove();
     };
-    return { piral, form: () => formProps, locations, setUnsaved, done };
+    const header = () => piral.setSectionHeader.mock.lastCall?.[0];
+    const go = (to: string) => act(() => navigate(to));
+    return { piral, container, form: () => formProps, header, go, locations, setUnsaved, done };
   }
 
   const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 20)));
@@ -456,6 +462,42 @@ describe('PagesSection submissions', () => {
     act(() => setUnsaved(false));
     await settle();
     expect(locations).toEqual(['/pages/edit/show/7', '/pages/']);
+    done();
+  });
+
+  it('fills the index with the tree and no sidebar column, and brings the column back for a page and gone again', () => {
+    const { container, header, go, done } = renderSection({ path: '/pages/' });
+    const indexTree = () => container.querySelector('nav.pages-sidebar--index');
+
+    expect(header()).toEqual({ title: 'Pages' });
+    expect(indexTree()?.getAttribute('aria-label')).toBe('Page tree');
+    expect(indexTree()?.querySelector('.pages-tree-toolbar')?.textContent).toContain('Add new');
+    expect(container.textContent).not.toContain('Select a page');
+
+    go('/pages/edit/show/7');
+    expect(header()?.sidebar).toEqual({ title: 'Pages', section: 'pages' });
+    expect(indexTree()).toBeNull();
+
+    go('/pages/');
+    expect(header()?.sidebar).toBeUndefined();
+    expect(indexTree()).not.toBeNull();
+    done();
+  });
+
+  it("opens the index search from the toolbar's search button and hands focus back when it closes", () => {
+    const { container, done } = renderSection({ path: '/pages/' });
+    const button = container.querySelector<HTMLButtonElement>('.pages-tree-toolbar__end button')!;
+    const field = () => container.querySelector<HTMLInputElement>('#pages-index-search input[type="search"]');
+
+    expect([button.textContent, button.getAttribute('aria-expanded'), field()]).toEqual(['Search Pages', 'false', null]);
+    act(() => button.click());
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(document.activeElement).toBe(field());
+    act(() => {
+      field()!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    expect(field()).toBeNull();
+    expect(document.activeElement).toBe(button);
     done();
   });
 });

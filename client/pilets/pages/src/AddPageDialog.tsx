@@ -29,7 +29,7 @@ interface PageTypeOptionProps {
 const PageTypeOption = ({ id, type, checked, onChoose }: PageTypeOptionProps) => {
   const descriptionId = `${id}_description`;
   return (
-    <div className="admin-field admin-field--inline">
+    <div className="admin-field admin-field--inline admin-field--option">
       <input
         className="admin-field__check"
         type="radio"

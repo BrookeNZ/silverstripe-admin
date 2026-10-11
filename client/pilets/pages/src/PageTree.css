@@ -220,3 +220,7 @@
 .pages-tree__note {
   padding-inline-start: var(--admin-target-min-size);
 }
+
+.pages-tree__more {
+  margin-inline-start: var(--admin-target-min-size);
+}

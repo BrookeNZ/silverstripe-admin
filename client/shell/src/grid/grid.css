@@ -21,7 +21,7 @@
   --admin-grid-button-padding: 0.8rem 1rem;
   --admin-grid-divider-width: 0.1rem;
   --admin-grid-toolbar-gap: 2rem;
-  --admin-grid-toolbar-padding: 2rem 0 3rem;
+  --admin-grid-toolbar-padding: 2rem var(--admin-data-table-inset) 3rem;
 
   color: var(--admin-fg-color);
   display: flex;

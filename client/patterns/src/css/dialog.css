@@ -29,6 +29,8 @@
 }
 
 .admin-dialog__body {
+  --admin-field-padding-inline: 0rem;
+
   margin: 0 0 var(--admin-gap-md);
 }
 

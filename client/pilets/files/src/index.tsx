@@ -1,14 +1,16 @@
 import type { PiletApi } from '@silverstripe/admin-shell';
 import { createFileRedirect } from './FileRedirect';
 import { createFilesSection } from './FilesSection';
+import type { UploadRules } from './createFile';
 import './files.css';
 
 const assetAdmin = 'SilverStripe\\AssetAdmin\\Controller\\AssetAdmin';
 
 interface AssetAdminSection {
   reactRoutePath?: string;
-  endpoints?: { read?: { url?: string } };
-  form?: { fileEditForm?: { schemaUrl?: string } };
+  endpoints?: { read?: { url?: string }; createFile?: { url?: string } };
+  dropzoneOptions?: UploadRules;
+  form?: { fileEditForm?: { schemaUrl?: string }; folderCreateForm?: { schemaUrl?: string } };
 }
 
 /**
@@ -25,11 +27,15 @@ export function setup(api: PiletApi) {
   const routePrefix = `/${section.reactRoutePath.replace(/^\/+|\/+$/g, '')}`;
   const sectionTitle = 'Files';
   const fileEditSchemaUrl = section.form?.fileEditForm?.schemaUrl;
+  const createFileUrl = section.endpoints?.createFile?.url;
   const Page = createFilesSection({
     routePrefix,
     sectionTitle,
     readEndpoint: new URL(readUrl, document.baseURI).href,
     fileEditSchemaUrl,
+    createFileEndpoint: createFileUrl ? new URL(createFileUrl, document.baseURI).href : undefined,
+    uploadRules: section.dropzoneOptions,
+    folderCreateSchemaUrl: section.form?.folderCreateForm?.schemaUrl,
   });
   api.registerPage(routePrefix, Page);
   api.registerPage(`${routePrefix}/show/:folderId`, Page);

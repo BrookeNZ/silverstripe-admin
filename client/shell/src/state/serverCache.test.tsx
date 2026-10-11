@@ -187,6 +187,30 @@ describe('useServerQuery', () => {
     expect(last(seen)?.data).toEqual(['fetched']);
   });
 
+  it('reads the cache on a remount within its staleTime, and refetches on an event on screen or off', async () => {
+    const file = 'SilverStripe\\Assets\\File';
+    const listing = vi.fn(async () => [{ id: 19 }]);
+    const records = (rows: Array<{ id: number }>) => rows.map((row) => row.id);
+    const options = { staleTime: 30_000, keepPrevious: true, records };
+    await render(<Reader queryKey={[file, 9, 'children', 'title,asc', 1]} fetcher={listing} seen={[]} options={options} />);
+    await render(<></>);
+    await render(<Reader queryKey={[file, 9, 'children', 'title,asc', 1]} fetcher={listing} seen={[]} options={options} />);
+    expect(listing).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      api.invalidateRecords(file, [19]);
+    });
+    await flush();
+    expect(listing).toHaveBeenCalledTimes(2);
+
+    await render(<></>);
+    await act(async () => {
+      api.invalidateRecords(file, [9]);
+    });
+    await render(<Reader queryKey={[file, 9, 'children', 'title,asc', 1]} fetcher={listing} seen={[]} options={options} />);
+    expect(listing).toHaveBeenCalledTimes(3);
+  });
+
   it('resolves a refetch to the data it fetched', async () => {
     let version = 0;
     const fetcher = vi.fn(async () => `v${++version}`);

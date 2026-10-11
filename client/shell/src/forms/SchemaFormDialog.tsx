@@ -10,15 +10,19 @@
  *
  * The form is still loading when the dialog opens, so the heading takes focus first and the first field
  * once the schema has loaded, unless focus has moved on meanwhile.
+ *
+ * With `modal`, as the content of a named modal, it hands its header and footer to the shell's modal frame
+ * and draws no Dialog of its own; the registration's layout should set `focusHeading`.
  */
 import * as React from 'react';
 import { Button, Dialog, fieldTitle } from '@silverstripe/admin-patterns';
+import { useModalFrame } from '../modalFrame';
 import { FormSchemaForm } from './FormSchemaForm';
 import type { FormField, FormSchemaFormHandle, SchemaFormDialogProps } from './types';
 
 const firstField = 'input:not([type="hidden"]):not(:disabled), select:not(:disabled), textarea:not(:disabled), [contenteditable="true"]';
 
-export const SchemaFormDialog = ({ open, header, intro, schemaUrl, onClose, onSubmitted }: SchemaFormDialogProps) => {
+export const SchemaFormDialog = ({ open, header, intro, schemaUrl, omitFields, onClose, onSubmitted, modal }: SchemaFormDialogProps) => {
   const handle = React.useRef<FormSchemaFormHandle>(null);
   const [actions, setActions] = React.useState<Array<FormField>>([]);
   const [pending, setPending] = React.useState<string | null>(null);
@@ -68,30 +72,25 @@ export const SchemaFormDialog = ({ open, header, intro, schemaUrl, onClose, onSu
     }
   };
 
-  return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      header={header}
-      focusHeading
-      footer={
-        <>
-          <Button onClick={onClose}>Cancel</Button>
-          {actions.map((action) => (
-            <Button
-              key={action.name}
-              id={action.id}
-              variant={action.primary ? 'primary' : 'secondary'}
-              disabled={action.disabled || action.readOnly || (pending !== null && pending !== action.name)}
-              loading={pending === action.name}
-              onClick={() => void submit(action.name)}
-            >
-              {fieldTitle(action)}
-            </Button>
-          ))}
-        </>
-      }
-    >
+  const footer = (
+    <>
+      <Button onClick={onClose}>Cancel</Button>
+      {actions.map((action) => (
+        <Button
+          key={action.name}
+          id={action.id}
+          variant={action.primary ? 'primary' : 'secondary'}
+          disabled={action.disabled || action.readOnly || (pending !== null && pending !== action.name)}
+          loading={pending === action.name}
+          onClick={() => void submit(action.name)}
+        >
+          {fieldTitle(action)}
+        </Button>
+      ))}
+    </>
+  );
+  const content = (
+    <>
       {intro && <div ref={introHolder}>{intro}</div>}
       <div ref={body}>
         {open && (
@@ -99,6 +98,7 @@ export const SchemaFormDialog = ({ open, header, intro, schemaUrl, onClose, onSu
             key={schemaUrl}
             schemaUrl={schemaUrl}
             headless
+            omitFields={omitFields}
             handleRef={handle}
             onLoad={() => setLoaded(true)}
             onSubmitted={onSubmitted}
@@ -107,6 +107,15 @@ export const SchemaFormDialog = ({ open, header, intro, schemaUrl, onClose, onSu
           />
         )}
       </div>
+    </>
+  );
+
+  if (useModalFrame(modal ? { header, footer } : null) && modal) {
+    return content;
+  }
+  return (
+    <Dialog open={open} onClose={onClose} header={header} focusHeading footer={footer}>
+      {content}
     </Dialog>
   );
 };

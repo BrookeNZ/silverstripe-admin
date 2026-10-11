@@ -10,6 +10,9 @@
  * has no narrow pages layout (its Site tree sidebar 2:3674 and collapsed rail 2:3681 are desktop only),
  * so the stacking is the shell's own choice.
  *
+ * The section index has no sidebar column: the same pane fills the content area at every width, as the
+ * scroll box, at the viewport's height below the header.
+ *
  * The form column scrolls with the page so its sticky action bar keeps working; it is at least as tall
  * as the viewport below the header, so a short form's action bar sits at the viewport bottom. It has no
  * inline padding: the form insets its own fields, and the rest of its content takes the same inset from
@@ -18,17 +21,26 @@
  */
 
 .pages {
+  --pages-height: auto;
+  --pages-padding-block-start: var(--admin-gap-md);
+
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: var(--admin-gap-sm);
+  height: var(--pages-height);
   min-height: calc(100vh - var(--shell-sticky-top) - var(--shell-header-offset));
-  padding-block-start: var(--admin-gap-md);
+  padding-block-start: var(--pages-padding-block-start);
+}
+
+.pages--index {
+  --pages-height: calc(100vh - var(--shell-sticky-top) - var(--shell-header-offset));
+  --pages-padding-block-start: 0rem;
 }
 
 .pages-sidebar {
   --pages-sidebar-flex: none;
-  --pages-sidebar-height: 40vh;
+  --pages-sidebar-overflow: visible;
 
   /* Figma Site tree sidebar 2:3677: 20px toolbar and tree inset */
   --pages-sidebar-inset: 2rem;
@@ -36,16 +48,14 @@
   display: flex;
   flex: var(--pages-sidebar-flex);
   flex-direction: column;
-  height: var(--pages-sidebar-height);
   min-height: 0;
-  overflow: auto;
+  overflow: var(--pages-sidebar-overflow);
 }
 
-@media (width >= 1024px) {
-  .pages-sidebar {
-    --pages-sidebar-flex: 1;
-    --pages-sidebar-height: auto;
-  }
+/* In the section sidebar the shell's column scrolls; on the index the pane is its own scroller */
+.pages-sidebar--index {
+  --pages-sidebar-flex: 1;
+  --pages-sidebar-overflow: auto;
 }
 
 /* The pane insets sit on its rows, not the pane, so the scrollbar stays on the pane's edge */
@@ -62,6 +72,10 @@
   flex-wrap: wrap;
   gap: var(--pages-tree-toolbar-gap);
   padding: var(--pages-sidebar-inset);
+}
+
+.pages-tree-toolbar__end {
+  margin-inline-start: auto;
 }
 
 .pages-sidebar__alert {
