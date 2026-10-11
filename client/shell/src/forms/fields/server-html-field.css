@@ -5,27 +5,29 @@
  * never mistaken for a ported one
  */
 
-.shell-server-html {
-  --shell-server-html-border: 0.1rem dashed var(--admin-border-color);
+@layer shell {
+  .shell-server-html {
+    --shell-server-html-border: 0.1rem dashed var(--admin-border-color);
 
-  border: var(--shell-server-html-border);
-  border-radius: var(--admin-radius);
-  display: flex;
-  flex-direction: column;
-  gap: var(--admin-gap-xs);
-  margin-inline: var(--admin-field-padding-inline);
-  padding: var(--admin-gap-sm) var(--admin-gap-md);
-}
+    border: var(--shell-server-html-border);
+    border-radius: var(--admin-radius);
+    display: flex;
+    flex-direction: column;
+    gap: var(--admin-gap-xs);
+    margin-inline: var(--admin-field-padding-inline);
+    padding: var(--admin-gap-sm) var(--admin-gap-md);
+  }
 
-.shell-server-html__marker {
-  color: var(--admin-muted-fg-color);
-  margin: 0;
-}
+  .shell-server-html__marker {
+    color: var(--admin-muted-fg-color);
+    margin: 0;
+  }
 
-.shell-server-html__content {
-  border: 0;
-  margin: 0;
-  min-width: 0;
-  overflow-x: auto;
-  padding: 0;
+  .shell-server-html__content {
+    border: 0;
+    margin: 0;
+    min-width: 0;
+    overflow-x: auto;
+    padding: 0;
+  }
 }

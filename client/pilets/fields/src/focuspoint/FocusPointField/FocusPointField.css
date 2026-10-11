@@ -6,54 +6,58 @@
  * as percentages of the image box; the overlay above the image is a slider taking clicks and arrow keys
  */
 
-.focuspoint-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--admin-gap-sm);
-}
+@layer pilets {
+  .focuspoint-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--admin-gap-sm);
+  }
 
-.focuspoint-picker {
-  border-radius: var(--admin-radius);
-  display: inline-block;
-  margin: 0;
-  overflow: hidden;
-  position: relative;
-}
+  .focuspoint-picker {
+    border-radius: var(--admin-radius);
+    display: inline-block;
+    margin: 0;
+    overflow: hidden;
+    position: relative;
+  }
 
-/* A block image makes the picker box exactly the image, so the marker percentages map onto it */
-.focuspoint-picker__image {
-  display: block;
-}
+  /* A block image makes the picker box exactly the image, so the marker percentages map onto it */
+  .focuspoint-picker__image {
+    display: block;
+  }
 
-.focuspoint-picker__marker {
-  --focuspoint-picker-crosshair-size: 1.1rem;
-  --focuspoint-picker-left: 50%;
-  --focuspoint-picker-top: 50%;
+  .focuspoint-picker__marker {
+    --focuspoint-picker-crosshair-size: 1.1rem;
+    --focuspoint-picker-left: 50%;
+    --focuspoint-picker-marker-border-width: 0.2rem;
+    --focuspoint-picker-marker-ring-width: 0.1rem;
+    --focuspoint-picker-top: 50%;
 
-  border: 0.2rem solid var(--admin-on-image-fg-color);
-  border-radius: 50%;
-  box-shadow: 0 0 0 0.1rem var(--admin-on-image-ring-color);
-  height: var(--focuspoint-picker-crosshair-size);
-  left: var(--focuspoint-picker-left);
-  pointer-events: none;
-  position: absolute;
-  top: var(--focuspoint-picker-top);
-  transform: translate(-50%, -50%);
-  width: var(--focuspoint-picker-crosshair-size);
-}
+    border: var(--focuspoint-picker-marker-border-width) solid var(--admin-on-image-fg-color);
+    border-radius: 50%;
+    box-shadow: 0 0 0 var(--focuspoint-picker-marker-ring-width) var(--admin-on-image-ring-color);
+    height: var(--focuspoint-picker-crosshair-size);
+    left: var(--focuspoint-picker-left);
+    pointer-events: none;
+    position: absolute;
+    top: var(--focuspoint-picker-top);
+    transform: translate(-50%, -50%);
+    width: var(--focuspoint-picker-crosshair-size);
+  }
 
-.focuspoint-picker__overlay {
-  border-radius: var(--admin-radius);
-  cursor: crosshair;
-  display: block;
-  height: 100%;
-  left: 0;
-  position: absolute;
-  top: 0;
-  width: 100%;
-}
+  .focuspoint-picker__overlay {
+    border-radius: var(--admin-radius);
+    cursor: crosshair;
+    display: block;
+    height: 100%;
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: 100%;
+  }
 
-.focuspoint-picker__overlay:focus-visible {
-  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
-  outline-offset: calc(var(--admin-focus-outline-offset) * -1);
+  .focuspoint-picker__overlay:focus-visible {
+    outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+    outline-offset: calc(var(--admin-focus-outline-offset) * -1);
+  }
 }

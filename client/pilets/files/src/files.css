@@ -19,404 +19,411 @@
  * the 992 frame's preview is 500px tall
  */
 
-.files {
-  --files-inset: 2rem;
+@layer pilets {
+  .files {
+    --files-inset: 2rem;
+    --files-table-icon-size: 2.4rem;
 
-  /* Fills the shell's body column, so the drop zone below the toolbar reaches the bottom, as legacy's did */
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-}
+    /* Figma 100px Size and Modified columns */
+    --files-table-meta-size: 10rem;
+    --files-table-title-gap: 1.5rem;
+    --files-upload-progress-max-size: 20rem;
 
-.files__body {
-  padding-block-end: var(--files-inset);
-}
-
-.files__inset {
-  padding-inline: var(--files-inset);
-}
-
-.files__message {
-  margin: 0;
-}
-
-.files-toolbar {
-  --files-toolbar-actions-gap: 0.5rem;
-  --files-toolbar-actions-padding: 0;
-  --files-toolbar-align: center;
-  --files-toolbar-direction: row;
-
-  /* Figma 12px start beside the white buttons' own 10px, 20px elsewhere */
-  --files-toolbar-padding: 2rem 2rem 2rem 1.2rem;
-  --files-toolbar-view-gap: 2rem;
-  --files-toolbar-view-padding: 0;
-
-  align-items: var(--files-toolbar-align);
-  display: flex;
-  flex-direction: var(--files-toolbar-direction);
-  justify-content: space-between;
-  padding: var(--files-toolbar-padding);
-}
-
-/* Figma 360 frame 2:31027: a 64px button row (2:31032) over a 44px sort row (2:31035) */
-@media (width < 576px) {
-  .files-toolbar--sorted {
-    --files-toolbar-actions-gap: 1rem;
-    --files-toolbar-actions-padding: 2rem 1.2rem 1rem;
-    --files-toolbar-align: stretch;
-    --files-toolbar-direction: column;
-    --files-toolbar-padding: 0;
-    --files-toolbar-view-padding: 0 2rem 1rem;
+    /* Fills the shell's body column, so the drop zone below the toolbar reaches the bottom, as legacy's did */
+    display: flex;
+    flex: 1;
+    flex-direction: column;
   }
-}
 
-.files-toolbar__actions {
-  display: flex;
-  gap: var(--files-toolbar-actions-gap);
-  padding: var(--files-toolbar-actions-padding);
-}
+  .files__body {
+    padding-block-end: var(--files-inset);
+  }
 
-.files-toolbar__view {
-  align-items: center;
-  display: flex;
-  gap: var(--files-toolbar-view-gap);
-  justify-content: space-between;
-  padding: var(--files-toolbar-view-padding);
-}
+  .files__inset {
+    padding-inline: var(--files-inset);
+  }
 
-.files-gallery {
-  --files-gallery-columns: 1;
-  --files-gallery-gap: 1.5rem;
+  .files__message {
+    margin: 0;
+  }
 
-  display: grid;
-  gap: var(--files-gallery-gap);
-}
+  .files-toolbar {
+    --files-toolbar-actions-gap: 0.5rem;
+    --files-toolbar-actions-padding: 0;
+    --files-toolbar-align: center;
+    --files-toolbar-direction: row;
 
-@media (width >= 576px) {
+    /* Figma 12px start beside the white buttons' own 10px, 20px elsewhere */
+    --files-toolbar-padding: 2rem 2rem 2rem 1.2rem;
+    --files-toolbar-view-gap: 2rem;
+    --files-toolbar-view-padding: 0;
+
+    align-items: var(--files-toolbar-align);
+    display: flex;
+    flex-direction: var(--files-toolbar-direction);
+    justify-content: space-between;
+    padding: var(--files-toolbar-padding);
+  }
+
+  /* Figma 360 frame 2:31027: a 64px button row (2:31032) over a 44px sort row (2:31035) */
+  @media (width < 576px) {
+    .files-toolbar--sorted {
+      --files-toolbar-actions-gap: 1rem;
+      --files-toolbar-actions-padding: 2rem 1.2rem 1rem;
+      --files-toolbar-align: stretch;
+      --files-toolbar-direction: column;
+      --files-toolbar-padding: 0;
+      --files-toolbar-view-padding: 0 2rem 1rem;
+    }
+  }
+
+  .files-toolbar__actions {
+    display: flex;
+    gap: var(--files-toolbar-actions-gap);
+    padding: var(--files-toolbar-actions-padding);
+  }
+
+  .files-toolbar__view {
+    align-items: center;
+    display: flex;
+    gap: var(--files-toolbar-view-gap);
+    justify-content: space-between;
+    padding: var(--files-toolbar-view-padding);
+  }
+
   .files-gallery {
-    --files-gallery-columns: 2;
-  }
-}
+    --files-gallery-columns: 1;
+    --files-gallery-gap: 1.5rem;
 
-@media (width >= 992px) {
-  .files-gallery {
-    --files-gallery-columns: 3;
-  }
-}
-
-@media (width >= 1400px) {
-  .files-gallery {
-    --files-gallery-columns: 4;
-  }
-}
-
-@media (width >= 1800px) {
-  .files-gallery {
-    --files-gallery-columns: 5;
-  }
-}
-
-.files-gallery__group {
-  display: grid;
-  gap: var(--files-gallery-gap);
-  grid-template-columns: repeat(var(--files-gallery-columns), minmax(0, 1fr));
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.files-tile {
-  --admin-check-size: 1.6rem;
-  --files-tile-border-color: var(--admin-divider-color);
-  --files-tile-footer-bg-color: transparent;
-  --files-tile-footer-hover-bg-color: var(--admin-selected-bg-color);
-  --files-tile-border-width: 0.1rem;
-  --files-tile-footer-gap: 3rem;
-
-  /* Figma draws the 1px edge inside the 54px folder tile, so its 15px padding includes it */
-  --files-tile-footer-padding: calc(1.5rem - var(--files-tile-border-width));
-  --files-tile-hover-border-color: var(--admin-selected-border-color);
-  --files-tile-icon-gap: 1rem;
-  --files-tile-image-filter: none;
-
-  /* Figma Blue 200, the document tile's ground; no role names it */
-  --files-tile-preview-bg-color: var(--admin-palette-blue-200);
-  --files-tile-view-display: none;
-
-  border: var(--files-tile-border-width) solid var(--files-tile-border-color);
-  border-radius: var(--admin-radius);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  position: relative;
-
-  &:hover,
-  &:has(:focus-visible) {
-    --files-tile-border-color: var(--files-tile-hover-border-color);
-    --files-tile-footer-bg-color: var(--files-tile-footer-hover-bg-color);
+    display: grid;
+    gap: var(--files-gallery-gap);
   }
 
-  /* The ring for the stretched link, drawn on the tile as the link's box is only its name */
-  &:has(:focus-visible) {
-    outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
-    outline-offset: var(--admin-focus-outline-offset);
-  }
-}
-
-.files-tile--file {
-  --files-tile-footer-padding: 2rem;
-
-  /* Figma "Image/doc file" State=Hover 2:6482: a 5px blur and the View label on a scrim */
-  &:hover,
-  &:has(:focus-visible) {
-    --files-tile-image-filter: blur(0.5rem);
-    --files-tile-view-display: flex;
-  }
-}
-
-/* Figma "Image/doc file" State=Active 2:6491, hovered or not */
-.files-tile--active {
-  --files-tile-border-color: var(--admin-current-border-color);
-  --files-tile-footer-bg-color: var(--admin-accent-tint-color);
-  --files-tile-footer-hover-bg-color: var(--admin-accent-tint-color);
-  --files-tile-hover-border-color: var(--admin-current-border-color);
-}
-
-.files-tile__preview {
-  aspect-ratio: 3 / 2;
-  background-color: var(--files-tile-preview-bg-color);
-  display: grid;
-  overflow: hidden;
-  place-items: center;
-}
-
-.files-tile__image {
-  block-size: 100%;
-  filter: var(--files-tile-image-filter);
-  grid-area: 1 / 1;
-  inline-size: 100%;
-  object-fit: cover;
-}
-
-.files-tile__type {
-  grid-area: 1 / 1;
-}
-
-/* Figma 40% black scrim; the backdrop role is the nearest the palette carries */
-.files-tile__view {
-  align-items: center;
-  background-color: var(--admin-backdrop-color);
-  color: var(--admin-on-image-fg-color);
-  display: var(--files-tile-view-display);
-  font-weight: var(--admin-font-weight-medium);
-  gap: var(--admin-gap-sm);
-  grid-area: 1 / 1;
-  justify-content: center;
-  place-self: stretch;
-
-  /* The blurred image's filter paints it in the positioned layer, so the label joins that layer to stay above */
-  position: relative;
-}
-
-.files-tile__footer {
-  align-items: center;
-  background-color: var(--files-tile-footer-bg-color);
-  display: flex;
-  gap: var(--files-tile-footer-gap);
-  padding: var(--files-tile-footer-padding);
-}
-
-.files-tile__link {
-  align-items: center;
-  color: var(--admin-fg-color);
-  display: flex;
-  flex: 1;
-  gap: var(--files-tile-icon-gap);
-  line-height: 1.4;
-  min-width: 0;
-  text-decoration: none;
-
-  /* The tile draws the ring */
-  &:focus-visible {
-    outline: none;
+  @media (width >= 576px) {
+    .files-gallery {
+      --files-gallery-columns: 2;
+    }
   }
 
-  &::after {
-    content: "";
-    inset: 0;
+  @media (width >= 992px) {
+    .files-gallery {
+      --files-gallery-columns: 3;
+    }
+  }
+
+  @media (width >= 1400px) {
+    .files-gallery {
+      --files-gallery-columns: 4;
+    }
+  }
+
+  @media (width >= 1800px) {
+    .files-gallery {
+      --files-gallery-columns: 5;
+    }
+  }
+
+  .files-gallery__group {
+    display: grid;
+    gap: var(--files-gallery-gap);
+    grid-template-columns: repeat(var(--files-gallery-columns), minmax(0, 1fr));
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .files-tile {
+    --admin-check-size: 1.6rem;
+    --files-tile-border-color: var(--admin-divider-color);
+    --files-tile-footer-bg-color: transparent;
+    --files-tile-footer-hover-bg-color: var(--admin-selected-bg-color);
+    --files-tile-border-width: 0.1rem;
+    --files-tile-footer-gap: 3rem;
+
+    /* Figma draws the 1px edge inside the 54px folder tile, so its 15px padding includes it */
+    --files-tile-footer-padding: calc(1.5rem - var(--files-tile-border-width));
+    --files-tile-hover-border-color: var(--admin-selected-border-color);
+    --files-tile-icon-gap: 1rem;
+    --files-tile-image-filter: none;
+
+    /* Figma Blue 200, the document tile's ground; no role names it */
+    --files-tile-preview-bg-color: var(--admin-palette-blue-200);
+    --files-tile-view-display: none;
+
+    border: var(--files-tile-border-width) solid var(--files-tile-border-color);
+    border-radius: var(--admin-radius);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+
+    &:hover,
+    &:has(:focus-visible) {
+      --files-tile-border-color: var(--files-tile-hover-border-color);
+      --files-tile-footer-bg-color: var(--files-tile-footer-hover-bg-color);
+    }
+
+    /* The ring for the stretched link, drawn on the tile as the link's box is only its name */
+    &:has(:focus-visible) {
+      outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+      outline-offset: var(--admin-focus-outline-offset);
+    }
+  }
+
+  .files-tile--file {
+    --files-tile-footer-padding: 2rem;
+
+    /* Figma "Image/doc file" State=Hover 2:6482: a 5px blur and the View label on a scrim */
+    &:hover,
+    &:has(:focus-visible) {
+      --files-tile-image-filter: blur(0.5rem);
+      --files-tile-view-display: flex;
+    }
+  }
+
+  /* Figma "Image/doc file" State=Active 2:6491, hovered or not */
+  .files-tile--active {
+    --files-tile-border-color: var(--admin-current-border-color);
+    --files-tile-footer-bg-color: var(--admin-accent-tint-color);
+    --files-tile-footer-hover-bg-color: var(--admin-accent-tint-color);
+    --files-tile-hover-border-color: var(--admin-current-border-color);
+  }
+
+  .files-tile__preview {
+    aspect-ratio: 3 / 2;
+    background-color: var(--files-tile-preview-bg-color);
+    display: grid;
+    overflow: hidden;
+    place-items: center;
+  }
+
+  .files-tile__image {
+    block-size: 100%;
+    filter: var(--files-tile-image-filter);
+    grid-area: 1 / 1;
+    inline-size: 100%;
+    object-fit: cover;
+  }
+
+  .files-tile__type {
+    grid-area: 1 / 1;
+  }
+
+  /* Figma 40% black scrim; the backdrop role is the nearest the palette carries */
+  .files-tile__view {
+    align-items: center;
+    background-color: var(--admin-backdrop-color);
+    color: var(--admin-on-image-fg-color);
+    display: var(--files-tile-view-display);
+    font-weight: var(--admin-font-weight-medium);
+    gap: var(--admin-gap-sm);
+    grid-area: 1 / 1;
+    justify-content: center;
+    place-self: stretch;
+
+    /* The blurred image's filter paints it in the positioned layer, so the label joins that layer to stay above */
+    position: relative;
+  }
+
+  .files-tile__footer {
+    align-items: center;
+    background-color: var(--files-tile-footer-bg-color);
+    display: flex;
+    gap: var(--files-tile-footer-gap);
+    padding: var(--files-tile-footer-padding);
+  }
+
+  .files-tile__link {
+    align-items: center;
+    color: var(--admin-fg-color);
+    display: flex;
+    flex: 1;
+    gap: var(--files-tile-icon-gap);
+    line-height: 1.4;
+    min-width: 0;
+    text-decoration: none;
+
+    /* The tile draws the ring */
+    &:focus-visible {
+      outline: none;
+    }
+
+    &::after {
+      content: "";
+      inset: 0;
+      position: absolute;
+    }
+  }
+
+  .files-tile__icon {
+    flex: none;
+  }
+
+  .files-tile__name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Above the stretched link */
+  .files-tile__check {
+    position: relative;
+    z-index: 1;
+  }
+
+  .files-table__meta {
+    inline-size: var(--files-table-meta-size);
+  }
+
+  .files-table__title {
+    align-items: center;
+    display: flex;
+    gap: var(--files-table-title-gap);
+    min-width: 0;
+  }
+
+  .files-table__icon {
+    block-size: var(--files-table-icon-size);
+    display: grid;
+    flex: none;
+    inline-size: var(--files-table-icon-size);
+    place-items: center;
+  }
+
+  .files-table__link {
+    color: inherit;
+    font-weight: var(--admin-font-weight-normal);
+    min-width: 0;
+    overflow: hidden;
+    text-decoration: none;
+    text-overflow: ellipsis;
+
+    &:focus-visible {
+      outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+      outline-offset: var(--admin-focus-outline-offset);
+    }
+  }
+
+  .files-details {
+    --files-details-gap: 2rem;
+
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--files-details-gap);
+  }
+
+  .files-preview {
+    --files-preview-block-size: 30rem;
+
+    /* Figma Blue 200, the document tile's ground; no role names it */
+    --files-preview-bg-color: var(--admin-palette-blue-200);
+    --files-preview-ground-blur: 2.5rem;
+
+    /* Figma's 30% black over the blurred copy */
+    --files-preview-ground-dim: brightness(0.7);
+    --files-preview-radius: 0.5rem;
+
+    background-color: var(--files-preview-bg-color);
+    block-size: var(--files-preview-block-size);
+    border-radius: var(--files-preview-radius);
+    display: grid;
+    isolation: isolate;
+    overflow: hidden;
+    place-items: center;
+    position: relative;
+
+    &:focus-visible {
+      outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+      outline-offset: var(--admin-focus-outline-offset);
+    }
+  }
+
+  @media (768px <= width < 1200px) {
+    .files-preview {
+      --files-preview-block-size: 50rem;
+    }
+  }
+
+  /* Bleeds by the blur radius, so the blur's soft edge falls outside the clip */
+  .files-preview__ground {
+    block-size: calc(100% + 2 * var(--files-preview-ground-blur));
+    filter: blur(var(--files-preview-ground-blur)) var(--files-preview-ground-dim);
+    inline-size: calc(100% + 2 * var(--files-preview-ground-blur));
+    inset: calc(-1 * var(--files-preview-ground-blur));
+    object-fit: cover;
     position: absolute;
   }
-}
 
-.files-tile__icon {
-  flex: none;
-}
-
-.files-tile__name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Above the stretched link */
-.files-tile__check {
-  position: relative;
-  z-index: 1;
-}
-
-/* Figma 100px Size and Modified columns */
-.files-table__meta {
-  inline-size: 10rem;
-}
-
-.files-table__title {
-  align-items: center;
-  display: flex;
-  gap: 1.5rem;
-  min-width: 0;
-}
-
-.files-table__icon {
-  block-size: 2.4rem;
-  display: grid;
-  flex: none;
-  inline-size: 2.4rem;
-  place-items: center;
-}
-
-.files-table__link {
-  color: inherit;
-  font-weight: var(--admin-font-weight-normal);
-  min-width: 0;
-  overflow: hidden;
-  text-decoration: none;
-  text-overflow: ellipsis;
-
-  &:focus-visible {
-    outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
-    outline-offset: var(--admin-focus-outline-offset);
+  .files-preview__image {
+    block-size: 100%;
+    inline-size: 100%;
+    object-fit: contain;
+    position: relative;
   }
-}
 
-.files-details {
-  --files-details-gap: 2rem;
-
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: var(--files-details-gap);
-}
-
-.files-preview {
-  --files-preview-block-size: 30rem;
-
-  /* Figma Blue 200, the document tile's ground; no role names it */
-  --files-preview-bg-color: var(--admin-palette-blue-200);
-  --files-preview-ground-blur: 2.5rem;
-
-  /* Figma's 30% black over the blurred copy */
-  --files-preview-ground-dim: brightness(0.7);
-  --files-preview-radius: 0.5rem;
-
-  background-color: var(--files-preview-bg-color);
-  block-size: var(--files-preview-block-size);
-  border-radius: var(--files-preview-radius);
-  display: grid;
-  isolation: isolate;
-  overflow: hidden;
-  place-items: center;
-  position: relative;
-
-  &:focus-visible {
-    outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
-    outline-offset: var(--admin-focus-outline-offset);
+  /* Upload queue (Uploads.tsx): no Figma state, so the file tile's own parts */
+  .files-dropzone {
+    flex: 1;
+    position: relative;
   }
-}
 
-@media (768px <= width < 1200px) {
-  .files-preview {
-    --files-preview-block-size: 50rem;
+  /* Legacy's dropzone overlay: the page ground at 90% over the whole zone */
+  .files-dropzone__overlay {
+    align-items: start;
+    background-color: color-mix(in srgb, var(--admin-bg-color) 90%, transparent);
+    border: var(--admin-focus-outline) var(--admin-accent-color);
+    display: flex;
+    font-weight: var(--admin-font-weight-medium);
+    inset: 0;
+    justify-content: center;
+    position: absolute;
+
+    /* Above the tiles' raised checkboxes */
+    z-index: 2;
   }
-}
 
-/* Bleeds by the blur radius, so the blur's soft edge falls outside the clip */
-.files-preview__ground {
-  block-size: calc(100% + 2 * var(--files-preview-ground-blur));
-  filter: blur(var(--files-preview-ground-blur)) var(--files-preview-ground-dim);
-  inline-size: calc(100% + 2 * var(--files-preview-ground-blur));
-  inset: calc(-1 * var(--files-preview-ground-blur));
-  object-fit: cover;
-  position: absolute;
-}
+  /* Held mid-viewport, as a long folder's zone runs past the screen */
+  .files-dropzone__message {
+    inset-block-start: 50%;
+    position: sticky;
+  }
 
-.files-preview__image {
-  block-size: 100%;
-  inline-size: 100%;
-  object-fit: contain;
-  position: relative;
-}
+  .files-tile--failed {
+    --files-tile-border-color: var(--admin-danger-color);
+    --files-tile-hover-border-color: var(--admin-danger-color);
+  }
 
-/* Upload queue (Uploads.tsx): no Figma state, so the file tile's own parts */
-.files-dropzone {
-  flex: 1;
-  position: relative;
-}
+  .files-upload {
+    align-items: center;
+    display: flex;
+    grid-area: 1 / 1;
+    justify-content: center;
+    padding: var(--admin-gap-md);
+    place-self: stretch;
+    text-align: center;
+  }
 
-/* Legacy's dropzone overlay: the page ground at 90% over the whole zone */
-.files-dropzone__overlay {
-  align-items: start;
-  background-color: color-mix(in srgb, var(--admin-bg-color) 90%, transparent);
-  border: var(--admin-focus-outline) var(--admin-accent-color);
-  display: flex;
-  font-weight: var(--admin-font-weight-medium);
-  inset: 0;
-  justify-content: center;
-  position: absolute;
+  .files-upload__progress {
+    accent-color: var(--admin-accent-color);
+    inline-size: 100%;
+    max-inline-size: var(--files-upload-progress-max-size);
+  }
 
-  /* Above the tiles' raised checkboxes */
-  z-index: 2;
-}
+  .files-upload__error {
+    color: var(--admin-error-fg-color);
+  }
 
-/* Held mid-viewport, as a long folder's zone runs past the screen */
-.files-dropzone__message {
-  inset-block-start: 50%;
-  position: sticky;
-}
+  .files-upload__name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
-.files-tile--failed {
-  --files-tile-border-color: var(--admin-danger-color);
-  --files-tile-hover-border-color: var(--admin-danger-color);
-}
-
-.files-upload {
-  align-items: center;
-  display: flex;
-  grid-area: 1 / 1;
-  justify-content: center;
-  padding: var(--admin-gap-md);
-  place-self: stretch;
-  text-align: center;
-}
-
-.files-upload__progress {
-  accent-color: var(--admin-accent-color);
-  inline-size: 100%;
-  max-inline-size: 20rem;
-}
-
-.files-upload__error {
-  color: var(--admin-error-fg-color);
-}
-
-.files-upload__name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Above the tile's stretched link, as the checkbox is */
-.files-upload__action {
-  flex: none;
-  position: relative;
-  z-index: 1;
+  /* Above the tile's stretched link, as the checkbox is */
+  .files-upload__action {
+    flex: none;
+    position: relative;
+    z-index: 1;
+  }
 }

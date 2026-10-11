@@ -1,0 +1,10 @@
+/**
+ * Cascade layers
+ *
+ * The one declaration of the layer order, imported before any other stylesheet: package tokens, package
+ * components, the shell's chrome, then every pilet. A later layer wins a tie whatever order the files load
+ * in, so a lazily loaded shell chunk or a pilet that arrives late lands in its place. Unlayered CSS, such as
+ * a vendor widget's skin, beats every layer
+ */
+
+@layer admin.tokens, admin.components, shell, pilets;

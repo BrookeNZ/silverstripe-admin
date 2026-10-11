@@ -5,6 +5,7 @@
  * clipped to nothing rather than removed, so it stays in the accessibility tree
  */
 
+/* stylelint-disable declaration-property-unit-disallowed-list -- the 1px clipped box, not a design value */
 .admin-visually-hidden {
   block-size: 0.1rem;
   border: 0;
@@ -16,3 +17,4 @@
   position: absolute;
   white-space: nowrap;
 }
+/* stylelint-enable declaration-property-unit-disallowed-list */

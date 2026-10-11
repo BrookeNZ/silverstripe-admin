@@ -109,6 +109,8 @@ same-version tarball is reinstalled because its integrity changes); every pilet 
   **Shared classes**): `admin-field__control`, `admin-field__check`, `admin-field__description`,
   `admin-icon`, `shell-page` and `shell-form` join `admin-visually-hidden`, `admin-error-text`,
   `admin-badge` and `shell-page__inset`, with the tokens each lists. Renaming or removing one is breaking.
+- 2026-10-12: pilet stylesheets sit in `@layer pilets` and select only their own prefix (see **Pilet CSS**).
+  An unlayered pilet stylesheet still applies, but beats the package and shell on every tie.
 
 ## Verbs
 
@@ -639,7 +641,7 @@ The ten transformations installed modules register today, and what replaces each
 | admin | `schema-validation` | Client validation from the schema | `updateFormValidation`, after `shell:validation` |
 | asset-admin | `move-form-disabled` | Decorates `TreeDropdownField.AssetAdmin.MoveForm` | `registerSilverstripeComponent` under a context key, or `updateFieldProps` |
 | asset-admin | `owner-unpublishing` | Decorates `FormAction.AssetAdmin.EditForm.action_unpublish` with a confirmation | `onBeforeFormAction`, or the host's `confirmAction` prop |
-| elemental | `elemental-fieldgroup` | Historic block view in the history detail | The history pilet's `VersionDetail` slot, filled by elemental |
+| elemental | `elemental-fieldgroup` | Historic block view in the history detail | None built yet; the history pilet has no slot for a version's detail |
 | elemental | `blocks-history-revert` | Adds revert to a toolbar | The history pilet reverts through its API; `onAfterRevert` to react |
 | elemental | `element-actions` | Five block actions | Owned by the elemental pilet; `updateBlockActions` for third parties |
 | sortablefile | `enhance-uploadfield` | Replaces `UploadField`, transforms the `assetAdmin` reducer | `registerSilverstripeComponent('UploadField')` plus `updateUploadFieldProps` (planned) |
@@ -918,6 +920,15 @@ ids and ARIA together. That covers `admin-field`, `admin-field--inline`, `admin-
   non-interactive look or the row takes a class of its own.
 - Pilet tests select `admin-dialog__title` and `admin-dialog__actions` inside `Dialog`; they read the
   component's markup, which is not part of this contract, and should find the dialog by role and name.
+
+## Pilet CSS
+
+The shell declares the cascade layers once, before any stylesheet: `admin.tokens, admin.components, shell,
+pilets`. A pilet wraps each of its stylesheets in `@layer pilets { }`, so it wins a tie with the package and
+the shell however late its `<link>` arrives, and selects only classes with its own prefix, never a shared or
+`shell-*` class. It changes a shared class by reassigning that class's tokens on its own element. Lengths in a
+property come from tokens (`--admin-gap-*` and the like, or the pilet's own tokens declared on its block); a
+literal is only a token's default. In this module `yarn lint:css` checks the layer, the prefix and the lengths.
 
 ## Building
 

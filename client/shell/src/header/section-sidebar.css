@@ -21,130 +21,132 @@
  * the fade. Below 1024px the scroller caps its own height
  */
 
-:root {
-  --shell-section-sidebar-header-min-height: auto;
-
-  /* Figma 2:3676: 13.5px above and below the 34px search button, 20px either side */
-  --shell-section-sidebar-header-padding-block: 1.35rem;
-  --shell-section-sidebar-header-padding-inline: 2rem;
-  --shell-section-sidebar-height: auto;
-  --shell-section-sidebar-inline-size: auto;
-  --shell-section-sidebar-position: static;
-  --shell-section-sidebar-scroll-max-height: 40vh;
-
-  /* Figma: Inter Medium 16px, New/Black */
-  --shell-section-sidebar-title-font-size: var(--admin-font-size-lg);
-  --shell-section-sidebar-title-font-weight: var(--admin-font-weight-medium);
-}
-
-@media (width >= 1024px) {
+@layer shell {
   :root {
-    --shell-section-sidebar-header-min-height: var(--shell-header-offset);
-    --shell-section-sidebar-height: calc(100vh - var(--shell-sticky-top));
-    --shell-section-sidebar-inline-size: 33rem;
-    --shell-section-sidebar-position: sticky;
-    --shell-section-sidebar-scroll-max-height: none;
+    --shell-section-sidebar-header-min-height: auto;
+
+    /* Figma 2:3676: 13.5px above and below the 34px search button, 20px either side */
+    --shell-section-sidebar-header-padding-block: 1.35rem;
+    --shell-section-sidebar-header-padding-inline: 2rem;
+    --shell-section-sidebar-height: auto;
+    --shell-section-sidebar-inline-size: auto;
+    --shell-section-sidebar-position: static;
+    --shell-section-sidebar-scroll-max-height: 40vh;
+
+    /* Figma: Inter Medium 16px, New/Black */
+    --shell-section-sidebar-title-font-size: var(--admin-font-size-lg);
+    --shell-section-sidebar-title-font-weight: var(--admin-font-weight-medium);
   }
-}
 
-.shell-section-sidebar {
-  --shell-section-sidebar-bg-color: var(--admin-panel-bg-color);
-  --shell-section-sidebar-body-display: flex;
-  --shell-section-sidebar-display: flex;
-  --shell-section-sidebar-footer-fade-size: 2rem;
-  --shell-section-sidebar-footer-justify: flex-end;
-  --shell-section-sidebar-footer-padding-block-end: 2rem;
-  --shell-section-sidebar-footer-padding-inline: 2rem;
-  --shell-section-sidebar-header-border: var(--admin-border) var(--admin-divider-color);
-  --shell-section-sidebar-header-direction: row;
-  --shell-section-sidebar-title-padding-inline-end: 0rem;
-  --shell-section-sidebar-title-writing-mode: horizontal-tb;
-  --shell-section-sidebar-title-transform: none;
+  @media (width >= 1024px) {
+    :root {
+      --shell-section-sidebar-header-min-height: var(--shell-header-offset);
+      --shell-section-sidebar-height: calc(100vh - var(--shell-sticky-top));
+      --shell-section-sidebar-inline-size: 33rem;
+      --shell-section-sidebar-position: sticky;
+      --shell-section-sidebar-scroll-max-height: none;
+    }
+  }
 
-  align-self: start;
-  background-color: var(--shell-section-sidebar-bg-color);
-  border-inline-end: var(--admin-border) var(--admin-divider-color);
-  box-sizing: border-box;
-  display: var(--shell-section-sidebar-display);
-  flex-direction: column;
-  height: var(--shell-section-sidebar-height);
-  inline-size: var(--shell-section-sidebar-inline-size);
-  inset-block-start: var(--shell-sticky-top);
-  min-width: 0;
-  position: var(--shell-section-sidebar-position);
-}
+  .shell-section-sidebar {
+    --shell-section-sidebar-bg-color: var(--admin-panel-bg-color);
+    --shell-section-sidebar-body-display: flex;
+    --shell-section-sidebar-display: flex;
+    --shell-section-sidebar-footer-fade-size: 2rem;
+    --shell-section-sidebar-footer-justify: flex-end;
+    --shell-section-sidebar-footer-padding-block-end: 2rem;
+    --shell-section-sidebar-footer-padding-inline: 2rem;
+    --shell-section-sidebar-header-border: var(--admin-border) var(--admin-divider-color);
+    --shell-section-sidebar-header-direction: row;
+    --shell-section-sidebar-title-padding-inline-end: 0rem;
+    --shell-section-sidebar-title-writing-mode: horizontal-tb;
+    --shell-section-sidebar-title-transform: none;
 
-.shell-section-sidebar--collapsed {
-  --shell-section-sidebar-body-display: none;
-}
+    align-self: start;
+    background-color: var(--shell-section-sidebar-bg-color);
+    border-inline-end: var(--admin-border) var(--admin-divider-color);
+    box-sizing: border-box;
+    display: var(--shell-section-sidebar-display);
+    flex-direction: column;
+    height: var(--shell-section-sidebar-height);
+    inline-size: var(--shell-section-sidebar-inline-size);
+    inset-block-start: var(--shell-sticky-top);
+    min-width: 0;
+    position: var(--shell-section-sidebar-position);
+  }
 
-/* Figma 2:3681: 61px Blue 100 rail, title Inter Medium 16px turned -90 degrees, its inline end the visual top */
-@media (width >= 1024px) {
   .shell-section-sidebar--collapsed {
-    --shell-section-sidebar-bg-color: var(--admin-sunken-bg-color);
-    --shell-section-sidebar-footer-justify: center;
-    --shell-section-sidebar-footer-padding-inline: 0rem;
-    --shell-section-sidebar-header-border: none;
-    --shell-section-sidebar-header-direction: column;
-    --shell-section-sidebar-header-padding-inline: 0rem;
-    --shell-section-sidebar-inline-size: 6.1rem;
-    --shell-section-sidebar-title-padding-inline-end: 6.3rem;
-    --shell-section-sidebar-title-transform: rotate(180deg);
-    --shell-section-sidebar-title-writing-mode: vertical-rl;
+    --shell-section-sidebar-body-display: none;
   }
-}
 
-/* Preview mode takes the whole content area, as legacy hides its tree panel there */
-.shell-section-sidebar--hidden {
-  --shell-section-sidebar-display: none;
-}
+  /* Figma 2:3681: 61px Blue 100 rail, title Inter Medium 16px turned -90 degrees, its inline end the visual top */
+  @media (width >= 1024px) {
+    .shell-section-sidebar--collapsed {
+      --shell-section-sidebar-bg-color: var(--admin-sunken-bg-color);
+      --shell-section-sidebar-footer-justify: center;
+      --shell-section-sidebar-footer-padding-inline: 0rem;
+      --shell-section-sidebar-header-border: none;
+      --shell-section-sidebar-header-direction: column;
+      --shell-section-sidebar-header-padding-inline: 0rem;
+      --shell-section-sidebar-inline-size: 6.1rem;
+      --shell-section-sidebar-title-padding-inline-end: 6.3rem;
+      --shell-section-sidebar-title-transform: rotate(180deg);
+      --shell-section-sidebar-title-writing-mode: vertical-rl;
+    }
+  }
 
-.shell-section-sidebar__header {
-  align-items: center;
-  border-block-end: var(--shell-section-sidebar-header-border);
-  box-sizing: border-box;
-  display: flex;
-  flex: none;
-  flex-direction: var(--shell-section-sidebar-header-direction);
-  justify-content: space-between;
-  min-height: var(--shell-section-sidebar-header-min-height);
-  padding: var(--shell-section-sidebar-header-padding-block) var(--shell-section-sidebar-header-padding-inline);
-}
+  /* Preview mode takes the whole content area, as legacy hides its tree panel there */
+  .shell-section-sidebar--hidden {
+    --shell-section-sidebar-display: none;
+  }
 
-.shell-section-sidebar__title {
-  color: var(--admin-fg-color);
-  font-size: var(--shell-section-sidebar-title-font-size);
-  font-weight: var(--shell-section-sidebar-title-font-weight);
-  padding-inline-end: var(--shell-section-sidebar-title-padding-inline-end);
-  transform: var(--shell-section-sidebar-title-transform);
-  writing-mode: var(--shell-section-sidebar-title-writing-mode);
-}
+  .shell-section-sidebar__header {
+    align-items: center;
+    border-block-end: var(--shell-section-sidebar-header-border);
+    box-sizing: border-box;
+    display: flex;
+    flex: none;
+    flex-direction: var(--shell-section-sidebar-header-direction);
+    justify-content: space-between;
+    min-height: var(--shell-section-sidebar-header-min-height);
+    padding: var(--shell-section-sidebar-header-padding-block) var(--shell-section-sidebar-header-padding-inline);
+  }
 
-.shell-section-sidebar__scroll {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  max-height: var(--shell-section-sidebar-scroll-max-height);
-  min-height: 0;
-  overflow-y: auto;
-}
+  .shell-section-sidebar__title {
+    color: var(--admin-fg-color);
+    font-size: var(--shell-section-sidebar-title-font-size);
+    font-weight: var(--shell-section-sidebar-title-font-weight);
+    padding-inline-end: var(--shell-section-sidebar-title-padding-inline-end);
+    transform: var(--shell-section-sidebar-title-transform);
+    writing-mode: var(--shell-section-sidebar-title-writing-mode);
+  }
 
-.shell-section-sidebar__body {
-  display: var(--shell-section-sidebar-body-display);
-  flex-direction: column;
-}
+  .shell-section-sidebar__scroll {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    max-height: var(--shell-section-sidebar-scroll-max-height);
+    min-height: 0;
+    overflow-y: auto;
+  }
 
-.shell-section-sidebar__footer {
-  background-image: linear-gradient(
-    transparent,
-    var(--shell-section-sidebar-bg-color) var(--shell-section-sidebar-footer-fade-size)
-  );
-  display: flex;
-  inset-block-end: 0;
-  justify-content: var(--shell-section-sidebar-footer-justify);
-  margin-block-start: auto;
-  padding-block: var(--shell-section-sidebar-footer-fade-size) var(--shell-section-sidebar-footer-padding-block-end);
-  padding-inline: var(--shell-section-sidebar-footer-padding-inline);
-  pointer-events: none;
-  position: sticky;
+  .shell-section-sidebar__body {
+    display: var(--shell-section-sidebar-body-display);
+    flex-direction: column;
+  }
+
+  .shell-section-sidebar__footer {
+    background-image: linear-gradient(
+      transparent,
+      var(--shell-section-sidebar-bg-color) var(--shell-section-sidebar-footer-fade-size)
+    );
+    display: flex;
+    inset-block-end: 0;
+    justify-content: var(--shell-section-sidebar-footer-justify);
+    margin-block-start: auto;
+    padding-block: var(--shell-section-sidebar-footer-fade-size) var(--shell-section-sidebar-footer-padding-block-end);
+    padding-inline: var(--shell-section-sidebar-footer-padding-inline);
+    pointer-events: none;
+    position: sticky;
+  }
 }

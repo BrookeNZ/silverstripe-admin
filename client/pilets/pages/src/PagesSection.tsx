@@ -250,7 +250,8 @@ export function createPagesSection(options: PagesSectionOptions): PagesSectionCo
     const onSubmitted = React.useCallback(
       (response: FormSchemaResponse, action: FormField) => {
         piral.showNotification(response.message || `${fieldTitle(action)} succeeded`, { type: 'success' });
-        if (currentId !== null) {
+        // The form announces a response's record itself, and a second announcement would restart those reads
+        if (currentId !== null && !response.record?.id) {
           piral.invalidateRecords(options.pageClass, [currentId]);
         }
         if (response.deleted) {

@@ -10,6 +10,8 @@
  */
 
 :root {
+  /* The width a control in a wrapping row keeps before the controls after it wrap below */
+  --admin-field-control-basis: 20rem;
   --admin-field-padding-inline: var(--admin-gap-md);
 }
 

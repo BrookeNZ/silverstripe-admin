@@ -6,7 +6,7 @@
  * bottom border under each line). The design has no visited or pressed state. --icon lays a label and
  * its icon out in a row. 5.92:1 on white, 5.65:1 on the menu ground, 2.40:1 against body text, so a
  * link inside a sentence is told apart by colour alone below the 3:1 of WCAG 1.4.1; kept as designed.
- * The tokens sit on :root because Button's text variant (button.css) draws itself from them
+ * The tokens sit on :root because Button's text variant (Button.css) draws itself from them
  */
 
 :root {

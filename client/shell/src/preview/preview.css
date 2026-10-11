@@ -8,39 +8,41 @@
  * mode the form's action bar draws at its foot, below the frame
  */
 
-:root {
-  --shell-preview-border: var(--shell-header-border) var(--admin-divider-color);
-  --shell-preview-inline-size: 50%;
+@layer shell {
+  :root {
+    --shell-preview-border: var(--shell-header-border) var(--admin-divider-color);
+    --shell-preview-inline-size: 50%;
 
-  /* Figma: 10px between Share and the mode menu */
-  --shell-preview-tools-gap: 1rem;
-  --shell-preview-top: calc(var(--shell-sticky-top) + var(--shell-header-offset));
-}
+    /* Figma: 10px between Share and the mode menu */
+    --shell-preview-tools-gap: 1rem;
+    --shell-preview-top: calc(var(--shell-sticky-top) + var(--shell-header-offset));
+  }
 
-.shell-preview {
-  block-size: calc(100vh - var(--shell-preview-top));
-  border-inline-start: var(--shell-preview-border);
-  box-sizing: border-box;
-  display: flex;
-  flex: 0 0 var(--shell-preview-inline-size);
-  flex-direction: column;
-  inset-block-start: var(--shell-preview-top);
-  position: sticky;
-}
+  .shell-preview {
+    block-size: calc(100vh - var(--shell-preview-top));
+    border-inline-start: var(--shell-preview-border);
+    box-sizing: border-box;
+    display: flex;
+    flex: 0 0 var(--shell-preview-inline-size);
+    flex-direction: column;
+    inset-block-start: var(--shell-preview-top);
+    position: sticky;
+  }
 
-/* In preview mode the pane is all there is */
-.shell-preview--full {
-  --shell-preview-border: none;
-  --shell-preview-inline-size: 100%;
-}
+  /* In preview mode the pane is all there is */
+  .shell-preview--full {
+    --shell-preview-border: none;
+    --shell-preview-inline-size: 100%;
+  }
 
-.shell-preview__frame {
-  border: 0;
-  flex: 1;
-}
+  .shell-preview__frame {
+    border: 0;
+    flex: 1;
+  }
 
-.shell-preview-tools {
-  align-items: center;
-  display: flex;
-  gap: var(--shell-preview-tools-gap);
+  .shell-preview-tools {
+    align-items: center;
+    display: flex;
+    gap: var(--shell-preview-tools-gap);
+  }
 }

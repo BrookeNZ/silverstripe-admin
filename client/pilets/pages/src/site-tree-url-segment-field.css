@@ -6,18 +6,20 @@
  * widening the form
  */
 
-.pages-url-segment {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--admin-gap-sm) var(--admin-gap-md);
-}
+@layer pilets {
+  .pages-url-segment {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--admin-gap-sm) var(--admin-gap-md);
+  }
 
-.pages-url-segment__link {
-  overflow-wrap: anywhere;
-}
+  .pages-url-segment__link {
+    overflow-wrap: anywhere;
+  }
 
-.pages-url-segment__input {
-  flex: 1 1 20rem;
-  min-width: 0;
+  .pages-url-segment__input {
+    flex: 1 1 var(--admin-field-control-basis);
+    min-width: 0;
+  }
 }

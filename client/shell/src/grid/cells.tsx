@@ -41,6 +41,9 @@ export function resolveCell(
 
 export const TextCell = ({ value }: GridCellProps) => <>{cellText(value)}</>;
 
+// A text-less button draws only a legacy icon font the shell does not load, so it would show as an empty pill
+const isIconOnly = (control: Element) => control.tagName === 'BUTTON' && control.textContent?.trim() === '' && !control.querySelector('img, svg');
+
 /**
  * Server HTML for a cell or slot: prepared like a server HTML field, and its controls disabled, because
  * the grid sits inside the CMS form and a server button would submit it; its action is not ported yet
@@ -48,6 +51,10 @@ export const TextCell = ({ value }: GridCellProps) => <>{cellText(value)}</>;
 export function prepareGridHtml(html: string): DocumentFragment {
   const { fragment } = prepareServerHtml(html);
   for (const control of Array.from(fragment.querySelectorAll('button, input, select, textarea'))) {
+    if (isIconOnly(control)) {
+      control.remove();
+      continue;
+    }
     control.setAttribute('disabled', '');
     if (control.tagName === 'BUTTON') {
       control.setAttribute('type', 'button');

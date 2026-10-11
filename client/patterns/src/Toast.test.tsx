@@ -141,7 +141,7 @@ describe('Toast', () => {
 });
 
 describe('toast motion', () => {
-  const css = (name: string) => readFileSync(join(import.meta.dirname, 'css', name), 'utf8');
+  const css = (path: string) => readFileSync(join(import.meta.dirname, path), 'utf8');
   // happy-dom drops a whole rule that nests an at-rule, so the nested blocks go before it parses the sheet
   const unnested = (sheet: string) => sheet.replace(/\n {2}@[^{]+\{[^}]*\}\n/g, '\n');
   const device = (window as unknown as { happyDOM: { settings: { device: { prefersReducedMotion: string } } } }).happyDOM.settings.device;
@@ -149,7 +149,7 @@ describe('toast motion', () => {
   const animationWhen = (preference: string) => {
     device.prefersReducedMotion = preference;
     const style = document.createElement('style');
-    style.textContent = css('tokens.css') + unnested(css('toast.css'));
+    style.textContent = css('css/tokens.css') + unnested(css('Toast.css'));
     document.head.append(style);
     const toast = mount(<Toast>Saved</Toast>);
     const animation = getComputedStyle(toast).getPropertyValue('animation');

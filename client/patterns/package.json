@@ -19,7 +19,7 @@
     "./styles.css": "./dist/css/styles.css"
   },
   "scripts": {
-    "build": "rm -rf dist && tsc -p . && cp -R src/css dist/css",
+    "build": "rm -rf dist && tsc -p . && node -e \"require('fs').cpSync('src', 'dist', { recursive: true, filter: (path) => !/\\.\\w+$/.test(path) || path.endsWith('.css') })\"",
     "typecheck": "tsc -p . --noEmit",
     "test": "vitest run"
   },

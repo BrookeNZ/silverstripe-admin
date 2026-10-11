@@ -5,57 +5,59 @@
  * underneath, each row linking to the record
  */
 
-.used-on__table {
-  --used-on-cell-padding: var(--admin-gap-sm);
+@layer pilets {
+  .used-on__table {
+    --used-on-cell-padding: var(--admin-gap-sm);
 
-  border-collapse: collapse;
-  width: 100%;
-}
+    border-collapse: collapse;
+    width: 100%;
+  }
 
-.used-on__col {
-  border-block-end: var(--admin-border) var(--admin-border-color);
-  padding: var(--used-on-cell-padding);
-  text-align: start;
-}
+  .used-on__col {
+    border-block-end: var(--admin-border) var(--admin-border-color);
+    padding: var(--used-on-cell-padding);
+    text-align: start;
+  }
 
-.used-on__col--index {
-  width: 1%;
-}
+  .used-on__col--index {
+    width: 1%;
+  }
 
-.used-on__cell-link {
-  color: var(--admin-link-color);
-  display: block;
-}
+  .used-on__cell-link {
+    color: var(--admin-link-color);
+    display: block;
+  }
 
-.used-on__cell-link:focus-visible {
-  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
-  outline-offset: var(--admin-focus-outline-offset);
-}
+  .used-on__cell-link:focus-visible {
+    outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+    outline-offset: var(--admin-focus-outline-offset);
+  }
 
-.used-on__title-items {
-  display: inline;
-  margin: 0;
-  padding: 0;
-}
+  .used-on__title-items {
+    display: inline;
+    margin: 0;
+    padding: 0;
+  }
 
-.used-on__title-item {
-  display: inline;
-}
+  .used-on__title-item {
+    display: inline;
+  }
 
-.used-on__title-item::after {
-  content: " / ";
-}
+  .used-on__title-item::after {
+    content: " / ";
+  }
 
-.used-on__title-item:last-of-type::after {
-  content: none;
-}
+  .used-on__title-item:last-of-type::after {
+    content: none;
+  }
 
-.used-on__type {
-  color: var(--admin-muted-fg-color);
-  display: block;
-}
+  .used-on__type {
+    color: var(--admin-muted-fg-color);
+    display: block;
+  }
 
-.used-on__message {
-  padding: var(--used-on-cell-padding);
-  text-align: center;
+  .used-on__message {
+    padding: var(--used-on-cell-padding);
+    text-align: center;
+  }
 }

@@ -5,14 +5,16 @@
  * button wraps below the input when the column is narrow
  */
 
-.pages-title-field {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--admin-gap-sm);
-}
+@layer pilets {
+  .pages-title-field {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--admin-gap-sm);
+  }
 
-.pages-title-field__input {
-  flex: 1 1 20rem;
-  min-width: 0;
+  .pages-title-field__input {
+    flex: 1 1 var(--admin-field-control-basis);
+    min-width: 0;
+  }
 }

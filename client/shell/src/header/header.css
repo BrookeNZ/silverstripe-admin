@@ -19,187 +19,189 @@
  * height, so a header without views or with a wrapped title reserves what it really takes
  */
 
-:root {
-  /* Figma back button: Bright Blue 100 circle, Bright Blue chevron */
-  --shell-header-back-bg-color: var(--admin-hover-bg-color);
-  --shell-header-back-fg-color: var(--admin-accent-color);
-  --shell-header-back-gap: 1.1rem;
-
-  /* Figma back button hover 2:6307 fills Bright Blue 200; its chevron-to-arrow swap is left out */
-  --shell-header-back-hover-bg-color: var(--admin-accent-tint-color);
-  --shell-header-back-icon-size: 1.3rem;
-
-  /* Figma back button 2:1736: a 25px circle round the 13px chevron */
-  --shell-header-back-size: 2.5rem;
-
-  /* Figma toolbar badge I2:30209;2:1853 is 11px; kept at the 14px body size */
-  --shell-header-badge-bg-color: var(--admin-hover-bg-color);
-  --shell-header-badge-fg-color: var(--admin-fg-color);
-  --shell-header-badge-font-size: var(--admin-font-size-md);
-  --shell-header-badge-line-height: 1.4;
-  --shell-header-badge-padding-block: 0.2rem;
-  --shell-header-badge-padding-inline: 0.5rem;
-  --shell-header-badge-radius: 0.3rem;
-  --shell-header-border: 0.1rem solid;
-  --shell-header-column-gap: 5rem;
-
-  /* Figma New/Breadcrumbs, Inter Regular 11px: with the tree's flags, the only text under the 14px floor */
-  --shell-header-crumb-font-size: 1.1rem;
-  --shell-header-crumb-gap: var(--admin-gap-xs);
-
-  /* Figma New/Breadcrumbs line height */
-  --shell-header-crumb-line-height: 1.1;
-  --shell-header-crumb-separator-color: var(--admin-fg-color);
-  --shell-header-current-max-inline-size: 100%;
-
-  /* Figma 2:1873: 2px between the breadcrumb and the title */
-  --shell-header-heading-gap: 0.2rem;
-  --shell-header-height: 10.4rem;
-  --shell-header-offset: var(--shell-header-height);
-  --shell-header-padding-block-start: 1.8rem;
-  --shell-header-padding-inline-end: 2rem;
-  --shell-header-padding-inline-start: 2rem;
-  --shell-header-row-gap: 2.4rem;
-
-  /* Figma: Inter Medium 15px */
-  --shell-header-title-font-size: 1.5rem;
-  --shell-header-title-font-weight: 500;
-
-  /* Figma 2:1851: 10px between the title and the badge */
-  --shell-header-title-row-gap: 1rem;
-  --shell-header-z-index: var(--admin-z-sticky);
-}
-
-@media (width >= 576px) {
+@layer shell {
   :root {
-    --shell-header-current-max-inline-size: 50%;
-    --shell-header-height: 6.1rem;
-    --shell-header-padding-block-start: 0rem;
-    --shell-header-padding-inline-end: 3rem;
+    /* Figma back button: Bright Blue 100 circle, Bright Blue chevron */
+    --shell-header-back-bg-color: var(--admin-hover-bg-color);
+    --shell-header-back-fg-color: var(--admin-accent-color);
+    --shell-header-back-gap: 1.1rem;
+
+    /* Figma back button hover 2:6307 fills Bright Blue 200; its chevron-to-arrow swap is left out */
+    --shell-header-back-hover-bg-color: var(--admin-accent-tint-color);
+    --shell-header-back-icon-size: 1.3rem;
+
+    /* Figma back button 2:1736: a 25px circle round the 13px chevron */
+    --shell-header-back-size: 2.5rem;
+
+    /* Figma toolbar badge I2:30209;2:1853 is 11px; kept at the 14px body size */
+    --shell-header-badge-bg-color: var(--admin-hover-bg-color);
+    --shell-header-badge-fg-color: var(--admin-fg-color);
+    --shell-header-badge-font-size: var(--admin-font-size-md);
+    --shell-header-badge-line-height: 1.4;
+    --shell-header-badge-padding-block: 0.2rem;
+    --shell-header-badge-padding-inline: 0.5rem;
+    --shell-header-badge-radius: 0.3rem;
+    --shell-header-border: 0.1rem solid;
+    --shell-header-column-gap: 5rem;
+
+    /* Figma New/Breadcrumbs, Inter Regular 11px: with the tree's flags, the only text under the 14px floor */
+    --shell-header-crumb-font-size: 1.1rem;
+    --shell-header-crumb-gap: var(--admin-gap-xs);
+
+    /* Figma New/Breadcrumbs line height */
+    --shell-header-crumb-line-height: 1.1;
+    --shell-header-crumb-separator-color: var(--admin-fg-color);
+    --shell-header-current-max-inline-size: 100%;
+
+    /* Figma 2:1873: 2px between the breadcrumb and the title */
+    --shell-header-heading-gap: 0.2rem;
+    --shell-header-height: 10.4rem;
+    --shell-header-offset: var(--shell-header-height);
+    --shell-header-padding-block-start: 1.8rem;
+    --shell-header-padding-inline-end: 2rem;
+    --shell-header-padding-inline-start: 2rem;
+    --shell-header-row-gap: 2.4rem;
+
+    /* Figma: Inter Medium 15px */
+    --shell-header-title-font-size: 1.5rem;
+    --shell-header-title-font-weight: 500;
+
+    /* Figma 2:1851: 10px between the title and the badge */
+    --shell-header-title-row-gap: 1rem;
+    --shell-header-z-index: var(--admin-z-sticky);
   }
-}
 
-.shell-header {
-  align-items: flex-start;
-  background-color: var(--admin-bg-color);
-  border-block-end: var(--shell-header-border) var(--admin-divider-color);
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: var(--shell-header-row-gap) var(--shell-header-column-gap);
-  inset-block-start: var(--shell-sticky-top);
-  padding-block-start: var(--shell-header-padding-block-start);
-  padding-inline: var(--shell-header-padding-inline-start) var(--shell-header-padding-inline-end);
-  position: sticky;
-  z-index: var(--shell-header-z-index);
-}
+  @media (width >= 576px) {
+    :root {
+      --shell-header-current-max-inline-size: 50%;
+      --shell-header-height: 6.1rem;
+      --shell-header-padding-block-start: 0rem;
+      --shell-header-padding-inline-end: 3rem;
+    }
+  }
 
-@media (width >= 576px) {
   .shell-header {
-    align-items: stretch;
-    flex-direction: row;
-    justify-content: space-between;
-    min-height: var(--shell-header-height);
+    align-items: flex-start;
+    background-color: var(--admin-bg-color);
+    border-block-end: var(--shell-header-border) var(--admin-divider-color);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: var(--shell-header-row-gap) var(--shell-header-column-gap);
+    inset-block-start: var(--shell-sticky-top);
+    padding-block-start: var(--shell-header-padding-block-start);
+    padding-inline: var(--shell-header-padding-inline-start) var(--shell-header-padding-inline-end);
+    position: sticky;
+    z-index: var(--shell-header-z-index);
   }
-}
 
-.shell-header__current {
-  align-items: center;
-  display: flex;
-  flex: 0 0 auto;
-  gap: var(--shell-header-back-gap);
-  max-inline-size: var(--shell-header-current-max-inline-size);
-}
+  @media (width >= 576px) {
+    .shell-header {
+      align-items: stretch;
+      flex-direction: row;
+      justify-content: space-between;
+      min-height: var(--shell-header-height);
+    }
+  }
 
-.shell-header__heading {
-  display: flex;
-  flex-direction: column;
-  gap: var(--shell-header-heading-gap);
-  min-width: 0;
-}
+  .shell-header__current {
+    align-items: center;
+    display: flex;
+    flex: 0 0 auto;
+    gap: var(--shell-header-back-gap);
+    max-inline-size: var(--shell-header-current-max-inline-size);
+  }
 
-.shell-header__crumbs {
-  display: flex;
-  flex-wrap: wrap;
-  font-size: var(--shell-header-crumb-font-size);
-  gap: var(--shell-header-crumb-gap);
-  line-height: var(--shell-header-crumb-line-height);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
+  .shell-header__heading {
+    display: flex;
+    flex-direction: column;
+    gap: var(--shell-header-heading-gap);
+    min-width: 0;
+  }
 
-.shell-header__crumb {
-  display: flex;
-  gap: var(--shell-header-crumb-gap);
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
+  .shell-header__crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    font-size: var(--shell-header-crumb-font-size);
+    gap: var(--shell-header-crumb-gap);
+    line-height: var(--shell-header-crumb-line-height);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
 
-/* Empty alternative text: the list already tells a screen reader where one crumb ends */
-.shell-header__crumb::after {
-  color: var(--shell-header-crumb-separator-color);
-  content: "/" / "";
-}
+  .shell-header__crumb {
+    display: flex;
+    gap: var(--shell-header-crumb-gap);
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
 
-.shell-header__back {
-  --admin-icon-size: var(--shell-header-back-icon-size);
+  /* Empty alternative text: the list already tells a screen reader where one crumb ends */
+  .shell-header__crumb::after {
+    color: var(--shell-header-crumb-separator-color);
+    content: "/" / "";
+  }
 
-  background-color: var(--shell-header-back-bg-color);
-  border-radius: 50%;
-  color: var(--shell-header-back-fg-color);
-  display: flex;
-  flex-shrink: 0;
-  padding: calc((var(--shell-header-back-size) - var(--shell-header-back-icon-size)) / 2);
-}
+  .shell-header__back {
+    --admin-icon-size: var(--shell-header-back-icon-size);
 
-.shell-header__back:hover {
-  --shell-header-back-bg-color: var(--shell-header-back-hover-bg-color);
-}
+    background-color: var(--shell-header-back-bg-color);
+    border-radius: 50%;
+    color: var(--shell-header-back-fg-color);
+    display: flex;
+    flex-shrink: 0;
+    padding: calc((var(--shell-header-back-size) - var(--shell-header-back-icon-size)) / 2);
+  }
 
-.shell-header__back:focus-visible {
-  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
-  outline-offset: var(--admin-focus-outline-offset);
-}
+  .shell-header__back:hover {
+    --shell-header-back-bg-color: var(--shell-header-back-hover-bg-color);
+  }
 
-.shell-header__title {
-  font-size: var(--shell-header-title-font-size);
-  font-weight: var(--shell-header-title-font-weight);
-  margin: 0;
-  overflow-wrap: anywhere;
-}
+  .shell-header__back:focus-visible {
+    outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+    outline-offset: var(--admin-focus-outline-offset);
+  }
 
-.shell-header__title-row {
-  align-items: center;
-  display: flex;
-  gap: var(--shell-header-title-row-gap);
-}
+  .shell-header__title {
+    font-size: var(--shell-header-title-font-size);
+    font-weight: var(--shell-header-title-font-weight);
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
 
-.shell-header__badge {
-  background-color: var(--shell-header-badge-bg-color);
-  border-radius: var(--shell-header-badge-radius);
-  color: var(--shell-header-badge-fg-color);
-  font-size: var(--shell-header-badge-font-size);
-  line-height: var(--shell-header-badge-line-height);
-  padding: var(--shell-header-badge-padding-block) var(--shell-header-badge-padding-inline);
-}
+  .shell-header__title-row {
+    align-items: center;
+    display: flex;
+    gap: var(--shell-header-title-row-gap);
+  }
 
-/* Figma 2:1876: the title under a breadcrumb is Inter Regular 16px */
-.shell-header__title--nested {
-  --shell-header-title-font-size: var(--admin-font-size-lg);
-  --shell-header-title-font-weight: var(--admin-font-weight-normal);
-}
+  .shell-header__badge {
+    background-color: var(--shell-header-badge-bg-color);
+    border-radius: var(--shell-header-badge-radius);
+    color: var(--shell-header-badge-fg-color);
+    font-size: var(--shell-header-badge-font-size);
+    line-height: var(--shell-header-badge-line-height);
+    padding: var(--shell-header-badge-padding-block) var(--shell-header-badge-padding-inline);
+  }
 
-/* Focus lands here after a route change */
-.shell-header__title:focus-visible {
-  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
-  outline-offset: var(--admin-focus-outline-offset);
-}
+  /* Figma 2:1876: the title under a breadcrumb is Inter Regular 16px */
+  .shell-header__title--nested {
+    --shell-header-title-font-size: var(--admin-font-size-lg);
+    --shell-header-title-font-weight: var(--admin-font-weight-normal);
+  }
 
-.shell-header__views {
-  align-items: flex-end;
-  display: flex;
-  flex: 0 1 auto;
-  max-width: 100%;
-  min-width: 0;
+  /* Focus lands here after a route change */
+  .shell-header__title:focus-visible {
+    outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+    outline-offset: var(--admin-focus-outline-offset);
+  }
+
+  .shell-header__views {
+    align-items: flex-end;
+    display: flex;
+    flex: 0 1 auto;
+    max-width: 100%;
+    min-width: 0;
+  }
 }

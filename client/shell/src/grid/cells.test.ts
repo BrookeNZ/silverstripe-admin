@@ -27,4 +27,11 @@ describe('prepareGridHtml', () => {
     expect(body.querySelector('button')?.hasAttribute('disabled')).toBe(true);
     expect(body.querySelector('button')?.getAttribute('type')).toBe('button');
   });
+
+  it('drops a button with no text, which would draw only a legacy icon font', () => {
+    const body = prepareGridHtml('<button class="font-icon-block-media btn--no-text" title="Execute"></button><button><img alt="Go"></button>');
+
+    expect(body.querySelectorAll('button')).toHaveLength(1);
+    expect(body.querySelector('button img')).not.toBeNull();
+  });
 });

@@ -7,47 +7,49 @@
  * highlights
  */
 
-:root {
-  --treedropdownfield-breadcrumbs-bg-color: var(--admin-muted-fg-color);
-  --treedropdownfield-breadcrumbs-fg-color: var(--admin-accent-fg-color);
-}
+@layer pilets {
+  :root {
+    --treedropdownfield-breadcrumbs-bg-color: var(--admin-muted-fg-color);
+    --treedropdownfield-breadcrumbs-fg-color: var(--admin-accent-fg-color);
+  }
 
-.treedropdownfield__breadcrumbs {
-  align-items: center;
-  background-color: var(--treedropdownfield-breadcrumbs-bg-color);
-  border: 0;
-  box-sizing: border-box;
-  color: var(--treedropdownfield-breadcrumbs-fg-color);
-  cursor: pointer;
-  display: flex;
-  font: inherit;
-  font-weight: var(--admin-font-weight-bold);
-  gap: var(--admin-gap-sm);
-  padding: var(--admin-gap-sm);
-  text-align: start;
-  width: 100%;
-}
+  .treedropdownfield__breadcrumbs {
+    align-items: center;
+    background-color: var(--treedropdownfield-breadcrumbs-bg-color);
+    border: 0;
+    box-sizing: border-box;
+    color: var(--treedropdownfield-breadcrumbs-fg-color);
+    cursor: pointer;
+    display: flex;
+    font: inherit;
+    font-weight: var(--admin-font-weight-bold);
+    gap: var(--admin-gap-sm);
+    padding: var(--admin-gap-sm);
+    text-align: start;
+    width: 100%;
+  }
 
-.treedropdownfield__breadcrumbs:focus-visible {
-  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
-  outline-offset: calc(var(--admin-focus-outline-offset) * -1);
-}
+  .treedropdownfield__breadcrumbs:focus-visible {
+    outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+    outline-offset: calc(var(--admin-focus-outline-offset) * -1);
+  }
 
-.treedropdownfield__option-title-box {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-}
+  .treedropdownfield__option-title-box {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+  }
 
-.treedropdownfield__option-children {
-  align-items: center;
-  cursor: pointer;
-  display: inline-flex;
-  justify-content: center;
-  min-height: var(--admin-target-min-size);
-  min-width: var(--admin-target-min-size);
-}
+  .treedropdownfield__option-children {
+    align-items: center;
+    cursor: pointer;
+    display: inline-flex;
+    justify-content: center;
+    min-height: var(--admin-target-min-size);
+    min-width: var(--admin-target-min-size);
+  }
 
-.treedropdownfield__option-title--highlighted {
-  font-weight: var(--admin-font-weight-bold);
+  .treedropdownfield__option-title--highlighted {
+    font-weight: var(--admin-font-weight-bold);
+  }
 }

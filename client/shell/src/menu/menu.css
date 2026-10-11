@@ -14,161 +14,163 @@
  * and 15px from the end edge, centred in the rail.
  */
 
-.shell-menu {
-  --shell-menu-bg-color: var(--admin-sunken-bg-color);
-  --shell-menu-current-bg-color: var(--admin-selected-bg-color);
-  --shell-menu-current-fg-color: var(--admin-fg-color);
-  --shell-menu-current-icon-color: var(--admin-nav-fg-color);
-  --shell-menu-current-indicator-color: var(--admin-nav-fg-color);
-  --shell-menu-display: none;
-  --shell-menu-flex: 0 1 auto;
-  --shell-menu-footer-display: none;
-  --shell-menu-footer-justify: flex-end;
-  --shell-menu-footer-padding-block-end: 2rem;
-
-  /* Figma measures the 15px from the sidebar's outer edge, so the sidebar border (style.css) comes off */
-  --shell-menu-footer-padding-inline-end: calc(1.5rem - var(--shell-sidebar-border-width));
-  --shell-menu-hover-bg-color: var(--admin-nav-hover-bg-color);
-  --shell-menu-icon-size: 1.8rem;
-  --shell-menu-indicator-width: 0.4rem;
-  --shell-menu-label-block-size: auto;
-  --shell-menu-label-clip-path: none;
-  --shell-menu-label-inline-size: auto;
-  --shell-menu-label-position: static;
-  --shell-menu-link-bg-color: transparent;
-  --shell-menu-link-fg-color: var(--admin-fg-color);
-  --shell-menu-link-font-weight: var(--admin-font-weight-normal);
-  --shell-menu-link-gap: 1.1rem;
-  --shell-menu-link-icon-color: var(--admin-nav-fg-color);
-  --shell-menu-link-indicator-color: transparent;
-  --shell-menu-link-line-height: 1.4;
-  --shell-menu-link-padding-block: 1.5rem;
-  --shell-menu-link-padding-inline: 2.2rem;
-  --shell-menu-max-height: calc(100dvh - var(--shell-sticky-top));
-  --shell-menu-overflow-y: auto;
-  --shell-menu-position: absolute;
-  --shell-menu-shadow: 0 var(--admin-gap-xs) var(--admin-gap-sm) var(--admin-shadow-color);
-
-  background-color: var(--shell-menu-bg-color);
-  box-shadow: var(--shell-menu-shadow);
-  display: var(--shell-menu-display);
-  flex: var(--shell-menu-flex);
-  flex-direction: column;
-  inset-block-start: 100%;
-  inset-inline: 0;
-  max-height: var(--shell-menu-max-height);
-  min-height: 0;
-  overflow-y: var(--shell-menu-overflow-y);
-  position: var(--shell-menu-position);
-}
-
-/* The sidebar (style.css) paints the ground from here */
-@media (width >= 1024px) {
+@layer shell {
   .shell-menu {
-    --shell-menu-bg-color: transparent;
+    --shell-menu-bg-color: var(--admin-sunken-bg-color);
+    --shell-menu-current-bg-color: var(--admin-selected-bg-color);
+    --shell-menu-current-fg-color: var(--admin-fg-color);
+    --shell-menu-current-icon-color: var(--admin-nav-fg-color);
+    --shell-menu-current-indicator-color: var(--admin-nav-fg-color);
+    --shell-menu-display: none;
+    --shell-menu-flex: 0 1 auto;
+    --shell-menu-footer-display: none;
+    --shell-menu-footer-justify: flex-end;
+    --shell-menu-footer-padding-block-end: 2rem;
+
+    /* Figma measures the 15px from the sidebar's outer edge, so the sidebar border (style.css) comes off */
+    --shell-menu-footer-padding-inline-end: calc(1.5rem - var(--shell-sidebar-border-width));
+    --shell-menu-hover-bg-color: var(--admin-nav-hover-bg-color);
+    --shell-menu-icon-size: 1.8rem;
+    --shell-menu-indicator-width: 0.4rem;
+    --shell-menu-label-block-size: auto;
+    --shell-menu-label-clip-path: none;
+    --shell-menu-label-inline-size: auto;
+    --shell-menu-label-position: static;
+    --shell-menu-link-bg-color: transparent;
+    --shell-menu-link-fg-color: var(--admin-fg-color);
+    --shell-menu-link-font-weight: var(--admin-font-weight-normal);
+    --shell-menu-link-gap: 1.1rem;
+    --shell-menu-link-icon-color: var(--admin-nav-fg-color);
+    --shell-menu-link-indicator-color: transparent;
+    --shell-menu-link-line-height: 1.4;
+    --shell-menu-link-padding-block: 1.5rem;
+    --shell-menu-link-padding-inline: 2.2rem;
+    --shell-menu-max-height: calc(100dvh - var(--shell-sticky-top));
+    --shell-menu-overflow-y: auto;
+    --shell-menu-position: absolute;
+    --shell-menu-shadow: 0 var(--admin-gap-xs) var(--admin-gap-sm) var(--admin-shadow-color);
+
+    background-color: var(--shell-menu-bg-color);
+    box-shadow: var(--shell-menu-shadow);
+    display: var(--shell-menu-display);
+    flex: var(--shell-menu-flex);
+    flex-direction: column;
+    inset-block-start: 100%;
+    inset-inline: 0;
+    max-height: var(--shell-menu-max-height);
+    min-height: 0;
+    overflow-y: var(--shell-menu-overflow-y);
+    position: var(--shell-menu-position);
+  }
+
+  /* The sidebar (style.css) paints the ground from here */
+  @media (width >= 1024px) {
+    .shell-menu {
+      --shell-menu-bg-color: transparent;
+      --shell-menu-display: flex;
+      --shell-menu-flex: 1;
+      --shell-menu-footer-display: flex;
+      --shell-menu-max-height: none;
+      --shell-menu-overflow-y: visible;
+      --shell-menu-position: static;
+      --shell-menu-shadow: none;
+    }
+  }
+
+  .shell-menu--open {
     --shell-menu-display: flex;
-    --shell-menu-flex: 1;
-    --shell-menu-footer-display: flex;
-    --shell-menu-max-height: none;
-    --shell-menu-overflow-y: visible;
-    --shell-menu-position: static;
-    --shell-menu-shadow: none;
   }
-}
 
-.shell-menu--open {
-  --shell-menu-display: flex;
-}
-
-@media (width >= 1024px) {
-  .shell-menu--collapsed {
-    --shell-menu-footer-justify: center;
-    --shell-menu-footer-padding-inline-end: 0rem;
-    --shell-menu-label-block-size: 0.1rem;
-    --shell-menu-label-clip-path: inset(50%);
-    --shell-menu-label-inline-size: 0.1rem;
-    --shell-menu-label-position: absolute;
+  @media (width >= 1024px) {
+    .shell-menu--collapsed {
+      --shell-menu-footer-justify: center;
+      --shell-menu-footer-padding-inline-end: 0rem;
+      --shell-menu-label-block-size: 0.1rem;
+      --shell-menu-label-clip-path: inset(50%);
+      --shell-menu-label-inline-size: 0.1rem;
+      --shell-menu-label-position: absolute;
+    }
   }
-}
 
-/* The list scrolls inside the full-height sidebar; min-height 0 lets a flex child shrink below its content */
-.shell-menu__list {
-  display: flex;
-  flex-direction: column;
-  list-style: none;
-  margin: 0;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 0;
-}
+  /* The list scrolls inside the full-height sidebar; min-height 0 lets a flex child shrink below its content */
+  .shell-menu__list {
+    display: flex;
+    flex-direction: column;
+    list-style: none;
+    margin: 0;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0;
+  }
 
-.shell-menu__link {
-  align-items: flex-start;
-  background-color: var(--shell-menu-link-bg-color);
-  border-inline-start: var(--shell-menu-indicator-width) solid var(--shell-menu-link-indicator-color);
-  color: var(--shell-menu-link-fg-color);
-  display: flex;
-  font-weight: var(--shell-menu-link-font-weight);
-  gap: var(--shell-menu-link-gap);
-  line-height: var(--shell-menu-link-line-height);
-  padding: var(--shell-menu-link-padding-block) var(--shell-menu-link-padding-inline)
-    var(--shell-menu-link-padding-block) calc(var(--shell-menu-link-padding-inline) - var(--shell-menu-indicator-width));
-  text-decoration: none;
-  transition: var(--admin-transition);
-}
+  .shell-menu__link {
+    align-items: flex-start;
+    background-color: var(--shell-menu-link-bg-color);
+    border-inline-start: var(--shell-menu-indicator-width) solid var(--shell-menu-link-indicator-color);
+    color: var(--shell-menu-link-fg-color);
+    display: flex;
+    font-weight: var(--shell-menu-link-font-weight);
+    gap: var(--shell-menu-link-gap);
+    line-height: var(--shell-menu-link-line-height);
+    padding: var(--shell-menu-link-padding-block) var(--shell-menu-link-padding-inline)
+      var(--shell-menu-link-padding-block) calc(var(--shell-menu-link-padding-inline) - var(--shell-menu-indicator-width));
+    text-decoration: none;
+    transition: var(--admin-transition);
+  }
 
-.shell-menu__link:hover {
-  --shell-menu-link-bg-color: var(--shell-menu-hover-bg-color);
-}
+  .shell-menu__link:hover {
+    --shell-menu-link-bg-color: var(--shell-menu-hover-bg-color);
+  }
 
-.shell-menu__link[aria-current="page"] {
-  --shell-menu-link-bg-color: var(--shell-menu-current-bg-color);
-  --shell-menu-link-fg-color: var(--shell-menu-current-fg-color);
-  --shell-menu-link-font-weight: var(--admin-font-weight-bold);
-  --shell-menu-link-icon-color: var(--shell-menu-current-icon-color);
-  --shell-menu-link-indicator-color: var(--shell-menu-current-indicator-color);
-}
-
-@media (forced-colors: active) {
   .shell-menu__link[aria-current="page"] {
-    --shell-menu-current-bg-color: Highlight;
-    --shell-menu-current-fg-color: HighlightText;
-    --shell-menu-current-icon-color: HighlightText;
-    --shell-menu-current-indicator-color: HighlightText;
-
-    forced-color-adjust: none;
+    --shell-menu-link-bg-color: var(--shell-menu-current-bg-color);
+    --shell-menu-link-fg-color: var(--shell-menu-current-fg-color);
+    --shell-menu-link-font-weight: var(--admin-font-weight-bold);
+    --shell-menu-link-icon-color: var(--shell-menu-current-icon-color);
+    --shell-menu-link-indicator-color: var(--shell-menu-current-indicator-color);
   }
-}
 
-/* Inset, so the ring stays inside a list that clips what overflows it */
-.shell-menu__link:focus-visible {
-  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
-  outline-offset: calc(var(--admin-focus-outline-offset) * -2);
-}
+  @media (forced-colors: active) {
+    .shell-menu__link[aria-current="page"] {
+      --shell-menu-current-bg-color: Highlight;
+      --shell-menu-current-fg-color: HighlightText;
+      --shell-menu-current-icon-color: HighlightText;
+      --shell-menu-current-indicator-color: HighlightText;
 
-.shell-menu__icon {
-  --admin-icon-size: var(--shell-menu-icon-size);
+      forced-color-adjust: none;
+    }
+  }
 
-  color: var(--shell-menu-link-icon-color);
-  display: flex;
-}
+  /* Inset, so the ring stays inside a list that clips what overflows it */
+  .shell-menu__link:focus-visible {
+    outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+    outline-offset: calc(var(--admin-focus-outline-offset) * -2);
+  }
 
-/* One line, cut with an ellipsis; the link's title shows the whole label on hover */
-.shell-menu__label {
-  block-size: var(--shell-menu-label-block-size);
-  clip-path: var(--shell-menu-label-clip-path);
-  inline-size: var(--shell-menu-label-inline-size);
-  min-width: 0;
-  overflow: hidden;
-  position: var(--shell-menu-label-position);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+  .shell-menu__icon {
+    --admin-icon-size: var(--shell-menu-icon-size);
 
-.shell-menu__footer {
-  display: var(--shell-menu-footer-display);
-  justify-content: var(--shell-menu-footer-justify);
-  margin-block-start: auto;
-  padding-block-end: var(--shell-menu-footer-padding-block-end);
-  padding-inline-end: var(--shell-menu-footer-padding-inline-end);
+    color: var(--shell-menu-link-icon-color);
+    display: flex;
+  }
+
+  /* One line, cut with an ellipsis; the link's title shows the whole label on hover */
+  .shell-menu__label {
+    block-size: var(--shell-menu-label-block-size);
+    clip-path: var(--shell-menu-label-clip-path);
+    inline-size: var(--shell-menu-label-inline-size);
+    min-width: 0;
+    overflow: hidden;
+    position: var(--shell-menu-label-position);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .shell-menu__footer {
+    display: var(--shell-menu-footer-display);
+    justify-content: var(--shell-menu-footer-justify);
+    margin-block-start: auto;
+    padding-block-end: var(--shell-menu-footer-padding-block-end);
+    padding-inline-end: var(--shell-menu-footer-padding-inline-end);
+  }
 }

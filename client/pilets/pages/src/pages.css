@@ -19,75 +19,77 @@
  * the shell's `shell-page__inset`. Only layout is styled here; the pattern library step owns the look.
  */
 
-.pages {
-  --pages-height: auto;
-  --pages-padding-block-start: var(--admin-gap-md);
+@layer pilets {
+  .pages {
+    --pages-height: auto;
+    --pages-padding-block-start: var(--admin-gap-md);
 
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: var(--admin-gap-sm);
-  height: var(--pages-height);
-  min-height: calc(100vh - var(--shell-sticky-top) - var(--shell-header-offset));
-  padding-block-start: var(--pages-padding-block-start);
-}
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: var(--admin-gap-sm);
+    height: var(--pages-height);
+    min-height: calc(100vh - var(--shell-sticky-top) - var(--shell-header-offset));
+    padding-block-start: var(--pages-padding-block-start);
+  }
 
-.pages--index {
-  --pages-height: calc(100vh - var(--shell-sticky-top) - var(--shell-header-offset));
-  --pages-padding-block-start: 0rem;
-}
+  .pages--index {
+    --pages-height: calc(100vh - var(--shell-sticky-top) - var(--shell-header-offset));
+    --pages-padding-block-start: 0rem;
+  }
 
-.pages-sidebar {
-  --pages-sidebar-flex: none;
-  --pages-sidebar-overflow: visible;
+  .pages-sidebar {
+    --pages-sidebar-flex: none;
+    --pages-sidebar-overflow: visible;
 
-  /* Figma Site tree sidebar 2:3677: 20px toolbar and tree inset */
-  --pages-sidebar-inset: 2rem;
+    /* Figma Site tree sidebar 2:3677: 20px toolbar and tree inset */
+    --pages-sidebar-inset: 2rem;
 
-  display: flex;
-  flex: var(--pages-sidebar-flex);
-  flex-direction: column;
-  min-height: 0;
-  overflow: var(--pages-sidebar-overflow);
-}
+    display: flex;
+    flex: var(--pages-sidebar-flex);
+    flex-direction: column;
+    min-height: 0;
+    overflow: var(--pages-sidebar-overflow);
+  }
 
-/* In the section sidebar the shell's column scrolls; on the index the pane is its own scroller */
-.pages-sidebar--index {
-  --pages-sidebar-flex: 1;
-  --pages-sidebar-overflow: auto;
-}
+  /* In the section sidebar the shell's column scrolls; on the index the pane is its own scroller */
+  .pages-sidebar--index {
+    --pages-sidebar-flex: 1;
+    --pages-sidebar-overflow: auto;
+  }
 
-/* The pane insets sit on its rows, not the pane, so the scrollbar stays on the pane's edge */
-.pages-search {
-  padding: var(--pages-sidebar-inset) var(--pages-sidebar-inset) 0;
-}
+  /* The pane insets sit on its rows, not the pane, so the scrollbar stays on the pane's edge */
+  .pages-search {
+    padding: var(--pages-sidebar-inset) var(--pages-sidebar-inset) 0;
+  }
 
-/* Figma 2:3677: 20px padding, 15px between the buttons */
-.pages-tree-toolbar {
-  --pages-tree-toolbar-gap: 1.5rem;
+  /* Figma 2:3677: 20px padding, 15px between the buttons */
+  .pages-tree-toolbar {
+    --pages-tree-toolbar-gap: 1.5rem;
 
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--pages-tree-toolbar-gap);
-  padding: var(--pages-sidebar-inset);
-}
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--pages-tree-toolbar-gap);
+    padding: var(--pages-sidebar-inset);
+  }
 
-.pages-tree-toolbar__end {
-  margin-inline-start: auto;
-}
+  .pages-tree-toolbar__end {
+    margin-inline-start: auto;
+  }
 
-.pages-sidebar__alert {
-  padding: 0 var(--pages-sidebar-inset) var(--pages-sidebar-inset);
-}
+  .pages-sidebar__alert {
+    padding: 0 var(--pages-sidebar-inset) var(--pages-sidebar-inset);
+  }
 
-.add-page__type {
-  align-items: center;
-  display: inline-flex;
-  gap: var(--admin-gap-xs);
-}
+  .pages-add-page__type {
+    align-items: center;
+    display: inline-flex;
+    gap: var(--admin-gap-xs);
+  }
 
-.add-page__description {
-  flex-basis: 100%;
-  padding-inline-start: calc(var(--admin-check-size) + var(--admin-gap-xs));
+  .pages-add-page__description {
+    flex-basis: 100%;
+    padding-inline-start: calc(var(--admin-check-size) + var(--admin-gap-xs));
+  }
 }

@@ -436,6 +436,17 @@ describe('PagesSection submissions', () => {
     done();
   });
 
+  it('leaves a response that names its record to the form, which announces it already', () => {
+    const { piral, form, done } = renderSection();
+
+    act(() => {
+      form().onSubmitted({ id: 'x', record: { id: 7, className: 'Page' } }, { title: 'Publish' });
+    });
+
+    expect(piral.invalidateRecords).not.toHaveBeenCalled();
+    done();
+  });
+
   const archive = (form: ReturnType<typeof renderSection>['form']) =>
     act(() => {
       form().onSubmitted({ id: 'x', deleted: true, message: 'Archived Page "Alpha"' }, { title: 'Archive' });

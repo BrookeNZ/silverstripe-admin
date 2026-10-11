@@ -88,8 +88,10 @@ const settle = () => act(async () => {
 const wrapperOf = (id: string) => container.querySelector(`#${id}`)?.parentElement?.className;
 
 // The stylesheets are not loaded by the test runner, and the inset is a token chain across them
+// happy-dom ignores rules inside @layer, so a shell stylesheet's wrapper comes off before it parses the sheet
+const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/^@layer [\w.]+ \{\n([\s\S]*)\n\}\n$/m, '$1');
+
 const loadStyles = (...paths: Array<string>) => {
-  const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
   const style = document.createElement('style');
   style.textContent = `:root { --shell-inset: 1.6rem; } ${paths.map(read).join(' ')}`;
   document.head.append(style);
@@ -138,7 +140,7 @@ describe('FormSchemaForm content inset', () => {
   });
 
   it('insets a form message by the form inset, and not in a nested form', async () => {
-    const style = loadStyles('./form.css', '../../../patterns/src/css/field.css');
+    const style = loadStyles('./form.css', '../../../patterns/src/FieldHolder.css');
     await render(<FormSchemaForm schemaUrl="admin/form" />);
     expect(insetOf(container.querySelector('.admin-alert'), 'margin-inline')).toBe('1.6rem');
     container.remove();
@@ -152,8 +154,8 @@ describe('FormSchemaForm content inset', () => {
     const style = loadStyles(
       './form.css',
       './fields/toggle-composite-field.css',
-      '../../../patterns/src/css/disclosure.css',
-      '../../../patterns/src/css/field.css',
+      '../../../patterns/src/Disclosure.css',
+      '../../../patterns/src/FieldHolder.css',
     );
     await render(<FormSchemaForm schemaUrl="admin/form" />, [field('Group', 'Structural', 'ToggleCompositeField', [field('Inside')])]);
     expect(insetOf(container.querySelector('#Form_EditForm_Group'), 'margin-inline')).toBe('1.6rem');
@@ -171,9 +173,8 @@ describe('FormSchemaForm content inset', () => {
 
     it('spans the content column with the tab set and insets its tab strip', async () => {
       // The stylesheets are not loaded by the test runner, and the inset is a token chain across both
-      const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
       const style = document.createElement('style');
-      style.textContent = `:root { --shell-inset: 1.6rem; } ${read('./form.css')} ${read('../../../patterns/src/css/tab-strip.css')} ${read('../../../patterns/src/css/field.css')}`;
+      style.textContent = `:root { --shell-inset: 1.6rem; } ${read('./form.css')} ${read('../../../patterns/src/TabStrip.css')} ${read('../../../patterns/src/FieldHolder.css')}`;
       document.head.append(style);
       await render(<FormSchemaForm schemaUrl="admin/form" />, tabbedFields);
       const paddingOf = (element: Element | null | undefined) => (element ? getComputedStyle(element).getPropertyValue('padding-inline') : null);

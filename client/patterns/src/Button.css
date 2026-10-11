@@ -5,7 +5,7 @@
  * labels). The block is the secondary: green outline and label on a white fill (Figma "Save outline"
  * 2:6241); --primary fills it green (Figma "Publish" 2:6233), --tertiary is the borderless white button
  * with a grey label for toolbars and menus, --text draws the button as a Link from the --admin-link-*
- * tokens in link.css (no fill, border, padding or minimum size, underline on hover), and --icon-only
+ * tokens in Link.css (no fill, border, padding or minimum size, underline on hover), and --icon-only
  * squares the padding round a lone icon.
  * Variants reassign the --admin-button-* tokens. The padding tokens are the design's, measured
  * outside the border. Hover follows the design: primary Button/Primary Hover, secondary the green

@@ -5,6 +5,8 @@
  * which sit in the panel's own padding
  */
 
-.shell-toggle-composite-field {
-  margin-inline: var(--admin-field-padding-inline);
+@layer shell {
+  .shell-toggle-composite-field {
+    margin-inline: var(--admin-field-padding-inline);
+  }
 }

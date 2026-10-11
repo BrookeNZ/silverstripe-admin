@@ -4,7 +4,8 @@
  * read costs no round trip. A path no pilet registers falls through to the not_found view, which renders
  * the section's server EditForm.
  */
-// First, so the package tokens precede every stylesheet that reads them
+// First, so the layer order is declared before any layered rule and the package tokens precede their readers
+import './layers.css';
 import '@silverstripe/admin-patterns/styles.css';
 import { createRoot } from 'react-dom/client';
 import { createInstance, Piral } from 'piral-core';

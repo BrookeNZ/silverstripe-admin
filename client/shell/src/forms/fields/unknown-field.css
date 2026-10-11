@@ -4,29 +4,31 @@
  * Stands in for a field whose component no pilet has registered
  */
 
-.shell-unknown-field {
-  --shell-unknown-field-bg-color: var(--admin-warning-bg-color);
-  --shell-unknown-field-border: 0.1rem dashed var(--shell-unknown-field-border-color);
-  --shell-unknown-field-border-color: var(--admin-warning-border-color);
+@layer shell {
+  .shell-unknown-field {
+    --shell-unknown-field-bg-color: var(--admin-warning-bg-color);
+    --shell-unknown-field-border: 0.1rem dashed var(--shell-unknown-field-border-color);
+    --shell-unknown-field-border-color: var(--admin-warning-border-color);
 
-  background-color: var(--shell-unknown-field-bg-color);
-  border: var(--shell-unknown-field-border);
-  border-radius: var(--admin-radius);
-  margin-inline: var(--admin-field-padding-inline);
-  padding: var(--admin-gap-sm) var(--admin-gap-md);
-}
+    background-color: var(--shell-unknown-field-bg-color);
+    border: var(--shell-unknown-field-border);
+    border-radius: var(--admin-radius);
+    margin-inline: var(--admin-field-padding-inline);
+    padding: var(--admin-gap-sm) var(--admin-gap-md);
+  }
 
-.shell-unknown-field__title {
-  font-weight: var(--admin-font-weight-bold);
-  margin: 0;
-}
+  .shell-unknown-field__title {
+    font-weight: var(--admin-font-weight-bold);
+    margin: 0;
+  }
 
-.shell-unknown-field__detail {
-  color: var(--admin-fg-color);
-  margin: 0;
-}
+  .shell-unknown-field__detail {
+    color: var(--admin-fg-color);
+    margin: 0;
+  }
 
-.shell-unknown-field__code {
-  font-family: var(--admin-font-family-mono);
-  overflow-wrap: anywhere;
+  .shell-unknown-field__code {
+    font-family: var(--admin-font-family-mono);
+    overflow-wrap: anywhere;
+  }
 }

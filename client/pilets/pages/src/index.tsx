@@ -1,4 +1,5 @@
 import type { PiletApi } from '@silverstripe/admin-shell';
+import { accessListFieldName, accessListSchema, createAccessListField } from './AccessListField';
 import { createPagesSection } from './PagesSection';
 import type { PagesSidebarSlotProps } from './PagesSidebar';
 import {
@@ -36,6 +37,8 @@ export function setup(api: PiletApi) {
     createSiteTreeTitleField({ request: api.fetchJson, useFormFieldValue: api.useFormFieldValue, draftTitle }),
   );
   api.registerHook('updateFormSchema', titleFieldSchema, { id: 'title-url-segment' });
+  api.registerSilverstripeComponent(accessListFieldName, createAccessListField(api));
+  api.registerHook('updateFormSchema', accessListSchema, { id: 'access-lists' });
   const config = api.getConfig();
   const section = config.sections.find((candidate) => candidate.name === cmsMain);
   const sectionUrl = (name: string) => config.sections.find((candidate) => candidate.name === name)?.url;

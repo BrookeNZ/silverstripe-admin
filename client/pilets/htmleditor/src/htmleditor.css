@@ -7,20 +7,22 @@
  * so the editor's own focus and blur events set --focused on the wrapper, toolbar included
  */
 
-.htmleditor-field {
-  border-radius: var(--admin-radius);
-}
+@layer pilets {
+  .htmleditor-field {
+    border-radius: var(--admin-radius);
+  }
 
-.htmleditor-field--focused {
-  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
-  outline-offset: var(--admin-focus-outline-offset);
-}
+  .htmleditor-field--focused {
+    outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+    outline-offset: var(--admin-focus-outline-offset);
+  }
 
-.htmleditor-field__status {
-  color: var(--admin-muted-fg-color);
-  margin: 0;
-}
+  .htmleditor-field__status {
+    color: var(--admin-muted-fg-color);
+    margin: 0;
+  }
 
-.htmleditor-source__code {
-  font-family: var(--admin-font-family-mono);
+  .htmleditor-source__code {
+    font-family: var(--admin-font-family-mono);
+  }
 }

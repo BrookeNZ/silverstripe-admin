@@ -40,12 +40,12 @@ const PageTypeOption = ({ id, type, checked, onChoose }: PageTypeOptionProps) =>
         aria-describedby={type.description ? descriptionId : undefined}
         onChange={() => onChoose(type.className)}
       />
-      <label className="admin-field__option add-page__type" htmlFor={id}>
+      <label className="admin-field__option pages-add-page__type" htmlFor={id}>
         {type.iconUrl ? <img className="admin-icon" src={type.iconUrl} alt="" /> : <PageTypeIcon />}
         {type.title}
       </label>
       {type.description && (
-        <p className="admin-field__description add-page__description" id={descriptionId}>
+        <p className="admin-field__description pages-add-page__description" id={descriptionId}>
           {type.description}
         </p>
       )}

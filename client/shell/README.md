@@ -123,6 +123,13 @@ changing it. From `client/pilets`:
 `npm run build` in `client/shell` and in each changed pilet writes the release bundles into `client/dist`, which are
 committed. The release build has no emulator and no debug bridge.
 
+`yarn lint` at the module root (Node 18) runs `yarn lint:classes`, the dead-class check in
+`client/tools/css-classes.mjs`. It fails when a class in the package, shell or pilet CSS has a rule but nothing
+emits it (non-test TypeScript, the module's PHP and templates, or `PILET-API.md`), or when the TypeScript emits a
+class of a styled block that has no rule. A class kept on purpose without one of the two, such as a test hook or
+markup a vendor stylesheet targets, goes in `client/tools/css-classes-allowlist.json` with its reason; the check
+also fails on an entry that is no longer needed.
+
 ### Stopping
 
 `Ctrl+C` in each terminal. When the servers were started in the background, kill the bundler children too:
