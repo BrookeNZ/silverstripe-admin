@@ -3,7 +3,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readTopBar, TopBar } from './TopBar';
 import type { TopBarData } from './TopBar';
 
@@ -24,6 +24,7 @@ const data: TopBarData = {
 
 let container: HTMLDivElement;
 let root: Root;
+let wide: boolean;
 
 const render = (topBar: TopBarData) =>
   act(() =>
@@ -43,6 +44,8 @@ const render = (topBar: TopBarData) =>
   );
 
 beforeEach(() => {
+  wide = true;
+  vi.stubGlobal('matchMedia', () => ({ matches: wide, addEventListener: () => undefined, removeEventListener: () => undefined }));
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
@@ -51,6 +54,7 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+  vi.unstubAllGlobals();
 });
 
 const trigger = (name: string) => [...container.querySelectorAll('button')].find((button) => button.textContent === name)!;
@@ -64,6 +68,12 @@ describe('TopBar', () => {
     const site = container.querySelector<HTMLAnchorElement>('.shell-top-bar__site-name')!;
     expect([site.textContent, site.getAttribute('href'), site.target]).toEqual(['Example site', 'https://example.test/', '_blank']);
     expect(container.querySelector('.shell-top-bar__badge')?.textContent).toBe('Piral shell');
+  });
+
+  it('names the whole site in the title of the site name, which truncates to fit the bar', () => {
+    const siteName = 'A site name long enough to run past the end of a narrow top bar';
+    render({ ...data, siteName });
+    expect(container.querySelector('.shell-top-bar__site-name')?.getAttribute('title')).toBe(siteName);
   });
 
   it('lists the help links as menu items that open in a new tab', () => {
@@ -81,6 +91,28 @@ describe('TopBar', () => {
     act(() => trigger('Ada Lovelace').click());
     const items = [...panel('Ada Lovelace').querySelectorAll('[role="menuitem"]')];
     expect(items.map((item) => item.textContent)).toEqual(['Profile', 'Log out']);
+  });
+
+  it('titles the help and person menus from 1024px', () => {
+    render(data);
+    for (const name of ['Help', 'Ada Lovelace']) {
+      expect(trigger(name).classList.contains('admin-button--icon-only')).toBe(false);
+      expect(trigger(name).querySelector('.admin-popover__caret')).not.toBeNull();
+    }
+  });
+
+  it('draws the help and person menus as icon-only triggers named by their labels below 1024px', () => {
+    wide = false;
+    render(data);
+    const icons = ['Help', 'Ada Lovelace'].map((name) => {
+      const button = trigger(name);
+      expect(button.classList.contains('admin-button--icon-only')).toBe(true);
+      expect(button.querySelector('.admin-button__label--hidden')?.textContent).toBe(name);
+      expect(button.querySelector('.admin-popover__caret')).toBeNull();
+      expect(button.querySelectorAll('svg')).toHaveLength(1);
+      return button.querySelector('svg.shell-top-bar__icon')!.innerHTML;
+    });
+    expect(icons[0]).not.toBe(icons[1]);
   });
 
   it('drops the help menu when there are no help links', () => {

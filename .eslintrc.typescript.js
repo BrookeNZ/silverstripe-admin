@@ -12,7 +12,7 @@
  */
 const componentStyle = 'Declare components as `const X = ({ a, b = 1 }: XProps) => ...`, not React.FC';
 
-const typedPackages = ['shell', 'patterns', 'pilets/fields', 'pilets/pages', 'pilets/elemental', 'pilets/htmleditor', 'pilets/history', 'pilets/archive'];
+const typedPackages = ['shell', 'patterns', 'pilets/fields', 'pilets/pages', 'pilets/elemental', 'pilets/htmleditor', 'pilets/history', 'pilets/archive', 'pilets/files'];
 
 module.exports = {
   root: true,

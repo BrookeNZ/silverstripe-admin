@@ -32,7 +32,7 @@
   /* Figma back button 2:1736: a 25px circle round the 13px chevron */
   --shell-header-back-size: 2.5rem;
 
-  /* Figma toolbar badge I2:30209;2:1853 is 11px; kept at the 14px body size like the breadcrumb */
+  /* Figma toolbar badge I2:30209;2:1853 is 11px; kept at the 14px body size */
   --shell-header-badge-bg-color: var(--admin-hover-bg-color);
   --shell-header-badge-fg-color: var(--admin-fg-color);
   --shell-header-badge-font-size: var(--admin-font-size-md);
@@ -43,8 +43,8 @@
   --shell-header-border: 0.1rem solid;
   --shell-header-column-gap: 5rem;
 
-  /* Figma New/Breadcrumbs is 11px; kept at the 14px body size, the smallest text the admin draws */
-  --shell-header-crumb-font-size: var(--admin-font-size-md);
+  /* Figma New/Breadcrumbs, Inter Regular 11px: with the tree's flags, the only text under the 14px floor */
+  --shell-header-crumb-font-size: 1.1rem;
   --shell-header-crumb-gap: var(--admin-gap-xs);
 
   /* Figma New/Breadcrumbs line height */

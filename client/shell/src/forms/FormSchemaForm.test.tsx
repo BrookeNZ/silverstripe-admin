@@ -68,20 +68,27 @@ function withPreview() {
 const stageToggle = <button type="button">Stage</button>;
 
 describe('FormSchemaForm messages', () => {
-  it('shows a good or success message as a status in the success style', async () => {
+  it('shows a good or success message that arrives with the schema as a success status', async () => {
     await renderWithMessages([{ type: 'good', value: 'Saved.' }, { type: 'success', value: 'Published.' }]);
-    const alerts = Array.from(container.querySelectorAll('.shell-form__alert'));
-    expect(alerts.map((alert) => [alert.getAttribute('role'), alert.className])).toEqual([
-      ['status', 'shell-form__alert shell-form__alert--good'],
-      ['status', 'shell-form__alert shell-form__alert--good'],
+    const alerts = Array.from(container.querySelectorAll('.admin-alert'));
+    expect(alerts.map((alert) => [alert.getAttribute('role'), alert.className, alert.textContent])).toEqual([
+      ['status', 'admin-alert admin-alert--success', 'Saved.'],
+      ['status', 'admin-alert admin-alert--success', 'Published.'],
     ]);
   });
 
-  it('shows any other message as an alert', async () => {
-    await renderWithMessages([{ type: 'error', value: 'Failed.' }]);
-    const alert = container.querySelector('.shell-form__alert')!;
-    expect(alert.getAttribute('role')).toBe('alert');
-    expect(alert.className).toBe('shell-form__alert');
+  it.each([
+    ['error', 'admin-alert--error', 'alert'],
+    ['bad', 'admin-alert--error', 'alert'],
+    ['required', 'admin-alert--error', 'alert'],
+    ['warning', 'admin-alert--warning', 'alert'],
+    ['warn', 'admin-alert--warning', 'alert'],
+    ['info', 'admin-alert--info', 'status'],
+  ])('shows a %s message as the %s Alert, role %s', async (type, modifier, role) => {
+    await renderWithMessages([{ type, value: 'Note.' }]);
+    const alert = container.querySelector('.admin-alert')!;
+    expect(alert.classList.contains(modifier)).toBe(true);
+    expect(alert.getAttribute('role')).toBe(role);
   });
 });
 

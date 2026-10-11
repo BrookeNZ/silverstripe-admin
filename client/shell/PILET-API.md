@@ -58,6 +58,10 @@ same-version tarball is reinstalled because its integrity changes); every pilet 
   (was `any`); `registerExtensionComponent` takes Piral's `AnyExtensionComponent` rather than `any`.
   `useServerQuery` takes `initialData` and `initialDataUpdatedAt`, and its `refetch()` resolves to the fetched data (`Promise<T | undefined>`,
   was `Promise<void>`).
+- 2026-10-09: toasts are the patterns package's `Toast` (exported for pilets, with `ToastProps` and
+  `ToastType`). `showNotification` keeps its shape and options; its defaults now follow legacy: a toast
+  closes after 6 seconds (was 8), and a `warning` stays until dismissed unless `autoClose` is passed, as an
+  `error` always does. An `error` is announced assertively. See **Notifications**.
   `@silverstripe/admin-patterns` requires React `^19` (was `^18 || ^19`); `Button`, `Link` and `Stack`
   take `ref` as a prop rather than through `forwardRef`, with the same element types.
 - 2026-10-09: built-in fields `ListboxField`, `DateField`, `LookupField`, `LabelField` and
@@ -81,6 +85,19 @@ same-version tarball is reinstalled because its integrity changes); every pilet 
   counter ids are `#<n>`; a handler running its own update or after hook is not run again; hook names in
   the run verbs and `HookHandler` must be `update`, `onBefore` or `onAfter` then a capital; a pilet named
   `shell` is refused.
+- 2026-10-09: `DataTable`, a data-driven list table registered under that name and listed in
+  `SilverstripeComponents` (see **Data table**), with its types `DataTableProps`, `DataTableColumn`,
+  `DataTableRow`, `DataTableSort`, `DataTableSortDirection` and `DataTableSelection`.
+- 2026-10-09: `openPanel`, `closePanel` and `usePanel`, the details panel beside the section's content, with
+  the types `PanelOptions` and `OpenPanel` (see **Details panel**). The shell no longer registers
+  `/assets/edit/:id`: the files pilet owns it, as a redirect to the file in its folder's details panel.
+- 2026-10-09: `FormSchemaForm` takes `onMessage(message)`, which receives each good message a post
+  returns instead of the form drawing it inline. The form's own messages draw as the patterns package's
+  `Alert` (exported for pilets, with `AlertProps` and `AlertType`).
+- 2026-10-11: **Breaking:** Escape no longer closes the details panel, and `onClose` is only the close
+  button. A form schema sent to the shell names its record class (`FormSchemaTree.recordClass`), and a save
+  whose record names no class announces under it. `DataTable` row keys work only from a link, button or
+  checkbox in a cell. Toasts that arrive together are read one after another.
 
 ## Verbs
 
@@ -93,7 +110,7 @@ piral-notifications, ...):
 | `getSilverstripeComponent(name): ComponentType<props>` | A stable component that renders the latest registration of `name`, with the props `SilverstripeComponents` lists for it |
 | `registerExtensionComponent(name, slot, Component): Disposable` | Fill the slot `<name>.<slot>`. `SilverStripe\Admin\LeftAndMain` / `menu.bottom` is legacy; use `registerMenuItem` |
 | `getConfig(): Readonly<SilverstripeClientConfig>` | A deep-frozen copy of `window.ss.config`, taken once at first use, so a later change to `window.ss.config` does not show in it. `fetchJson` reads `SecurityID` live instead |
-| `showNotification(content, options?)` | From piral-notifications |
+| `showNotification(content, options?)` | From piral-notifications; see **Notifications** for the options and how a toast closes |
 | `setUnsavedChanges(key, dirty): Disposable` | Report unsaved changes this pilet owns; the shell confirms before navigating away. The disposer clears the key |
 | `hasUnsavedChanges(): boolean` | Whether anything in the shell is dirty |
 | `setSectionHeader(header): Disposable` | Show the section header above the content; see **Section header** |
@@ -111,6 +128,9 @@ piral-notifications, ...):
 | `invalidateRecords(recordClass, ids): void` | Emit records-changed, which refetches every cached read of those records; see **Server cache** |
 | `fetchJson(url, init?): Promise<T>` | The shell's fetch for admin JSON endpoints, with the session and CSRF handling; see **Server cache** |
 | `routerPath(url): string \| null` | The shell router's path for a server link under the admin URL (`admin/pages/edit/show/7` becomes `/pages/edit/show/7`), keeping its query and hash; the bare admin URL gives `/`. Null for another origin or a link outside the admin, which needs a page load |
+| `openPanel({ id, title, badge?, meta?, content, footer?, onClose, closeLabel?, returnFocus? }): Disposable` | Show the details panel beside the section's content until the disposer runs; see **Details panel** |
+| `closePanel(id): void` | Close this pilet's panel `id` if it is showing, without calling its `onClose` |
+| `usePanel(): { id, title, owner } \| null` | The panel showing, for a page that marks the item it shows |
 
 No `registerFormField`: binding a field to the form is decided by the schema (`schemaType`, read-only
 state, the posted set), not by the registration; holders are a component (`FieldHolder` in
@@ -278,6 +298,28 @@ router. The form comes from `GET <item link>/schema` (the FormSchema envelope pl
 `?grid[<name>][sort]=-Title&grid[<name>][filter][q]=about&grid[<name>][page]=2`. A change is a
 client navigation, so the unsaved changes guard confirms it when the form is dirty.
 
+## Data table
+
+The shell registers `DataTable` (Figma "List header" 2:6388 and "File list item" 2:6533), so a pilet draws a
+list the way the Files section does without bundling a table of its own. Get it with
+`getSilverstripeComponent('DataTable')`, which returns it typed with `DataTableProps`:
+
+- `caption` names the table (visually hidden); `columns` are `{name, title, sortable?, firstDirection?, rowHeader?,
+  align?, hideWhenNarrow?, className?}`; `rows` are `{id, label, cells}` with each cell already rendered, keyed
+  by column name. The `rowHeader` column is each row's `th`, so it should carry the row's link or button.
+- Sorting is the caller's: `sort` is `{column, direction}` and `onSort` receives the sort a header press asks
+  for (the other direction on the sorted column, else the column's `firstDirection`, `asc` by default).
+- `selection` adds a checkbox column at the end named "Select <label>"; without `onToggle` the boxes are
+  disabled. `onOpenRow(id)` runs on a click in a row outside its controls. Arrow up and down, Home and End move
+  focus between rows, to the control in the same position, when pressed on a link, button or checkbox in a
+  cell; a text field, a select, an open menu or a control that called `preventDefault()` keeps them. `hideWhenNarrow` columns drop below 768px.
+- `currentRowId` marks the row open elsewhere (the Files section's details panel) with `aria-current="true"`
+  and the design's Active fill, which stays under the pointer.
+- Its CSS reads `--admin-data-table-*` tokens declared on `.admin-data-table`; `className` is added to the
+  table, and a column's `className` to its header and cells (for a width under the fixed layout).
+
+GridField's grid renders through it too, with its own row height and inset defaults.
+
 ## Shared state and events
 
 The shell holds the admin's shared state in Piral global state and gives pilets a read-only view of it.
@@ -342,6 +384,12 @@ props `SchemaFormDialogProps`: `open`, `header`, `intro` (controls above the for
 the shared Dialog with the form headless in its body and Cancel, then the form's actions, in its footer.
 Each action button posts its own action and shows `loading` while it runs; errors show in the body.
 `onClose` is Cancel and Escape, and the host closes the dialog from `onSubmitted` as well.
+
+Form-level messages (errors no field claims, warnings, the state's messages) draw above the fields as
+`Alert`s. A host that passes `onMessage(message)` receives each good message (`good` or `success`) a post
+returns instead, to show as a toast (`showNotification(message.value, { type: 'success' })`), as legacy
+toasted a save's "Saved."; messages that arrive with the schema stay in the form. Without it, as in a
+dialog or a headless form, good messages stay inline. The shell's own section forms pass it.
 
 ### Server cache
 
@@ -430,7 +478,7 @@ What else is on the cache:
 
 | Read | Key | Writes that announce |
 |---|---|---|
-| A FormSchema form (shell) | `['schema', schemaUrl]` | A successful submit whose response carries `record` announces `[record.className, [record.id]]`; the save then waits for its own form's refetch, and a refetch resets the values only while the form is clean |
+| A FormSchema form (shell) | `['schema', schemaUrl]` | A successful submit whose response carries `record` announces `[record.className, [record.id]]`, or under the schema's `recordClass` (the form's record class, sent to the shell) when the record names no class, as AssetAdmin's does; the save then waits for its own form's refetch, and a refetch resets the values only while the form is clean |
 | A GridField's rows (shell) | `['grid', rowsUrl, params]`, keeping the last page on screen while the next loads | A row action announces `[grid.modelClass, [row.id]]`, then waits for the rows' refetch |
 | A LinkField's links (fields) | `['SilverStripe\LinkField\Models\Link', 'data', ids]` | Delete, sort and a dialog save announce the links they changed under the Link class |
 | A UsedOnTable's usage list (fields) | `[recordClass, recordId, 'usage']` | None; a save of the record refetches it |
@@ -630,6 +678,57 @@ Sticky content below the header offsets by `calc(var(--shell-sticky-top) + var(-
 header's rendered height, which the shell measures; `--shell-header-height` is only the design height
 it falls back to. The form's action bar is measured the same way into `--shell-form-actions-offset`.
 
+## Details panel
+
+A right-hand panel beside the section's content, under the section header, that any pilet can fill: the
+Files section opens a file's edit form in it, and another section can show a record's details the same
+way. The page opens it from an effect and disposes it on unmount, so the panel lives exactly as long as
+the route that names the record:
+
+```tsx
+const navigate = useNavigate();
+React.useEffect(
+  () =>
+    piral.openPanel({
+      id: `file-${fileId}`,
+      title,
+      badge: draft ? 'Draft' : undefined,
+      meta: ['1120 x 640px', '13 KB'],
+      content: <FormSchemaForm schemaUrl={schemaUrl + fileId} />,
+      onClose: () => navigate(folderPath),
+      returnFocus: () => document.querySelector(`[data-file-link="${fileId}"]`),
+    }),
+  [piral, fileId, title, draft, schemaUrl, folderPath, navigate],
+);
+```
+
+| Option | Meaning |
+|---|---|
+| `id` | Names the panel. Opening the id that is showing updates it in place (no focus move, content keeps its state); the disposer of the earlier call then leaves it open |
+| `title` | The panel's `h2` and the region's accessible name; 20px medium, ellipsed on one line |
+| `badge?` | A short status after the title, drawn as the site tree's tag (10px uppercase on the modified ground) |
+| `meta?` | Facts under the title, divided by thin rules |
+| `content` | The panel body, which scrolls on its own. Its inset is `--shell-inset` (20px here), which form fields read; a `FormSchemaForm`'s action bar (Cancel or Saved on the left, primary actions after it, the more menu) pins to the panel's foot |
+| `footer?` | An action bar under the body, for content without a form of its own; laid out as the form's bar |
+| `onClose` | The user asked to close with the close button. Close it from here, usually by navigating to the route without the record, so the unsaved-changes guard can ask first |
+| `closeLabel?` | The close button's name; "Close <title>" otherwise |
+| `returnFocus?` | Where focus goes on close when the element focused at open is gone (a list that remounted with the route) |
+
+One panel shows at a time: opening another id replaces it, without calling the replaced panel's
+`onClose`, since replacing it was the caller's doing. `closePanel(id)`, the disposer and unloading the
+pilet close it without `onClose` too. `usePanel()` reports the panel showing, from any pilet.
+
+From 1200px the panel sits beside the content, 350px wide and 400px from 1600px, with a Grey 400 rule
+on its start edge; below 1200px it replaces the content, which stays mounted underneath so the page keeps
+its state. It sticks under the section header at the viewport's height. Focus moves to its title when it
+opens or another replaces it, and when it closes with focus inside, back to the element focused at open,
+else `returnFocus()`, else the main landmark; the panel repeats the move after the section header's
+route-change focus, so a panel its close button closed keeps it. A panel closed any other way (a crumb or
+menu link changing the route) leaves the section header's focus alone and only rescues focus that was lost.
+Escape does not close the panel, as legacy's had no Escape; it stays with the field or dialog that has it.
+Content that throws while rendering shows an error in the panel and leaves the page beside it. While a panel
+is open the preview pane is not drawn; preview mode resumes when it closes.
+
 ## Section icons
 
 The menu draws an icon before each section's label. By default the shell picks it from the section's
@@ -689,6 +788,31 @@ on `to` and its sub paths, and the collapse behaviour. Unloading the pilet remov
 `shell-menu__link` class, an optional `<span class="shell-menu__icon">` holding an 18px `currentColor` icon,
 and the text in a `<span class="shell-menu__label">`. The shell does not mark it current. **Breaking:** the class
 was `shell__link` before 2026-10-07; a pilet still using it renders unstyled.
+
+## Notifications
+
+`showNotification(content, options?)` draws a toast in the top right, under the header, newest first,
+and returns a function that closes it. `content` is a string, an element or a component taking
+`{onClose, options}`. The toast does not take focus; its text is read out through the shell's live
+regions, one toast after another when several arrive together.
+
+| Option | Use |
+|---|---|
+| `type` | `'info'` (default), `'success'`, `'warning'` or `'error'`; sets the icon and edge colour |
+| `autoClose` | Milliseconds before the toast closes itself, 0 to keep it. Defaults to 6000 for `info` and `success` and to 0 for `warning`. Ignored for `error`, which stays until dismissed. The timer pauses while the toast is hovered or holds focus |
+
+`title` is accepted by piral-notifications but not drawn. A toast always has a close button.
+
+To draw the same toast outside the notification host, render `Toast` from the patterns package:
+`children` the message, `type`, `dismissAfter` (milliseconds; self-closing, paused while hovered or
+focused, ignored for `error`) and `onClose` (draws the close button and is called however the toast
+closes). A toast with neither stays until its owner unmounts it. It has no live region role, so the owner
+announces its text.
+
+For a message that stays in place (a form's error or warning, a note in a dialog), render `Alert` from
+the patterns package instead: `children` the message and `type` (`'info'` default, `'success'`,
+`'warning'`, `'error'`), drawn with the toast's icon for that type and no close button. Errors and
+warnings are `role="alert"`, success and info `role="status"`.
 
 ## Patterns package
 

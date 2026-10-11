@@ -10,6 +10,8 @@ import { SectionSidebar } from './header/SectionSidebar';
 import { useSectionHeader } from './header/state';
 import { usePreviewMode } from './preview/mode';
 import { PreviewPane } from './preview/PreviewPane';
+import { ShellPanel, usePanelReplacesContent } from './panel/Panel';
+import { usePanelEntry } from './panel/state';
 import { useMenuCollapsed } from './menu/collapse';
 import { Menu } from './menu/Menu';
 import { routerLink } from './routing';
@@ -69,12 +71,6 @@ export const SectionWithoutPilet = ({ owned = false }: { owned?: boolean }) => {
               that registers pages under /{section}.
             </p>
           </>
-        )}
-        {section === 'assets' && (
-          <p>
-            The file edit form already renders in the shell:{' '}
-            <TextLink href="/assets/edit/2" renderLink={routerLink}>edit file 2</TextLink>.
-          </p>
         )}
         <p>
           <TextLink href="/" renderLink={routerLink}>Shell home</TextLink>
@@ -229,17 +225,21 @@ export const Chrome = ({ menu, adminPath, topBar }: ChromeProps) => {
 
 /**
  * The page's content and, when its header gives a preview URL, the preview beside it or in its place.
- * The content stays mounted in every mode so a form keeps its unsaved edits
+ * The content stays mounted in every mode so a form keeps its unsaved edits. An open details panel takes
+ * the preview's place until it closes, so the two never share the column
  */
 export const Workspace = ({ children }: { children: React.ReactNode }) => {
   const entry = useSectionHeader();
   const { mode } = usePreviewMode();
+  const panelOpen = usePanelEntry() !== null;
   const preview = entry?.header.preview;
-  const shown = preview ? mode : 'edit';
+  const shown = preview && !panelOpen ? mode : 'edit';
+  const panelReplacesContent = usePanelReplacesContent();
   return (
     <div className="shell__workspace">
-      <div className={shown === 'preview' ? 'shell__body shell__body--hidden' : 'shell__body'}>{children}</div>
+      <div className={shown === 'preview' || panelReplacesContent ? 'shell__body shell__body--hidden' : 'shell__body'}>{children}</div>
       {preview && shown !== 'edit' && <PreviewPane url={preview} title={entry.header.title} full={shown === 'preview'} />}
+      <ShellPanel />
     </div>
   );
 };

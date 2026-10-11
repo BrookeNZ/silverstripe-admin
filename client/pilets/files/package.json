@@ -1,0 +1,47 @@
+{
+  "name": "silverstripe-asset-admin",
+  "version": "0.0.0",
+  "description": "The Files section of the Silverstripe admin: the folder gallery",
+  "keywords": [
+    "pilet"
+  ],
+  "devDependencies": {
+    "@silverstripe/admin-patterns": "file:../../patterns",
+    "@silverstripe/admin-shell": "file:../../shell/dist/emulator/silverstripe-admin-shell-1.0.0.tgz",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "happy-dom": "^20.14.5",
+    "piral-cli": "1.12.4",
+    "piral-cli-webpack5": "1.12.4",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-router": "6.30.6",
+    "react-router-dom": "6.30.6",
+    "tslib": "2.8.1",
+    "typescript": "^5",
+    "vitest": "^3.2.7"
+  },
+  "scripts": {
+    "start": "pilet debug",
+    "setup": "npm --prefix ../../shell ci && npm --prefix ../../shell run build:emulator && npm ci",
+    "build": "pilet build --target ../../dist/pilets/files/index.js --schema v2",
+    "upgrade": "pilet upgrade",
+    "postinstall": "pilet declaration",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "importmap": {
+    "inherit": [
+      "@silverstripe/admin-shell"
+    ],
+    "imports": {}
+  },
+  "source": "src/index.tsx",
+  "private": true
+}

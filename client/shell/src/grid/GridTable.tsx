@@ -5,16 +5,16 @@
  * Rows are a server cache read keyed `['grid', rowsUrl, params]`, which every records-changed event
  * refetches; a row action announces its row's record.
  *
- * Markup is a plain table: a caption names it, sortable headers are buttons with `aria-sort` on the
- * `th`, the first data column is the row header, and row actions name their row for screen readers:
- * edit and view stay links, and the posted actions sit in one "..." Menu per row.
+ * The table is the shell's DataTable: a caption names it and carries the page count, sortable headers are
+ * buttons with `aria-sort` on the `th`, the first data column is the row header, and row actions name their
+ * row for screen readers: edit and view stay links, and the posted actions sit in one "..." Menu per row.
  * The grid sits inside the CMS form, so every button is `type="button"` and the search box has no
  * name and keeps Enter from submitting the form.
  */
 import * as React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useGlobalState } from 'piral-core';
-import { Button, Dialog, Link, Menu, SearchIcon, SortAscendingIcon, SortDescendingIcon, Stack } from '@silverstripe/admin-patterns';
+import { Button, Dialog, Link, Menu, SearchIcon, Stack } from '@silverstripe/admin-patterns';
 import { rowPaginationFeature, rowSortingFeature, tableFeatures, useTable } from '@tanstack/react-table';
 import type { ColumnDef, PaginationState, SortingState, Updater } from '@tanstack/react-table';
 import { componentSlotName, silverstripeComponent } from '../api/silverstripe';
@@ -22,11 +22,13 @@ import { useUpdateHook } from '../hooks/registry';
 import { routerLink, routerPath } from '../routing';
 import { refetchShellServerQuery, useShellServerMutation, useShellServerQuery } from '../state/serverCache';
 import { GridCellContent, HtmlContent } from './cells';
-import { ariaSort, gridColumnDefs } from './columns';
+import { gridColumnDefs } from './columns';
+import { DataTable } from './DataTable';
+import type { DataTableColumn, DataTableRow, DataTableSort } from './DataTable';
 import { fromSorting, readGridQuery, rowsParams, toSorting, withParams, writeGridQuery } from './query';
 import type { GridQuery } from './query';
 import { requestGrid } from './request';
-import type { GridColumn, GridPayload, GridPostAction, GridRow, GridSlotEntry } from './types';
+import type { GridPayload, GridPostAction, GridRow, GridSlotEntry } from './types';
 import './grid.css';
 
 const features = tableFeatures({ rowSortingFeature, rowPaginationFeature });
@@ -115,7 +117,6 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
     [updateGridColumns, payloadColumns, name, rowsUrl],
   );
   const columns = React.useMemo(() => gridColumnDefs(gridColumns), [gridColumns]);
-  const columnsByName = React.useMemo(() => new Map<string, GridColumn>(gridColumns.map((column) => [column.name, column])), [gridColumns]);
 
   const table = useTable({
     features,
@@ -152,14 +153,13 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
   };
 
   // A click anywhere in a row opens it, as in the legacy grid; the row's own link stays the keyboard path
-  const openRow = (event: React.MouseEvent<HTMLTableRowElement>, row: GridRow) => {
-    const link = row.actions.find((action) => action.type === 'link' && (action.name === 'edit' || action.name === 'view'));
+  const openRow = (id: string | number) => {
+    const row = payload?.rows.find((candidate) => String(candidate.id) === String(id));
+    const link = row?.actions.find((action) => action.type === 'link' && (action.name === 'edit' || action.name === 'view'));
     const path = link ? routerPath(link.url) : null;
-    const target = event.target as HTMLElement;
-    if (!path || target.closest('a, button, input, select, textarea, label, [role="menu"]') || window.getSelection()?.toString()) {
-      return;
+    if (path) {
+      navigateTo(path);
     }
-    navigateTo(path);
   };
 
   const renderSlot = (slot: string) =>
@@ -175,10 +175,36 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
     });
 
   const otherSlots = Object.keys(payload?.slots ?? {}).filter((slot) => !slotsAbove.includes(slot));
-  const headers = table.getHeaderGroups()[0]?.headers ?? [];
-  const rows = table.getRowModel().rows;
   const firstDataColumn = gridColumns.find((column) => !column.actions)?.name;
   const page = payload?.pagination;
+  const tableColumns: Array<DataTableColumn> = gridColumns.map((column) => ({
+    name: column.name,
+    title: column.title || (column.actions ? 'Actions' : column.name),
+    hideTitle: !column.title,
+    sortable: column.sortable,
+    rowHeader: column.name === firstDataColumn,
+  }));
+  const tableSort: DataTableSort | null = sorting[0] ? { column: sorting[0].id, direction: sorting[0].desc ? 'desc' : 'asc' } : null;
+  const tableRows: Array<DataTableRow> = table.getRowModel().rows.map(({ original: row }) => ({
+    id: row.id,
+    label: rowLabel(row),
+    cells: Object.fromEntries(
+      gridColumns.map((column) => [
+        column.name,
+        <>
+          <GridCellContent cell={row.cells[column.name]} row={row} column={column} isRegistered={isRegistered} component={silverstripeComponent} />
+          {column.actions && (
+            <RowActions
+              gridId={id}
+              row={row}
+              readonly={payload?.grid.readonly ?? true}
+              onAction={(action) => (action.confirm ? setConfirming({ action, row }) : void runAction(action, row))}
+            />
+          )}
+        </>,
+      ]),
+    ),
+  }));
 
   return (
     <div className="admin-grid" id={id} ref={region} tabIndex={-1} role="region" aria-labelledby={captionId} aria-busy={loading}>
@@ -197,80 +223,24 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
           />
         )}
       </div>
-      <table className="admin-grid__table">
-        <caption className="admin-grid__caption" id={captionId}>
-          <span className="admin-grid__hidden">{caption}</span>
-          {page && page.totalCount > 0 && (
+      <DataTable
+        caption={caption}
+        captionId={captionId}
+        captionDetail={
+          page &&
+          page.totalCount > 0 && (
             <span className="admin-grid__count">
               View {(page.page - 1) * page.pageSize + 1}–{Math.min(page.page * page.pageSize, page.totalCount)} of {page.totalCount}
             </span>
-          )}
-        </caption>
-        <thead>
-          <tr>
-            {headers.map((header) => {
-              const column = columnsByName.get(header.column.id)!;
-              const sorted = header.column.getIsSorted();
-              return (
-                <th className="admin-grid__header" key={header.id} scope="col" aria-sort={ariaSort(column, sorted)}>
-                  {column.sortable ? (
-                    <button className="admin-grid__sort" type="button" onClick={header.column.getToggleSortingHandler()}>
-                      {column.title}
-                      <span className="admin-grid__sort-icon" aria-hidden="true">
-                        {sorted !== 'desc' && <SortAscendingIcon />}
-                        {sorted !== 'asc' && <SortDescendingIcon />}
-                      </span>
-                    </button>
-                  ) : column.title ? (
-                    column.title
-                  ) : (
-                    <span className="admin-grid__hidden">{column.actions ? 'Actions' : column.name}</span>
-                  )}
-                </th>
-              );
-            })}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 && (
-            <tr>
-              <td className="admin-grid__empty" colSpan={Math.max(1, headers.length)}>
-                {payload ? payload.emptyText : loading ? 'Loading…' : ''}
-              </td>
-            </tr>
-          )}
-          {rows.map((row) => (
-            <tr className="admin-grid__row" key={row.id} onClick={(event) => openRow(event, row.original)}>
-              {row.getAllCells().map((cell) => {
-                const column = columnsByName.get(cell.column.id)!;
-                const content = (
-                  <>
-                    <GridCellContent
-                      cell={row.original.cells[column.name]}
-                      row={row.original}
-                      column={column}
-                      isRegistered={isRegistered}
-                      component={silverstripeComponent}
-                    />
-                    {column.actions && (
-                      <RowActions gridId={id} row={row.original} readonly={payload?.grid.readonly ?? true} onAction={(action) => (action.confirm ? setConfirming({ action, row: row.original }) : void runAction(action, row.original))} />
-                    )}
-                  </>
-                );
-                return column.name === firstDataColumn ? (
-                  <th className="admin-grid__cell" key={cell.id} scope="row">
-                    {content}
-                  </th>
-                ) : (
-                  <td className="admin-grid__cell" key={cell.id}>
-                    {content}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          )
+        }
+        columns={tableColumns}
+        rows={tableRows}
+        sort={tableSort}
+        onSort={(next) => table.setSorting([{ id: next.column, desc: next.direction === 'desc' }])}
+        onOpenRow={openRow}
+        emptyText={payload ? payload.emptyText : loading ? 'Loading…' : ''}
+      />
       {page && page.totalPages > 1 && (
         <Stack as="nav" direction="row" align="center" justify="end" spacing="sm" wrap={false} className="admin-grid__pages" aria-label={`${caption} pages`}>
           <Button variant="tertiary" disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}>

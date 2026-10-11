@@ -9,7 +9,6 @@ import '@silverstripe/admin-patterns/styles.css';
 import { createRoot } from 'react-dom/client';
 import { createInstance, Piral } from 'piral-core';
 import { createSilverstripeApi } from './api/silverstripe';
-import { FileEditPage } from './assets';
 import { createRequestPilets } from './feed';
 import { registerBuiltInFields } from './forms/fields';
 import { registerShellValidation } from './forms/validation';
@@ -19,6 +18,7 @@ import { createLayout, createRouter, errors, Home, readMenu, SectionWithoutPilet
 import { createShellNotificationsApi } from './notifications';
 import { readTopBar } from './topbar/TopBar';
 import { chosenPreviewMode } from './preview/mode';
+import { initialPanel } from './panel/state';
 import { createSectionPage } from './sections/SectionPage';
 import { createServerCacheApi } from './state/serverCache';
 import { initialCurrentRecord } from './state/sharedState';
@@ -50,17 +50,17 @@ const instance = createInstance({
       '/': Home,
     },
     currentRecord: initialCurrentRecord,
+    panel: initialPanel,
     sectionHeader: initialSectionHeader,
     unsavedChanges: initialUnsavedChanges,
     viewMode: chosenPreviewMode(),
   },
-  plugins: [createShellNotificationsApi(8000), createSilverstripeApi(), createServerCacheApi()],
+  plugins: [createShellNotificationsApi(), createSilverstripeApi(), createServerCacheApi()],
   requestPilets: createRequestPilets(root, feedUrl),
 });
 
 registerBuiltInFields(instance.root);
 registerShellValidation();
 registerGridComponents(instance.root);
-instance.root.registerPage('/assets/edit/:id', FileEditPage);
 
 createRoot(root).render(<Piral instance={instance} />);

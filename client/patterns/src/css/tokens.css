@@ -26,6 +26,8 @@
   --admin-palette-blue-100: #f8fafc;
   --admin-palette-blue-200: #f1f5f9;
   --admin-palette-blue-300: #e6edf4;
+  --admin-palette-blue-500: #a9c2da;
+  --admin-palette-blue-600: #86a9cb;
 
   /* Figma Border/Invalid */
   --admin-palette-border-invalid: #da273b;
@@ -91,6 +93,12 @@
   --admin-check-size: 1.8rem;
   --admin-control-min-height: 4rem;
 
+  /* The item open beside the list, as the details panel's file: Figma "File list item" Active 2:37437 */
+  --admin-current-bg-color: var(--admin-palette-bright-blue-100);
+
+  /* Figma "Image/doc file" State=Active 2:6491 edge; 2.46:1 on white, under 3:1, kept as designed */
+  --admin-current-border-color: var(--admin-palette-blue-600);
+
   /* 4.84:1 on white; on the tint the label is 4.03:1, under 4.5:1, kept as designed */
   --admin-danger-color: var(--admin-palette-border-invalid);
   --admin-danger-tint-color: var(--admin-palette-red-100);
@@ -110,6 +118,9 @@
   /* No design source for error; its ground is the page until one exists */
   --admin-error-bg-color: var(--admin-palette-white);
   --admin-error-fg-color: var(--admin-palette-red-700);
+
+  /* Legacy toasts faded in; the keyframes are at the foot of this file */
+  --admin-fade-in: admin-fade-in var(--admin-transition-duration) var(--admin-transition-easing);
 
   /* Grey 300, the dropdown option rule; decorative only */
   --admin-faint-divider-color: var(--admin-palette-grey-300);
@@ -186,6 +197,9 @@
   /* The green label is 3.95:1 on this tint over white; kept as designed */
   --admin-secondary-action-hover-color: var(--admin-palette-button-primary-tint);
   --admin-selected-bg-color: var(--admin-palette-blue-300);
+
+  /* Figma "Image/doc file" State=Hover 2:6482 edge; 1.84:1 on white, under 3:1, kept as designed */
+  --admin-selected-border-color: var(--admin-palette-blue-500);
   --admin-shadow-color: rgb(from var(--admin-palette-black) r g b / 0.2);
 
   /* 4.57:1 on white, so it meets 3:1 for a control's edge */
@@ -246,6 +260,13 @@
 
 @media (prefers-reduced-motion: reduce) {
   :root {
+    --admin-fade-in: none;
     --admin-transition: none;
+  }
+}
+
+@keyframes admin-fade-in {
+  from {
+    opacity: 0;
   }
 }

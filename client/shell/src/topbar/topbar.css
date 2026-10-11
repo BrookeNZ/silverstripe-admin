@@ -7,8 +7,10 @@
  * holds the "Header dropdown" menus (2:1878) 10px apart, each with a 22px Secondary/Dark Blue icon.
  *
  * Below 1024px it is "Mobile v2" (2:1909): 50px high, the Royal Blue hamburger (2:1921) flush with the
- * start edge, a 20px logo, no site name, 20px end inset and the menus 8px apart. --menu-open is
- * "Mobile menu" (2:1916): Royal Blue, the 16px white cross and the site name in white, 4px apart.
+ * start edge, a 20px logo, no site name, 20px end inset and the icon-only menus 8px apart (TopBar.tsx
+ * drops their titles at the same breakpoint). --menu-open is "Mobile menu" (2:1916): Royal Blue, the
+ * 16px white cross and the site name in white, 4px apart. The Piral shell badge shows from 1024px only:
+ * the narrow bar has no room for it at 320px.
  *
  * The block size and border width sit on :root because style.css derives --shell-sticky-top from them.
  */
@@ -27,7 +29,7 @@
 .shell-top-bar {
   --shell-top-bar-badge-bg-color: var(--admin-modified-bg-color);
   --shell-top-bar-badge-border: none;
-  --shell-top-bar-badge-display: inline-block;
+  --shell-top-bar-badge-display: none;
   --shell-top-bar-badge-fg-color: var(--admin-modified-fg-color);
   --shell-top-bar-badge-letter-spacing: 0.06rem;
   --shell-top-bar-bg-color: var(--admin-bg-color);
@@ -72,6 +74,7 @@
 
 @media (width >= 1024px) {
   .shell-top-bar {
+    --shell-top-bar-badge-display: inline-block;
     --shell-top-bar-divider-display: block;
     --shell-top-bar-end-gap: 1rem;
     --shell-top-bar-logo-size: 1.8rem;
@@ -84,7 +87,6 @@
 
 @media (width < 1024px) {
   .shell-top-bar--menu-open {
-    --shell-top-bar-badge-display: none;
     --shell-top-bar-bg-color: var(--shell-top-bar-toggle-bg-color);
     --shell-top-bar-border-color: var(--shell-top-bar-toggle-bg-color);
     --shell-top-bar-end-display: none;

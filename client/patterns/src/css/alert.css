@@ -1,0 +1,48 @@
+/**
+ * Alert
+ *
+ * The design has no inline alert, so the shell's form message look stays: the type's colour as the text
+ * and a 4px inline-start edge, after legacy's toast edge, on the page ground. Warning text on its yellow
+ * ground is the body colour instead, since the warning's own colour is 4.49:1 there. Text contrast is
+ * 6.54:1 error, 4.53:1 success, 5.92:1 info on white and 12.95:1 warning on yellow
+ */
+
+.admin-alert {
+  --admin-alert-accent-color: var(--admin-accent-color);
+
+  /* Legacy toast left edge, $toast-border-radius 4px, which the form alert took up */
+  --admin-alert-accent-width: 0.4rem;
+  --admin-alert-bg-color: var(--admin-bg-color);
+  --admin-alert-fg-color: var(--admin-accent-color);
+
+  align-items: flex-start;
+  background-color: var(--admin-alert-bg-color);
+  border-inline-start: var(--admin-alert-accent-width) solid var(--admin-alert-accent-color);
+  color: var(--admin-alert-fg-color);
+  display: flex;
+  gap: var(--admin-gap-sm);
+  padding: var(--admin-gap-sm) var(--admin-gap-md);
+}
+
+.admin-alert--success {
+  --admin-alert-accent-color: var(--admin-success-fg-color);
+  --admin-alert-bg-color: var(--admin-success-bg-color);
+  --admin-alert-fg-color: var(--admin-success-fg-color);
+}
+
+.admin-alert--warning {
+  --admin-alert-accent-color: var(--admin-warning-border-color);
+  --admin-alert-bg-color: var(--admin-warning-bg-color);
+  --admin-alert-fg-color: var(--admin-fg-color);
+}
+
+.admin-alert--error {
+  --admin-alert-accent-color: var(--admin-error-fg-color);
+  --admin-alert-bg-color: var(--admin-error-bg-color);
+  --admin-alert-fg-color: var(--admin-error-fg-color);
+}
+
+.admin-alert__message {
+  flex: 1;
+  min-inline-size: 0;
+}

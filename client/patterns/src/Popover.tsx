@@ -10,6 +10,7 @@
  * opening focuses the first item, arrows, Home and End move between items, Tab leaves and closes, and
  * the buttons inside become its `menuitem`s through MenuItemContext. A menu with a visible `title` is the
  * design's dropdown trigger (Figma 2:6220): an optional decorative `icon` before the label and a caret after it.
+ * Without a title the trigger is icon-only, drawing `icon` or else the "..." options icon, named by `label`.
  * `variant` picks the trigger's Button style; the design's white trigger is `tertiary`.
  */
 import * as React from 'react';
@@ -41,7 +42,7 @@ export interface PopoverProps {
 }
 
 export interface MenuProps extends PopoverProps {
-  /** Drawn before a visible `title`, hidden from assistive technology */
+  /** Drawn before a visible `title`, or alone in place of the "..." icon without one; hidden from assistive technology */
   icon?: React.ReactNode;
   /** The trigger's Button variant, by default secondary with a `title` and tertiary without */
   variant?: ButtonVariant;
@@ -167,7 +168,7 @@ const AnchoredPanel = ({
         disabled={disabled}
         onClick={() => setOpen(!open)}
         iconOnly={!title}
-        icon={title ? isDropdown && icon : <MoreOptionsIcon />}
+        icon={title ? isDropdown && icon : (icon ?? <MoreOptionsIcon />)}
         className={isDropdown ? 'admin-popover__trigger' : undefined}
       >
         {title || label}

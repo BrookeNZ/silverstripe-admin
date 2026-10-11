@@ -5,6 +5,7 @@
  * the top bar, there is no room beside the form and the effective mode is always edit.
  */
 import * as React from 'react';
+import { useMediaQuery } from '../useMediaQuery';
 
 export type PreviewMode = 'edit' | 'split' | 'preview';
 
@@ -61,18 +62,9 @@ export function subscribePreviewMode(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-function useWideViewport(): boolean {
-  const subscribeToQuery = React.useCallback((listener: () => void) => {
-    const query = window.matchMedia?.(previewWideQuery);
-    query?.addEventListener('change', listener);
-    return () => query?.removeEventListener('change', listener);
-  }, []);
-  return React.useSyncExternalStore(subscribeToQuery, () => window.matchMedia?.(previewWideQuery).matches ?? true);
-}
-
 /** Whether the viewport has room for a preview, and the mode to draw: edit when it has not */
 export function usePreviewMode(): { mode: PreviewMode; available: boolean } {
   const mode = React.useSyncExternalStore(subscribePreviewMode, chosenPreviewMode);
-  const available = useWideViewport();
+  const available = useMediaQuery(previewWideQuery);
   return { mode: available ? mode : 'edit', available };
 }

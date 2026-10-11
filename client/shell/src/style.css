@@ -29,9 +29,6 @@
   /* The content inset: form fields (form.css), page content and the pages pilet's column all read it */
   --shell-inset: var(--admin-gap-md);
   --shell-link-fg-color: var(--admin-nav-fg-color);
-  --shell-notification-bg-color: var(--admin-inverse-bg-color);
-  --shell-notification-border: none;
-  --shell-notification-fg-color: var(--admin-inverse-fg-color);
   --shell-notifications-z-index: var(--admin-z-toast);
   --shell-sidebar-bg-color: var(--admin-bg-color);
   --shell-sidebar-border-width: 0.1rem;
@@ -206,39 +203,6 @@ body {
   max-inline-size: calc(100% - 2 * var(--admin-gap-md));
   position: fixed;
   z-index: var(--shell-notifications-z-index);
-}
-
-.piral-notification {
-  align-items: center;
-  background-color: var(--shell-notification-bg-color);
-  border: var(--shell-notification-border);
-  border-radius: var(--admin-radius);
-  color: var(--shell-notification-fg-color);
-  display: flex;
-  gap: var(--admin-gap-sm);
-  padding: var(--admin-gap-sm) var(--admin-gap-md);
-}
-
-@media (forced-colors: active) {
-  .piral-notification {
-    --shell-notification-border: 0.1rem solid transparent;
-  }
-}
-
-.piral-notification-close {
-  background: none;
-  border: 0;
-  color: var(--shell-notification-fg-color);
-  cursor: pointer;
-  font-size: var(--admin-font-size-xl);
-  line-height: 1;
-  min-height: var(--admin-target-min-size);
-  min-width: var(--admin-target-min-size);
-}
-
-.piral-notification-close:focus-visible {
-  outline: var(--admin-focus-outline) var(--shell-notification-fg-color);
-  outline-offset: var(--admin-focus-outline-offset);
 }
 
 .shell-page__title {

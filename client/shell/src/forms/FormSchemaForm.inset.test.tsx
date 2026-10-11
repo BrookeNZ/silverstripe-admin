@@ -88,7 +88,7 @@ describe('FormSchemaForm content inset', () => {
     await render(<FormSchemaForm schemaUrl="admin/form" />);
     expect(wrapperOf('Form_EditForm_Title')).toBe('shell-form__field');
     expect(wrapperOf('Form_EditForm_Grid')).toBe('shell-form__field shell-form__field--full');
-    expect(container.querySelector('.shell-form__alert')?.parentElement?.className).toBe('shell-form__field');
+    expect(container.querySelector('.admin-alert')?.parentElement?.className).toBe('shell-form__field');
     expect(container.querySelector('form')?.className).not.toContain('shell-form--nested');
   });
 

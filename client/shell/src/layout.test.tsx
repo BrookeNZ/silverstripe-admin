@@ -253,6 +253,21 @@ describe('Content', () => {
     expect(main().classList.contains('shell__content--split')).toBe(true);
   });
 
+  it('drops the preview while a details panel is open, and shows the page beside the panel', () => {
+    showHeader({ title: 'Home', preview: 'https://example.test/?CMSPreview=1' });
+    act(() => setPreviewMode('preview'));
+    const entry = { options: { id: 'file-19', title: 'Card', content: null, onClose: () => undefined }, owner: 'files', key: 1, generation: 1, opener: null };
+    shellState.current = { ...shellState.current, panel: { current: entry } } as typeof shellState.current;
+    try {
+      renderContent();
+      expect(contentContainer.querySelector('.probe-preview')).toBeNull();
+      expect(contentContainer.querySelector('.shell__body')?.classList.contains('shell__body--hidden')).toBe(false);
+      expect(contentContainer.querySelector('.shell-panel')).not.toBeNull();
+    } finally {
+      shellState.current = { ...shellState.current, panel: { current: null } } as typeof shellState.current;
+    }
+  });
+
   it('opens the search from the header button and returns focus when the body closes it', () => {
     showHeader({ title: 'Home', sidebar: { title: 'Pages', section: pagesCode } });
     renderContent();

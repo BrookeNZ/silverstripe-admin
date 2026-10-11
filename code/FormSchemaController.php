@@ -10,6 +10,7 @@ use SilverStripe\Core\Validation\ValidationResult;
 use SilverStripe\Forms\Form;
 use SilverStripe\Forms\HTMLEditor\HTMLEditorConfig;
 use SilverStripe\Forms\Schema\FormSchema;
+use SilverStripe\ORM\DataObject;
 use SilverStripe\Security\Security;
 
 /**
@@ -127,6 +128,11 @@ abstract class FormSchemaController extends AdminController
         if ($forShell && isset($data['schema'])) {
             $data['schema'] = FieldComponentCandidates::singleton()->addToSchema($data['schema'], $form);
             $data['schema'] = $fallback->addToSchema($data['schema'], $marked);
+            // The shell announces a save under this class when the response's record names none (AssetAdmin's)
+            $record = $form->getRecord();
+            if ($record instanceof DataObject) {
+                $data['schema']['recordClass'] = $record->ClassName;
+            }
             $this->extend('updateShellSchema', $data['schema'], $form);
         }
 

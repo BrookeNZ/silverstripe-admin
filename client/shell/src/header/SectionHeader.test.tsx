@@ -169,6 +169,15 @@ describe('SectionHeader crumbs', () => {
     expect(back?.getAttribute('aria-label')).toBe('Back to About us');
   });
 
+  it('hangs the design crumb and nested title type on their classes', async () => {
+    await act(async () => {
+      setSectionHeader(context, 'pages', { title: 'Careers', crumbs: [{ label: 'About us', to: '/pages/edit/show/2' }] });
+    });
+    expect(container.querySelector('nav[aria-label="Breadcrumb"] > ol')?.className).toBe('shell-header__crumbs');
+    expect(container.querySelector('.shell-header__crumbs > li')?.className).toBe('shell-header__crumb');
+    expect(title()?.classList.contains('shell-header__title--nested')).toBe(true);
+  });
+
   it('draws no breadcrumb without crumbs', async () => {
     await act(async () => {
       setSectionHeader(context, 'pages', { title: 'Pages' });

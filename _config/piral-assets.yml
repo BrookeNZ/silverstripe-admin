@@ -7,6 +7,11 @@ SilverStripe\AssetAdmin\Controller\AssetAdmin:
   piral_section_form_preload: false
   extensions:
     - SilverStripe\Admin\UserInterface\AssetAdmin\ShellPreloadExtension
+
+SilverStripe\Admin\UserInterface\PiletFeed:
+  pilets:
+    silverstripe-asset-admin:
+      link: 'silverstripe/admin:client/dist/pilets/files/index.js'
 ---
 Name: adminpiralassetthumbnails
 After:

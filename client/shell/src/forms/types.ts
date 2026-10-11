@@ -75,6 +75,8 @@ export interface FormSchemaTree {
   attributes: SchemaData;
   fields: Array<FieldSchema>;
   actions: Array<FieldSchema>;
+  /** The class of the record the form edits, sent to the shell when the form has one */
+  recordClass?: string;
 }
 
 export interface FormSchemaState {

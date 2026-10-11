@@ -3,6 +3,7 @@
 namespace SilverStripe\Admin\Tests\UserInterface;
 
 use SilverStripe\Admin\LeftAndMain;
+use SilverStripe\AssetAdmin\Controller\AssetAdmin;
 use SilverStripe\Admin\SecurityAdmin;
 use SilverStripe\Admin\Tests\UserInterface\FirstSchemaPreloadRulesTest\ClientConfigCallLog;
 use SilverStripe\Control\Controller;
@@ -59,6 +60,16 @@ class FirstSchemaPreloadRulesTest extends FunctionalTest
                 $this->assertStringNotContainsString('//', $href, $url);
             }
         }
+    }
+
+    public function testTheFilesPanelRoutePreloadsTheFileFormAndTheRedirectNothing(): void
+    {
+        if (!class_exists(AssetAdmin::class)) {
+            $this->markTestSkipped('silverstripe/asset-admin is not installed');
+        }
+        $this->assertSame(['admin/assets/schema/fileEditForm/19?formSchema=1'], $this->schemaPreloads('admin/assets/show/3/edit/19/'));
+        $this->assertSame([], $this->schemaPreloads('admin/assets/edit/19/'));
+        $this->assertSame([], $this->schemaPreloads('admin/assets/show/3/edit/0/'));
     }
 
     public function testADataRequestEmitsNoPreload(): void

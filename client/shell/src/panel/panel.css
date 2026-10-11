@@ -1,0 +1,142 @@
+/**
+ * Details panel
+ *
+ * The shell's right-hand panel (Figma "Sidebar preview" 2:6739; in place in the Files frames 1927 2:37393,
+ * 1928 2:37422 and 1929 2:37451). Beside the content it is 350px wide from 1200px and 400px from 1600px, with a
+ * Grey 400 rule on its start edge; below 1200px it fills the content column in place of the page, as the 992
+ * frame's 792px panel does. --shell-panel-beside is applied from Panel.tsx's panelBesideQuery, so the 1200px
+ * here and there move together.
+ *
+ * It sticks under the section header and is the viewport's height below it, so its body scrolls on its own
+ * while the list beside it scrolls with the page. Content gets the 20px inset of the design's "File info"
+ * through --shell-inset, which form fields and their action bar read, and a FormSchemaForm's sticky action bar
+ * pins to the foot of the scrolling body, as "Bottom bar" 2:39667 sits at the foot of the panel.
+ *
+ * The header is "File info" Header 2:39637: 25px above, 20px at the sides and below, the title block and the
+ * close button 30px apart. The title is 20px medium on a 1.3 line, ellipsed on one line, 10px before the badge
+ * (the site tree's Draft tag); the meta line is 8px under it with its items 10px apart either side of a 12px
+ * rule. The design's meta is 12px; it is 14px here, the admin's floor
+ */
+
+.shell-panel {
+  --shell-inset: 2rem;
+  --shell-panel-badge-padding: 0.1rem 0.3rem 0.2rem;
+  --shell-panel-badge-radius: 0.2rem;
+  --shell-panel-bg-color: var(--admin-panel-bg-color);
+  --shell-panel-border-color: var(--admin-divider-color);
+  --shell-panel-border-width: 0;
+  --shell-panel-header-gap: 3rem;
+  --shell-panel-header-padding: 2.5rem var(--shell-inset) 2rem;
+  --shell-panel-heading-gap: 0.8rem;
+  --shell-panel-meta-color: var(--admin-muted-fg-color);
+  --shell-panel-meta-gap: 1rem;
+
+  /* Figma "Line 17": 12px tall */
+  --shell-panel-meta-rule-size: 1.2rem;
+  --shell-panel-title-gap: 1rem;
+  --shell-panel-top: calc(var(--shell-sticky-top) + var(--shell-header-offset));
+  --shell-panel-width: 100%;
+
+  align-self: flex-start;
+  background-color: var(--shell-panel-bg-color);
+  block-size: calc(100vh - var(--shell-panel-top));
+  border-inline-start: var(--shell-panel-border-width) solid var(--shell-panel-border-color);
+  box-sizing: border-box;
+  display: flex;
+  flex: 0 0 var(--shell-panel-width);
+  flex-direction: column;
+  inset-block-start: var(--shell-panel-top);
+  min-inline-size: 0;
+  position: sticky;
+}
+
+.shell-panel--beside {
+  --shell-panel-border-width: 0.1rem;
+  --shell-panel-width: 35rem;
+}
+
+@media (width >= 1600px) {
+  .shell-panel--beside {
+    --shell-panel-width: 40rem;
+  }
+}
+
+.shell-panel__header {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--shell-panel-header-gap);
+  padding: var(--shell-panel-header-padding);
+}
+
+.shell-panel__heading {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--shell-panel-heading-gap);
+  min-inline-size: 0;
+}
+
+.shell-panel__title-row {
+  align-items: center;
+  display: flex;
+  gap: var(--shell-panel-title-gap);
+  min-inline-size: 0;
+}
+
+.shell-panel__title {
+  font-size: var(--admin-font-size-xl);
+  font-weight: var(--admin-font-weight-medium);
+  line-height: 1.3;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &:focus-visible {
+    outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+    outline-offset: var(--admin-focus-outline-offset);
+  }
+}
+
+.shell-panel__badge {
+  background-color: var(--admin-modified-bg-color);
+  border-radius: var(--shell-panel-badge-radius);
+  color: var(--admin-modified-fg-color);
+  flex: none;
+  font-size: var(--admin-font-size-xs);
+  line-height: 1.2;
+  padding: var(--shell-panel-badge-padding);
+  text-transform: uppercase;
+}
+
+.shell-panel__meta {
+  align-items: center;
+  color: var(--shell-panel-meta-color);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--shell-panel-meta-gap);
+  line-height: 1;
+  margin: 0;
+}
+
+.shell-panel__meta-rule {
+  block-size: var(--shell-panel-meta-rule-size);
+  border-inline-start: 0.1rem solid var(--shell-panel-meta-color);
+}
+
+.shell-panel__close {
+  flex: none;
+}
+
+.shell-panel__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-block-size: 0;
+  overflow-y: auto;
+}
+
+.shell-panel__footer {
+  border-block-start: var(--shell-form-actions-border-width) solid var(--admin-divider-color);
+  padding: var(--shell-form-actions-padding-block) var(--shell-form-actions-padding-inline);
+}

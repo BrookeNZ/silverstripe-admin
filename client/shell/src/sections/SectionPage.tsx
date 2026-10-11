@@ -1,7 +1,8 @@
 /**
  * The shell's view of a CMS section no pilet owns: the section's server-defined EditForm, rendered by
  * FormSchemaForm, under the section header with the section title and, for a ModelAdmin, the model tabs
- * as its views. A GridField item URL in the section renders that record's edit form (RecordEditPage).
+ * as its views. A save's good message ("Saved.") is a toast through `notify`, as legacy toasted it. A
+ * GridField item URL in the section renders that record's edit form (RecordEditPage).
  *
  * It is the router's not_found view, so any page a pilet registers wins over it, including a page that
  * registers after the first render (Piral re-evaluates its routes when the page registry changes). A
@@ -22,7 +23,7 @@ import { recordRoute, recordSchemaUrl } from './record';
 import { editFormSchemaUrl, menuSections, piletOwnsSection, resolveSectionRoute, sectionHeader } from './resolve';
 import type { SectionRoute, ShellSection } from './resolve';
 
-const SectionView = ({ route }: { route: SectionRoute }) => {
+const SectionView = ({ route, notify }: { route: SectionRoute; notify: Notify }) => {
   const { section, unhandled } = route;
   const schemaUrl = editFormSchemaUrl(route);
   useSectionHeaderEffect(sectionHeader(route), shellOwner);
@@ -38,6 +39,7 @@ const SectionView = ({ route }: { route: SectionRoute }) => {
         key={schemaUrl}
         schemaUrl={schemaUrl}
         trackUnsavedChanges
+        onMessage={(message) => notify(message.value, 'success')}
         renderLoadError={(error) => <SectionLoadError error={error} section={section} />}
       />
     </div>
@@ -45,8 +47,8 @@ const SectionView = ({ route }: { route: SectionRoute }) => {
 };
 
 /**
- * Builds the not_found view for the shell's menu; paths it does not render go to the fallback. A record
- * page reports its saves through `notify`
+ * Builds the not_found view for the shell's menu; paths it does not render go to the fallback. A section
+ * form and a record page report their saves through `notify`
  */
 export function createSectionPage(menu: Array<SilverstripeMenuItem>, Fallback: React.ComponentType<{ owned?: boolean }>, notify: Notify) {
   let sections: Array<ShellSection> | null = null;
@@ -62,7 +64,7 @@ export function createSectionPage(menu: Array<SilverstripeMenuItem>, Fallback: R
       return <Fallback owned />;
     }
     const record = recordRoute(route);
-    return record ? <RecordEditPage key={recordSchemaUrl(record)} route={record} notify={notify} /> : <SectionView route={route} />;
+    return record ? <RecordEditPage key={recordSchemaUrl(record)} route={record} notify={notify} /> : <SectionView route={route} notify={notify} />;
   };
   SectionPage.displayName = 'SectionPage';
   return SectionPage;

@@ -17,6 +17,7 @@
 import * as React from 'react';
 import { ExtensionSlot } from 'piral-core';
 import { Button, CollapseMenuIcon, ExpandMenuIcon, SearchIcon } from '@silverstripe/admin-patterns';
+import { useMediaQuery } from '../useMediaQuery';
 import type { SectionHeaderSidebar } from './state';
 import './section-sidebar.css';
 
@@ -61,17 +62,8 @@ function writeStoredCollapsed(collapsed: boolean): void {
   }
 }
 
-function useWideViewport(): boolean {
-  const subscribe = React.useCallback((listener: () => void) => {
-    const query = window.matchMedia?.(wideQuery);
-    query?.addEventListener('change', listener);
-    return () => query?.removeEventListener('change', listener);
-  }, []);
-  return React.useSyncExternalStore(subscribe, () => window.matchMedia?.(wideQuery).matches ?? true);
-}
-
 function useSidebarCollapsed(): [boolean, (collapsed: boolean) => void] {
-  const wide = useWideViewport();
+  const wide = useMediaQuery(wideQuery);
   const [stored, setStored] = React.useState(readStoredCollapsed);
   const [narrow, setNarrow] = React.useState(true);
   const update = React.useCallback(

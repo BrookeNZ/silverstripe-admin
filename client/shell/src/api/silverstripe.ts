@@ -51,7 +51,12 @@ import type { FieldComponentProps, SchemaFormDialogProps } from '../forms/types'
 import type { FormSchemaFormProps } from '../forms/FormSchemaForm';
 import type { AddNewButtonProps } from '../grid/AddNewButton';
 import type { GridCellProps } from '../grid/types';
+import type { DataTableColumn, DataTableProps, DataTableRow, DataTableSelection, DataTableSort, DataTableSortDirection } from '../grid/DataTable';
+import { clearPanelOf, closePanel, openPanel, usePanel } from '../panel/state';
+import type { OpenPanel, PanelOptions } from '../panel/state';
 
+export type { DataTableColumn, DataTableProps, DataTableRow, DataTableSelection, DataTableSort, DataTableSortDirection };
+export type { OpenPanel, PanelOptions };
 export type { AfterHookName, BeforeHookName, HookContext, HookHandler, HookOptions, HookPoints, HookValue, UpdateHookName };
 export type { CurrentRecord, MenuItemRegistration, RecordsChangedEvent, RecordsChangedEventName, SharedState, SharedStateListener, SharedStateSelector, SharedToast };
 export type {
@@ -114,6 +119,7 @@ export interface SilverstripeComponents {
   'SilverStripe\\Forms\\GridField\\GridField': FieldComponentProps;
   'GridField.cell.Text': GridCellProps;
   'GridField.AddNewButton': AddNewButtonProps;
+  DataTable: DataTableProps;
 }
 
 /** The props `SilverstripeComponents` lists for `K`, else `Unlisted` */
@@ -203,6 +209,16 @@ export interface SilverstripeApi {
    * origin or a link outside the admin, which needs a page load
    */
   routerPath: (url: string) => string | null;
+  /**
+   * Shows the details panel beside the section's content (in its place below 1200px) until the disposer
+   * runs; call it from the page and dispose on unmount. One panel shows at a time: another id replaces the
+   * one showing, and the same id updates it in place without moving focus
+   */
+  openPanel: (panel: PanelOptions) => Disposable;
+  /** Closes the panel `id` if this pilet's panel of that id is showing; does not call its `onClose` */
+  closePanel: (id: string) => void;
+  /** The panel showing, from any pilet, or null; re-renders when it opens, closes or is replaced */
+  usePanel: () => OpenPanel | null;
 }
 
 declare module 'piral-core/lib/types/custom' {
@@ -273,6 +289,7 @@ export function createSilverstripeApi(): PiralPlugin<SilverstripeApi> {
       clearUnsavedChangesOf(context, name);
       clearSectionHeaderOf(context, name);
       clearCurrentRecordOf(context, name);
+      clearPanelOf(context, name);
       clearHooksOf(name);
       subscriptions.get(name)?.forEach((unsubscribe) => unsubscribe());
       subscriptions.delete(name);
@@ -362,6 +379,13 @@ export function createSilverstripeApi(): PiralPlugin<SilverstripeApi> {
         routerPath(url) {
           return routerPath(url, sharedConfig().adminUrl);
         },
+        openPanel(panel) {
+          return openPanel(context, meta.name, panel);
+        },
+        closePanel(id) {
+          closePanel(context, meta.name, id);
+        },
+        usePanel,
       };
     };
   };

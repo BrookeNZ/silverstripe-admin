@@ -76,6 +76,34 @@ describe('Popover and Menu', () => {
     expect(trigger().textContent).toBe('Edit mode');
   });
 
+  it('draws the given icon on an untitled menu in place of the options icon, named by its label', () => {
+    render(
+      <Menu id="options" label="Help" icon={<EditIcon className="given-icon" />}>
+        <Button>Docs</Button>
+      </Menu>,
+    );
+    const icons = Array.from(trigger().querySelectorAll('svg'));
+    expect(icons).toHaveLength(1);
+    expect(icons[0].classList.contains('given-icon')).toBe(true);
+    expect(icons[0].getAttribute('aria-hidden')).toBe('true');
+    expect(trigger().classList.contains('admin-button--icon-only')).toBe(true);
+    expect(trigger().querySelector('.admin-button__label--hidden')?.textContent).toBe('Help');
+  });
+
+  it('keeps the options icon on an untitled menu without an icon', () => {
+    render(<ActionsMenu />);
+    const untitled = trigger().querySelector('svg')!.innerHTML;
+    act(() =>
+      root.render(
+        <Menu id="options" label="More options for Quote" icon={<EditIcon />}>
+          <Button>Publish</Button>
+        </Menu>,
+      ),
+    );
+    expect(trigger().querySelectorAll('svg')).toHaveLength(1);
+    expect(trigger().querySelector('svg')!.innerHTML).not.toBe(untitled);
+  });
+
   it('passes variant to the trigger, defaulting a titled menu to secondary', () => {
     render(
       <Menu id="options" label="View: Edit mode" title="Edit mode" variant="tertiary">

@@ -1,0 +1,204 @@
+/**
+ * Data table
+ *
+ * The CMS Refresh list (Figma "List header" 2:6388, "File list item" 2:6533): a 37px header of 14px
+ * medium titles over a hairline, then 74px rows each closed by a hairline, 30px between columns and 20px
+ * inset at both ends. The checkbox column keeps 20px before and 30px after its 16px box, 8px after it on
+ * the mobile variant. Columns marked wide-only drop below 768px, as the mobile variants do. The layout is
+ * fixed, so a column's width comes from its header and a long title ellipsises instead of widening the row.
+ *
+ * The tokens sit on :root so a host can reassign them. The defaults are the Files list's; GridField's grid
+ * (`.admin-grid` in grid.css, Figma list view 2:53436) reassigns them to rows that size to 20px of block
+ * padding around wrapping 14/1.3 text, a 15px inset, an automatic layout and the Blue 100 hover. The current row
+ * (Figma "File list item" State=Active 2:37437) keeps its Bright Blue 100 fill under the pointer
+ */
+
+:root {
+  --admin-data-table-cell-display: table-cell;
+  --admin-data-table-cell-overflow: hidden;
+  --admin-data-table-cell-padding-block: 0;
+  --admin-data-table-cell-white-space: nowrap;
+  --admin-data-table-divider-color: var(--admin-divider-color);
+  --admin-data-table-divider-width: 0.1rem;
+  --admin-data-table-gap: 3rem;
+  --admin-data-table-header-font-weight: var(--admin-font-weight-medium);
+
+  /* Figma 22px on 14px */
+  --admin-data-table-header-line-height: 1.57;
+  --admin-data-table-header-padding-block-end: 1.5rem;
+  --admin-data-table-inset: 2rem;
+  --admin-data-table-layout: fixed;
+  --admin-data-table-line-height: 1.4;
+  --admin-data-table-row-bg-color: transparent;
+  --admin-data-table-row-current-bg-color: var(--admin-current-bg-color);
+  --admin-data-table-row-height: 7.4rem;
+
+  /* Figma "File list item" State=Hover 2:6556 Blue 200; no role names it */
+  --admin-data-table-row-hover-bg-color: var(--admin-palette-blue-200);
+  --admin-data-table-selection-padding-end: 3rem;
+  --admin-data-table-selection-padding-start: 2rem;
+  --admin-data-table-sort-gap: 0.5rem;
+
+  /* Figma: two 6px arrows */
+  --admin-data-table-sort-icon-size: 0.6rem;
+  --admin-data-table-sort-min-block-size: auto;
+}
+
+@media (width < 768px) {
+  :root {
+    --admin-data-table-cell-display: none;
+  }
+}
+
+@media (width < 576px) {
+  :root {
+    --admin-data-table-selection-padding-end: 0.8rem;
+  }
+}
+
+.admin-data-table {
+  --admin-check-size: 1.6rem;
+
+  border-collapse: collapse;
+  color: var(--admin-fg-color);
+  inline-size: 100%;
+  line-height: var(--admin-data-table-line-height);
+
+  /* Contains the visually hidden caption and header text */
+  position: relative;
+  table-layout: var(--admin-data-table-layout);
+}
+
+.admin-data-table__caption {
+  text-align: end;
+}
+
+.admin-data-table__caption-detail {
+  display: block;
+  padding-block: 0 var(--admin-data-table-header-padding-block-end);
+  padding-inline: var(--admin-data-table-inset);
+}
+
+.admin-data-table__header {
+  border-block-end: var(--admin-data-table-divider-width) solid var(--admin-data-table-divider-color);
+  font-weight: var(--admin-data-table-header-font-weight);
+  line-height: var(--admin-data-table-header-line-height);
+  padding-block: 0 var(--admin-data-table-header-padding-block-end);
+  padding-inline: var(--admin-data-table-gap) 0;
+  text-align: start;
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
+.admin-data-table__header--first {
+  padding-inline-start: var(--admin-data-table-inset);
+}
+
+.admin-data-table__header--last {
+  padding-inline-end: var(--admin-data-table-inset);
+}
+
+.admin-data-table__header--center {
+  text-align: center;
+}
+
+.admin-data-table__header--wide-only {
+  display: var(--admin-data-table-cell-display);
+}
+
+/* Fixed layout sizes the column from this header: the gap and the space either side of the 16px box */
+.admin-data-table__header--selection {
+  inline-size: var(--admin-check-size);
+  padding-inline: calc(var(--admin-data-table-gap) + var(--admin-data-table-selection-padding-start))
+    calc(var(--admin-data-table-selection-padding-end) + var(--admin-data-table-inset));
+}
+
+.admin-data-table__sort {
+  align-items: center;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  gap: var(--admin-data-table-sort-gap);
+  min-block-size: var(--admin-data-table-sort-min-block-size);
+  padding: 0;
+
+  &:focus-visible {
+    outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+    outline-offset: var(--admin-focus-outline-offset);
+  }
+}
+
+.admin-data-table__sort-icon {
+  --admin-icon-size: var(--admin-data-table-sort-icon-size);
+
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.admin-data-table__row {
+  background-color: var(--admin-data-table-row-bg-color);
+  block-size: var(--admin-data-table-row-height);
+  border-block-end: var(--admin-data-table-divider-width) solid var(--admin-data-table-divider-color);
+
+  &:hover {
+    --admin-data-table-row-bg-color: var(--admin-data-table-row-hover-bg-color);
+  }
+}
+
+.admin-data-table__row--current {
+  --admin-data-table-row-bg-color: var(--admin-data-table-row-current-bg-color);
+  --admin-data-table-row-hover-bg-color: var(--admin-data-table-row-current-bg-color);
+}
+
+.admin-data-table__cell {
+  font-weight: var(--admin-font-weight-normal);
+  overflow: var(--admin-data-table-cell-overflow);
+  padding-block: var(--admin-data-table-cell-padding-block);
+  padding-inline: var(--admin-data-table-gap) 0;
+  text-align: start;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  white-space: var(--admin-data-table-cell-white-space);
+}
+
+.admin-data-table__cell--first {
+  padding-inline-start: var(--admin-data-table-inset);
+}
+
+.admin-data-table__cell--last {
+  padding-inline-end: var(--admin-data-table-inset);
+}
+
+.admin-data-table__cell--center {
+  text-align: center;
+}
+
+.admin-data-table__cell--wide-only {
+  display: var(--admin-data-table-cell-display);
+}
+
+.admin-data-table__cell--selection {
+  line-height: 0;
+  padding-inline: calc(var(--admin-data-table-gap) + var(--admin-data-table-selection-padding-start))
+    calc(var(--admin-data-table-selection-padding-end) + var(--admin-data-table-inset));
+}
+
+.admin-data-table__empty {
+  color: var(--admin-muted-fg-color);
+  padding-block: var(--admin-data-table-cell-padding-block);
+  padding-inline: var(--admin-data-table-inset);
+}
+
+.admin-data-table__hidden {
+  border: 0;
+  clip-path: inset(50%);
+  height: 0.1rem;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 0.1rem;
+}

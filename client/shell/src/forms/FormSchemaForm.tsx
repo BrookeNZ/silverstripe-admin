@@ -27,7 +27,7 @@ import { useRefetchedResponse, useSchemaLoad } from './useSchemaLoad';
 import { useFormSubmission } from './useFormSubmission';
 import { useFormHandle } from './useFormHandle';
 import { useUnsavedFormRegistration } from './useUnsavedFormRegistration';
-import type { FormField, FormSchemaFormHandle, FormSchemaResponse, FormSchemaState, FormSchemaTree } from './types';
+import type { FormField, FormSchemaFormHandle, FormSchemaResponse, FormSchemaState, FormSchemaTree, SchemaMessage } from './types';
 import './form.css';
 
 export { FormFieldSlot } from './FormFieldSlot';
@@ -58,6 +58,11 @@ export interface FormSchemaFormProps {
   onActionsChange?: (actions: Array<FormField>) => void;
   /** The action being posted, then null once it settles, whether a button or Enter posted it */
   onSubmittingChange?: (action: string | null) => void;
+  /**
+   * Takes each good message a post returns instead of the form drawing it, for a host that shows it as
+   * a toast; messages that arrive with the schema stay in the form
+   */
+  onMessage?: (message: SchemaMessage) => void;
 }
 
 const noFields: ReadonlyArray<string> = [];
@@ -85,6 +90,7 @@ const LoadedForm = ({
   onDirtyChange,
   onActionsChange,
   onSubmittingChange,
+  onMessage,
 }: LoadedFormProps) => {
   const [loadedSchema, setSchema] = React.useState(initialSchema);
   // From the schema as loaded, so a hook changing attributes cannot rename the form under its fields
@@ -128,6 +134,7 @@ const LoadedForm = ({
     onSubmitted,
     onSubmittingChange,
     confirmAction,
+    onMessage,
   });
 
   const onHeadlessKeyDown = useFormHandle({ handleRef, submitWith, defaultAction: actions[0]?.name || 'action_save', isDirty: formState.isDirty });
@@ -205,6 +212,7 @@ export const FormSchemaForm = ({
   onDirtyChange,
   onActionsChange,
   onSubmittingChange,
+  onMessage,
 }: FormSchemaFormProps) => {
   const load = useSchemaLoad(schemaUrl, onLoad);
 
@@ -243,6 +251,7 @@ export const FormSchemaForm = ({
       onDirtyChange={onDirtyChange}
       onActionsChange={onActionsChange}
       onSubmittingChange={onSubmittingChange}
+      onMessage={onMessage}
     />
   );
 };

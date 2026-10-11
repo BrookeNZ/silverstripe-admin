@@ -4,15 +4,17 @@
  * server hands its data over as `data-top-bar` on the shell root (PiralTopBar in LeftAndMain.php), so
  * it draws before any pilet loads.
  *
- * Below 1024px the bar also holds the menu toggle, and the site name gives way to it as in the design's
- * "Mobile v2" (2:1909). The layout owns the open state, because the menu it discloses lives in the
- * sidebar. While the menu is open the bar is the design's "Mobile menu" (2:1916): Royal Blue, the close
- * cross and the site name in white. Help links open in a new tab, as the legacy menu's did.
+ * Below 1024px the bar is the design's "Mobile v2" (2:1909): the menu toggle takes the site name's place
+ * and the help and person menus drop their titles, leaving icon-only triggers. The layout owns the open
+ * state, because the menu it discloses lives in the sidebar. While the menu is open the bar is the
+ * design's "Mobile menu" (2:1916): Royal Blue, the close cross and the site name in white. Help links
+ * open in a new tab, as the legacy menu's did.
  */
 import type * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, CloseIcon, HelpIcon, Icon, Menu, MenuIcon, UserIcon } from '@silverstripe/admin-patterns';
 import { routerPath } from '../routing';
+import { useMediaQuery } from '../useMediaQuery';
 import './topbar.css';
 
 export interface TopBarData {
@@ -51,6 +53,9 @@ const Logo = () => (
   </Icon>
 );
 
+// Same breakpoint as topbar.css, which hides the site name and shows the toggle below it
+const wideQuery = '(width >= 1024px)';
+
 interface TopBarProps {
   data: TopBarData;
   menuId: string;
@@ -63,6 +68,7 @@ interface TopBarProps {
 
 export const TopBar = ({ data, menuId, menuOpen, onMenuToggle, toggleRef, onKeyDown, onBlur }: TopBarProps) => {
   const navigate = useNavigate();
+  const wide = useMediaQuery(wideQuery);
   const { siteName, siteUrl, applicationName, applicationLink, member, logoutUrl, helpLinks } = data;
 
   const openProfile = (url: string) => {
@@ -95,14 +101,15 @@ export const TopBar = ({ data, menuId, menuOpen, onMenuToggle, toggleRef, onKeyD
           <Logo />
         </a>
         <span className="shell-top-bar__divider" />
-        <a className="shell-top-bar__site-name" href={siteUrl} target="_blank" rel="noopener noreferrer">
+        {/* The title carries the whole name when the ellipsis cuts it */}
+        <a className="shell-top-bar__site-name" href={siteUrl} target="_blank" rel="noopener noreferrer" title={siteName}>
           {siteName}
         </a>
         <span className="shell-top-bar__badge">Piral shell</span>
       </div>
       <div className="shell-top-bar__end">
         {helpLinks.length > 0 && (
-          <Menu id="shell-top-bar-help" label="Help" title="Help" variant="tertiary" icon={<HelpIcon className="shell-top-bar__icon" />}>
+          <Menu id="shell-top-bar-help" label="Help" title={wide ? 'Help' : undefined} variant="tertiary" icon={<HelpIcon className="shell-top-bar__icon" />}>
             {helpLinks.map(({ title, url }) => (
               <Button key={url} variant="tertiary" href={url} target="_blank" rel="noopener noreferrer" role="menuitem" tabIndex={-1}>
                 {title}
@@ -111,7 +118,7 @@ export const TopBar = ({ data, menuId, menuOpen, onMenuToggle, toggleRef, onKeyD
           </Menu>
         )}
         {member && (
-          <Menu id="shell-top-bar-member" label={member.name} title={member.name} variant="tertiary" icon={<UserIcon className="shell-top-bar__icon" />}>
+          <Menu id="shell-top-bar-member" label={member.name} title={wide ? member.name : undefined} variant="tertiary" icon={<UserIcon className="shell-top-bar__icon" />}>
             <Button variant="tertiary" onClick={() => openProfile(member.profileUrl)}>
               Profile
             </Button>

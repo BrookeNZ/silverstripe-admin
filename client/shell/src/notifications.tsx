@@ -1,19 +1,21 @@
 /**
- * The shell's notifications: piral-notifications holds the list, the shell draws the host and toasts.
+ * The shell's notifications: piral-notifications holds the list, the shell draws the host, and each
+ * notification is the patterns package's Toast.
  *
  * piral-notifications closes a toast on a plain timer that cannot be paused, so the shell's plugin
- * wrapper hands it autoClose 0 and keeps the delay as `dismissAfter`, which the toast runs itself: the
- * timer stops while the toast is hovered or holds focus and starts again when both end. An error stays
- * until it is dismissed. Toasts announce their text through the layout's one live region
- * (announcer.tsx) instead of each being its own status, which screen readers often miss when the
- * element arrives with its text already in it
+ * wrapper hands it autoClose 0 and keeps the delay as `dismissAfter`, which the Toast runs itself: the
+ * timer stops while the toast is hovered or holds focus. As legacy did, an error stays until it is
+ * dismissed and a warning stays unless the caller passes `autoClose`. Toasts announce their text
+ * through the layout's live regions (announcer.tsx), an error assertively, instead of each being its
+ * own live region, which screen readers often miss when the element arrives with its text already in it.
+ * piral-notifications puts the newest toast first, so it lands nearest the header
  */
 import * as React from 'react';
 import type { PiletApiExtender } from 'piral-base';
 import type { PiralPlugin } from 'piral-core';
 import { createNotificationsApi } from 'piral-notifications';
 import type { NotificationOptions, NotificationsHostProps, NotificationsToastProps, PiletNotificationsApi } from 'piral-notifications';
-import { CloseIcon } from '@silverstripe/admin-patterns';
+import { Toast } from '@silverstripe/admin-patterns';
 import { announce } from './announcer';
 
 declare module 'piral-notifications/lib/types' {
@@ -23,12 +25,16 @@ declare module 'piral-notifications/lib/types' {
   }
 }
 
+/** Legacy's STAY_TIME for a toast that closes itself */
+export const defaultDismissAfter = 6000;
+
 export function toastOptions(options: NotificationOptions, dismissAfter: number): NotificationOptions {
   const { autoClose, ...rest } = options;
-  return { ...rest, autoClose: 0, dismissAfter: rest.type === 'error' ? 0 : (autoClose ?? dismissAfter) };
+  const stays = rest.type === 'error' || (rest.type === 'warning' && autoClose === undefined);
+  return { ...rest, autoClose: 0, dismissAfter: stays ? 0 : (autoClose ?? dismissAfter) };
 }
 
-export function createShellNotificationsApi(dismissAfter: number): PiralPlugin<PiletNotificationsApi> {
+export function createShellNotificationsApi(dismissAfter = defaultDismissAfter): PiralPlugin<PiletNotificationsApi> {
   const plugin = createNotificationsApi({ defaultOptions: { type: 'info' } });
   return (context) => {
     const extend = plugin(context) as PiletApiExtender<PiletNotificationsApi>;
@@ -48,37 +54,17 @@ export const NotificationsHost = ({ children }: NotificationsHostProps) => (
 );
 
 export const NotificationsToast = ({ children, onClose, options }: NotificationsToastProps) => {
-  const messageRef = React.useRef<HTMLSpanElement>(null);
-  const [hovered, setHovered] = React.useState(false);
-  const [focused, setFocused] = React.useState(false);
-  const dismissAfter = options.dismissAfter ?? 0;
+  const toastRef = React.useRef<HTMLDivElement>(null);
+  const type = options.type ?? 'info';
 
   React.useEffect(() => {
-    announce(messageRef.current?.textContent ?? '');
-  }, []);
-
-  React.useEffect(() => {
-    if (!dismissAfter || hovered || focused) {
-      return undefined;
-    }
-    const timer = setTimeout(onClose, dismissAfter);
-    return () => clearTimeout(timer);
-  }, [dismissAfter, hovered, focused, onClose]);
+    const message = toastRef.current?.querySelector('.admin-toast__message')?.textContent ?? '';
+    announce(message, type === 'error' ? 'assertive' : 'polite');
+  }, [type]);
 
   return (
-    <div
-      className={`piral-notification piral-notification--${options.type ?? 'info'}`}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onFocus={() => setFocused(true)}
-      onBlur={(event) => setFocused(event.currentTarget.contains(event.relatedTarget as Node | null))}
-    >
-      <span className="piral-notification__message" ref={messageRef}>
-        {children}
-      </span>
-      <button className="piral-notification-close" type="button" aria-label="Dismiss notification" onClick={onClose}>
-        <CloseIcon />
-      </button>
-    </div>
+    <Toast ref={toastRef} type={type} dismissAfter={options.dismissAfter} onClose={onClose}>
+      {children}
+    </Toast>
   );
 };

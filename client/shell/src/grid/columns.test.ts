@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ariaSort, gridColumnDefs } from './columns';
+import { gridColumnDefs } from './columns';
 import type { GridColumn, GridRow } from './types';
 
 const columns: Array<GridColumn> = [
@@ -17,11 +17,5 @@ describe('gridColumnDefs', () => {
       ['Actions', '', false],
     ]);
     expect(defs[0].accessorFn(row)).toEqual({ value: 'Home' });
-  });
-
-  it('only gives sortable columns an aria-sort', () => {
-    expect(ariaSort(columns[0], 'desc')).toBe('descending');
-    expect(ariaSort(columns[0], false)).toBe('none');
-    expect(ariaSort(columns[1], false)).toBeUndefined();
   });
 });

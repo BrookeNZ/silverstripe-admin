@@ -4,11 +4,12 @@
  * `updateFormValues` and `updateFormValidation` (the shell's own required check first) before every
  * post, then `onBeforeFormSubmit`, which can cancel it, and `onAfterFormSubmit` once the server answers.
  *
- * A successful save announces the response's record as records-changed, which refetches every schema
- * on screen, because actions change with the record (publish adds unpublish); the save waits for this
+ * A successful save announces the response's record as records-changed, under the schema's
+ * `recordClass` when the record names no class, which refetches every schema on screen, because actions change with the record (publish adds unpublish); the save waits for this
  * form's refetch. Focus then goes back to the pressed action, which was disabled while saving. A server
  * error on a field in a hidden tab asks the tabs to reveal it before the field is focused. Errors no
- * field claims, and every other form-level message, are the `messages` this returns.
+ * field claims, and every other form-level message, are the `messages` this returns, except that a
+ * post's good messages go to `onMessage` when it is given, as legacy toasted a save's `X-Status`.
  */
 import * as React from 'react';
 import type { UseFormReturn } from 'react-hook-form';
@@ -17,7 +18,7 @@ import { revealField } from '@silverstripe/admin-patterns';
 import { announceRecords } from '../state/serverCache';
 import { runAfterHook, runBeforeHook, runUpdateHook } from '../hooks/registry';
 import type { FormValidationErrors } from '../hooks/types';
-import { collectValueFields, defaultValues, encodeSubmission, errorField, mergeFields, submitFormSchema, uniqueMessages } from './schema';
+import { collectValueFields, defaultValues, encodeSubmission, errorField, isGoodMessage, mergeFields, submitFormSchema, uniqueMessages } from './schema';
 import type { FormValues } from './schema';
 import { fieldFocusTarget, focusById } from './formFocus';
 import { refetchSchema } from './useSchemaLoad';
@@ -37,6 +38,8 @@ export interface FormSubmissionOptions {
   onSubmitted?: (response: FormSchemaResponse, action: FormField) => void;
   onSubmittingChange?: (action: string | null) => void;
   confirmAction?: (action: FormField) => boolean | Promise<boolean>;
+  /** Takes a post's good messages instead of the form showing them */
+  onMessage?: (message: SchemaMessage) => void;
 }
 
 export interface FormSubmission {
@@ -78,6 +81,7 @@ export function useFormSubmission({
   onSubmitted,
   onSubmittingChange,
   confirmAction,
+  onMessage,
 }: FormSubmissionOptions): FormSubmission {
   const { clearErrors, getValues, handleSubmit, reset, setError, setValue } = form;
   const globalState = useGlobalStateContext();
@@ -160,11 +164,15 @@ export function useFormSubmission({
     }
     const saved = response.record;
     if (errors.length === 0 && saved) {
-      announceRecords(globalState, { recordClass: saved.className, ids: saved.id ? [saved.id] : [] });
+      // AssetAdmin's save record carries no className, so the form's own record class stands in
+      announceRecords(globalState, { recordClass: saved.className || (schema.recordClass ?? ''), ids: saved.id ? [saved.id] : [] });
     }
     const refetched = errors.length === 0 && !response.deleted ? refetchSchema(schemaUrl) : Promise.resolve();
 
-    showErrors(errors, response.state?.messages ?? []);
+    const stateMessages = response.state?.messages ?? [];
+    const routed = onMessage ? stateMessages.filter(isGoodMessage) : [];
+    showErrors(errors, stateMessages.filter((message) => !routed.includes(message)));
+    uniqueMessages(routed).forEach((message) => onMessage?.(message));
 
     const action = findAction(actions, actionName);
     if (errors.length === 0 && action) {

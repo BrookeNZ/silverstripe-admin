@@ -236,6 +236,13 @@ export function errorField(valueFields: Array<FormField>, name: string | null | 
   return name ? valueFields.find((field) => field.name === name || field.name === `${name}[]`) : undefined;
 }
 
+const goodMessageTypes = new Set(['good', 'success']);
+
+/** ValidationResult::TYPE_GOOD, or the success type a hook may send */
+export function isGoodMessage(message: SchemaMessage): boolean {
+  return goodMessageTypes.has(message.type);
+}
+
 /** A validation message can arrive both as an error and in the returned state; show each text once */
 export function uniqueMessages(messages: Array<SchemaMessage>, shownInline: Array<SchemaMessage> = []): Array<SchemaMessage> {
   const seen = new Set(shownInline.map((message) => message.value));

@@ -272,3 +272,37 @@ export const UserIcon = (props: IconProps) => (
     <path d="M11 0C4.925 0 0 4.925 0 11s4.925 11 11 11 11-4.925 11-11S17.075 0 11 0m7.107 16.78c-.239-.538-.723-.909-1.715-1.138-2.102-.485-4.059-.91-3.11-2.7 2.883-5.446.763-8.359-2.282-8.359-3.106 0-5.174 3.024-2.282 8.359.978 1.801-1.052 2.225-3.11 2.7-.994.229-1.474.603-1.711 1.142A9.12 9.12 0 0 1 1.833 11c0-5.054 4.113-9.167 9.167-9.167 5.055 0 9.167 4.113 9.167 9.167a9.13 9.13 0 0 1-2.06 5.78" />
   </Icon>
 );
+
+/*
+ * Status icons for toasts and messages. The design has none, so they are drawn on its 18px frame in the
+ * stroked style of SavedIcon
+ */
+export const SuccessIcon = (props: IconProps) => (
+  <Icon viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" {...props}>
+    <circle cx="9" cy="9" r="8" />
+    <path d="m5.5 9.25 2.5 2.5 4.5-5" />
+  </Icon>
+);
+
+export const InfoIcon = (props: IconProps) => (
+  <Icon viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" {...props}>
+    <circle cx="9" cy="9" r="8" />
+    <path d="M9 8v5.5" />
+    <circle cx="9" cy="5.25" r="0.5" fill="currentColor" />
+  </Icon>
+);
+
+export const WarningIcon = (props: IconProps) => (
+  <Icon viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" {...props}>
+    <path d="M9 1.5 17.25 16.5H.75z" />
+    <path d="M9 7v4.5" />
+    <circle cx="9" cy="13.75" r="0.5" fill="currentColor" />
+  </Icon>
+);
+
+export const ErrorIcon = (props: IconProps) => (
+  <Icon viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" {...props}>
+    <circle cx="9" cy="9" r="8" />
+    <path d="m6 6 6 6m0-6-6 6" />
+  </Icon>
+);

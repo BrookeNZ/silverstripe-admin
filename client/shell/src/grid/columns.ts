@@ -21,12 +21,3 @@ export function gridColumnDefs(columns: ReadonlyArray<GridColumn>): Array<GridCo
     accessorFn: (row: GridRow) => row.cells[column.name],
   }));
 }
-
-export type AriaSort = 'ascending' | 'descending' | 'none';
-
-export function ariaSort(column: GridColumn, sorted: false | 'asc' | 'desc'): AriaSort | undefined {
-  if (!column.sortable) {
-    return undefined;
-  }
-  return sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : 'none';
-}
