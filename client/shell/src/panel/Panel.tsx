@@ -119,7 +119,7 @@ const PanelChrome = ({ entry, beside, headingRef, onCloseRequest }: PanelChromeP
             <h2 className="shell-panel__title" id={headingId} ref={headingRef} tabIndex={-1}>
               {title}
             </h2>
-            {badge && <span className="shell-panel__badge">{badge}</span>}
+            {badge && <span className="admin-badge">{badge}</span>}
           </div>
           {meta && meta.length > 0 && (
             <p className="shell-panel__meta">

@@ -8,7 +8,7 @@ import type * as SchemaModule from './schema';
 import { registerHook, resetHooks } from '../hooks/registry';
 import { registerShellValidation } from './validation';
 import { FormSchemaForm } from './FormSchemaForm';
-import { fetchFormSchema, submitFormSchema } from './schema';
+import { fetchFormSchema, FormSchemaRequestError, submitFormSchema } from './schema';
 import { serverQueryClient } from '../state/serverCache';
 import type { FieldComponentProps, FormSchemaFormHandle } from './types';
 
@@ -356,5 +356,21 @@ describe('FormSchemaForm hooks', () => {
     await flush();
     expect(submitFormSchema).toHaveBeenCalledTimes(1);
     expect(after).toHaveBeenCalledWith(expect.objectContaining({ formId: 'Form_Block', action: 'action_save', response: expect.objectContaining({ errors: [] }) }));
+  });
+});
+
+describe('FormSchemaForm load failure', () => {
+  it('offers to log in again, back to the current page, when the session has ended', async () => {
+    vi.mocked(fetchFormSchema).mockRejectedValue(new FormSchemaRequestError(403, null, true));
+    await render(<FormSchemaForm schemaUrl="schema/Block" />);
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Your CMS session has ended');
+    expect(container.querySelector('a')?.getAttribute('href')).toContain('Security/login?BackURL=');
+  });
+
+  it('names any other failure, with no login link', async () => {
+    vi.mocked(fetchFormSchema).mockRejectedValue(new FormSchemaRequestError(404, null, false));
+    await render(<FormSchemaForm schemaUrl="schema/Block" />);
+    expect(container.textContent).toContain('The form could not be loaded');
+    expect(container.querySelector('a')).toBeNull();
   });
 });

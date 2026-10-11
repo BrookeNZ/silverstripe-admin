@@ -5,6 +5,7 @@ import { SwitchErrorInfo } from 'piral-core';
 import { Notifications } from 'piral-notifications';
 import { Link as TextLink } from '@silverstripe/admin-patterns';
 import { LiveAnnouncer } from './announcer';
+import { reloginUrl } from './state/serverRequest';
 import { SectionHeaderBar } from './header/SectionHeader';
 import { SectionSidebar } from './header/SectionSidebar';
 import { useSectionHeader } from './header/state';
@@ -88,7 +89,7 @@ export const errors: Partial<ErrorComponentsState> = {
         <h1 className="shell-page__title">The shell could not load its modules</h1>
         <p>
           The pilet feed did not answer. Your CMS session may have expired:{' '}
-          <TextLink href={window.ss?.config?.adminUrl ?? '/admin/'}>log in again</TextLink>.
+          <TextLink href={reloginUrl()}>log in again</TextLink>.
         </p>
       </div>
     </div>

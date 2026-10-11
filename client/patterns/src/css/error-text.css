@@ -1,0 +1,11 @@
+/**
+ * Error text
+ *
+ * A line of error copy in the error colour with no margin of its own: a field's message, a failed load,
+ * a missing file. For a boxed message with an icon use Alert instead
+ */
+
+.admin-error-text {
+  color: var(--admin-error-fg-color);
+  margin: 0;
+}

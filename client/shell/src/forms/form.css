@@ -56,9 +56,6 @@
 }
 
 .shell-form {
-  --shell-form-alert-bg-color: var(--admin-error-bg-color);
-  --shell-form-alert-border: 0.4rem solid;
-  --shell-form-alert-color: var(--admin-error-fg-color);
   --admin-field-padding-inline: var(--shell-form-inset);
   --shell-form-inset: var(--shell-inset);
 
@@ -81,13 +78,9 @@
   margin-inline: var(--admin-field-padding-inline);
 }
 
+/* An error Alert takes the fields' inset */
 .shell-form__alert {
-  background-color: var(--shell-form-alert-bg-color);
-  border-inline-start: var(--shell-form-alert-border) var(--shell-form-alert-color);
-  color: var(--shell-form-alert-color);
-  margin-block: 0;
   margin-inline: var(--admin-field-padding-inline);
-  padding: var(--admin-gap-sm) var(--admin-gap-md);
 }
 
 .shell-form__status {

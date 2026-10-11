@@ -2,7 +2,7 @@
  * Link field
  *
  * The field's links as bordered rows, each opening its edit dialog, and the "Add link" button with its
- * list of link types. No design exists yet, so this is layout, focus and the visually hidden status only
+ * list of link types. No design exists yet, so this is layout and focus only
  */
 
 .link-field {
@@ -122,14 +122,4 @@
 .link-field__type:focus-visible {
   outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
   outline-offset: calc(var(--admin-focus-outline-offset) * -1);
-}
-
-.link-field__status {
-  clip-path: inset(50%);
-  height: 0.1rem;
-  margin: 0;
-  overflow: hidden;
-  position: absolute;
-  white-space: nowrap;
-  width: 0.1rem;
 }

@@ -116,8 +116,3 @@
   color: var(--admin-muted-fg-color);
   margin: 0;
 }
-
-.admin-field__message {
-  color: var(--admin-error-fg-color);
-  margin: 0;
-}

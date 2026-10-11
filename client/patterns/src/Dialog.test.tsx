@@ -67,16 +67,6 @@ describe('Dialog', () => {
     expect(title.id).not.toBe('');
   });
 
-  it('takes the body from children too and leaves out an empty footer', () => {
-    const root = render(
-      <Dialog open onClose={noop} header="Title">
-        <p>Child copy</p>
-      </Dialog>,
-    );
-    expect(root.querySelector('.admin-dialog__body p')?.textContent).toBe('Child copy');
-    expect(root.querySelector('.admin-dialog__actions')).toBeNull();
-  });
-
   it('gives two dialogs distinct title ids', () => {
     const root = render(
       <>

@@ -2,15 +2,39 @@
   "$schema": "https://docs.piral.io/schemas/piral-v0.json",
   "isolation": "modern",
   "pilets": {
-    "files": [],
-    "scripts": {},
+    "files": [
+      { "from": "scaffold/tsconfig.json", "to": "tsconfig.json" },
+      { "from": "scaffold/vitest.config.mts", "to": "vitest.config.mts" },
+      { "from": "scaffold/.npmrc", "to": ".npmrc" },
+      { "from": "scaffold/.nvmrc", "to": ".nvmrc" }
+    ],
+    "scripts": {
+      "setup": "npm --prefix ../../shell ci && npm --prefix ../../shell run build:emulator && npm ci",
+      "typecheck": "tsc --noEmit",
+      "test": "vitest run"
+    },
     "template": "default",
     "validators": {},
-    "devDependencies": {},
+    "devDependencies": {
+      "@types/node": "^24",
+      "@types/react": "^19",
+      "@types/react-dom": "^19",
+      "happy-dom": "^20.14.5",
+      "piral-cli-webpack5": "1.12.4",
+      "react": "19.3.0",
+      "react-dom": "19.3.0",
+      "react-router": "6.30.6",
+      "react-router-dom": "6.30.6",
+      "tslib": "2.8.1",
+      "typescript": "^5",
+      "vitest": "^3.2.7"
+    },
     "preScaffold": "",
-    "postScaffold": "",
+    "postScaffold": "npm pkg set scripts.build=\"pilet build --target ../../dist/pilets/$(basename \"$PWD\")/index.js --schema v2\" devDependencies.@silverstripe/admin-patterns=file:../../patterns && npm install",
     "preUpgrade": "",
     "postUpgrade": "",
-    "packageOverrides": {}
+    "packageOverrides": {
+      "private": true
+    }
   }
 }

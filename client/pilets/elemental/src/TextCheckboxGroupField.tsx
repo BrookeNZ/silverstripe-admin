@@ -17,7 +17,7 @@ export const TextCheckboxGroupField = ({ field, error, renderFields }: FieldComp
     <FieldHolder field={field} error={error} labelFor={text.id}>
       <div className="elemental-text-checkbox-group">
         <div className="elemental-text-checkbox-group__text">{renderFields([{ ...text, title: '' }])}</div>
-        {checkboxes.length > 0 && <div className="elemental-text-checkbox-group__checkbox">{renderFields(checkboxes)}</div>}
+        {checkboxes.length > 0 && <div>{renderFields(checkboxes)}</div>}
       </div>
     </FieldHolder>
   );

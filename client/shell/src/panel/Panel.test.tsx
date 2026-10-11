@@ -96,7 +96,7 @@ describe('details panel', () => {
     expect(region?.tagName).toBe('SECTION');
     expect(region?.getAttribute('aria-labelledby')).toBe(heading()?.id);
     expect(heading()?.textContent).toBe('Card illustration');
-    expect(container.querySelector('.shell-panel__badge')?.textContent).toBe('Draft');
+    expect(container.querySelector('.admin-badge')?.textContent).toBe('Draft');
     expect(container.querySelector('.shell-panel__meta')?.textContent).toBe('1120 x 640px13 KB');
     expect(container.querySelector('.shell-panel__body')?.textContent).toBe('Fields');
     expect(document.activeElement).toBe(heading());

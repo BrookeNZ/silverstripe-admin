@@ -7,6 +7,7 @@ import {
   siteTreeURLSegmentFieldReadonlyClass,
 } from './SiteTreeURLSegmentField';
 import { createSiteTreeTitleField, siteTreeTitleFieldName, titleFieldSchema } from './SiteTreeTitleField';
+import { createDraftTitleStore } from './draftTitle';
 import { siteTreeClass } from './treeStore';
 import './pages.css';
 
@@ -29,7 +30,11 @@ export function setup(api: PiletApi) {
   const urlSegmentField = createSiteTreeURLSegmentField(api.fetchJson);
   api.registerSilverstripeComponent(siteTreeURLSegmentFieldClass, urlSegmentField);
   api.registerSilverstripeComponent(siteTreeURLSegmentFieldReadonlyClass, urlSegmentField);
-  api.registerSilverstripeComponent(siteTreeTitleFieldName, createSiteTreeTitleField({ request: api.fetchJson, useFormFieldValue: api.useFormFieldValue }));
+  const draftTitle = createDraftTitleStore();
+  api.registerSilverstripeComponent(
+    siteTreeTitleFieldName,
+    createSiteTreeTitleField({ request: api.fetchJson, useFormFieldValue: api.useFormFieldValue, draftTitle }),
+  );
   api.registerHook('updateFormSchema', titleFieldSchema, { id: 'title-url-segment' });
   const config = api.getConfig();
   const section = config.sections.find((candidate) => candidate.name === cmsMain);
@@ -51,6 +56,7 @@ export function setup(api: PiletApi) {
     // The url_segment of PageCreateController in the admin module
     createUrl: new URL(`${section.url}/create/`, document.baseURI).href,
     moveUrl: new URL(`${section.url}/move/`, document.baseURI).href,
+    draftTitle,
     loginUrl: adminUrl.href,
     schemaUrls: {
       edit: editFormSchemaUrl(editSection.url),

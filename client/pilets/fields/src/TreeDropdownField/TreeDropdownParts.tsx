@@ -48,7 +48,7 @@ export const TreeOption = ({ node, search, searching, emptyContext, onNavigate }
         // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
         <span className="treedropdownfield__option-children" onClick={(event) => onNavigate(event, node.id)}>
           <CollapsedIcon />
-          <span className="treedropdownfield__option-hint">
+          <span className="admin-visually-hidden">
             {i18n._t('Admin.TREEDROPDOWN_HAS_CHILDREN', 'has children')}
           </span>
         </span>

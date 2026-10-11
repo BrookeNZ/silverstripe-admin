@@ -94,7 +94,7 @@ export interface PagesSidebarOptions {
 }
 
 const SessionExpired = ({ loginUrl }: { loginUrl: string }) => (
-  <p className="pages-sidebar__alert" role="alert">
+  <p className="admin-error-text pages-sidebar__alert" role="alert">
     Your CMS session has expired: <a href={loginUrl}>log in again</a>.
   </p>
 );

@@ -180,7 +180,7 @@ const TreeRowContent = ({ item, showHandle, rowStart }: TreeRowContentProps) => 
         <span className="pages-tree__text">
           <span className="pages-tree__title">{entry.node.title}</span>
           {entry.node.statusFlags.map((flag) => (
-            <span className="pages-tree__flag" key={flag.key} title={flag.title ?? undefined}>
+            <span className="admin-badge" key={flag.key} title={flag.title ?? undefined}>
               {flag.text}
             </span>
           ))}
@@ -542,7 +542,7 @@ export const PageTree = ({
           />
         )}
       </div>
-      <div className="pages-tree__status" role="status">
+      <div className="admin-visually-hidden" role="status">
         {announcement}
       </div>
     </>

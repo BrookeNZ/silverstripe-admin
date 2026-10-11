@@ -9,6 +9,7 @@ import type * as AdminComponents from '@silverstripe/admin-patterns';
 import type { ChildrenResponse, PageNode, TreeApi } from './api';
 import type { RecordsChangedEvent } from './events';
 import { createPagesSection, pageAncestors, pageSectionHeader, parsePageTail, TreeQueries } from './PagesSection';
+import { createDraftTitleStore } from './draftTitle';
 import type { ChildPageQueryHook } from './PagesSection';
 import { createPagesSessionHolder, createPagesSidebar } from './PagesSidebar';
 import type { PagesSession, PagesSidebarSlotProps } from './PagesSidebar';
@@ -367,6 +368,7 @@ describe('PagesSection submissions', () => {
       }, [pathname]);
       return null;
     };
+    const draftTitle = createDraftTitleStore();
     const piral = {
       fetchJson: () => new Promise(() => undefined),
       getSilverstripeComponent: () => FakeFormSchemaForm,
@@ -389,6 +391,7 @@ describe('PagesSection submissions', () => {
       moveUrl: 'https://example.test/admin/pages/move/',
       loginUrl: '/admin/',
       schemaUrls: { edit: (id) => `/admin/pages/edit/schema/EditForm/${id}` },
+      draftTitle,
     });
     const container = document.createElement('div');
     document.body.append(container);
@@ -413,7 +416,7 @@ describe('PagesSection submissions', () => {
     };
     const header = () => piral.setSectionHeader.mock.lastCall?.[0];
     const go = (to: string) => act(() => navigate(to));
-    return { piral, container, form: () => formProps, header, go, locations, setUnsaved, done };
+    return { piral, container, form: () => formProps, header, go, locations, setUnsaved, draftTitle, done };
   }
 
   const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 20)));
@@ -481,6 +484,20 @@ describe('PagesSection submissions', () => {
     go('/pages/');
     expect(header()?.sidebar).toBeUndefined();
     expect(indexTree()).not.toBeNull();
+    done();
+  });
+
+  it("titles the header with the open page's draft title, and drops back when the draft is another page's or cleared", () => {
+    const { header, draftTitle, done } = renderSection();
+    const untitled = header()?.title;
+
+    act(() => draftTitle.set({ pageId: 7, title: 'About us' }));
+    expect(header()?.title).toBe('About us');
+    act(() => draftTitle.set({ pageId: 8, title: 'Team' }));
+    expect(header()?.title).toBe(untitled);
+    act(() => draftTitle.set({ pageId: 7, title: 'About us' }));
+    act(() => draftTitle.set(null));
+    expect(header()?.title).toBe(untitled);
     done();
   });
 

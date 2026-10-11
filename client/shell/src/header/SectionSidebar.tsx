@@ -19,6 +19,7 @@ import { ExtensionSlot } from 'piral-core';
 import { Button, CollapseMenuIcon, ExpandMenuIcon, SearchIcon } from '@silverstripe/admin-patterns';
 import { useMediaQuery } from '../useMediaQuery';
 import type { SectionHeaderSidebar } from './state';
+import '../collapse-button.css';
 import './section-sidebar.css';
 
 /** What the shell hands the registered sidebar; the pages pilet mirrors it in PagesSidebar.tsx */
@@ -137,7 +138,7 @@ export const SectionSidebar = ({ title, section, hidden = false }: SectionSideba
         </div>
         <div className="shell-section-sidebar__footer">
           <Button
-            className="shell-section-sidebar__collapse"
+            className="shell-collapse-button"
             variant="tertiary"
             iconOnly
             icon={collapsed ? <ExpandMenuIcon /> : <CollapseMenuIcon />}

@@ -35,7 +35,7 @@ interface PreviewProps {
 
 const Preview = ({ preview, title }: PreviewProps) => {
   if (!preview.exists) {
-    return <p className="files-preview__status">File cannot be found</p>;
+    return <p className="admin-error-text">File cannot be found</p>;
   }
   if (!preview.isImage) {
     return (
@@ -64,7 +64,7 @@ interface FileDetailsBodyProps {
 const FileDetailsBody = ({ FormSchemaForm, schemaUrl, title, preview, onStateChange, onSubmitted }: FileDetailsBodyProps) => (
   <div className="files-details">
     {preview && (
-      <div className="files-details__preview">
+      <div className="shell-page__inset">
         <Preview preview={preview} title={title} />
       </div>
     )}

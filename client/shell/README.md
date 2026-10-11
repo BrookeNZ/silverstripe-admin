@@ -99,6 +99,25 @@ the checkout's absolute path, so its hash differs per machine and per build. `np
 back; delete that `integrity` line before committing the lockfile. To refresh an installed copy without reinstalling,
 unpack the tarball over `node_modules/@silverstripe/admin-shell`.
 
+### New pilets
+
+`pilets` in `piral.json` is the scaffold `pilet new` applies, baked into the emulator, so rebuild the emulator after
+changing it. From `client/pilets`:
+
+```sh
+../shell/node_modules/.bin/pilet new ../shell/dist/emulator/silverstripe-admin-shell-1.0.0.tgz --target <name> --bundler none --npm-client npm
+```
+
+- `scaffold/` holds the files copied in: `tsconfig.json`, `vitest.config.mts` (React deduped against the linked
+  patterns package), `.npmrc` and `.nvmrc`. Keep them identical to the existing pilets' copies. `pilet upgrade`
+  re-copies any the pilet has not changed.
+- `devDependencies` and `scripts` are the set every pilet shares; `--bundler none` because `piral-cli-webpack5` is
+  already in the list.
+- `postScaffold` sets the build target to `../../dist/pilets/<folder>/index.js`, since `files` are copied without
+  templating, and repoints `@silverstripe/admin-patterns` at `file:../../patterns`: the emulator records the
+  shell's absolute path to it. It then reinstalls.
+- The scaffold assumes the pilet lives in `client/pilets/<name>`.
+
 ### Before committing
 
 `npm run build` in `client/shell` and in each changed pilet writes the release bundles into `client/dist`, which are

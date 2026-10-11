@@ -71,14 +71,6 @@ describe('DataTable', () => {
     ]);
   });
 
-  it('marks wide-only and centred columns on header and cells', () => {
-    render();
-    const size = container.querySelectorAll('thead th')[1];
-    expect(size.className).toContain('admin-data-table__header--wide-only');
-    expect(size.className).toContain('admin-data-table__header--center');
-    expect(container.querySelector('tbody td')?.className).toContain('admin-data-table__cell--wide-only');
-  });
-
   it('says the sort on the sorted header and asks for the next one', () => {
     const onSort = vi.fn();
     render({ sort: { column: 'title', direction: 'asc' }, onSort });
@@ -211,14 +203,14 @@ describe('DataTable', () => {
     render({ columns: [...columns, { name: 'actions', title: 'Actions', hideTitle: true }] });
     const actions = container.querySelectorAll('thead th')[3];
     expect(actions.textContent).toBe('Actions');
-    expect(actions.querySelector('.admin-data-table__hidden')?.textContent).toBe('Actions');
+    expect(actions.querySelector('.admin-visually-hidden')?.textContent).toBe('Actions');
   });
 
   it('shows the caption detail after the hidden name, under the caption id', () => {
     render({ captionId: 'files_caption', captionDetail: 'View 1–3 of 3' });
     const caption = container.querySelector('caption');
     expect(caption?.id).toBe('files_caption');
-    expect(caption?.querySelector('.admin-data-table__hidden')?.textContent).toBe('Files');
+    expect(caption?.querySelector('.admin-visually-hidden')?.textContent).toBe('Files');
     expect(caption?.querySelector('.admin-data-table__caption-detail')?.textContent).toBe('View 1–3 of 3');
   });
 

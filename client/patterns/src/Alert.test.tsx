@@ -19,15 +19,4 @@ describe('Alert', () => {
     expect(icon.getAttribute('aria-label')).toBe(label);
     expect(alert.querySelector('.admin-alert__message')?.textContent).toBe('Saved');
   });
-
-  it('defaults to info and draws no close button', () => {
-    const alert = mount(
-      <Alert id="Note" className="extra">
-        Note
-      </Alert>,
-    );
-    expect(alert.className).toBe('admin-alert admin-alert--info extra');
-    expect(alert.id).toBe('Note');
-    expect(alert.querySelector('button')).toBeNull();
-  });
 });

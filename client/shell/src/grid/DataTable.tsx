@@ -152,7 +152,7 @@ function moveBetweenRows(event: React.KeyboardEvent<HTMLTableSectionElement>) {
 }
 
 function headerContent(column: DataTableColumn): React.ReactNode {
-  return column.hideTitle ? <span className="admin-data-table__hidden">{column.title}</span> : column.title;
+  return column.hideTitle ? <span className="admin-visually-hidden">{column.title}</span> : column.title;
 }
 
 export const DataTable = ({
@@ -185,7 +185,7 @@ export const DataTable = ({
   return (
     <table className={['admin-data-table', className].filter(Boolean).join(' ')}>
       <caption className="admin-data-table__caption" id={captionId}>
-        <span className="admin-data-table__hidden">{caption}</span>
+        <span className="admin-visually-hidden">{caption}</span>
         {captionDetail && <span className="admin-data-table__caption-detail">{captionDetail}</span>}
       </caption>
       <thead>
@@ -210,7 +210,7 @@ export const DataTable = ({
           })}
           {selection && (
             <th className="admin-data-table__header admin-data-table__header--selection" scope="col">
-              <span className="admin-data-table__hidden">Select</span>
+              <span className="admin-visually-hidden">Select</span>
             </th>
           )}
         </tr>

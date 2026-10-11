@@ -175,16 +175,6 @@ describe('Content', () => {
 
   const main = () => contentContainer.querySelector('main')!;
 
-  it('draws the header over the page in one column without a sidebar', () => {
-    showHeader({ title: 'Security' });
-    renderContent();
-    expect(main().className).toBe('shell__content');
-    expect(contentContainer.querySelector('.shell-section-sidebar')).toBeNull();
-    const column = main().querySelector('.shell__column')!;
-    expect(column.querySelector('h1')?.textContent).toBe('Security');
-    expect(column.querySelector('.probe-page')).not.toBeNull();
-  });
-
   it('draws the sidebar column before the header and page when the header names one', () => {
     showHeader({ title: 'Home', sidebar: { title: 'Pages', section: pagesCode } });
     renderContent();

@@ -21,3 +21,6 @@
 @import "./unsaved-indicator.css";
 @import "./toast.css";
 @import "./alert.css";
+@import "./badge.css";
+@import "./error-text.css";
+@import "./visually-hidden.css";

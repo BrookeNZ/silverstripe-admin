@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Alert } from './Alert';
 import { Stack } from './Stack';
 
 export interface DialogProps {
@@ -56,9 +57,7 @@ export const Dialog = ({ open, onClose, header, body, children, footer, alert, f
       </h2>
       <Stack className="admin-dialog__body" spacing="md">
         {alert && (
-          <p className="admin-dialog__alert" role="alert">
-            {alert}
-          </p>
+          <Alert type="error">{alert}</Alert>
         )}
         {body}
         {children}

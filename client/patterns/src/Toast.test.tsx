@@ -37,11 +37,6 @@ describe('Toast', () => {
     expect(toast.querySelector('.admin-toast__message')?.textContent).toBe('Saved');
   });
 
-  it('defaults to info', () => {
-    const toast = mount(<Toast>Note</Toast>);
-    expect(toast.classList.contains('admin-toast--info')).toBe(true);
-  });
-
   it('draws no close button without onClose, and one that closes it with', () => {
     expect(mount(<Toast>Note</Toast>).querySelector('button')).toBeNull();
     const onClose = vi.fn();

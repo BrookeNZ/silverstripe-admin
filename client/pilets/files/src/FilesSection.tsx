@@ -183,7 +183,7 @@ export function createFilesSection(options: FilesSectionOptions) {
         <UploadDropZone enabled={upload.enabled} onFiles={upload.addFiles}>
           <Stack className="files__body" spacing="md">
             {result.status === 'error' && !showing && (
-              <p className="files__alert files__inset" role="alert">
+              <p className="admin-error-text files__inset" role="alert">
                 {result.error instanceof Error ? result.error.message : 'The folder could not be loaded.'}
               </p>
             )}

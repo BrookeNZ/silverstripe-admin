@@ -86,7 +86,7 @@ export const Disclosure = ({
           aria-controls={panel}
           onClick={() => setOpen(!isOpen)}
         >
-          <Caret className="admin-disclosure__icon" />
+          <Caret />
           {title}
         </button>
       </Heading>

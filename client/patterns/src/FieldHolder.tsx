@@ -48,7 +48,7 @@ export const FieldHolder = ({ field, error, inline, label, labelFor, labelId, ch
         </p>
       )}
       {error && (
-        <p className="admin-field__message" id={`${field.id}_message`}>
+        <p className="admin-error-text" id={`${field.id}_message`}>
           {error}
         </p>
       )}

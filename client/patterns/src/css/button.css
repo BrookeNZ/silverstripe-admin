@@ -78,7 +78,7 @@
 
 .admin-button[aria-busy="true"] {
   cursor: progress;
-  opacity: 0.6;
+  opacity: var(--admin-disabled-opacity);
 }
 
 .admin-button:focus-visible {
@@ -156,16 +156,4 @@
 
 .admin-button--icon-only {
   --admin-button-padding-inline: var(--admin-button-padding-block);
-}
-
-.admin-button__label--hidden {
-  border: 0;
-  clip-path: inset(50%);
-  height: 0.1rem;
-  margin: -0.1rem;
-  overflow: hidden;
-  padding: 0;
-  position: absolute;
-  white-space: nowrap;
-  width: 0.1rem;
 }

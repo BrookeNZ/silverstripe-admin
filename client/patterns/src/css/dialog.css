@@ -2,11 +2,10 @@
  * Dialog
  *
  * A native modal dialog with a title, body copy and a row of actions. An error raised while it is open
- * shows at the top of the body, styled as a form's alert
+ * shows at the top of the body as an error Alert
  */
 
 .admin-dialog {
-  --admin-dialog-alert-border: 0.4rem solid;
   --admin-dialog-backdrop-color: var(--admin-backdrop-color);
   --admin-dialog-max-width: 48rem;
 
@@ -32,12 +31,4 @@
   --admin-field-padding-inline: 0rem;
 
   margin: 0 0 var(--admin-gap-md);
-}
-
-.admin-dialog__alert {
-  background-color: var(--admin-error-bg-color);
-  border-inline-start: var(--admin-dialog-alert-border) var(--admin-error-fg-color);
-  color: var(--admin-error-fg-color);
-  margin: 0;
-  padding: var(--admin-gap-sm) var(--admin-gap-md);
 }

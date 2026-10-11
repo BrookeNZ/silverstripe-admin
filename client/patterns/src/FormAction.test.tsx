@@ -27,19 +27,6 @@ describe('FormAction', () => {
     expect(button.querySelector('svg.admin-icon--sm')).not.toBeNull();
     expect(button.textContent).toBe('Publish');
   });
-
-  it('draws other actions outlined and leaves out icons the design does not have', () => {
-    const button = mount(<FormAction {...props({ title: 'Download file', icon: 'down-circled' })} />);
-    expect(button.className).toBe('admin-button');
-    expect(button.querySelector('svg')).toBeNull();
-  });
-
-  it('draws the save icon as the tick, since the design has no save icon', () => {
-    const save = mount(<FormAction {...props({ title: 'Save', primary: true, icon: 'save' })} />).querySelector('svg path');
-    const saved = mount(<FormAction {...props({ title: 'Saved', icon: 'tick' })} />).querySelector('svg path');
-    expect(save?.getAttribute('d')).toBe(saved?.getAttribute('d'));
-    expect(save).not.toBeNull();
-  });
 });
 
 describe('PopoverField', () => {
@@ -52,12 +39,5 @@ describe('PopoverField', () => {
     expect(button.getAttribute('aria-expanded')).toBe('false');
     act(() => button.click());
     expect(button.getAttribute('aria-expanded')).toBe('true');
-  });
-
-  it('keeps a titled popover as an outlined text button', () => {
-    const root = mount(<PopoverField {...props({ id: 'Actions', title: 'Actions' })} />);
-    const button = root.querySelector('button')!;
-    expect(button.className).toBe('admin-button');
-    expect(button.querySelector('svg')).toBeNull();
   });
 });

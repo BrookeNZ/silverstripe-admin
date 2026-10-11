@@ -14,6 +14,7 @@ import { extensionSlotName } from '../api/silverstripe';
 import type { SilverstripeMenuItem } from '../silverstripe';
 import { MenuSectionIcon } from './sectionIcons';
 import { usePiletMenuItems } from './menuItems';
+import '../collapse-button.css';
 import './menu.css';
 
 const leftAndMain = 'SilverStripe\\Admin\\LeftAndMain';
@@ -111,7 +112,7 @@ export const Menu = ({ id, menu, adminPath, open, collapsed, onCollapsedChange }
       </ul>
       <div className="shell-menu__footer">
         <Button
-          className="shell-menu__collapse"
+          className="shell-collapse-button"
           variant="tertiary"
           iconOnly
           icon={collapsed ? <ExpandMenuIcon /> : <CollapseMenuIcon />}

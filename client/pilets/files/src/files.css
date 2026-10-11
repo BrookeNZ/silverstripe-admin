@@ -40,11 +40,6 @@
   margin: 0;
 }
 
-.files__alert {
-  color: var(--admin-error-fg-color);
-  margin: 0;
-}
-
 .files-toolbar {
   --files-toolbar-actions-gap: 0.5rem;
   --files-toolbar-actions-padding: 0;
@@ -303,19 +298,6 @@
   }
 }
 
-/* Figma "Site tree tag" in 2:6578: 10px uppercase on the modified ground, the one place under the 14px floor */
-.files-badge {
-  background-color: var(--admin-modified-bg-color);
-  border-radius: 0.2rem;
-  color: var(--admin-modified-fg-color);
-  flex: none;
-  font-size: var(--admin-font-size-xs);
-  font-weight: var(--admin-font-weight-normal);
-  line-height: 1.2;
-  padding: 0.1rem 0.3rem 0.2rem;
-  text-transform: uppercase;
-}
-
 .files-details {
   --files-details-gap: 2rem;
 
@@ -323,11 +305,6 @@
   flex: 1;
   flex-direction: column;
   gap: var(--files-details-gap);
-}
-
-/* The panel's content inset, which its form fields read too */
-.files-details__preview {
-  padding-inline: var(--shell-inset);
 }
 
 .files-preview {
@@ -377,11 +354,6 @@
   inline-size: 100%;
   object-fit: contain;
   position: relative;
-}
-
-.files-preview__status {
-  color: var(--admin-error-fg-color);
-  margin: 0;
 }
 
 /* Upload queue (Uploads.tsx): no Figma state, so the file tile's own parts */

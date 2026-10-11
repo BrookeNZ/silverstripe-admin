@@ -38,7 +38,7 @@ const PreviewImageField = ({ field }: FieldComponentProps<unknown, PreviewImageS
   return (
     <FieldHolder field={field} label="">
       <figure className="preview-image-field" id={field.id}>
-        {!data.exists && <p className="preview-image-field__status">File cannot be found</p>}
+        {!data.exists && <p className="admin-error-text">File cannot be found</p>}
         {data.exists && isImage && previewUrl && (
           <a className="preview-image-field__link" href={cacheBustUrl(data.url ?? previewUrl, data.version)} target="_blank" rel="noopener noreferrer">
             <img
@@ -48,7 +48,7 @@ const PreviewImageField = ({ field }: FieldComponentProps<unknown, PreviewImageS
             />
           </a>
         )}
-        {data.exists && !isImage && <p className="preview-image-field__status">No preview for this type of file</p>}
+        {data.exists && !isImage && <p className="admin-error-text">No preview for this type of file</p>}
         <figcaption className="preview-image-field__filename">{filename}</figcaption>
       </figure>
     </FieldHolder>

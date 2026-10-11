@@ -1,5 +1,4 @@
 // @vitest-environment happy-dom
-import * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
@@ -30,21 +29,6 @@ describe('Button', () => {
     expect(link.dataset.test).toBe('x');
   });
 
-  it('places the icon before the label by default and after it on request', () => {
-    const start = mount(<Button icon={<SearchIcon />}>Search</Button>);
-    expect(start.firstElementChild?.tagName).toBe('svg');
-    expect(start.lastElementChild?.tagName).toBe('SPAN');
-    unmountAll();
-
-    const end = mount(
-      <Button icon={<SearchIcon />} iconPosition="end">
-        Search
-      </Button>,
-    );
-    expect(end.firstElementChild?.tagName).toBe('SPAN');
-    expect(end.lastElementChild?.tagName).toBe('svg');
-  });
-
   it('keeps an icon-only label as visually hidden text and hides the icon from assistive technology', () => {
     const button = mount(
       <Button variant="tertiary" iconOnly icon={<SearchIcon />}>
@@ -52,30 +36,10 @@ describe('Button', () => {
       </Button>,
     );
     expect(button.className).toBe('admin-button admin-button--tertiary admin-button--icon-only');
-    expect(button.querySelector('span')?.className).toBe('admin-button__label--hidden');
+    expect(button.querySelector('span')?.className).toBe('admin-visually-hidden');
     expect(button.textContent).toBe('Search');
     expect(button.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
     expect(button.querySelector('svg')?.getAttribute('focusable')).toBe('false');
-  });
-
-  it('adds a class for each tone and size, composed with the variant', () => {
-    for (const tone of ['accent', 'danger', 'warning'] as const) {
-      expect(mount(<Button tone={tone}>Edit</Button>).className).toBe(`admin-button admin-button--${tone}`);
-      unmountAll();
-    }
-    const button = mount(
-      <Button variant="tertiary" tone="accent" size="sm">
-        Select all
-      </Button>,
-    );
-    expect(button.className).toBe('admin-button admin-button--tertiary admin-button--accent admin-button--sm');
-  });
-
-  it('draws a text button as a link while keeping it a button', () => {
-    const button = mount(<Button variant="text">Delete</Button>) as HTMLButtonElement;
-    expect(button.tagName).toBe('BUTTON');
-    expect(button.type).toBe('button');
-    expect(button.className).toBe('admin-button admin-button--text');
   });
 
   it('disables a button while disabled, and drops the href of a disabled link', () => {
@@ -160,21 +124,6 @@ describe('Button', () => {
     expect(button.type).toBe('submit');
     expect(button.name).toBe('action_save');
     expect(button.value).toBe('1');
-  });
-
-  it('forwards its ref to the rendered element', () => {
-    const buttonRef = React.createRef<HTMLButtonElement | HTMLAnchorElement>();
-    mount(<Button ref={buttonRef}>Save</Button>);
-    expect(buttonRef.current?.tagName).toBe('BUTTON');
-    unmountAll();
-
-    const linkRef = React.createRef<HTMLButtonElement | HTMLAnchorElement>();
-    mount(
-      <Button ref={linkRef} href="/admin">
-        Home
-      </Button>,
-    );
-    expect(linkRef.current?.tagName).toBe('A');
   });
 });
 

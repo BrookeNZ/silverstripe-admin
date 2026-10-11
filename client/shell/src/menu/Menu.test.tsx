@@ -75,7 +75,7 @@ describe('Menu', () => {
 
   it('collapses and expands, remembering the state and keeping the label as the link name', () => {
     const nav = () => container.querySelector('nav')!;
-    const button = () => container.querySelector<HTMLButtonElement>('.shell-menu__collapse')!;
+    const button = () => container.querySelector<HTMLButtonElement>('.shell-collapse-button')!;
     act(() => root.render(<Harness />));
     act(() => button().click());
     expect(nav().classList.contains('shell-menu--collapsed')).toBe(true);

@@ -41,7 +41,7 @@ export const Toggle = <K extends string>({ options, value, onChange, label, name
         return (
           <label className={classes} key={option.key}>
             <input
-              className="admin-toggle__input"
+              className="admin-visually-hidden"
               type="radio"
               name={groupName}
               value={option.key}

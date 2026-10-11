@@ -16,8 +16,7 @@
  * The form column scrolls with the page so its sticky action bar keeps working; it is at least as tall
  * as the viewport below the header, so a short form's action bar sits at the viewport bottom. It has no
  * inline padding: the form insets its own fields, and the rest of its content takes the same inset from
- * `pages__inset`. Beyond the layout only the alert colour is styled here; the pattern library step owns
- * the look.
+ * the shell's `shell-page__inset`. Only layout is styled here; the pattern library step owns the look.
  */
 
 .pages {
@@ -79,18 +78,7 @@
 }
 
 .pages-sidebar__alert {
-  color: var(--admin-error-fg-color);
-  margin: 0;
   padding: 0 var(--pages-sidebar-inset) var(--pages-sidebar-inset);
-}
-
-.pages__inset {
-  padding-inline: var(--shell-inset);
-}
-
-.pages__alert {
-  color: var(--admin-error-fg-color);
-  margin: 0;
 }
 
 .add-page__type {

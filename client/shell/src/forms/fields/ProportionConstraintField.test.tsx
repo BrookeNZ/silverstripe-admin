@@ -149,6 +149,6 @@ describe('ProportionConstraintField', () => {
 
   it('shows a dimension\'s validation message under it', () => {
     render(dimensions('', 1480, 'Width must be a number'));
-    expect(container.querySelector('#Form_fileInsertForm_Width_Holder .admin-field__message')?.textContent).toBe('Width must be a number');
+    expect(container.querySelector('#Form_fileInsertForm_Width_Holder .admin-error-text')?.textContent).toBe('Width must be a number');
   });
 });

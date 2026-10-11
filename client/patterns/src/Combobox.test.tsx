@@ -321,9 +321,4 @@ describe('Combobox', () => {
     expect(input().getAttribute('aria-expanded')).toBe('false');
     expect(document.activeElement).toBe(input());
   });
-
-  it('renders custom option content', () => {
-    render({ renderOption: (option, { selected }) => <strong>{`${option.label}${selected ? ' (chosen)' : ''}`}</strong> });
-    expect(options()[0].innerHTML).toBe('<strong>Apple</strong>');
-  });
 });

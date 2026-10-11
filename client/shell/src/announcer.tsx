@@ -61,10 +61,10 @@ export const LiveAnnouncer = () => {
   const assertive = useRegion('assertive');
   return (
     <>
-      <div className="shell__announcer" role="status">
+      <div className="admin-visually-hidden" role="status">
         {polite}
       </div>
-      <div className="shell__announcer" role="alert">
+      <div className="admin-visually-hidden" role="alert">
         {assertive}
       </div>
     </>

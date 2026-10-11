@@ -24,13 +24,6 @@
   /* Figma Grey 900 arrows and page icons */
   --pages-tree-icon-color: var(--admin-muted-fg-color);
 
-  /* Figma 10px tag; the one place allowed under the 14px floor */
-  --pages-tree-flag-font-size: var(--admin-font-size-xs);
-
-  /* Figma tag padding 1px 3px 2px, radius 2px */
-  --pages-tree-flag-padding: 0.1rem 0.3rem 0.2rem;
-  --pages-tree-flag-radius: 0.2rem;
-
   /* Not in the design */
   --pages-tree-drop-color: var(--admin-focus-outline-color);
   --pages-tree-drop-line-size: 0.2rem;
@@ -79,15 +72,6 @@
   inset-inline-start: var(--pages-tree-drop-line-start);
   pointer-events: none;
   position: absolute;
-}
-
-.pages-tree__status {
-  block-size: 0.1rem;
-  clip-path: inset(50%);
-  inline-size: 0.1rem;
-  overflow: hidden;
-  position: absolute;
-  white-space: nowrap;
 }
 
 .pages-tree__canvas {
@@ -204,17 +188,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.pages-tree__flag {
-  background-color: var(--admin-modified-bg-color);
-  border-radius: var(--pages-tree-flag-radius);
-  color: var(--admin-modified-fg-color);
-  flex: none;
-  font-size: var(--pages-tree-flag-font-size);
-  line-height: 1.2;
-  padding: var(--pages-tree-flag-padding);
-  text-transform: uppercase;
 }
 
 .pages-tree__note {

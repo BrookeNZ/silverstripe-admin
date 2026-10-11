@@ -37,8 +37,3 @@
   color: var(--admin-muted-fg-color);
   overflow-wrap: anywhere;
 }
-
-.preview-image-field__status {
-  color: var(--admin-error-fg-color);
-  margin: 0;
-}

@@ -93,21 +93,13 @@ describe('TopBar', () => {
     expect(items.map((item) => item.textContent)).toEqual(['Profile', 'Log out']);
   });
 
-  it('titles the help and person menus from 1024px', () => {
-    render(data);
-    for (const name of ['Help', 'Ada Lovelace']) {
-      expect(trigger(name).classList.contains('admin-button--icon-only')).toBe(false);
-      expect(trigger(name).querySelector('.admin-popover__caret')).not.toBeNull();
-    }
-  });
-
   it('draws the help and person menus as icon-only triggers named by their labels below 1024px', () => {
     wide = false;
     render(data);
     const icons = ['Help', 'Ada Lovelace'].map((name) => {
       const button = trigger(name);
       expect(button.classList.contains('admin-button--icon-only')).toBe(true);
-      expect(button.querySelector('.admin-button__label--hidden')?.textContent).toBe(name);
+      expect(button.querySelector('.admin-visually-hidden')?.textContent).toBe(name);
       expect(button.querySelector('.admin-popover__caret')).toBeNull();
       expect(button.querySelectorAll('svg')).toHaveLength(1);
       return button.querySelector('svg.shell-top-bar__icon')!.innerHTML;

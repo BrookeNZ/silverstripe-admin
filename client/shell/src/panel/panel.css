@@ -20,8 +20,6 @@
 
 .shell-panel {
   --shell-inset: 2rem;
-  --shell-panel-badge-padding: 0.1rem 0.3rem 0.2rem;
-  --shell-panel-badge-radius: 0.2rem;
   --shell-panel-bg-color: var(--admin-panel-bg-color);
   --shell-panel-border-color: var(--admin-divider-color);
   --shell-panel-border-width: 0;
@@ -96,17 +94,6 @@
     outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
     outline-offset: var(--admin-focus-outline-offset);
   }
-}
-
-.shell-panel__badge {
-  background-color: var(--admin-modified-bg-color);
-  border-radius: var(--shell-panel-badge-radius);
-  color: var(--admin-modified-fg-color);
-  flex: none;
-  font-size: var(--admin-font-size-xs);
-  line-height: 1.2;
-  padding: var(--shell-panel-badge-padding);
-  text-transform: uppercase;
 }
 
 .shell-panel__meta {

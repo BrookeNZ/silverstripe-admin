@@ -16,12 +16,6 @@
 
 .shell-menu {
   --shell-menu-bg-color: var(--admin-sunken-bg-color);
-  --shell-menu-collapse-bg-color: var(--admin-panel-bg-color);
-  --shell-menu-collapse-fg-color: var(--admin-accent-color);
-  --shell-menu-collapse-hover-shadow: var(--admin-raised-hover-shadow);
-  --shell-menu-collapse-icon-size: 1.3rem;
-  --shell-menu-collapse-shadow: var(--admin-raised-shadow);
-  --shell-menu-collapse-size: 2.5rem;
   --shell-menu-current-bg-color: var(--admin-selected-bg-color);
   --shell-menu-current-fg-color: var(--admin-fg-color);
   --shell-menu-current-icon-color: var(--admin-nav-fg-color);
@@ -177,22 +171,4 @@
   margin-block-start: auto;
   padding-block-end: var(--shell-menu-footer-padding-block-end);
   padding-inline-end: var(--shell-menu-footer-padding-inline-end);
-}
-
-/* Wins over .admin-button--tertiary on the same element because menu.css loads after the component stylesheet */
-.shell-menu__collapse {
-  --admin-button-bg-color: var(--shell-menu-collapse-bg-color);
-  --admin-button-border-color: var(--shell-menu-collapse-bg-color);
-  --admin-button-border-radius: 50%;
-  --admin-button-border-width: 0rem;
-  --admin-button-fg-color: var(--shell-menu-collapse-fg-color);
-  --admin-button-hover-bg-color: var(--shell-menu-collapse-bg-color);
-  --admin-button-padding-block: calc((var(--shell-menu-collapse-size) - var(--shell-menu-collapse-icon-size)) / 2);
-  --admin-icon-size: var(--shell-menu-collapse-icon-size);
-
-  box-shadow: var(--shell-menu-collapse-shadow);
-}
-
-.shell-menu__collapse:hover {
-  --shell-menu-collapse-shadow: var(--shell-menu-collapse-hover-shadow);
 }

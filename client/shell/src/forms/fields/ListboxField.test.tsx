@@ -145,7 +145,7 @@ describe('ListboxField', () => {
 
   it('shows a server validation message and ties it to the input', () => {
     render(directGroups({}, 'Not an allowed value'));
-    const message = container.querySelector('.admin-field__message')!;
+    const message = container.querySelector('.admin-error-text')!;
     expect(message.textContent).toBe('Not an allowed value');
     expect(input().getAttribute('aria-describedby')).toBe(message.id);
     expect(input().getAttribute('aria-invalid')).toBe('true');

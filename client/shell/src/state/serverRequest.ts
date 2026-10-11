@@ -74,6 +74,13 @@ function loginUrl(): URL {
   return new URL(typeof config?.loginUrl === 'string' ? config.loginUrl : 'Security/login', base);
 }
 
+/** The login form, returning to the current page once the viewer has logged in again */
+export function reloginUrl(): string {
+  const url = loginUrl();
+  url.searchParams.set('BackURL', `${location.pathname}${location.search}${location.hash}`);
+  return url.href;
+}
+
 function isLoginRedirect(responseUrl: string): boolean {
   if (!responseUrl) {
     return false;

@@ -165,7 +165,7 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
   const renderSlot = (slot: string) =>
     (payload?.slots[slot] ?? []).map((entry: GridSlotEntry) => {
       if ('html' in entry) {
-        return <HtmlContent key={entry.html} className="admin-grid__slot" html={entry.html} />;
+        return <HtmlContent key={entry.html} html={entry.html} />;
       }
       if (!isRegistered(entry.component)) {
         return null;
@@ -244,13 +244,13 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
       {page && page.totalPages > 1 && (
         <Stack as="nav" direction="row" align="center" justify="end" spacing="sm" wrap={false} className="admin-grid__pages" aria-label={`${caption} pages`}>
           <Button variant="tertiary" disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}>
-            Previous<span className="admin-grid__hidden"> page</span>
+            Previous<span className="admin-visually-hidden"> page</span>
           </Button>
           <span>
             Page {page.page} of {page.totalPages}
           </span>
           <Button variant="tertiary" disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}>
-            Next<span className="admin-grid__hidden"> page</span>
+            Next<span className="admin-visually-hidden"> page</span>
           </Button>
         </Stack>
       )}
@@ -259,7 +259,7 @@ export const GridTable = ({ id, name, title, rowsUrl }: GridTableProps) => {
         {loading ? `Loading ${caption}…` : status}
       </p>
       {error && (
-        <p className="admin-grid__error" role="alert">
+        <p className="admin-error-text" role="alert">
           {error}
         </p>
       )}
@@ -288,7 +288,7 @@ export const RowActions = ({ gridId, row, readonly, onAction }: RowActionsProps)
       {links.map((action) => (
         <Link key={action.name} {...linkTarget(action.url)}>
           {action.title}
-          <span className="admin-grid__hidden"> {label}</span>
+          <span className="admin-visually-hidden"> {label}</span>
         </Link>
       ))}
       {posted.length > 0 && (
@@ -322,7 +322,7 @@ const GridSearch = ({ id, label, value, active, onSearch, onClear }: GridSearchP
   }
   return (
     <Stack direction="row" align="center" spacing="xs" wrap={false} className="admin-grid__search" role="search">
-      <label className="admin-grid__hidden" htmlFor={id}>
+      <label className="admin-visually-hidden" htmlFor={id}>
         {label}
       </label>
       <input

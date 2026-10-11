@@ -393,7 +393,8 @@ A section pilet renders a record edit form with the shell's renderer, registered
 (`getSilverstripeComponent('FormSchemaForm')`): props `schemaUrl`, `onSubmitted(response, action)`,
 `onStateChange(state)` (the loaded state, and each state a save brings back, for a host showing a record
 value such as the title in the section header), `omitFields` (names left out, for a host that shows
-them itself), `renderLoadError(error)`, `trackUnsavedChanges`, `onLoad(response)` (the loaded response, for a
+them itself), `renderLoadError(error)` (without it, an ended session shows a "log in again" link back to the
+current page and any other failure names itself), `trackUnsavedChanges`, `onLoad(response)` (the loaded response, for a
 host reading what the endpoint sends beside the form), `confirmAction(action)` (asked before an action is
 submitted; `false`, or a promise of it, cancels) and `previewControls` (controls for what the preview shows,
 such as the draft and published toggle, drawn before Share only in split and preview modes and with the
@@ -874,6 +875,21 @@ const close = api.showModal('InsertLinkModal', { editing: false, onInsert, onCan
 components, the unsaved-changes dialog and the reveal-field event. Import it by name; the shell's copy is
 used at runtime and its stylesheet is loaded by the shell, so pilets ship neither. Its CSS reads
 `--admin-*` tokens, which a host can reassign.
+
+## Shared classes
+
+Classes the shell's stylesheets define for pilet markup, so a pilet does not restyle what they cover:
+
+- `admin-visually-hidden` (patterns package): text read by assistive technology and not drawn, such as
+  an icon-only control's name, a live region or a hint. It clips the box rather than removing it, so the
+  text stays in the accessibility tree.
+- `admin-badge` (patterns package): the small uppercase tag on the modified ground, as on a draft
+  page or file. A host retints it through the `--admin-badge-*` tokens.
+- `admin-error-text` (patterns package): a line of error copy with no margin. A boxed message with an
+  icon is the `Alert` component.
+- `shell-page__inset` (shell): the content column's inline inset, `--shell-inset`, which form fields
+  read too. Content a pilet draws beside or around a form (a notice, a preview) takes it to line up with
+  the fields; inside the details panel it is the panel's 20px.
 
 ## Building
 

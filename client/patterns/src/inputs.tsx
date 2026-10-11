@@ -102,7 +102,7 @@ export const OptionsetField = <F extends FieldDescriptor>({ field, value, onChan
       );
     })}
     {error && (
-      <p className="admin-field__message" id={`${field.id}_message`}>
+      <p className="admin-error-text" id={`${field.id}_message`}>
         {error}
       </p>
     )}

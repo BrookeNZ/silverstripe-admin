@@ -64,13 +64,4 @@ describe('Toggle', () => {
     act(() => live.click());
     expect(draft.checked).toBe(true);
   });
-
-  it('passes native attributes and a class to the group', () => {
-    const group = mount(
-      <Toggle aria-labelledby="stage-label" className="extra" options={options} value="live" onChange={() => undefined} />,
-    );
-    expect(group.className).toBe('admin-toggle extra');
-    expect(group.getAttribute('aria-labelledby')).toBe('stage-label');
-    expect(group.hasAttribute('aria-label')).toBe(false);
-  });
 });

@@ -48,16 +48,6 @@
   min-width: var(--admin-target-min-size);
 }
 
-.treedropdownfield__option-hint {
-  clip-path: inset(50%);
-  height: 0.1rem;
-  margin: -0.1rem;
-  overflow: hidden;
-  position: absolute;
-  white-space: nowrap;
-  width: 0.1rem;
-}
-
 .treedropdownfield__option-title--highlighted {
   font-weight: var(--admin-font-weight-bold);
 }

@@ -20,7 +20,7 @@
  * no sidebar column, as legacy CMSMain's index did (PagesIndex.tsx); opening a page brings the column back.
  *
  * The section header carries the page title (from the tree, so a save that renames the page retitles
- * it), the page's ancestors as its breadcrumb and the page's views; the index has the section title and
+ * it, or the Title field's unsaved draft while the edit form has one), the page's ancestors as its breadcrumb and the page's views; the index has the section title and
  * no back button. A deep link shows the ancestors the tree has loaded and fills in as the tree loads.
  * It also carries the page's preview URL, read from the loaded form's navigator (the patterns package's previewLinks) for the stage the
  * Draft/Published toggle picks, so switching stage reloads the preview pane. The form draws the toggle in
@@ -46,6 +46,7 @@ import type { PageStage } from './stage';
 import { childPageKey, childPageRecords, TreeStore } from './treeStore';
 import type { ChildPageKey, ChildPageRequest } from './treeStore';
 import { currentPageDataKey } from './events';
+import type { DraftTitleStore } from './draftTitle';
 
 export interface PagesSectionOptions {
   routePrefix: string;
@@ -61,6 +62,7 @@ export interface PagesSectionOptions {
   loginUrl: string;
   /** The schema URL of each view's form, for the views whose controller the site has */
   schemaUrls: Partial<Record<PageView, (id: number) => string>>;
+  draftTitle: DraftTitleStore;
 }
 
 export type PageView = 'edit' | 'settings' | 'history';
@@ -204,6 +206,7 @@ export function createPagesSection(options: PagesSectionOptions): PagesSectionCo
     const navigate = useNavigate();
     const [leaving, setLeaving] = React.useState(false);
     const unsaved = piral.useSharedState((state) => state.unsavedChanges);
+    const draft = React.useSyncExternalStore(options.draftTitle.subscribe, options.draftTitle.get);
     const opened = parsePageTail(tail, availableViews);
     const currentId = opened?.id ?? null;
     const revealError = opened ? store.revealError(opened.id) : null;
@@ -275,7 +278,7 @@ export function createPagesSection(options: PagesSectionOptions): PagesSectionCo
       opened
         ? {
             id: opened.id,
-            title: store.node(opened.id)?.title,
+            title: draft?.pageId === opened.id ? draft.title : store.node(opened.id)?.title,
             view: opened.view,
             ancestors: pageAncestors(store, opened.id),
             preview: links[stage],
@@ -296,12 +299,12 @@ export function createPagesSection(options: PagesSectionOptions): PagesSectionCo
       main = (
         <>
           {revealError && !revealError.sessionExpired && (
-            <p className="pages__alert pages__inset" role="alert">
+            <p className="admin-error-text shell-page__inset" role="alert">
               This page could not be found in the tree: {revealError.message}
             </p>
           )}
           {opened.view === 'history' ? (
-            <div className="pages__inset">
+            <div className="shell-page__inset">
               <FormSchemaForm key={schemaUrl} schemaUrl={schemaUrl} headless />
             </div>
           ) : (

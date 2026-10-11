@@ -6,6 +6,8 @@ import type { Root } from 'react-dom/client';
 import type { FieldComponentProps, FieldSchema, FormSchemaTree } from '@silverstripe/admin-shell';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { JsonRequest } from './api';
+import { createDraftTitleStore } from './draftTitle';
+import type { DraftTitleStore } from './draftTitle';
 import { createSiteTreeTitleField, siteTreeTitleFieldName, titleFieldSchema } from './SiteTreeTitleField';
 import { siteTreeURLSegmentFieldClass } from './urlSegment';
 
@@ -83,6 +85,7 @@ const titleField = {
 
 let container: HTMLDivElement | undefined;
 let root: Root | undefined;
+let draftTitle: DraftTitleStore;
 
 afterEach(() => {
   act(() => root?.unmount());
@@ -92,12 +95,13 @@ afterEach(() => {
 });
 
 /** Stands in for the form: the Title's value, and the siblings the title field reads and writes */
-function render(request: JsonRequest, siblings: { URLSegment: string; LiveLink: string | null }, initialTitle = 'New page') {
+function render(request: JsonRequest, siblings: Record<string, unknown> & { URLSegment: string; LiveLink: string | null }, initialTitle = 'New page') {
   const autofill = vi.fn((name: string, value: unknown) => {
     (siblings as Record<string, unknown>)[name] = value;
   });
-  const useFormFieldValue = (name: string) => (siblings as Record<string, unknown>)[name];
-  const Component = createSiteTreeTitleField({ request, useFormFieldValue });
+  const useFormFieldValue = (name: string) => ({ ID: '7', ...siblings } as Record<string, unknown>)[name];
+  draftTitle = createDraftTitleStore();
+  const Component = createSiteTreeTitleField({ request, useFormFieldValue, draftTitle });
   const Form = () => {
     const [value, setValue] = React.useState<unknown>(initialTitle);
     return (
@@ -174,6 +178,40 @@ describe('SiteTreeTitleField', () => {
     await changeTitle('New page');
     expect(request).not.toHaveBeenCalled();
     expect(updateButton()).toBeUndefined();
+  });
+
+  it('moves MenuTitle and MetaTitle along only while they matched the previous title', async () => {
+    const request = vi.fn() as unknown as JsonRequest;
+    const autofill = render(request, { URLSegment: 'team', LiveLink: '', MenuTitle: 'Team', MetaTitle: 'Our team' }, 'Team');
+
+    await changeTitle('People');
+    expect(autofill).toHaveBeenCalledWith('MenuTitle', 'People');
+    expect(autofill).not.toHaveBeenCalledWith('MetaTitle', expect.anything());
+
+    await changeTitle('Staff');
+    expect(autofill).toHaveBeenCalledWith('MenuTitle', 'Staff');
+  });
+
+  it('leaves out a follower the form does not post', async () => {
+    const request = vi.fn() as unknown as JsonRequest;
+    const autofill = render(request, { URLSegment: 'team', LiveLink: '' }, '');
+    await changeTitle('Team');
+    expect(autofill.mock.calls.map(([name]) => name)).not.toContain('MetaTitle');
+    expect(autofill.mock.calls.map(([name]) => name)).not.toContain('MenuTitle');
+  });
+
+  it('shares a committed title as the draft for its page, clearing it when emptied or unmounted', async () => {
+    const request = vi.fn() as unknown as JsonRequest;
+    render(request, { URLSegment: 'team', LiveLink: '' }, 'Team');
+
+    await changeTitle('People');
+    expect(draftTitle.get()).toEqual({ pageId: 7, title: 'People' });
+    await changeTitle('');
+    expect(draftTitle.get()).toBeNull();
+    await changeTitle('Staff');
+    act(() => root?.unmount());
+    root = undefined;
+    expect(draftTitle.get()).toBeNull();
   });
 
   it('shows a suggest failure under the title', async () => {

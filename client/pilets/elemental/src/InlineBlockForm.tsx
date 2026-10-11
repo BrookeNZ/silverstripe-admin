@@ -33,7 +33,7 @@ export const InlineBlockForm = ({
   onSave,
   onSaved,
 }: InlineBlockFormProps) => (
-  <div className="elemental-block__form" id={regionId} role="group" aria-label={`Edit ${title}`}>
+  <div id={regionId} role="group" aria-label={`Edit ${title}`}>
     <FormSchemaForm
       schemaUrl={schemaUrl}
       headless

@@ -29,8 +29,8 @@ const UsedOnTable = ({
   const renderHeader = () => (
     <thead>
       <tr>
-        <th scope="col" className="used-on__col--index">{i18n._t('Admin.USED_ON_NUM', '#')}</th>
-        <th scope="col" className="used-on__col--title">{i18n._t('Admin.USED_ON', 'Used on')}</th>
+        <th scope="col" className="used-on__col used-on__col--index">{i18n._t('Admin.USED_ON_NUM', '#')}</th>
+        <th scope="col" className="used-on__col">{i18n._t('Admin.USED_ON', 'Used on')}</th>
       </tr>
     </thead>
   );
@@ -62,10 +62,10 @@ const UsedOnTable = ({
     const key = `${index}-${id}`;
     return (
       <tr key={key} className="used-on__row">
-        <td className="used-on__col--index">
+        <td className="used-on__col used-on__col--index">
           <a href={cellLink} className="used-on__cell-link">{index + 1}</a>
         </td>
-        <td className="used-on__col--title">
+        <td className="used-on__col">
           <a href={cellLink} className="used-on__cell-link">
             <ul className="used-on__title-items">{titleLinks}</ul>
             <span className="used-on__type">{type}</span>

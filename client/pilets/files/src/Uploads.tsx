@@ -142,7 +142,7 @@ export const UploadDropZone = ({ enabled, onFiles, children }: UploadDropZonePro
   }
   return (
     <div
-      className={dragging ? 'files-dropzone files-dropzone--dragging' : 'files-dropzone'}
+      className="files-dropzone"
       onDragEnter={(event) => {
         if (carriesFiles(event)) {
           event.preventDefault();

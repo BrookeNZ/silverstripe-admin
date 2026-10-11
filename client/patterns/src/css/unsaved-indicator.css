@@ -13,6 +13,11 @@
   margin: 0;
 }
 
+/* Legacy drew the notice in its info colour; the accent is this theme's info, as in Alert */
+.admin-unsaved--notice {
+  --admin-unsaved-fg-color: var(--admin-accent-color);
+}
+
 .admin-unsaved--warning {
   --admin-unsaved-fg-color: var(--admin-error-fg-color);
 

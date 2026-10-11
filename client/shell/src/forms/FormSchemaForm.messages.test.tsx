@@ -168,7 +168,7 @@ describe('FormSchemaForm post messages', () => {
     });
     const live = Array.from(container.querySelectorAll('[role="status"], [role="alert"]')).filter((region) => region.textContent?.includes('Saved.'));
     expect(live).toHaveLength(1);
-    expect(live[0].className).toBe('shell__announcer');
+    expect(live[0].className).toBe('admin-visually-hidden');
     expect(live[0].getAttribute('role')).toBe('status');
     expect(container.querySelectorAll('.admin-toast')).toHaveLength(1);
   });

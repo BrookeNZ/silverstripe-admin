@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetSharedConfig } from './sharedState';
-import { ServerRequestError, fetchJson, isNetworkFailure, sessionExpiredMessage } from './serverRequest';
+import { ServerRequestError, fetchJson, isNetworkFailure, reloginUrl, sessionExpiredMessage } from './serverRequest';
 
 const fetchMock = vi.fn<typeof fetch>();
 
@@ -145,5 +145,14 @@ describe('fetchJson', () => {
       status: 500,
       serverMessage: 'ERROR [Emergency]: Uncaught LogicException',
     });
+  });
+});
+
+describe('reloginUrl', () => {
+  it('points at the login form under the base URL, coming back to the current page', () => {
+    window.ss.config.baseUrl = '/site/';
+    history.replaceState(null, '', '/site/admin/pages/edit/show/12?stage=Stage#Root_Main');
+    const url = new URL(reloginUrl());
+    expect([url.pathname, url.searchParams.get('BackURL')]).toEqual(['/site/Security/login', '/site/admin/pages/edit/show/12?stage=Stage#Root_Main']);
   });
 });

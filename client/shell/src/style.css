@@ -171,16 +171,6 @@ body {
   display: none;
 }
 
-/* Visually hidden; read by assistive technology only */
-.shell__announcer {
-  block-size: 0.1rem;
-  clip-path: inset(50%);
-  inline-size: 0.1rem;
-  overflow: hidden;
-  position: absolute;
-  white-space: nowrap;
-}
-
 .shell-page {
   display: flex;
   flex: 1;

@@ -98,7 +98,7 @@ describe('DateField', () => {
 
   it('shows a validation message tied to the input', () => {
     const input = render(dateField('2026-13-01', {}, 'Please enter a valid date format.'));
-    const message = container.querySelector('.admin-field__message')!;
+    const message = container.querySelector('.admin-error-text')!;
     expect(message.textContent).toBe('Please enter a valid date format.');
     expect(input.getAttribute('aria-describedby')).toBe(message.id);
     expect(input.getAttribute('aria-invalid')).toBe('true');

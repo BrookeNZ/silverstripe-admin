@@ -244,7 +244,7 @@ const UploadField = ({ field, value, onChange, error }: FieldComponentProps<Uplo
             />
           </Stack>
         )}
-        <p className="upload-field__status" role="status">
+        <p className="admin-visually-hidden" role="status">
           {status}
         </p>
       </Stack>

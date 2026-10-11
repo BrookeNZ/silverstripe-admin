@@ -71,7 +71,7 @@ export const ServerHtmlField = ({ field, value, onChange, onBlur, error }: Field
       </p>
       <fieldset className="shell-server-html__content" ref={content} disabled={!binding.posts} />
       {error && (
-        <p className="admin-field__message" id={`${field.id}_message`}>
+        <p className="admin-error-text" id={`${field.id}_message`}>
           {error}
         </p>
       )}

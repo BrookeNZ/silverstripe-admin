@@ -2,7 +2,9 @@
  * A page form's Title, which keeps the URL segment in step as legacy's Title entwine did. When a Title
  * change is committed (on blur, legacy's change event), a page that has never been published and still
  * has the default segment ("new-page") takes the segment `suggest` answers for the new title; any other
- * page shows an "Update URL" button after the input that does the same on demand.
+ * page shows an "Update URL" button after the input that does the same on demand. The same commit moves
+ * MenuTitle and MetaTitle along when they still matched the previous title, and relabels the section
+ * header through the draft title store (draftTitle.ts).
  *
  * `titleFieldSchema()` is the `updateFormSchema` handler that routes a page form's Title here, and only
  * when the form has an editable URL segment field, whose name, suggest URL and default segment it copies
@@ -12,6 +14,7 @@ import * as React from 'react';
 import { Button, describedBy, FieldHolder } from '@silverstripe/admin-patterns';
 import type { FieldComponentProps, FieldSchema, FormSchemaTree, PiletApi } from '@silverstripe/admin-shell';
 import type { JsonRequest } from './api';
+import type { DraftTitleStore } from './draftTitle';
 import { failureMessage, isAbort, siteTreeURLSegmentFieldClass, suggestSegment, text } from './urlSegment';
 import './site-tree-title-field.css';
 
@@ -68,13 +71,16 @@ export function titleFieldSchema(schema: FormSchemaTree): FormSchemaTree {
 interface TitleFieldOptions {
   request: JsonRequest;
   useFormFieldValue: PiletApi['useFormFieldValue'];
+  draftTitle: DraftTitleStore;
 }
 
-export const createSiteTreeTitleField = ({ request, useFormFieldValue }: TitleFieldOptions) => {
+export const createSiteTreeTitleField = ({ request, useFormFieldValue, draftTitle }: TitleFieldOptions) => {
   const SiteTreeTitleField = ({ field, value, onChange, onBlur, error, autofill }: FieldComponentProps) => {
     const link = urlSegmentLink(field.data);
     const segment = text(useFormFieldValue(link?.name ?? ''));
     const liveLink = useFormFieldValue('LiveLink');
+    const pageId = Number(useFormFieldValue('ID'));
+    const followers = { MenuTitle: useFormFieldValue('MenuTitle'), MetaTitle: useFormFieldValue('MetaTitle') };
     const title = text(value);
     const committed = React.useRef(title);
     const inputRef = React.useRef<HTMLInputElement>(null);
@@ -84,6 +90,15 @@ export const createSiteTreeTitleField = ({ request, useFormFieldValue }: TitleFi
     const [updateError, setUpdateError] = React.useState('');
 
     React.useEffect(() => () => pending.current?.abort(), []);
+
+    React.useEffect(
+      () => () => {
+        if (draftTitle.get()?.pageId === pageId) {
+          draftTitle.set(null);
+        }
+      },
+      [pageId],
+    );
 
     const updateSegment = async (from: string) => {
       if (!link) {
@@ -113,12 +128,21 @@ export const createSiteTreeTitleField = ({ request, useFormFieldValue }: TitleFi
       if (!link || title === committed.current) {
         return;
       }
+      const previous = committed.current;
       committed.current = title;
       const unpublished = liveLink === '' || liveLink === null;
       if (unpublished && link.defaultUrl !== '' && segment.startsWith(link.defaultUrl)) {
         void updateSegment(title);
       } else {
         setOfferUpdate(true);
+      }
+      Object.entries(followers).forEach(([name, follower]) => {
+        if (follower !== undefined && text(follower) === previous) {
+          autofill(name, title);
+        }
+      });
+      if (pageId > 0) {
+        draftTitle.set(title === '' ? null : { pageId, title });
       }
     };
 

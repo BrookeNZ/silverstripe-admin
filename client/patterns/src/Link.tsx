@@ -35,7 +35,7 @@ export const Link = ({ icon, iconPosition = 'end', external = false, renderLink 
   const content = (
     <IconLabel icon={icon} iconPosition={iconPosition}>
       {children}
-      {external && <span className="admin-link__hidden"> (opens in new window)</span>}
+      {external && <span className="admin-visually-hidden"> (opens in new window)</span>}
     </IconLabel>
   );
   if (external) {

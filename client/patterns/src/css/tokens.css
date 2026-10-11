@@ -135,7 +135,6 @@
 
   /* md is the body size, Figma New/Body 14px, on the 10px html base */
   --admin-font-size-xs: 1rem;
-  --admin-font-size-sm: 1.2rem;
   --admin-font-size-md: 1.4rem;
   --admin-font-size-lg: 1.6rem;
   --admin-font-size-xl: 2rem;

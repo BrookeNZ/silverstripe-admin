@@ -78,13 +78,3 @@
 .admin-toggle__option--disabled:hover {
   --admin-toggle-option-bg-color: var(--admin-toggle-bg-color);
 }
-
-.admin-toggle__input {
-  clip-path: inset(50%);
-  height: 0.1rem;
-  margin: -0.1rem;
-  overflow: hidden;
-  position: absolute;
-  white-space: nowrap;
-  width: 0.1rem;
-}

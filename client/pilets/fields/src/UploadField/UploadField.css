@@ -122,13 +122,3 @@
   outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
   outline-offset: var(--admin-focus-outline-offset);
 }
-
-.upload-field__status {
-  clip-path: inset(50%);
-  height: 0.1rem;
-  margin: 0;
-  overflow: hidden;
-  position: absolute;
-  white-space: nowrap;
-  width: 0.1rem;
-}

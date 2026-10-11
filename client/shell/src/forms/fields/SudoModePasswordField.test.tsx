@@ -82,7 +82,7 @@ describe('SudoModePasswordField', () => {
   it('shows the server\'s message for a wrong password and stays', async () => {
     vi.mocked(fetchJson).mockRejectedValue(new ServerRequestError('Incorrect password', 401, true, 'Incorrect password'));
     await verifyWith('wrong');
-    expect(container.querySelector('.admin-field__message')?.textContent).toBe('Incorrect password');
+    expect(container.querySelector('.admin-error-text')?.textContent).toBe('Incorrect password');
     expect(container.querySelector('input')?.getAttribute('aria-invalid')).toBe('true');
     expect(invalidateShellServerCache).not.toHaveBeenCalled();
   });

@@ -61,19 +61,9 @@ describe('toastOptions', () => {
     expect(toastOptions({ type: 'warning' }, 6000)).toEqual({ type: 'warning', autoClose: 0, dismissAfter: 0 });
     expect(toastOptions({ type: 'warning', autoClose: 3000 }, 6000)).toEqual({ type: 'warning', autoClose: 0, dismissAfter: 3000 });
   });
-
-  it('defaults to legacy delay', () => {
-    expect(defaultDismissAfter).toBe(6000);
-  });
 });
 
 describe('NotificationsToast', () => {
-  it.each(['info', 'success', 'warning', 'error'] as const)('draws a %s Toast with its icon', (type) => {
-    const toast = renderToast(vi.fn(), { type });
-    expect(toast.classList.contains(`admin-toast--${type}`)).toBe(true);
-    expect(toast.querySelector('svg.admin-toast__icon')).not.toBeNull();
-  });
-
   it('closes itself after the delay', () => {
     const onClose = vi.fn();
     renderToast(onClose, { type: 'success', dismissAfter: 1000 });

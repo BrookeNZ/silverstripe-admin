@@ -84,7 +84,7 @@ export function fileRows(items: ReadonlyArray<FileItem>, itemPath: (item: FileIt
           <Link className="files-table__link" to={itemPath(item)} data-file-link={item.type === 'folder' ? undefined : item.id}>
             {item.title}
           </Link>
-          {item.draft && <span className="files-badge">Draft</span>}
+          {item.draft && <span className="admin-badge">Draft</span>}
         </span>
       ),
       // Figma shows an em dash for a folder
@@ -106,7 +106,6 @@ export const FileTable = ({ items, sort, onSort, itemPath, onOpen, Table, active
   return (
     <Table
       caption="Files"
-      className="files-table"
       columns={fileColumns}
       rows={[...listed.slice(0, folderCount), ...queued, ...listed.slice(folderCount)]}
       currentRowId={activeId}

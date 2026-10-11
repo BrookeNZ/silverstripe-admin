@@ -93,7 +93,7 @@ export const Button = ({
   }
   const content = (
     <IconLabel icon={icon} iconPosition={iconPosition}>
-      {hasText(children) && <span className={iconOnly ? 'admin-button__label--hidden' : undefined}>{children}</span>}
+      {hasText(children) && <span className={iconOnly ? 'admin-visually-hidden' : undefined}>{children}</span>}
     </IconLabel>
   );
 

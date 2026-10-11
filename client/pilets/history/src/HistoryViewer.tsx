@@ -152,7 +152,7 @@ export function createHistoryViewer({ api, client, versionSchemaUrl }: HistoryVi
             {data.isRevertable && !revertable && '. Revert is unavailable for the current version'}
           </p>
           {revertError && (
-            <p className="history-viewer__error" role="alert">
+            <p className="admin-error-text" role="alert">
               {revertError}
             </p>
           )}
@@ -172,7 +172,7 @@ export function createHistoryViewer({ api, client, versionSchemaUrl }: HistoryVi
           {list.data && `${list.data.totalCount} versions, page ${page} of ${pages}`}
         </p>
         {list.status === 'error' && (
-          <p className="history-viewer__error" role="alert">
+          <p className="admin-error-text" role="alert">
             {list.error?.message}
           </p>
         )}

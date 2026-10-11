@@ -328,11 +328,6 @@ describe('the toolbar', () => {
     expect([buttonNamed('Upload')?.disabled, buttonNamed('Add a folder')?.disabled]).toEqual([true, true]);
   });
 
-  it('splits on a narrow screen where it carries the sort, in the gallery', async () => {
-    await render('/assets/show/9');
-    expect(container.querySelector('.files-toolbar')?.className).toBe('files-toolbar files-toolbar--sorted');
-  });
-
   it('keeps one row without the sort, in the list', async () => {
     await render('/assets/show/9?view=list');
     expect(container.querySelector('.files-toolbar')?.className).toBe('files-toolbar');

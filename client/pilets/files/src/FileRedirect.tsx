@@ -44,7 +44,7 @@ export function createFileRedirect(options: FileRedirectOptions) {
     const failed = result.status === 'error' || (result.status === 'success' && parentId === null) || fileId === 0;
     return (
       <div className="files">
-        <p className={failed ? 'files__alert files__inset' : 'files__message files__inset'} role={failed ? 'alert' : 'status'}>
+        <p className={failed ? 'admin-error-text files__inset' : 'files__message files__inset'} role={failed ? 'alert' : 'status'}>
           {failed ? (result.error instanceof Error ? result.error.message : 'The file could not be found.') : 'Opening the file…'}
         </p>
       </div>

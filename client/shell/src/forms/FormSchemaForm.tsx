@@ -15,16 +15,17 @@
  */
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
-import { Stack } from '@silverstripe/admin-patterns';
+import { Alert, Stack } from '@silverstripe/admin-patterns';
 import { runUpdateHook, useUpdateHook } from '../hooks/registry';
 import { FormDirtyContext, FormRenderContext, FormSubmittingContext } from './context';
-import { barActions, collectValueFields, dialogActions, defaultValues, fieldKey, mergeFields, withoutFields } from './schema';
+import { barActions, collectValueFields, dialogActions, defaultValues, fieldKey, FormSchemaRequestError, mergeFields, withoutFields } from './schema';
 import type { FormValues } from './schema';
 import { renderFields, renderTopLevelFields } from './FormFieldSlot';
 import { FormMessages } from './FormMessages';
 import { ActionBar } from './ActionBar';
 import { useRefetchedResponse, useSchemaLoad } from './useSchemaLoad';
 import { useFormSubmission } from './useFormSubmission';
+import { SessionEnded } from '../sections/LoadError';
 import { useFormHandle } from './useFormHandle';
 import { useUnsavedFormRegistration } from './useUnsavedFormRegistration';
 import type { FormField, FormSchemaFormHandle, FormSchemaResponse, FormSchemaState, FormSchemaTree, SchemaMessage } from './types';
@@ -229,10 +230,12 @@ export const FormSchemaForm = ({
             <p className="shell-form__status" role="status">Loading form…</p>
           ) : renderLoadError ? (
             renderLoadError(load.error)
+          ) : load.error instanceof FormSchemaRequestError && load.error.sessionExpired ? (
+            <SessionEnded />
           ) : (
-            <p className="shell-form__alert" role="alert">
+            <Alert type="error" className="shell-form__alert">
               The form could not be loaded: {load.message}
-            </p>
+            </Alert>
           )}
         </div>
       </div>

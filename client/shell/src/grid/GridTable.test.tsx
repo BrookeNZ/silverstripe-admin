@@ -95,7 +95,7 @@ describe('GridTable', () => {
     render();
     const headers = Array.from(container.querySelectorAll('thead th'));
     expect(headers.map((th) => th.textContent)).toEqual(['Name', 'Class', 'Actions']);
-    expect(headers[2].querySelector('.admin-data-table__hidden')).not.toBeNull();
+    expect(headers[2].querySelector('.admin-visually-hidden')).not.toBeNull();
     expect(container.querySelector('tbody th[scope="row"]')?.textContent).toBe('Endeavour');
     expect(container.querySelector('tbody td:last-child a')?.textContent).toBe('Edit Endeavour');
   });

@@ -269,12 +269,12 @@ export function createLinkField(SchemaFormDialog: React.ComponentType<SchemaForm
               )}
             </div>
           )}
-          <p className="link-field__status" role="status">
+          <p className="admin-visually-hidden" role="status">
             {status}
           </p>
         </div>
         {createPortal(
-          <div className="link-field__dialogs" onSubmit={(event) => event.stopPropagation()}>
+          <div onSubmit={(event) => event.stopPropagation()}>
             <SchemaFormDialog
               open={editing !== null}
               onClose={() => closeEditor(editing && editing.linkId > 0 ? editButtonId(editing.linkId) : null)}
