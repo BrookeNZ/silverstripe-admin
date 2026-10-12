@@ -1,0 +1,9 @@
+---
+Name: adminpiralhistory
+Only:
+  moduleexists: silverstripe/versioned-admin
+---
+SilverStripe\Admin\UserInterface\PiletFeed:
+  pilets:
+    silverstripe-versioned-admin-history:
+      link: 'silverstripe/admin:client/dist/pilets/history/index.js'

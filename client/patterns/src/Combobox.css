@@ -1,0 +1,233 @@
+/**
+ * Combobox
+ *
+ * The filterable select from Combobox.tsx, after the CMS Refresh "Text field" Type=Dropdown, its disabled
+ * state, Dropdown with clear and the open "Dropdown" list (Figma nodes 2:57781, 2:57785, 2:6061 and
+ * 2:57786). From the design: the control's padding, 1.4 line height, 30px gap and 14px Grey 900 caret; the
+ * disabled Grey 200 ground and New Grey 700 text; the list flush under the control, as wide as it, with a
+ * Grey 400 border, its drop shadow, and options padded like the control and ruled in Grey 300.
+ *
+ * The Grey 900 placeholder is 6.62:1 on white. Disabled text is 2.88:1 on its ground, under 4.5:1, kept as
+ * designed. Option text takes the shell's foreground (#292b2e, 14.20:1) rather than the design's Text/Dark
+ * #303b4d, and the shadow takes the shared shadow colour rather than pure black.
+ *
+ * The design draws no option states, so the legacy behaviour carries over: the active option takes the
+ * hover ground and an inset focus ring; a selected option takes the selected ground and an accent bar on
+ * its inline start, so selection survives forced colours, where the idle bar is painted in the ground
+ * colour and the selected one in Highlight. The focus ring sits on the control while anything inside it
+ * has keyboard focus, as the input itself has no border
+ */
+
+.admin-combobox {
+  --admin-combobox-control-bg-color: var(--admin-input-bg-color);
+  --admin-combobox-control-fg-color: var(--admin-fg-color);
+
+  /* Figma "Text field" Type=Dropdown 2:57781: 30px from the value to the caret */
+  --admin-combobox-control-gap: 3rem;
+  --admin-combobox-control-padding: var(--admin-dropdown-padding);
+  --admin-combobox-icon-color: var(--admin-muted-fg-color);
+
+  /* Figma "Caret" frame: 14px */
+  --admin-combobox-icon-size: 1.4rem;
+  --admin-combobox-input-min-width: 8rem;
+  --admin-combobox-line-height: var(--admin-dropdown-line-height);
+  --admin-combobox-option-active-bg-color: var(--admin-hover-bg-color);
+  --admin-combobox-option-bar-width: 0.3rem;
+  --admin-combobox-option-bg-color: transparent;
+  --admin-combobox-option-border-color: transparent;
+  --admin-combobox-option-padding: var(--admin-dropdown-padding);
+  --admin-combobox-option-rule-color: var(--admin-faint-divider-color);
+  --admin-combobox-option-selected-bg-color: var(--admin-selected-bg-color);
+  --admin-combobox-option-selected-border-color: var(--admin-accent-color);
+  --admin-combobox-placeholder-color: var(--admin-muted-fg-color);
+  --admin-combobox-popup-border-color: var(--admin-divider-color);
+  --admin-combobox-popup-max-height: 30rem;
+
+  /* Figma "Dropdown" 2:57786 drop shadow: 1px 0 5px */
+  --admin-combobox-popup-shadow: 0.1rem 0 0.5rem var(--admin-shadow-color);
+
+  /* Figma "Global icons" X inside the clear control: 8px */
+  --admin-combobox-remove-icon-size: 0.8rem;
+  --admin-combobox-token-bg-color: var(--admin-selected-bg-color);
+  --admin-icon-size: var(--admin-combobox-icon-size);
+
+  line-height: var(--admin-combobox-line-height);
+  position: relative;
+}
+
+@media (forced-colors: active) {
+  .admin-combobox {
+    --admin-combobox-option-border-color: Canvas;
+    --admin-combobox-option-selected-border-color: Highlight;
+  }
+}
+
+.admin-combobox--disabled {
+  --admin-combobox-control-bg-color: var(--admin-disabled-bg-color);
+  --admin-combobox-control-fg-color: var(--admin-disabled-fg-color);
+  --admin-combobox-placeholder-color: var(--admin-disabled-fg-color);
+}
+
+.admin-combobox__control {
+  align-items: center;
+  background-color: var(--admin-combobox-control-bg-color);
+  border: var(--admin-border) var(--admin-border-color);
+  border-radius: var(--admin-radius);
+  box-sizing: border-box;
+  color: var(--admin-combobox-control-fg-color);
+  display: flex;
+  gap: var(--admin-combobox-control-gap);
+  min-height: var(--admin-control-min-height);
+  padding: var(--admin-combobox-control-padding);
+}
+
+.admin-combobox__control:has(:focus-visible) {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: var(--admin-focus-outline-offset);
+}
+
+.admin-combobox__values {
+  align-items: center;
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: var(--admin-gap-xs);
+  min-width: 0;
+}
+
+.admin-combobox__tokens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--admin-gap-xs);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.admin-combobox__token {
+  align-items: center;
+  background-color: var(--admin-combobox-token-bg-color);
+  border: var(--admin-border) var(--admin-border-color);
+  border-radius: var(--admin-radius);
+  display: inline-flex;
+  padding-inline-start: var(--admin-gap-xs);
+}
+
+/* The control draws the focus ring */
+.admin-combobox__input {
+  background: none;
+  border: 0;
+  color: inherit;
+  flex: 1 1 var(--admin-combobox-input-min-width);
+  font: inherit;
+  min-width: var(--admin-combobox-input-min-width);
+  outline: none;
+  padding: 0;
+
+  &::placeholder {
+    color: var(--admin-combobox-placeholder-color);
+    opacity: 1;
+  }
+}
+
+/* A focused single select shows its chosen label as the placeholder, in the value's colour */
+.admin-combobox__input--selection-shown {
+  --admin-combobox-placeholder-color: currentcolor;
+}
+
+.admin-combobox__button {
+  --admin-icon-size: var(--admin-combobox-remove-icon-size);
+
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: var(--admin-radius);
+  color: var(--admin-combobox-icon-color);
+  cursor: pointer;
+  display: inline-flex;
+  justify-content: center;
+  min-height: var(--admin-target-min-size);
+  min-width: var(--admin-target-min-size);
+  padding: 0;
+}
+
+.admin-combobox__button:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: calc(var(--admin-focus-outline-offset) * -1);
+}
+
+.admin-combobox__indicator {
+  color: var(--admin-combobox-icon-color);
+  display: inline-flex;
+}
+
+/* In the top layer at the place useAnchoredLayer measures from the control, as wide as the control */
+.admin-combobox__popup {
+  --admin-anchor-left: 0;
+  --admin-anchor-top: 0;
+  --admin-anchor-width: auto;
+
+  background-color: var(--admin-panel-bg-color);
+  border: var(--admin-border) var(--admin-combobox-popup-border-color);
+  border-radius: var(--admin-radius);
+  box-shadow: var(--admin-combobox-popup-shadow);
+  box-sizing: border-box;
+  color: var(--admin-fg-color);
+  inset: var(--admin-anchor-top) auto auto var(--admin-anchor-left);
+  margin: 0;
+  max-height: var(--admin-combobox-popup-max-height);
+  overflow-y: auto;
+  padding: 0;
+  position: fixed;
+  width: var(--admin-anchor-width);
+  z-index: var(--admin-z-popover-fallback);
+}
+
+.admin-combobox__popup[hidden] {
+  display: none;
+}
+
+.admin-combobox__listbox {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.admin-combobox__option {
+  align-items: center;
+  background-color: var(--admin-combobox-option-bg-color);
+  border-block-end: var(--admin-border) var(--admin-combobox-option-rule-color);
+  border-inline-start: var(--admin-combobox-option-bar-width) solid var(--admin-combobox-option-border-color);
+  cursor: pointer;
+  display: flex;
+  gap: var(--admin-gap-sm);
+  min-height: var(--admin-target-min-size);
+  padding: var(--admin-combobox-option-padding);
+}
+
+.admin-combobox__option--selected {
+  --admin-combobox-option-bg-color: var(--admin-combobox-option-selected-bg-color);
+  --admin-combobox-option-border-color: var(--admin-combobox-option-selected-border-color);
+}
+
+.admin-combobox__option--active {
+  --admin-combobox-option-bg-color: var(--admin-combobox-option-active-bg-color);
+
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: calc(var(--admin-focus-outline-offset) * -1);
+}
+
+.admin-combobox__option--disabled {
+  cursor: not-allowed;
+  opacity: var(--admin-disabled-opacity);
+}
+
+.admin-combobox__message {
+  color: var(--admin-muted-fg-color);
+  margin: 0;
+  padding: var(--admin-gap-xs) var(--admin-gap-sm);
+}
+
+.admin-combobox__message:empty {
+  display: none;
+}

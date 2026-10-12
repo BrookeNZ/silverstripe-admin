@@ -7,7 +7,7 @@
 					<% if $SectionTitle %>
 						$SectionTitle
 					<% else %>
-						<%t SilverStripe\Admin\ModelAdmin.Title 'Data Models' %>
+						<%t SilverStripe\Admin\ModelAdmin.Title 'Data models' %>
 					<% end_if %>
 				</span>
 			</div>

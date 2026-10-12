@@ -1,0 +1,125 @@
+/**
+ * FormSchema form
+ *
+ * The form element rendered by FormSchemaForm, its load failure alert and status line, and the action
+ * bar. The fields, groups, headings and form messages (Alert) inside it are styled by
+ * @silverstripe/admin-patterns.
+ *
+ * The form has no inset of its own: each field holder (`admin-field`) pads itself by --shell-form-inset
+ * through --admin-field-padding-inline, as do the messages, the status line and the load failure alert,
+ * so a full-width field (the GridField) and the action bar touch the sides of the content column. A tab set (`--tabs`) spans the column with its tab
+ * strip inset, and its panels' fields take the same wrappers. A nested form (`--nested`, a block's form
+ * inside the page form) already sits in an inset field, so its own fields take none.
+ *
+ * The action bar is the CMS Refresh "Bottom bar" (Figma node 2:6870; edit mode 2:6871, split mode
+ * 2:6892, preview mode 2:6921): white, a Grey 400 top line drawn inside its 65px height, 15px by 20px
+ * padding round the 35px buttons. The form's actions sit on the left; the right-hand group holds the
+ * host's controls (the pages section's Draft/Published toggle) and, when the page has a preview, Share
+ * and the mode menu, 30px after them. In preview mode the right-hand group alone draws, at the foot of
+ * the preview pane. The bar spans the whole content column, as in the design, sits at the bottom of a
+ * short form, which grows to the viewport, and stays in view while a long one scrolls.
+ *
+ * Below 576px the right-hand group drops to a second row under the actions, as the design's mobile bars
+ * (2:6939, 2:6930) and its note "secondary buttons stack at 576px" (2:6960). The preview controls never
+ * reach that width, since a preview needs 1024px. The bar's tokens sit on :root because the shell reads
+ * --shell-form-actions-offset for the page's bottom scroll padding, so a focused field is scrolled
+ * clear of the bar. FormSchemaForm keeps that token at the bar's rendered height; a page with no bar
+ * reserves nothing
+ */
+
+@layer shell {
+  :root {
+    --shell-form-actions-border-width: 0.1rem;
+
+    /* Figma: the 35px buttons set each row's height */
+    --shell-form-actions-control-height: 3.5rem;
+    --shell-form-actions-end-basis: 100%;
+
+    /* Figma: 30px between the stage toggle and the preview controls */
+    --shell-form-actions-end-gap: 3rem;
+
+    /* Figma: 15px between the save group, the options button and the utilities, and between stacked rows */
+    --shell-form-actions-gap: 1.5rem;
+
+    /* Figma: 10px between Saved and Publish */
+    --shell-form-actions-group-gap: 1rem;
+    --shell-form-actions-inset: calc(2 * var(--shell-form-actions-padding-block));
+    --shell-form-actions-min-height: calc(var(--shell-form-actions-control-height) + var(--shell-form-actions-inset));
+    --shell-form-actions-offset: 0rem;
+    --shell-form-actions-padding-block: 1.5rem;
+    --shell-form-actions-padding-inline: 2rem;
+  }
+
+  @media (width >= 576px) {
+    :root {
+      --shell-form-actions-end-basis: auto;
+    }
+  }
+
+  .shell-form {
+    --admin-field-padding-inline: var(--shell-form-inset);
+    --shell-form-inset: var(--shell-inset);
+
+    flex: 1;
+  }
+
+  .shell-form--nested {
+    --shell-form-inset: 0rem;
+  }
+
+  /* A registered component that renders nothing still leaves Piral's piral-component element behind */
+  .shell-form__field:empty,
+  .shell-form__field:has(> piral-component:only-child:empty) {
+    display: none;
+  }
+
+  .shell-form__field--tabs {
+    --admin-tab-strip-padding-inline: var(--shell-form-inset);
+  }
+
+  .shell-form__message {
+    margin-inline: var(--admin-field-padding-inline);
+  }
+
+  /* An error Alert takes the fields' inset */
+  .shell-form__alert {
+    margin-inline: var(--admin-field-padding-inline);
+  }
+
+  .shell-form__status {
+    color: var(--admin-muted-fg-color);
+    padding-inline: var(--admin-field-padding-inline);
+  }
+
+  .shell-form__actions {
+    --admin-group-gap: var(--shell-form-actions-group-gap);
+    --admin-group-row-align: center;
+
+    align-items: center;
+    background-color: var(--admin-bg-color);
+    border-block-start: var(--shell-form-actions-border-width) solid var(--admin-divider-color);
+    box-sizing: border-box;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--shell-form-actions-gap);
+    inset-block-end: 0;
+    margin-block-start: auto;
+    min-block-size: var(--shell-form-actions-min-height);
+    padding: calc(var(--shell-form-actions-padding-block) - var(--shell-form-actions-border-width)) var(--shell-form-actions-padding-inline) var(--shell-form-actions-padding-block);
+    position: sticky;
+    z-index: var(--admin-z-sticky);
+  }
+
+  .shell-form__actions:empty {
+    display: none;
+  }
+
+  .shell-form__actions-end {
+    align-items: center;
+    display: flex;
+    flex-basis: var(--shell-form-actions-end-basis);
+    flex-wrap: wrap;
+    gap: var(--shell-form-actions-end-gap);
+    margin-inline-start: auto;
+  }
+}

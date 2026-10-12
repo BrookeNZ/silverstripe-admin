@@ -1,0 +1,159 @@
+/**
+ * Button
+ *
+ * The CMS Refresh buttons (Figma "Primary button" 2:6232 and "White buttons" 2:6153, 12px semibold
+ * labels). The block is the secondary: green outline and label on a white fill (Figma "Save outline"
+ * 2:6241); --primary fills it green (Figma "Publish" 2:6233), --tertiary is the borderless white button
+ * with a grey label for toolbars and menus, --text draws the button as a Link from the --admin-link-*
+ * tokens in Link.css (no fill, border, padding or minimum size, underline on hover), and --icon-only
+ * squares the padding round a lone icon.
+ * Variants reassign the --admin-button-* tokens. The padding tokens are the design's, measured
+ * outside the border. Hover follows the design: primary Button/Primary Hover, secondary the green
+ * tint (node 2:6244, which leaves the label at 3.95:1, kept as designed) and tertiary Grey 200.
+ *
+ * Tones recolour a variant without knowing which it is: each reassigns the --admin-button-tone-* and
+ * --admin-button-quiet-* tokens, and the variants read those. Primary takes the tone as its fill,
+ * secondary as its outline and label with the tint on hover, tertiary its quiet label and hover.
+ * --accent is the design's blue (Plain button "Edit" 2:6266, "Select all" 2:6157, the "1 selected"
+ * chip 2:6315), --danger the red "Remove" (2:6268) and --warning the yellow "Add a block" (2:6259),
+ * designed only as a primary. --text ignores tone. --sm is the Plain button's 7px by 15px padding
+ * and medium weight; a tone brings only colour, so the Plain button is --sm with a tone
+ */
+
+.admin-button {
+  --admin-button-bg-color: var(--admin-panel-bg-color);
+  --admin-button-border-color: var(--admin-button-tone-color);
+  --admin-button-border-radius: var(--admin-radius);
+  --admin-button-border-width: 0.1rem;
+  --admin-button-fg-color: var(--admin-button-tone-color);
+  --admin-button-font-weight: var(--admin-font-weight-bold);
+  --admin-button-gap: var(--admin-gap-sm);
+  --admin-button-hover-bg-color: var(--admin-button-tone-tint-color);
+  --admin-button-hover-text-decoration-line: none;
+  --admin-button-line-height: 1;
+  --admin-button-min-size: var(--admin-target-min-size);
+  --admin-button-padding-block: 1rem;
+  --admin-button-padding-inline: 1.2rem;
+  --admin-button-quiet-fg-color: var(--admin-muted-fg-color);
+  --admin-button-quiet-hover-color: var(--admin-tertiary-action-hover-color);
+  --admin-button-text-decoration-line: none;
+  --admin-button-tone-color: var(--admin-primary-action-color);
+  --admin-button-tone-fg-color: var(--admin-primary-action-fg-color);
+  --admin-button-tone-hover-color: var(--admin-primary-action-hover-color);
+  --admin-button-tone-tint-color: var(--admin-secondary-action-hover-color);
+  --admin-button-underline-offset: auto;
+  --admin-button-underline-thickness: auto;
+
+  align-items: center;
+  background-color: var(--admin-button-bg-color);
+  border: var(--admin-button-border-width) solid var(--admin-button-border-color);
+  border-radius: var(--admin-button-border-radius);
+  color: var(--admin-button-fg-color);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-weight: var(--admin-button-font-weight);
+  gap: var(--admin-button-gap);
+  justify-content: var(--admin-button-justify, center);
+  line-height: var(--admin-button-line-height);
+  min-height: var(--admin-button-min-size);
+  min-width: var(--admin-button-min-size);
+  padding: calc(var(--admin-button-padding-block) - var(--admin-button-border-width))
+    calc(var(--admin-button-padding-inline) - var(--admin-button-border-width));
+  text-decoration-line: var(--admin-button-text-decoration-line);
+  text-decoration-thickness: var(--admin-button-underline-thickness);
+  text-underline-offset: var(--admin-button-underline-offset);
+  transition: var(--admin-transition);
+}
+
+.admin-button:hover:not(:disabled, [aria-disabled="true"]) {
+  --admin-button-bg-color: var(--admin-button-hover-bg-color);
+  --admin-button-text-decoration-line: var(--admin-button-hover-text-decoration-line);
+}
+
+.admin-button:disabled {
+  cursor: not-allowed;
+  opacity: var(--admin-disabled-opacity);
+}
+
+.admin-button[aria-busy="true"] {
+  cursor: progress;
+  opacity: var(--admin-disabled-opacity);
+}
+
+.admin-button:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: var(--admin-focus-outline-offset);
+}
+
+.admin-button--primary {
+  --admin-button-bg-color: var(--admin-button-tone-color);
+  --admin-button-border-color: var(--admin-button-bg-color);
+  --admin-button-fg-color: var(--admin-button-tone-fg-color);
+  --admin-button-hover-bg-color: var(--admin-button-tone-hover-color);
+}
+
+.admin-button--tertiary {
+  --admin-button-bg-color: var(--admin-panel-bg-color);
+  --admin-button-border-color: var(--admin-button-bg-color);
+  --admin-button-fg-color: var(--admin-button-quiet-fg-color);
+  --admin-button-hover-bg-color: var(--admin-button-quiet-hover-color);
+  --admin-button-padding-block: 0.8rem;
+  --admin-button-padding-inline: 1rem;
+}
+
+.admin-button--accent {
+  --admin-button-quiet-fg-color: var(--admin-accent-color);
+  --admin-button-quiet-hover-color: var(--admin-accent-tint-color);
+  --admin-button-tone-color: var(--admin-accent-color);
+  --admin-button-tone-fg-color: var(--admin-accent-fg-color);
+  --admin-button-tone-hover-color: var(--admin-accent-hover-color);
+  --admin-button-tone-tint-color: var(--admin-hover-bg-color);
+}
+
+.admin-button--danger {
+  --admin-button-quiet-fg-color: var(--admin-danger-color);
+  --admin-button-quiet-hover-color: var(--admin-danger-tint-color);
+  --admin-button-tone-color: var(--admin-danger-color);
+
+  /* No design for a solid danger button, so its hover keeps the fill */
+  --admin-button-tone-hover-color: var(--admin-danger-color);
+  --admin-button-tone-tint-color: var(--admin-danger-tint-color);
+}
+
+.admin-button--warning {
+  --admin-button-font-weight: var(--admin-font-weight-normal);
+  --admin-button-tone-color: var(--admin-warning-action-color);
+  --admin-button-tone-fg-color: var(--admin-warning-action-fg-color);
+  --admin-button-tone-hover-color: var(--admin-warning-action-hover-color);
+}
+
+/* Before --text and --icon-only, which win where they set the same tokens */
+.admin-button--sm {
+  --admin-button-font-weight: var(--admin-font-weight-medium);
+  --admin-button-padding-block: 0.7rem;
+  --admin-button-padding-inline: 1.5rem;
+}
+
+.admin-button--text {
+  --admin-button-bg-color: transparent;
+  --admin-button-border-radius: 0rem;
+  --admin-button-border-width: 0rem;
+  --admin-button-fg-color: var(--admin-link-fg-color);
+
+  /* Guaranteed-invalid, so weight and line height inherit as the Link's do */
+  --admin-button-font-weight: initial;
+  --admin-button-gap: var(--admin-link-gap);
+  --admin-button-hover-bg-color: transparent;
+  --admin-button-hover-text-decoration-line: underline;
+  --admin-button-line-height: initial;
+  --admin-button-min-size: auto;
+  --admin-button-padding-block: 0rem;
+  --admin-button-padding-inline: 0rem;
+  --admin-button-underline-offset: var(--admin-link-underline-offset);
+  --admin-button-underline-thickness: var(--admin-link-underline-thickness);
+}
+
+.admin-button--icon-only {
+  --admin-button-padding-inline: var(--admin-button-padding-block);
+}

@@ -1,0 +1,137 @@
+import { describe, expect, it } from 'vitest';
+import { recordBackPath, recordHeader, recordRoute, recordSchemaUrl, sentenceCaseName } from './record';
+import { resolveSectionRoute } from './resolve';
+import type { ShellSection } from './resolve';
+
+const model = 'SilverStripe-RedirectedURLs-Model-RedirectedURL';
+
+const redirects: ShellSection = {
+  route: 'redirects',
+  title: 'Redirects',
+  url: 'admin/redirects',
+  modelTabs: [{ tab: model, title: 'Redirected URLs' }],
+};
+
+const term = 'SilverStripe-Taxonomy-TaxonomyTerm';
+
+const taxonomy: ShellSection = {
+  route: 'taxonomy',
+  title: 'Taxonomies',
+  url: 'admin/taxonomy',
+  modelTabs: [{ tab: term, title: 'Taxonomy terms' }],
+};
+
+const settings: ShellSection = { route: 'settings', title: 'Settings', url: 'admin/settings', modelTabs: [] };
+
+const route = (path: string) => {
+  const section = resolveSectionRoute(path, [redirects, taxonomy, settings]);
+  return section ? recordRoute(section) : null;
+};
+
+describe('recordRoute', () => {
+  it('reads the legacy item URL with or without its action', () => {
+    for (const tail of ['', '/', '/edit', '/edit/', '/view']) {
+      const record = route(`/redirects/${model}/EditForm/field/${model}/item/49${tail}`);
+      expect(record?.id).toBe(49);
+      expect(record?.grid).toBe(model);
+      expect(record?.itemUrl).toBe(`admin/redirects/${model}/EditForm/field/${model}/item/49`);
+    }
+  });
+
+  it('keeps the view action, which asks for the read-only schema', () => {
+    for (const tail of ['/view', '/view/']) {
+      const record = route(`/redirects/${model}/EditForm/field/${model}/item/49${tail}`);
+      expect(record?.view).toBe(true);
+      expect(record && recordSchemaUrl(record)).toBe(`admin/redirects/${model}/EditForm/field/${model}/item/49/view/schema`);
+    }
+    const edit = route(`/redirects/${model}/EditForm/field/${model}/item/49/edit`);
+    expect(edit?.view).toBe(false);
+    expect(edit && recordSchemaUrl(edit)).toBe(`admin/redirects/${model}/EditForm/field/${model}/item/49/schema`);
+  });
+
+  it('reads a new record and names the landing tab when the URL leaves it out', () => {
+    const record = route(`/redirects/EditForm/field/${model}/item/new/edit`);
+    expect(record?.id).toBeNull();
+    expect(record?.tab?.tab).toBe(model);
+    expect(record && recordSchemaUrl(record)).toBe(`admin/redirects/${model}/EditForm/field/${model}/item/new/schema`);
+  });
+
+  it('serves a grid on a section without model tabs', () => {
+    const record = route('/settings/EditForm/field/SocialLinks/item/1/edit');
+    expect(record?.itemUrl).toBe('admin/settings/EditForm/field/SocialLinks/item/1');
+    expect(record && recordBackPath(record)).toBe('/settings/');
+  });
+
+  it('leaves other paths to the section', () => {
+    expect(route(`/redirects/${model}/`)).toBeNull();
+    expect(route(`/redirects/${model}/EditForm/field/${model}/item/abc/edit`)).toBeNull();
+    expect(route(`/redirects/${model}/EditForm/field/${model}/item/0/edit`)).toBeNull();
+    expect(route(`/redirects/${model}/EditForm/field/${model}/item/4/delete`)).toBeNull();
+    expect(route(`/redirects/${model}/EditForm/field/${model}/item/4/EditForm/field/Other/item/2`)).toBeNull();
+    expect(route(`/redirects/${model}/EditForm/field/${model}/item/new/ItemEditForm/field/Other/item/2`)).toBeNull();
+    expect(route(`/redirects/${model}/EditForm/field/${model}/item/4/ItemEditForm/field/Other/item`)).toBeNull();
+  });
+});
+
+describe('nested recordRoute', () => {
+  const two = `/taxonomy/${term}/EditForm/field/${term}/item/3/ItemEditForm/field/Children/item/7`;
+
+  it('reads a record in a grid inside a record form, two and three levels deep', () => {
+    const nested = route(`${two}/edit`);
+    expect(nested?.id).toBe(7);
+    expect(nested?.grid).toBe('Children');
+    expect(nested?.itemUrl).toBe(`admin/taxonomy/${term}/EditForm/field/${term}/item/3/ItemEditForm/field/Children/item/7`);
+    expect(nested?.parent?.id).toBe(3);
+    expect(nested?.parent?.parent).toBeNull();
+
+    const deeper = route(`${two}/ItemEditForm/field/Children/item/new/edit/`);
+    expect(deeper?.id).toBeNull();
+    expect(deeper && recordSchemaUrl(deeper)).toBe(`${nested?.itemUrl}/ItemEditForm/field/Children/item/new/schema`);
+    expect(deeper?.parent?.id).toBe(7);
+    expect(deeper?.parent?.parent?.id).toBe(3);
+  });
+
+  it('goes back to the parent record and titles the nested one', () => {
+    const nested = route(two)!;
+    const summary = { id: 7, className: 'TaxonomyTerm', title: 'Red', singularName: 'Taxonomy term', link: 'x', parentTitle: 'Colours' };
+    expect(recordHeader(nested, summary)).toEqual({
+      title: 'Red',
+      crumbs: [
+        { label: 'Taxonomy terms', to: `/taxonomy/${term}/` },
+        { label: 'Colours', to: `/taxonomy/${term}/EditForm/field/${term}/item/3/edit/` },
+      ],
+      backTo: `/taxonomy/${term}/EditForm/field/${term}/item/3/edit/`,
+      backLabel: 'Back to Colours',
+    });
+    expect(recordHeader(nested, null).backLabel).toBe('Back to parent record');
+    expect(recordBackPath(nested.parent!)).toBe(`/taxonomy/${term}/`);
+  });
+});
+
+describe('recordHeader', () => {
+  const saved = route(`/redirects/${model}/EditForm/field/${model}/item/49/edit`)!;
+  const fresh = route(`/redirects/${model}/EditForm/field/${model}/item/new/edit`)!;
+  const summary = { id: 49, className: 'RedirectedURL', title: '#49', singularName: 'Redirected URL', link: 'x' };
+
+  it('titles the record and goes back to its grid tab', () => {
+    expect(recordHeader(saved, summary)).toEqual({
+      title: '#49',
+      crumbs: [{ label: 'Redirected URLs', to: `/redirects/${model}/` }],
+      backTo: `/redirects/${model}/`,
+      backLabel: 'Back to redirected URLs',
+    });
+  });
+
+  it('falls back before the record loads and names a new record by its type', () => {
+    expect(recordHeader(saved, null).title).toBe('Redirected URLs #49');
+    expect(recordHeader(fresh, null).title).toBe('New record');
+    expect(recordHeader(fresh, { ...summary, id: null, title: null, link: null }).title).toBe('New redirected URL');
+  });
+});
+
+describe('sentenceCaseName', () => {
+  it('lowers title-cased words and keeps acronyms', () => {
+    expect(sentenceCaseName('Site Banner')).toBe('site banner');
+    expect(sentenceCaseName('Redirected URL')).toBe('redirected URL');
+  });
+});

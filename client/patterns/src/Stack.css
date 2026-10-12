@@ -1,0 +1,80 @@
+/**
+ * Stack
+ *
+ * A flex row or column that owns the space between its children. Each modifier reassigns one token
+ * declared on the block. Without a --gap-* modifier the children touch
+ */
+
+.admin-stack {
+  --admin-stack-align: stretch;
+  --admin-stack-direction: column;
+  --admin-stack-gap: 0;
+  --admin-stack-justify: start;
+  --admin-stack-wrap: wrap;
+
+  align-items: var(--admin-stack-align);
+  display: flex;
+  flex-flow: var(--admin-stack-direction) var(--admin-stack-wrap);
+  gap: var(--admin-stack-gap);
+  justify-content: var(--admin-stack-justify);
+}
+
+.admin-stack--row {
+  --admin-stack-direction: row;
+}
+
+.admin-stack--align-start {
+  --admin-stack-align: start;
+}
+
+.admin-stack--align-center {
+  --admin-stack-align: center;
+}
+
+.admin-stack--align-end {
+  --admin-stack-align: end;
+}
+
+.admin-stack--justify-center {
+  --admin-stack-justify: center;
+}
+
+.admin-stack--justify-end {
+  --admin-stack-justify: end;
+}
+
+.admin-stack--justify-between {
+  --admin-stack-justify: space-between;
+}
+
+.admin-stack--justify-around {
+  --admin-stack-justify: space-around;
+}
+
+.admin-stack--gap-xs {
+  --admin-stack-gap: var(--admin-gap-xs);
+}
+
+.admin-stack--gap-sm {
+  --admin-stack-gap: var(--admin-gap-sm);
+}
+
+.admin-stack--gap-md {
+  --admin-stack-gap: var(--admin-gap-md);
+}
+
+.admin-stack--gap-lg {
+  --admin-stack-gap: var(--admin-gap-lg);
+}
+
+.admin-stack--gap-xl {
+  --admin-stack-gap: var(--admin-gap-xl);
+}
+
+.admin-stack--gap-xxl {
+  --admin-stack-gap: var(--admin-gap-xxl);
+}
+
+.admin-stack--nowrap {
+  --admin-stack-wrap: nowrap;
+}

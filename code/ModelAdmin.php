@@ -3,6 +3,7 @@
 namespace SilverStripe\Admin;
 
 use InvalidArgumentException;
+use SilverStripe\Admin\UserInterface\ShellSubmission;
 use SilverStripe\Control\Controller;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Control\HTTPResponse;
@@ -117,6 +118,12 @@ abstract class ModelAdmin extends LeftAndMain
     public $showSearchForm = true;
 
     /**
+     * The client config built for the current request and member, which the combined client config and
+     * getPiralModelTabs() both read on a page load
+     */
+    private ?array $clientConfigBuild = null;
+
+    /**
      * List of all {@link DataObject}s which can be imported through
      * a subclass of {@link BulkLoader} (mostly CSV data).
      * By default {@link CsvBulkLoader} is used, assuming a standard mapping
@@ -156,6 +163,18 @@ abstract class ModelAdmin extends LeftAndMain
             if ($this->redirectedTo()) {
                 // reset so we use the "landing page"
                 $this->modelTab = null;
+            } elseif ($this->shellOwnsRequest()) {
+                // The shell renders whatever the path, and names a segment it cannot resolve itself
+                $this->modelTab = null;
+            } elseif ($this->modelTab === 'schema' && ShellSubmission::isShellRequest($this->getRequest())) {
+                // A shell schema URL without a model tab, which would read "schema" as a model class
+                $this->modelTab = null;
+                if (!$this->getResponse()->isFinished()) {
+                    throw new HTTPResponse_Exception(ShellSubmission::jsonError(404, _t(
+                        __CLASS__ . '.SCHEMA_NEEDS_TAB',
+                        'This schema URL needs a model tab, as in <section>/<tab>/schema/EditForm.'
+                    )));
+                }
             } else {
                 // if it fails to match the string exactly, try reverse-engineering a classname
                 $this->modelTab = $this->unsanitiseClassName($this->modelTab);
@@ -189,6 +208,70 @@ abstract class ModelAdmin extends LeftAndMain
             $action = $this->sanitiseClassName($this->modelTab);
         }
         return parent::Link($action);
+    }
+
+    /**
+     * Every ModelAdmin URL starts with the model tab, so a form schema request (`<tab>/schema/EditForm`)
+     * arrives as the `$Action` of `$ModelClass/$Action`, with the form name not yet parsed
+     */
+    protected function handleAction($request, $action)
+    {
+        if ($action === 'schema' && !$request->param('FormName')) {
+            $request->match('$FormName/$ItemID/$OtherItemID', true);
+        }
+        return parent::handleAction($request, $action);
+    }
+
+    /**
+     * Adds `modelTabs`, a list of `['tab' => URL segment, 'title' => tab title]` in managed_models order, so a
+     * client can name the landing tab and link every tab before it requests a form. The list is empty for a member
+     * who cannot view the section, since the combined client config reaches every CMS member. An extension may
+     * name the tabs instead through `updateShellModelTabs`
+     */
+    public function getClientConfig(): array
+    {
+        $request = Controller::curr()?->getRequest();
+        $memberID = Security::getCurrentUser()?->ID;
+        $built = $this->clientConfigBuild;
+        if ($request && $built && $built['request'] === $request && $built['memberID'] === $memberID) {
+            return $built['config'];
+        }
+        $config = $this->buildClientConfig();
+        $this->clientConfigBuild = $request ? ['request' => $request, 'memberID' => $memberID, 'config' => $config] : null;
+        return $config;
+    }
+
+    private function buildClientConfig(): array
+    {
+        $this->beforeExtending('updateClientConfig', function (array &$clientConfig): void {
+            $clientConfig['modelTabs'] = [];
+            if (!$this->canView()) {
+                return;
+            }
+            // An extension that names the tabs itself (ArchiveAdminShellExtension) saves building the managed models
+            $tabs = null;
+            $this->extend('updateShellModelTabs', $tabs);
+            if ($tabs !== null) {
+                $clientConfig['modelTabs'] = $tabs;
+                return;
+            }
+            foreach ($this->getManagedModels() as $tab => $options) {
+                $clientConfig['modelTabs'][] = [
+                    'tab' => $this->sanitiseClassName($tab),
+                    'title' => $options['title'],
+                ];
+            }
+        });
+        return parent::getClientConfig();
+    }
+
+    /**
+     * The tabs the shell resolves paths with, from the same `modelTabs` the client config sends it. Read from the
+     * instance getCombinedClientConfig() asks, so a page load builds the section's client config once
+     */
+    protected function getPiralModelTabs(): array
+    {
+        return array_column(Injector::inst()->get(static::class)->getClientConfig()['modelTabs'] ?? [], 'tab');
     }
 
     /**

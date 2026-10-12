@@ -4,10 +4,13 @@ namespace SilverStripe\Admin;
 
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Control\HTTPResponse;
+use SilverStripe\Admin\UserInterface\FieldComponentCandidates;
+use SilverStripe\Admin\UserInterface\ServerHtmlFallback;
 use SilverStripe\Core\Validation\ValidationResult;
 use SilverStripe\Forms\Form;
 use SilverStripe\Forms\HTMLEditor\HTMLEditorConfig;
 use SilverStripe\Forms\Schema\FormSchema;
+use SilverStripe\ORM\DataObject;
 use SilverStripe\Security\Security;
 
 /**
@@ -110,9 +113,28 @@ abstract class FormSchemaController extends AdminController
     public function getSchemaResponse(string $schemaID, ?Form $form = null, ?ValidationResult $errors = null, array $extraData = []): HTTPResponse
     {
         $parts = $this->getRequest()->getHeader(FormSchema::SCHEMA_HEADER);
-        $data = $this
-            ->getFormSchema()
-            ->getMultipartSchema($parts, $schemaID, $form, $errors);
+        // The legacy FormBuilder passes every schema key to its components as a prop, so only the shell gets these
+        $forShell = $form && LeftAndMain::config()->get('piral_shell');
+        $fallback = ServerHtmlFallback::singleton();
+        $marked = $forShell ? $fallback->mark($form) : [];
+        try {
+            $data = $this
+                ->getFormSchema()
+                ->getMultipartSchema($parts, $schemaID, $form, $errors);
+        } finally {
+            $fallback->restore($marked);
+        }
+
+        if ($forShell && isset($data['schema'])) {
+            $data['schema'] = FieldComponentCandidates::singleton()->addToSchema($data['schema'], $form);
+            $data['schema'] = $fallback->addToSchema($data['schema'], $marked);
+            // The shell announces a save under this class when the response's record names none (AssetAdmin's)
+            $record = $form->getRecord();
+            if ($record instanceof DataObject) {
+                $data['schema']['recordClass'] = $record->ClassName;
+            }
+            $this->extend('updateShellSchema', $data['schema'], $form);
+        }
 
         if ($extraData) {
             $data = array_merge($data, $extraData);

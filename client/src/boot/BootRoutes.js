@@ -59,7 +59,7 @@ class BootRoutes {
     const currBeforeUnload = window.onbeforeunload;
     window.onbeforeunload = () => {
       if (this.shouldConfirmBeforeUnload()) {
-        return i18n._t('Admin.CONFIRMUNSAVEDSHORT', 'WARNING: Your changes have not been saved.');
+        return i18n._t('Admin.CONFIRMUNSAVEDSHORT', 'Warning: your changes have not been saved.');
       }
 
       if (typeof currBeforeUnload === 'function') {
@@ -227,7 +227,7 @@ class BootRoutes {
 
   getUnsavedChangesMessage() {
     return i18n._t('Admin.CONFIRMUNSAVED', `Are you sure you want to navigate away
-    from this page?\n\nWARNING: Your changes have not been saved.\n\n
+    from this page?\n\nWarning: your changes have not been saved.\n\n
     Press OK to continue, or Cancel to stay on the current page.`);
   }
 }

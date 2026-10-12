@@ -1,0 +1,34 @@
+/**
+ * Dialog
+ *
+ * A native modal dialog with a title, body copy and a row of actions. An error raised while it is open
+ * shows at the top of the body as an error Alert
+ */
+
+.admin-dialog {
+  --admin-dialog-backdrop-color: var(--admin-backdrop-color);
+  --admin-dialog-max-width: 48rem;
+
+  background-color: var(--admin-panel-bg-color);
+  border: var(--admin-border) var(--admin-border-color);
+  border-radius: var(--admin-radius);
+  color: var(--admin-fg-color);
+  max-width: var(--admin-dialog-max-width);
+  padding: var(--admin-gap-md);
+}
+
+.admin-dialog::backdrop {
+  background-color: var(--admin-dialog-backdrop-color);
+}
+
+.admin-dialog__title {
+  font-size: var(--admin-font-size-xxl);
+  line-height: 1.2;
+  margin: 0 0 var(--admin-gap-sm);
+}
+
+.admin-dialog__body {
+  --admin-field-padding-inline: 0rem;
+
+  margin: 0 0 var(--admin-gap-md);
+}

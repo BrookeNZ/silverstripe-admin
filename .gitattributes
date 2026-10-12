@@ -29,6 +29,15 @@
 /.yarnrc.yml export-ignore
 /yarn.lock export-ignore
 
+# Piral shell, pattern library and pilet sources; installs need only their builds in client/dist
+/client/shell export-ignore
+/client/patterns export-ignore
+/client/pilets export-ignore
+/client/tools export-ignore
+
 # Hide diffs
 /client/dist/js -diff
 /client/dist/styles -diff
+/client/dist/shell/** -diff linguist-generated
+/client/dist/pilets/** -diff linguist-generated
+/client/dist/pilet/** -diff linguist-generated

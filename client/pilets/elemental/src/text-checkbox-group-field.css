@@ -1,0 +1,23 @@
+/**
+ * Text and checkbox group
+ *
+ * A block title input that takes the free width, with its "Displayed" checkbox inline after it
+ */
+
+@layer pilets {
+  /* The group's own holder carries the inset. That holder wraps in a column, which measures this row's
+     height at its content width, as if wrapped, unless the row has a definite width */
+  .elemental-text-checkbox-group {
+    --admin-field-padding-inline: 0rem;
+
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--admin-gap-sm) var(--admin-gap-md);
+    inline-size: 100%;
+  }
+
+  .elemental-text-checkbox-group__text {
+    flex: 1 1 var(--admin-field-control-basis);
+  }
+}

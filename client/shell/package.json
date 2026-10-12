@@ -1,0 +1,64 @@
+{
+  "name": "@silverstripe/admin-shell",
+  "version": "1.0.0",
+  "description": "Piral app shell for the Silverstripe CMS admin",
+  "keywords": [
+    "piral"
+  ],
+  "dependencies": {
+    "@silverstripe/admin-patterns": "file:../patterns",
+    "@tanstack/react-query": "5.104.1",
+    "@tanstack/react-table": "9.2.6",
+    "dompurify": "^3.4.16",
+    "piral-base": "1.12.4",
+    "piral-core": "1.12.4",
+    "piral-modals": "1.12.4",
+    "piral-notifications": "^1.12.4",
+    "react": "^19",
+    "react-dom": "^19",
+    "react-hook-form": "^7.89.0",
+    "react-router": "^6",
+    "react-router-dom": "^6"
+  },
+  "scripts": {
+    "start": "piral debug --port 1234 --strict-port --hmr-port 61234 --public-url /shell-dev/ --krasrc debug.krasrc",
+    "prebuild": "npm --prefix ../patterns run build",
+    "build": "piral build --type release --public-url /_resources/vendor/silverstripe/admin/client/dist/shell/ && rm -rf ../dist/shell && cp -R dist/release ../dist/shell",
+    "preinstall": "npm --prefix ../patterns ci && npm --prefix ../patterns run build",
+    "postinstall": "piral declaration",
+    "pretypecheck": "npm --prefix ../patterns run build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prebuild:emulator": "npm --prefix ../patterns run build",
+    "build:emulator": "piral build --type emulator"
+  },
+  "app": "./src/index.html",
+  "types": "dist/index.d.ts",
+  "extraTypes": [
+    "./src/forms/types.ts",
+    "./src/state/errorTypes.ts"
+  ],
+  "importmap": {
+    "imports": {
+      "react": "react",
+      "react-dom": "react-dom",
+      "react-router": "react-router",
+      "react-router-dom": "react-router-dom",
+      "@silverstripe/admin-patterns": "@silverstripe/admin-patterns"
+    },
+    "inherit": [
+      "piral-base"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "happy-dom": "^20.14.5",
+    "jsdom": "^30.1.2",
+    "piral-cli": "1.12.4",
+    "piral-cli-webpack5": "1.12.4",
+    "typescript": "^5",
+    "vitest": "^3"
+  }
+}

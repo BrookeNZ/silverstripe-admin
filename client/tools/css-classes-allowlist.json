@@ -1,0 +1,22 @@
+{
+  "admin-alert__icon": "Test hook: Alert.test.tsx finds the icon by it",
+  "admin-dialog__actions": "Test hook: the Dialog, modals and SchemaFormDialog tests find the footer by it",
+  "admin-toast__icon": "Test hook: Toast.test.tsx finds the icon by it",
+  "focuspoint-field--debug": "Vendor markup: jonom/focuspoint's CSS targets it",
+  "focuspoint-field__image-wrapper": "Vendor markup: jonom/focuspoint's CSS targets it",
+  "focuspoint-field__picker": "Vendor markup: jonom/focuspoint's CSS targets it",
+  "pages-search__flag": "Unstyled page search results, kept for the search work that owns them",
+  "pages-search__link": "Unstyled page search results, kept for the search work that owns them",
+  "pages-search__result": "Unstyled page search results, kept for the search work that owns them",
+  "pages-search__results": "Unstyled page search results, kept for the search work that owns them",
+  "pages-search__status": "Unstyled page search results, kept for the search work that owns them",
+  "pages-tree__item--dragged": "Test hook: PageTree.test.ts reads the dragged row by it",
+  "shell-form__field--full": "Test hook: FormSchemaForm.inset.test.tsx asserts the full-width wrapper",
+  "shell-menu__item": "Test hook: Menu.test.tsx finds menu items by it",
+  "treedropdownfield": "Legacy markup: framework behat's CmsUiContext targets .treedropdownfield",
+  "treedropdownfield__option-context": "Legacy markup: mirrors the legacy TreeDropdownField option",
+  "treedropdownfield__option-title": "Legacy markup: mirrors the legacy TreeDropdownField option",
+  "treedropdownfield__title": "Test hook: TreeDropdownField.test.tsx reads the read-only title by it",
+  "used-on__row": "Legacy markup: the legacy UsedOnTable markup and its test",
+  "used-on__title-item--first": "Legacy markup: the legacy UsedOnTable markup and its test"
+}

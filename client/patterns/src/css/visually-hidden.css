@@ -1,0 +1,20 @@
+/**
+ * Visually hidden
+ *
+ * Text read by assistive technology and not drawn: a hidden label, a live region, a hint. The box is
+ * clipped to nothing rather than removed, so it stays in the accessibility tree
+ */
+
+/* stylelint-disable declaration-property-unit-disallowed-list -- the 1px clipped box, not a design value */
+.admin-visually-hidden {
+  block-size: 0.1rem;
+  border: 0;
+  clip-path: inset(50%);
+  inline-size: 0.1rem;
+  margin: 0;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+}
+/* stylelint-enable declaration-property-unit-disallowed-list */

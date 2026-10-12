@@ -1,0 +1,69 @@
+/**
+ * Field groups, headings, literal content and tabs
+ *
+ * Structural pieces inside a form or panel: groups stack their fields, or lay them in a row with
+ * --row. Direction tokens sit on the group itself so a stacked group nested in a row stays stacked;
+ * a host retints the gap and the row alignment through the :root tokens. The tab panels' tablist is
+ * the shared tab strip (TabStrip.css)
+ */
+
+:root {
+  --admin-group-gap: var(--admin-gap-md);
+  --admin-group-row-align: baseline;
+}
+
+.admin-group {
+  --admin-group-align: stretch;
+  --admin-group-direction: column;
+
+  align-items: var(--admin-group-align);
+  display: flex;
+  flex-flow: var(--admin-group-direction) wrap;
+  gap: var(--admin-group-gap);
+}
+
+.admin-group--row {
+  --admin-group-align: var(--admin-group-row-align);
+  --admin-group-direction: row;
+}
+
+.admin-heading {
+  font-size: var(--admin-font-size-xxl);
+  line-height: 1.2;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-literal {
+  color: var(--admin-muted-fg-color);
+}
+
+/* Server HTML scope: a literal's paragraphs arrive with the browser's default margins */
+.admin-literal p {
+  margin-block: 0;
+}
+
+.admin-literal p + p {
+  margin-block-start: var(--admin-gap-sm);
+}
+
+.admin-tabs {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-tabs__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-gap-md);
+  padding-block-start: var(--admin-gap-md);
+}
+
+.admin-tabs__panel[hidden] {
+  display: none;
+}
+
+.admin-tabs__panel:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: var(--admin-focus-outline-offset);
+}

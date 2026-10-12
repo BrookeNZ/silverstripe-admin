@@ -1,0 +1,39 @@
+SilverStripe\Security\Group:
+  editors:
+    Title: Editors
+
+SilverStripe\CMS\Model\SiteTree:
+  alpha:
+    Title: Alpha
+    URLSegment: alpha
+    Sort: 1
+  bravo:
+    Title: Bravo
+    URLSegment: bravo
+    Sort: 2
+  locked:
+    Title: Locked
+    URLSegment: locked
+    Sort: 3
+    CanEditType: OnlyTheseUsers
+    EditorGroups: =>SilverStripe\Security\Group.editors
+  a1:
+    Title: A1
+    URLSegment: a1
+    Sort: 1
+    Parent: =>SilverStripe\CMS\Model\SiteTree.alpha
+  a2:
+    Title: A2
+    URLSegment: a2
+    Sort: 2
+    Parent: =>SilverStripe\CMS\Model\SiteTree.alpha
+  a3:
+    Title: A3
+    URLSegment: a3
+    Sort: 3
+    Parent: =>SilverStripe\CMS\Model\SiteTree.alpha
+  b1:
+    Title: B1
+    URLSegment: b1
+    Sort: 1
+    Parent: =>SilverStripe\CMS\Model\SiteTree.bravo

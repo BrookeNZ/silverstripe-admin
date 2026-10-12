@@ -1,0 +1,44 @@
+/**
+ * Link
+ *
+ * The CMS Refresh text link (Figma "Text link" 2:6274): Bright Blue at the inherited body size, no
+ * underline at rest and a 1px Bright Blue underline on hover (variants 2:6287 and 2:6282, drawn as a
+ * bottom border under each line). The design has no visited or pressed state. --icon lays a label and
+ * its icon out in a row. 5.92:1 on white, 5.65:1 on the menu ground, 2.40:1 against body text, so a
+ * link inside a sentence is told apart by colour alone below the 3:1 of WCAG 1.4.1; kept as designed.
+ * The tokens sit on :root because Button's text variant (Button.css) draws itself from them
+ */
+
+:root {
+  --admin-link-display: inline;
+  --admin-link-fg-color: var(--admin-link-color);
+  --admin-link-gap: var(--admin-gap-sm);
+  --admin-link-text-decoration-line: none;
+
+  /* Approximates the design's border under the 1.4 line box */
+  --admin-link-underline-offset: 0.3rem;
+  --admin-link-underline-thickness: 0.1rem;
+}
+
+.admin-link {
+  align-items: center;
+  color: var(--admin-link-fg-color);
+  display: var(--admin-link-display);
+  gap: var(--admin-link-gap);
+  text-decoration-line: var(--admin-link-text-decoration-line);
+  text-decoration-thickness: var(--admin-link-underline-thickness);
+  text-underline-offset: var(--admin-link-underline-offset);
+}
+
+.admin-link:hover {
+  --admin-link-text-decoration-line: underline;
+}
+
+.admin-link:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: var(--admin-focus-outline-offset);
+}
+
+.admin-link--icon {
+  --admin-link-display: inline-flex;
+}

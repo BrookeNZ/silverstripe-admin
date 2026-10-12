@@ -1,0 +1,21 @@
+/**
+ * Icon
+ *
+ * Inline SVG icons drawn in the current text colour. The height is the token and the width follows
+ * the viewBox, so a host resizes an icon by reassigning --admin-icon-size. The default is the design's
+ * 18px global icon; --sm is the 15px icon in the filled and outlined buttons
+ */
+
+:root {
+  --admin-icon-size: 1.8rem;
+}
+
+.admin-icon {
+  flex-shrink: 0;
+  height: var(--admin-icon-size);
+  width: auto;
+}
+
+.admin-icon--sm {
+  --admin-icon-size: 1.5rem;
+}

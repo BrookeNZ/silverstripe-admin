@@ -1,0 +1,20 @@
+---
+Name: adminpiralhtmleditor
+Only:
+  moduleexists: silverstripe/htmleditor-tinymce
+---
+SilverStripe\Admin\UserInterface\PiletFeed:
+  pilets:
+    silverstripe-htmleditor:
+      link: 'silverstripe/admin:client/dist/pilets/htmleditor/index.js'
+SilverStripe\Admin\ModalController:
+  extensions:
+    - SilverStripe\Admin\UserInterface\LinkModal\ModalControllerShellExtension
+  link_modal_form_factories:
+    EditorFileLink: SilverStripe\Admin\UserInterface\LinkModal\FileLinkFormFactory
+SilverStripe\Admin\Forms\LinkFormFactory:
+  extensions:
+    - SilverStripe\Admin\UserInterface\LinkModal\LinkFormShellExtension
+SilverStripe\Admin\LeftAndMain:
+  extensions:
+    - SilverStripe\Admin\UserInterface\LinkModal\LeftAndMainLinkFormsExtension

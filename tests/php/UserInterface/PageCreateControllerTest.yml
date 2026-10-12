@@ -1,0 +1,13 @@
+SilverStripe\Security\Group:
+  editors:
+    Title: Editors
+
+SilverStripe\CMS\Model\SiteTree:
+  open:
+    Title: Open
+    URLSegment: open
+  locked:
+    Title: Locked
+    URLSegment: locked
+    CanEditType: OnlyTheseUsers
+    EditorGroups: =>SilverStripe\Security\Group.editors

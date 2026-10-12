@@ -1,0 +1,17 @@
+---
+Name: adminpiralelemental
+Only:
+  moduleexists: dnadesign/silverstripe-elemental
+---
+SilverStripe\Admin\UserInterface\PiletFeed:
+  pilets:
+    silverstripe-elemental:
+      link: 'silverstripe/admin:client/dist/pilets/elemental/index.js'
+
+SilverStripe\Admin\FormSchemaController:
+  extensions:
+    - SilverStripe\Admin\UserInterface\Elemental\ElementalAreaBlocksExtension
+
+DNADesign\Elemental\Controllers\ElementalAreaController:
+  extensions:
+    - SilverStripe\Admin\UserInterface\Elemental\ElementVersionsExtension

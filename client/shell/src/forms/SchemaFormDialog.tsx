@@ -1,0 +1,121 @@
+/**
+ * A FormSchema form in the shared Dialog, with the form's actions in the dialog's footer after Cancel
+ * rather than in an action bar inside the body. The form renders headless and each footer button posts
+ * its own action through the form's handle, and Enter in a field posts the first action; the posting
+ * action's button shows it is busy either way. Errors show in the body as on any form.
+ *
+ * The dialog sits wherever the host renders it, often inside another form, whose implicit submission Enter
+ * in any of its controls would trigger. The headless form guards its own fields; controls in `intro` get
+ * `form=""`, which leaves them with no form owner at all.
+ *
+ * The form is still loading when the dialog opens, so the heading takes focus first and the first field
+ * once the schema has loaded, unless focus has moved on meanwhile.
+ *
+ * With `modal`, as the content of a named modal, it hands its header and footer to the shell's modal frame
+ * and draws no Dialog of its own; the registration's layout should set `focusHeading`.
+ */
+import * as React from 'react';
+import { Button, Dialog, fieldTitle } from '@silverstripe/admin-patterns';
+import { useModalFrame } from '../modalFrame';
+import { FormSchemaForm } from './FormSchemaForm';
+import type { FormField, FormSchemaFormHandle, SchemaFormDialogProps } from './types';
+
+const firstField = 'input:not([type="hidden"]):not(:disabled), select:not(:disabled), textarea:not(:disabled), [contenteditable="true"]';
+
+export const SchemaFormDialog = ({ open, header, intro, schemaUrl, omitFields, onClose, onSubmitted, modal }: SchemaFormDialogProps) => {
+  const handle = React.useRef<FormSchemaFormHandle>(null);
+  const [actions, setActions] = React.useState<Array<FormField>>([]);
+  const [pending, setPending] = React.useState<string | null>(null);
+  const [loaded, setLoaded] = React.useState(false);
+  const body = React.useRef<HTMLDivElement>(null);
+  const introHolder = React.useRef<HTMLDivElement>(null);
+
+  React.useLayoutEffect(() => {
+    introHolder.current?.querySelectorAll('input, select, textarea, button').forEach((control) => control.setAttribute('form', ''));
+  });
+
+  const [wasOpen, setWasOpen] = React.useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (!open) {
+      setActions([]);
+      setPending(null);
+      setLoaded(false);
+    }
+  }
+
+  React.useEffect(() => {
+    const dialog = body.current?.closest('dialog');
+    if (!loaded || !dialog) {
+      return undefined;
+    }
+    const frame = requestAnimationFrame(() => {
+      if (document.activeElement === dialog.querySelector('h2')) {
+        body.current?.querySelector<HTMLElement>(firstField)?.focus();
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [loaded]);
+
+  const submitting = React.useRef(false);
+  const submit = async (name: string) => {
+    if (!handle.current || submitting.current) {
+      return;
+    }
+    submitting.current = true;
+    setPending(name);
+    try {
+      await handle.current.submit(name);
+    } finally {
+      submitting.current = false;
+      setPending(null);
+    }
+  };
+
+  const footer = (
+    <>
+      <Button onClick={onClose}>Cancel</Button>
+      {actions.map((action) => (
+        <Button
+          key={action.name}
+          id={action.id}
+          variant={action.primary ? 'primary' : 'secondary'}
+          disabled={action.disabled || action.readOnly || (pending !== null && pending !== action.name)}
+          loading={pending === action.name}
+          onClick={() => void submit(action.name)}
+        >
+          {fieldTitle(action)}
+        </Button>
+      ))}
+    </>
+  );
+  const content = (
+    <>
+      {intro && <div ref={introHolder}>{intro}</div>}
+      <div ref={body}>
+        {open && (
+          <FormSchemaForm
+            key={schemaUrl}
+            schemaUrl={schemaUrl}
+            headless
+            omitFields={omitFields}
+            handleRef={handle}
+            onLoad={() => setLoaded(true)}
+            onSubmitted={onSubmitted}
+            onActionsChange={setActions}
+            onSubmittingChange={setPending}
+          />
+        )}
+      </div>
+    </>
+  );
+
+  if (useModalFrame(modal ? { header, footer } : null) && modal) {
+    return content;
+  }
+  return (
+    <Dialog open={open} onClose={onClose} header={header} focusHeading footer={footer}>
+      {content}
+    </Dialog>
+  );
+};

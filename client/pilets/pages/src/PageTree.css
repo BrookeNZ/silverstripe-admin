@@ -1,0 +1,201 @@
+/**
+ * Page tree
+ *
+ * The tree scrolls with its pane (the sidebar is the scroll box, so the scrollbar sits on the pane's
+ * edge); rows are absolutely placed by the virtualiser, which writes each
+ * row's offset and depth as inline custom properties (--pages-tree-item-start, --pages-tree-item-level)
+ * and the canvas height as --pages-tree-canvas-height. Indentation is one step per level.
+ *
+ * Values follow the CMS Refresh "Site Tree Links" component (Figma 2:3533). Each row is the expander
+ * slot plus a label holding the page icon, title and status tags; the current page tints the label,
+ * in the modified ground when the page has unpublished changes; the label fills the row so the tint
+ * reaches the pane edge. The focus ring is on the whole row and sits inside it because the scroll box
+ * clips anything outside it.
+ *
+ * Dragging: the handle sits beside the page icon on the current page's row (Figma 2:3552). The design
+ * draws no drop feedback, so a drop between rows shows a line in the focus colour, placed by headless-tree
+ * through --pages-tree-drop-line-*, and a drop onto a page rings that row.
+ */
+
+@layer pilets {
+  .pages-tree {
+    /* Figma 13px Body small, raised to the 14px floor */
+    --pages-tree-font-size: var(--admin-font-size-md);
+
+    /* Figma Grey 900 arrows and page icons */
+    --pages-tree-icon-color: var(--admin-muted-fg-color);
+
+    /* Not in the design */
+    --pages-tree-drop-color: var(--admin-focus-outline-color);
+    --pages-tree-drop-line-size: 0.2rem;
+
+    /* Figma Grey 900 5 by 14 handle, 3px before the page icon */
+    --pages-tree-handle-color: var(--pages-tree-icon-color);
+    --pages-tree-icons-gap: 0.3rem;
+
+    /* Must match indentPx in PageTree.tsx */
+    --pages-tree-indent: 2rem;
+    --pages-tree-item-bg-color: transparent;
+
+    /* Figma Bright Blue 100 #e5f0ff; no role names the current page's fill */
+    --pages-tree-item-current-bg-color: var(--admin-palette-bright-blue-100);
+    --pages-tree-item-outline-color: var(--admin-focus-outline-color);
+
+    /* Figma 2px between rows, split above and below so each measured row carries its share */
+    --pages-tree-item-spacing: 0.2rem;
+    --pages-tree-label-fg-color: var(--admin-fg-color);
+
+    /* Figma 5px label padding and gap, 3px radius */
+    --pages-tree-label-gap: 0.5rem;
+    --pages-tree-label-padding: 0.5rem;
+    --pages-tree-label-radius: 0.3rem;
+    --pages-tree-line-height: 1.4;
+
+    /* Figma 3px between the title and its tags */
+    --pages-tree-text-gap: 0.3rem;
+    --pages-tree-toggle-color: var(--pages-tree-icon-color);
+
+    /* Figma 12px arrow */
+    --pages-tree-toggle-icon-size: 1.2rem;
+
+    background-color: var(--admin-panel-bg-color);
+    color: var(--admin-fg-color);
+    font-size: var(--pages-tree-font-size);
+    line-height: var(--pages-tree-line-height);
+    padding-inline-start: var(--pages-sidebar-inset);
+  }
+
+  .pages-tree__drop-line {
+    background-color: var(--pages-tree-drop-color);
+    block-size: var(--pages-tree-drop-line-size);
+    inline-size: var(--pages-tree-drop-line-width);
+    inset-block-start: var(--pages-tree-drop-line-top);
+    inset-inline-start: var(--pages-tree-drop-line-start);
+    pointer-events: none;
+    position: absolute;
+  }
+
+  .pages-tree__canvas {
+    height: var(--pages-tree-canvas-height);
+    position: relative;
+    width: 100%;
+  }
+
+  .pages-tree__item {
+    align-items: center;
+    box-sizing: border-box;
+    cursor: pointer;
+    display: flex;
+    inset-block-start: 0;
+    inset-inline: 0;
+    min-height: var(--admin-target-min-size);
+    padding-block: calc(var(--pages-tree-item-spacing) / 2);
+    padding-inline: calc(var(--pages-tree-indent) * var(--pages-tree-item-level)) 0;
+    position: absolute;
+    transform: translateY(var(--pages-tree-item-start));
+  }
+
+  .pages-tree__item:focus-visible {
+    outline: var(--admin-focus-outline) var(--pages-tree-item-outline-color);
+    outline-offset: calc(var(--admin-focus-outline-offset) * -1);
+  }
+
+  .pages-tree__item--current {
+    --pages-tree-item-bg-color: var(--pages-tree-item-current-bg-color);
+  }
+
+  .pages-tree__item--drop-target {
+    outline: var(--admin-focus-outline) var(--pages-tree-drop-color);
+    outline-offset: calc(var(--admin-focus-outline-offset) * -1);
+  }
+
+  .pages-tree__item--changed {
+    --pages-tree-item-current-bg-color: var(--admin-modified-bg-color);
+  }
+
+  @media (forced-colors: active) {
+    .pages-tree__item--current {
+      --pages-tree-icon-color: HighlightText;
+      --pages-tree-item-bg-color: Highlight;
+      --pages-tree-item-outline-color: CanvasText;
+      --pages-tree-label-fg-color: HighlightText;
+      --pages-tree-toggle-color: CanvasText;
+
+      forced-color-adjust: none;
+    }
+  }
+
+  /* The slot keeps the 24px target; the design's 12px arrow plus 11px gap is 23px */
+  .pages-tree__toggle {
+    --admin-icon-size: var(--pages-tree-toggle-icon-size);
+
+    align-items: center;
+    color: var(--pages-tree-toggle-color);
+    display: inline-flex;
+    flex: none;
+    min-height: var(--admin-target-min-size);
+    min-width: var(--admin-target-min-size);
+  }
+
+  .pages-tree__label {
+    align-items: center;
+    background-color: var(--pages-tree-item-bg-color);
+    border-radius: var(--pages-tree-label-radius);
+    color: var(--pages-tree-label-fg-color);
+    display: inline-flex;
+    flex: 1 1 auto;
+    gap: var(--pages-tree-label-gap);
+    min-width: 0;
+    padding: var(--pages-tree-label-padding);
+  }
+
+  .pages-tree__icons {
+    align-items: center;
+    display: inline-flex;
+    flex: none;
+    gap: var(--pages-tree-icons-gap);
+  }
+
+  .pages-tree__handle {
+    color: var(--pages-tree-handle-color);
+    cursor: grab;
+    display: inline-flex;
+    position: relative;
+
+    /* The 5px handle keeps the design's width; a centred box gives it the 24px target */
+    &::before {
+      content: '';
+      inset: 50% auto auto 50%;
+      min-height: var(--admin-target-min-size);
+      min-width: var(--admin-target-min-size);
+      position: absolute;
+      translate: -50% -50%;
+    }
+  }
+
+  .pages-tree__icon {
+    color: var(--pages-tree-icon-color);
+  }
+
+  .pages-tree__text {
+    align-items: center;
+    display: inline-flex;
+    gap: var(--pages-tree-text-gap);
+    min-width: 0;
+  }
+
+  .pages-tree__title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .pages-tree__note {
+    padding-inline-start: var(--admin-target-min-size);
+  }
+
+  .pages-tree__more {
+    margin-inline-start: var(--admin-target-min-size);
+  }
+}

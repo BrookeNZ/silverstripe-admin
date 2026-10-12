@@ -1,0 +1,68 @@
+/**
+ * Toast
+ *
+ * The design has no toast, so the shell's inverse toast stays: light text on the ink ground, which the
+ * toast messages plan keeps until a node exists. The type shows twice, as the icon's shape and, after
+ * legacy's toasts, as a coloured inline-start edge. The edge is decorative, since the icon carries the
+ * type, so its colours (3.66:1 success, 3.43:1 error, 10.19:1 warning, 2.81:1 info on the ink) need no
+ * minimum. The toast fades in through --admin-fade-in, which reduced motion turns off
+ */
+
+.admin-toast {
+  --admin-toast-accent-color: var(--admin-accent-color);
+
+  /* Legacy toast left edge, $toast-border-radius 4px */
+  --admin-toast-accent-width: 0.4rem;
+  --admin-toast-bg-color: var(--admin-inverse-bg-color);
+  --admin-toast-border: none;
+  --admin-toast-fg-color: var(--admin-inverse-fg-color);
+
+  align-items: center;
+  animation: var(--admin-fade-in);
+  background-color: var(--admin-toast-bg-color);
+  border: var(--admin-toast-border);
+  border-inline-start: var(--admin-toast-accent-width) solid var(--admin-toast-accent-color);
+  border-radius: var(--admin-radius);
+  color: var(--admin-toast-fg-color);
+  display: flex;
+  gap: var(--admin-gap-sm);
+  padding: var(--admin-gap-sm) var(--admin-gap-md);
+
+  @media (forced-colors: active) {
+    --admin-toast-border: 0.1rem solid transparent;
+  }
+}
+
+.admin-toast--success {
+  --admin-toast-accent-color: var(--admin-success-fg-color);
+}
+
+.admin-toast--warning {
+  --admin-toast-accent-color: var(--admin-warning-action-color);
+}
+
+.admin-toast--error {
+  --admin-toast-accent-color: var(--admin-danger-color);
+}
+
+.admin-toast__message {
+  flex: 1;
+}
+
+.admin-toast__close {
+  align-items: center;
+  background: none;
+  border: 0;
+  color: var(--admin-toast-fg-color);
+  cursor: pointer;
+  display: inline-flex;
+  justify-content: center;
+  min-block-size: var(--admin-target-min-size);
+  min-inline-size: var(--admin-target-min-size);
+  padding: 0;
+
+  &:focus-visible {
+    outline: var(--admin-focus-outline) var(--admin-toast-fg-color);
+    outline-offset: var(--admin-focus-outline-offset);
+  }
+}

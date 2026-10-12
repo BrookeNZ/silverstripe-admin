@@ -1,0 +1,324 @@
+// @vitest-environment happy-dom
+import * as React from 'react';
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
+import { describe, expect, it, vi } from 'vitest';
+import { ApiError } from './api';
+import type { ChildrenResponse, JsonRequest, PageNode, TreeApi } from './api';
+import { canDragPage, canDropPage, createMoveApi, movePage } from './move';
+import type { MoveApi, MoveHints } from './move';
+import { PageTree } from './PageTree';
+import { TreeStore } from './treeStore';
+import type { ChildPageRequest } from './treeStore';
+
+// The patterns package resolves its own React copy under vitest, so its components fail here
+vi.mock('@silverstripe/admin-patterns', () => ({
+  CollapsedIcon: () => null,
+  ExpandedIcon: () => null,
+  PageTypeIcon: () => null,
+  ReorderIcon: () => null,
+}));
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const page = 'SilverStripe\\CMS\\Model\\SiteTree';
+const leaf = 'App\\LeafPage';
+
+const hints: MoveHints = {
+  canOrganise: true,
+  canCreateTopLevel: true,
+  rootClasses: [page],
+  allowedChildren: { [page]: [page], [leaf]: [] },
+};
+
+// Top level: Alpha, Bravo, Charlie; Bravo holds Bravo 1
+const parents: Record<number, number> = { 1: 0, 2: 0, 3: 0, 21: 2 };
+const titles: Record<number, string> = { 1: 'Alpha', 2: 'Bravo', 3: 'Charlie', 21: 'Bravo 1' };
+
+function node(id: number, overrides: Partial<PageNode> = {}): PageNode {
+  const childCount = Object.values(parents).filter((parent) => parent === id).length;
+  return {
+    id,
+    parentId: parents[id],
+    title: titles[id],
+    menuTitle: titles[id],
+    urlSegment: titles[id].toLowerCase(),
+    className: page,
+    hasChildren: childCount > 0,
+    childCount,
+    statusFlags: [],
+    canEdit: true,
+    canDelete: true,
+    sort: id,
+    ...overrides,
+  };
+}
+
+function fakeApi(): TreeApi {
+  return {
+    children: vi.fn(async (parentId: number, pageNumber: number, limit: number): Promise<ChildrenResponse> => {
+      const ids = Object.keys(parents).map(Number).filter((id) => parents[id] === parentId);
+      return { items: ids.map((id) => node(id)), pageInfo: { totalCount: ids.length, pageSize: limit, page: pageNumber, hasMore: false } };
+    }),
+    ancestors: vi.fn(async (id: number) => ({ items: [], node: { id, parentId: parents[id], page: 1 }, pageSize: 50 })),
+    search: vi.fn(),
+  };
+}
+
+/** A store whose requests are read straight from the API, standing in for TreeQueries over the cache */
+function readingStore(api: TreeApi, invalidate?: (ids: ReadonlyArray<number>) => void): TreeStore {
+  const store = new TreeStore(api, { invalidate });
+  const started = new Set<ChildPageRequest>();
+  store.subscribe(() =>
+    store
+      .getRequests()
+      .filter((request) => !started.has(request))
+      .forEach((request) => {
+        started.add(request);
+        api.children(request.parentId, request.page, request.limit).then(
+          (data) => store.receive(request, { data }),
+          (error: unknown) => store.receive(request, { error }),
+        );
+      }),
+  );
+  return store;
+}
+
+describe('createMoveApi', () => {
+  it('posts the move through the shell\'s fetchJson', async () => {
+    const fetchJson = vi.fn(async () => ({ id: 21, parentId: 0, previousParentId: 2, sort: 2, modifiedIds: [21] }));
+    const client = createMoveApi('https://cms.test/admin/pages/move/', fetchJson as unknown as JsonRequest);
+
+    await client.move({ id: 21, parentId: 0, siblingIds: [1, 21, 2, 3] });
+
+    expect(fetchJson).toHaveBeenCalledWith('https://cms.test/admin/pages/move/page', {
+      method: 'POST',
+      body: { id: 21, parentId: 0, siblingIds: [1, 21, 2, 3] },
+    });
+  });
+
+  it('ends the session when the server asks to reauthenticate', async () => {
+    const fetchJson = vi.fn(async () => {
+      throw Object.assign(new Error('Your session may have expired'), { name: 'ServerRequestError', status: 403, sessionExpired: true });
+    });
+    const client = createMoveApi('https://cms.test/admin/pages/move/', fetchJson as unknown as JsonRequest);
+    const store = { move: vi.fn(() => () => undefined), moved: vi.fn(), node: () => undefined, sessionExpired: false };
+
+    await movePage({ client, store, notify: vi.fn() }, { id: 21, parentId: 0 }, 0);
+
+    expect(store.sessionExpired).toBe(true);
+  });
+});
+
+describe('drop rules', () => {
+  it('follow the legacy tree', () => {
+    expect(canDragPage({ ...hints, canOrganise: false }, node(21))).toBe(false);
+    expect(canDragPage({ ...hints, canCreateTopLevel: false }, node(1))).toBe(false);
+    expect(canDropPage(hints, node(21), node(1))).toBe(true);
+    expect(canDropPage(hints, node(21), node(1, { className: leaf }))).toBe(false);
+    expect(canDropPage(hints, node(21), node(1, { canEdit: false }))).toBe(false);
+    expect(canDropPage({ ...hints, rootClasses: [] }, node(21), null)).toBe(false);
+    expect(canDropPage({ ...hints, rootClasses: [] }, node(1), null)).toBe(true);
+  });
+
+  it('allow a drop on a parent class the hints leave out', () => {
+    expect(canDropPage(hints, node(21), node(1, { className: 'App\\HiddenPage' }))).toBe(true);
+    expect(canDropPage(hints, node(21), node(1, { className: 'App\\HiddenPage', canEdit: false }))).toBe(false);
+  });
+
+  it('allow a class the hints leave out at the top level while canCreateTopLevel holds', () => {
+    const unknown = node(21, { className: 'App\\HiddenPage' });
+    expect(canDropPage({ ...hints, rootClasses: [] }, unknown, null)).toBe(true);
+    expect(canDropPage({ ...hints, canCreateTopLevel: false }, unknown, null)).toBe(false);
+  });
+
+  it('check a virtual page by the class of the page it copies', () => {
+    const virtualPage = 'SilverStripe\\CMS\\Model\\VirtualPage';
+    const virtualHints: MoveHints = {
+      ...hints,
+      rootClasses: [virtualPage],
+      allowedChildren: { [page]: [virtualPage], [leaf]: [leaf], [virtualPage]: [] },
+    };
+    const copiesLeaf = node(21, { className: virtualPage, copiedClassName: leaf });
+    expect(canDropPage(virtualHints, copiesLeaf, node(1))).toBe(false);
+    expect(canDropPage(virtualHints, copiesLeaf, node(1, { className: leaf }))).toBe(true);
+    expect(canDropPage(virtualHints, copiesLeaf, null)).toBe(false);
+    expect(canDropPage({ ...virtualHints, rootClasses: [leaf] }, copiesLeaf, null)).toBe(true);
+  });
+});
+
+describe('movePage', () => {
+  it('announces both parents and toasts once the server moves the page', async () => {
+    const invalidate = vi.fn();
+    const store = readingStore(fakeApi(), invalidate);
+    await Promise.all([store.loadMore(0), store.loadMore(2)]);
+    const client = { move: vi.fn(async () => ({ id: 21, parentId: 0, previousParentId: 2, sort: 2, modifiedIds: [21] })) };
+    const notify = vi.fn();
+    const moved = vi.spyOn(store, 'moved');
+
+    parents[21] = 0;
+    try {
+      await movePage({ client, store, notify }, { id: 21, parentId: 0, siblingIds: [1, 21, 2, 3] }, 1);
+    } finally {
+      parents[21] = 2;
+    }
+
+    expect(moved).toHaveBeenCalledWith(expect.objectContaining({ previousParentId: 2 }));
+    expect(invalidate).toHaveBeenCalledWith([2, 0, 21]);
+    expect(notify).toHaveBeenCalledWith('Moved "Bravo 1"', 'success');
+  });
+
+  it('puts the page back when the server refuses', async () => {
+    const store = readingStore(fakeApi());
+    await Promise.all([store.loadMore(0), store.loadMore(2)]);
+    const client = { move: vi.fn(async () => { throw new ApiError('Pages cannot be added under this page', 403, 'notAllowedHere'); }) };
+    const notify = vi.fn();
+    let heldDuringMove: ReadonlyArray<number> = [];
+    client.move.mockImplementationOnce(async () => {
+      heldDuringMove = store.children(0).ids;
+      throw new ApiError('Pages cannot be added under this page', 403, 'notAllowedHere');
+    });
+
+    expect(await movePage({ client, store, notify }, { id: 21, parentId: 0, siblingIds: [21, 1, 2, 3] }, 0)).toBe(false);
+
+    expect(heldDuringMove).toEqual([21, 1, 2, 3]);
+    expect(store.children(0).ids).toEqual([1, 2, 3]);
+    expect(store.children(2).ids).toEqual([21]);
+    expect(store.node(21)?.parentId).toBe(2);
+    expect(store.node(2)?.childCount).toBe(1);
+    expect(notify).toHaveBeenCalledWith('"Bravo 1" could not be moved: Pages cannot be added under this page', 'error');
+  });
+});
+
+describe('PageTree keyboard move', () => {
+  async function renderTree(client: MoveApi, currentId: number | null = null) {
+    const store = readingStore(fakeApi());
+    await store.loadMore(0);
+    const notify = vi.fn();
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    await act(async () => {
+      root.render(
+        React.createElement(PageTree, {
+          store,
+          currentId,
+          onSelect: () => undefined,
+          onRevealError: () => undefined,
+          mover: { client, notify },
+        }),
+      );
+    });
+    const tree = host.querySelector('[role="tree"]') as HTMLElement;
+    const press = async (...codes: Array<string>) => {
+      await act(async () => {
+        for (const code of codes) {
+          tree.dispatchEvent(new KeyboardEvent('keydown', { code, key: code, bubbles: true }));
+        }
+        for (const code of codes) {
+          document.dispatchEvent(new KeyboardEvent('keyup', { code, key: code, bubbles: true }));
+        }
+        await new Promise((resolve) => setTimeout(resolve));
+      });
+    };
+    const settle = () => act(() => new Promise((resolve) => setTimeout(resolve)));
+    const hover = async () => {
+      await act(async () => {
+        tree.dispatchEvent(new PointerEvent('pointerover', { bubbles: true }));
+        tree.dispatchEvent(new PointerEvent('pointerout', { bubbles: true }));
+      });
+      await settle();
+    };
+    const focus = async () => {
+      await act(async () => {
+        tree.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+      });
+      await settle();
+    };
+    const handle = () => host.querySelector('.pages-tree__handle');
+    return { store, notify, host, root, press, hover, focus, handle };
+  }
+
+  it('fetches the move hints when the pointer first enters the tree, not when it renders', async () => {
+    const client: MoveApi = { hints: vi.fn(async () => hints), move: vi.fn() };
+    const { host, root, hover, focus } = await renderTree(client);
+
+    expect(client.hints).not.toHaveBeenCalled();
+    await hover();
+    expect(client.hints).toHaveBeenCalledTimes(1);
+    await hover();
+    await focus();
+    expect(client.hints).toHaveBeenCalledTimes(1);
+    act(() => root.unmount());
+    host.remove();
+  });
+
+  it('fetches the move hints when the tree first takes focus, and again on the next hover after a failure', async () => {
+    const client: MoveApi = { hints: vi.fn(async () => hints), move: vi.fn() };
+    vi.mocked(client.hints).mockRejectedValueOnce(new ApiError('Server error', 500, 'serverError'));
+    const { host, root, hover, focus } = await renderTree(client);
+
+    await focus();
+    expect(client.hints).toHaveBeenCalledTimes(1);
+    await hover();
+    expect(client.hints).toHaveBeenCalledTimes(2);
+    await hover();
+    expect(client.hints).toHaveBeenCalledTimes(2);
+    act(() => root.unmount());
+    host.remove();
+  });
+
+  it('shows the drag handle only once the hints allow the member to reorganise', async () => {
+    // happy-dom lays nothing out, so the virtualiser would draw no rows without a pane height
+    const height = vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(300);
+    const allowed = await renderTree({ hints: vi.fn(async () => hints), move: vi.fn() }, 1);
+    expect(allowed.handle()).toBeNull();
+    await allowed.hover();
+    expect(allowed.handle()).not.toBeNull();
+    act(() => allowed.root.unmount());
+    allowed.host.remove();
+
+    const refused = await renderTree({ hints: vi.fn(async () => ({ ...hints, canOrganise: false })), move: vi.fn() }, 1);
+    await refused.hover();
+    expect(refused.handle()).toBeNull();
+    act(() => refused.root.unmount());
+    refused.host.remove();
+    height.mockRestore();
+  });
+
+  it('fetches the move hints when a drag starts before the tree is reached, once per client', async () => {
+    const client: MoveApi = { hints: vi.fn(async () => hints), move: vi.fn() };
+    const { host, root, press } = await renderTree(client);
+
+    await press('ControlLeft', 'ShiftLeft', 'KeyD');
+    expect(client.hints).toHaveBeenCalledTimes(1);
+    await press('Escape');
+    await press('ControlLeft', 'ShiftLeft', 'KeyD');
+    expect(client.hints).toHaveBeenCalledTimes(1);
+    act(() => root.unmount());
+    host.remove();
+  });
+
+  it('posts the move a Control+Shift+D drag drops, and restores the order when it fails', async () => {
+    const client: MoveApi = {
+      hints: vi.fn(async () => hints),
+      move: vi.fn(async () => {
+        throw new ApiError('You do not have permission to rearrange the tree', 403, 'cannotOrganise');
+      }),
+    };
+    const { store, notify, host, root, press } = await renderTree(client);
+
+    await press('ControlLeft', 'ShiftLeft', 'KeyD');
+    expect(host.querySelector('[role="status"]')?.textContent).toContain('Moving Alpha');
+    await press('ArrowDown');
+    await press('ArrowDown');
+    await press('Enter');
+
+    expect(client.move).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }));
+    expect(store.children(0).ids).toEqual([1, 2, 3]);
+    expect(store.node(1)?.parentId).toBe(0);
+    expect(notify).toHaveBeenCalledWith(expect.stringContaining('could not be moved'), 'error');
+    act(() => root.unmount());
+    host.remove();
+  });
+});

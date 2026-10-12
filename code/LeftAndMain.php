@@ -6,6 +6,10 @@ use InvalidArgumentException;
 use LogicException;
 use SilverStripe\Admin\Forms\UnsavedChangesIndicator;
 use SilverStripe\Admin\Navigator\SilverStripeNavigator;
+use SilverStripe\Admin\UserInterface\PiletFeed;
+use SilverStripe\Admin\UserInterface\PiletFeedController;
+use SilverStripe\Admin\UserInterface\PiralShellAssets;
+use SilverStripe\Admin\UserInterface\RecordClassAncestry;
 use SilverStripe\Admin\SingleRecordAdmin;
 use SilverStripe\CMS\Controllers\CMSMain;
 use SilverStripe\Control\Controller;
@@ -30,6 +34,7 @@ use SilverStripe\Forms\FormAction;
 use SilverStripe\Forms\HiddenField;
 use SilverStripe\Forms\LiteralField;
 use SilverStripe\Forms\PrintableTransformation;
+use SilverStripe\Forms\Schema\FormSchema;
 use SilverStripe\i18n\i18n;
 use SilverStripe\Model\ArrayData;
 use SilverStripe\Model\List\ArrayList;
@@ -39,6 +44,7 @@ use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\FieldType\DBField;
 use SilverStripe\ORM\FieldType\DBHTMLText;
 use SilverStripe\ORM\Hierarchy\Hierarchy;
+use SilverStripe\Security\Member;
 use SilverStripe\Security\Permission;
 use SilverStripe\Security\PermissionProvider;
 use SilverStripe\Security\Security;
@@ -46,6 +52,7 @@ use SilverStripe\Security\SecurityToken;
 use SilverStripe\SiteConfig\SiteConfig;
 use SilverStripe\View\Requirements;
 use SilverStripe\View\SSViewer;
+use Throwable;
 
 /**
  * LeftAndMain is the parent class of all the two-pane views in the CMS.
@@ -217,6 +224,25 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
     private static $session_keepalive_ping = true;
 
     /**
+     * Serve the Piral app shell (client/shell, built to client/dist/shell) instead of the legacy UI.
+     * Spike for the micro-frontend admin proposed in RFC silverstripe/.github#346
+     */
+    private static bool $piral_shell = false;
+
+    /**
+     * Whether a shell page load preloads the section's EditForm schema, which the shell renders for a section no
+     * pilet owns. Off for sections a pilet draws, which read other schemas or none
+     */
+    private static bool $piral_section_form_preload = true;
+
+    /**
+     * The query flag a GET may carry in place of the `X-Formschema-Request` header, because a preload link cannot
+     * send headers. It asks for the full read the shell makes, `schema,state,errors`, as an XHR, and only on a
+     * schema URL
+     */
+    public const PIRAL_SCHEMA_QUERY = 'formSchema';
+
+    /**
      * Value of X-Frame-Options header
      *
      * @config
@@ -294,6 +320,9 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
         $combinedClientConfig['baseUrl'] = Director::baseURL();
         $combinedClientConfig['absoluteBaseUrl'] = Director::absoluteBaseURL();
         $combinedClientConfig['adminUrl'] = AdminRootController::admin_url();
+        if ($this->config()->get('piral_shell')) {
+            $combinedClientConfig['recordClasses'] = RecordClassAncestry::singleton()->getMap();
+        }
 
         // Get "global" CSRF token for use in JavaScript
         $token = SecurityToken::inst();
@@ -343,6 +372,11 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
             // Audit logging hook
             if (empty($_REQUEST['executeForm']) && !$this->getRequest()->isAjax()) {
                 $this->extend('accessedCMS');
+            }
+
+            // Under the shell only the shell page reads the config, and renderPiralShell() builds it for that page
+            if ($this->config()->get('piral_shell')) {
+                return;
             }
 
             Requirements::customScript("
@@ -467,7 +501,51 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
         parent::afterHandleRequest();
     }
 
+    /**
+     * Extensions see the response, or the exception that ended the request, through `updateRequestResponse`
+     * and may answer an exception with a response
+     */
     public function handleRequest(HTTPRequest $request): HTTPResponse
+    {
+        $this->applyPiralSchemaQuery($request);
+        try {
+            $response = $this->handleRequestWithHeaders($request);
+        } catch (Throwable $exception) {
+            $response = null;
+            $this->extend('updateRequestResponse', $request, $response, $exception);
+            if (!$response) {
+                throw $exception;
+            }
+            return $response;
+        }
+        $this->extend('updateRequestResponse', $request, $response);
+        return $response;
+    }
+
+    private function applyPiralSchemaQuery(HTTPRequest $request): void
+    {
+        if (!$this->config()->get('piral_shell')
+            || !$request->isGET()
+            || $request->getVar(LeftAndMain::PIRAL_SCHEMA_QUERY) === null
+            || $request->getHeader(FormSchema::SCHEMA_HEADER)
+            || !LeftAndMain::isSchemaPath($request->getURL())
+        ) {
+            return;
+        }
+        $request->addHeader(FormSchema::SCHEMA_HEADER, 'schema,state,errors');
+        $request->addHeader('X-Requested-With', 'XMLHttpRequest');
+    }
+
+    /**
+     * The shapes getPiralFirstSchemaUrl() and its extensions build: `.../schema/<FormName>[/...]`, or a GridField
+     * item's `.../schema`, so the flag cannot turn another GET action into an XHR read
+     */
+    private static function isSchemaPath(string $path): bool
+    {
+        return (bool) preg_match('#/schema(/[A-Za-z_][A-Za-z0-9_]*(/.*)?)?$#', '/' . trim($path, '/'));
+    }
+
+    private function handleRequestWithHeaders(HTTPRequest $request): HTTPResponse
     {
         try {
             $response = parent::handleRequest($request);
@@ -501,7 +579,287 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
 
     public function index(HTTPRequest $request): HTTPResponse
     {
+        if ($this->config()->get('piral_shell')) {
+            return $this->renderPiralShell();
+        }
         return $this->getResponseNegotiator()->respond($request);
+    }
+
+    /**
+     * Under the shell every page navigation into a section renders the shell, whatever the action in the
+     * URL, so client routes survive a reload. Data requests (XHR, form schema, form posts) keep their actions
+     */
+    protected function handleAction($request, $action)
+    {
+        if ($this->config()->get('piral_shell') && $this->isPiralNavigation($request)) {
+            $request->shiftAllParams();
+            // Deeper than the url_rule parses, such as a GridField item edit URL under a ModelAdmin
+            while (!$request->allParsed()) {
+                $request->shift();
+            }
+            return $this->renderPiralShell();
+        }
+        return parent::handleAction($request, $action);
+    }
+
+    /**
+     * Lets every shell page load reach handleAction(), whatever the URL names as its action, so a client route
+     * that has no server action does not 404
+     */
+    public function hasAction($action)
+    {
+        return $this->shellOwnsRequest() || parent::hasAction($action);
+    }
+
+    /**
+     * Skips only the allowed_actions match for a shell page load; section access is still checked by
+     * canView() in AdminController::init()
+     */
+    public function checkAccessAction($action)
+    {
+        return $this->shellOwnsRequest() || parent::checkAccessAction($action);
+    }
+
+    protected function shellOwnsRequest(): bool
+    {
+        $request = $this->getRequest();
+        return $request && $this->config()->get('piral_shell') && $this->isPiralNavigation($request);
+    }
+
+    /**
+     * Tells a browser page load from the shell's own data requests, which send XHR or FormSchema headers and
+     * accept JSON, so one section URL can serve both
+     */
+    protected function isPiralNavigation(HTTPRequest $request): bool
+    {
+        return $request->httpMethod() === 'GET'
+            && !$request->isAjax()
+            && !$request->getHeader('X-Formschema-Request')
+            && str_contains((string) $request->getHeader('Accept'), 'text/html');
+    }
+
+    protected function renderPiralShell(): HTTPResponse
+    {
+        $this->requirePiralShell();
+        return HTTPResponse::create((string) $this->renderWith('SilverStripe/Admin/PiralShell'));
+    }
+
+    /**
+     * Loads only the shell and its config. Module JS registered through extension hooks is dropped here
+     * because it binds to the legacy globals; under the shell it arrives as pilets instead
+     */
+    protected function requirePiralShell(): void
+    {
+        // Building the client config instantiates section forms, which require their own JS
+        $clientConfig = $this->getCombinedClientConfig();
+        Requirements::clear();
+        Requirements::customScript("
+            window.ss = window.ss || {};
+            window.ss.config = " . $clientConfig . ";
+        ", 'ss-config');
+        PiralShellAssets::singleton()->includeRequirements();
+    }
+
+    public function PiletFeedLink(): string
+    {
+        $segment = PiletFeedController::config()->get('url_segment');
+        return Controller::join_links(AdminRootController::admin_url(), $segment, '/');
+    }
+
+    /**
+     * The pilet feed's items as JSON, the same list admin/pilets answers, so the shell starts without
+     * fetching the feed. Empty for a member the feed would refuse
+     */
+    public function PiralPilets(): string
+    {
+        $items = $this->piralPiletItems();
+        return $items === null ? '' : json_encode($items, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * URLs the shell page preloads: every pilet script, plus the first data requests a section makes, which
+     * its controller adds through `updatePiralPreloads`. A data URL must equal the later request exactly,
+     * query string and trailing slash included, or the browser fetches it twice; a relative URL resolves
+     * against the page's base tag, and Director::absoluteURL() would apply add_trailing_slash
+     */
+    public function getPiralPreloads(): array
+    {
+        $urls = array_column($this->piralPiletItems() ?? [], 'link');
+        $schemaUrl = $this->getPiralFirstSchemaUrl();
+        if ($schemaUrl !== null) {
+            array_unshift($urls, $schemaUrl . '?' . LeftAndMain::PIRAL_SCHEMA_QUERY . '=1');
+        }
+        $this->extend('updatePiralPreloads', $urls);
+        return array_values(array_unique($urls));
+    }
+
+    /**
+     * The schema URL the shell reads first on this page load, relative to the site base and without the query
+     * flag, or null when it reads none. It mirrors client/shell/src/sections (resolve.ts and record.ts): a GridField
+     * item path reads the item's schema, any other path in a section no pilet owns reads the section's EditForm.
+     * A section a pilet draws names its own through `updatePiralFirstSchemaUrl`, given the path segments under the
+     * section. A mismatch with the client costs one wasted request, not a broken page
+     */
+    public function getPiralFirstSchemaUrl(): ?string
+    {
+        $request = $this->getRequest();
+        $segment = $this->config()->get('url_segment');
+        if (!$request || !$segment || !$this->config()->get('piral_shell') || !$this->isPiralNavigation($request)) {
+            return null;
+        }
+        $section = trim(Director::makeRelative(Controller::join_links(AdminRootController::admin_url(), $segment)), '/');
+        $path = trim($request->getURL(), '/');
+        if ($path !== $section && !str_starts_with($path, $section . '/')) {
+            return null;
+        }
+        $segments = array_values(array_filter(explode('/', substr($path, strlen($section))), 'strlen'));
+        $url = $this->config()->get('piral_section_form_preload') ? $this->sectionSchemaUrl($section, $segments) : null;
+        $this->extend('updatePiralFirstSchemaUrl', $url, $segments);
+        return $url;
+    }
+
+    /**
+     * The URL segments of a ModelAdmin's model tabs, in order; none for other sections
+     */
+    protected function getPiralModelTabs(): array
+    {
+        return [];
+    }
+
+    private function sectionSchemaUrl(string $section, array $segments): string
+    {
+        $tabs = $this->getPiralModelTabs();
+        $tab = null;
+        if ($tabs) {
+            $tab = in_array($segments[0] ?? null, $tabs, true) ? array_shift($segments) : $tabs[0];
+        }
+        $base = implode('/', array_filter([$section, $tab]));
+        return $this->recordSchemaUrl($base, $segments) ?? $base . '/schema/EditForm';
+    }
+
+    /**
+     * `<base>/EditForm/field/<grid>/item/<id>`, nested through `ItemEditForm/field/<grid>/item/<id>`, then an
+     * optional `edit` or `view`; `new` only as the last ID
+     */
+    private function recordSchemaUrl(string $base, array $segments): ?string
+    {
+        $action = null;
+        if (count($segments) % 5 === 1) {
+            $action = array_pop($segments);
+            if (!in_array($action, ['edit', 'view'], true)) {
+                return null;
+            }
+        }
+        if (count($segments) < 5 || count($segments) % 5 !== 0) {
+            return null;
+        }
+        $url = $base;
+        foreach (array_chunk($segments, 5) as $index => [$form, $field, $grid, $item, $id]) {
+            $isLast = ($index + 1) * 5 === count($segments);
+            $validId = preg_match('/^[1-9][0-9]*$/', $id) || ($id === 'new' && $isLast);
+            if ($form !== ($index === 0 ? 'EditForm' : 'ItemEditForm') || $field !== 'field' || $item !== 'item' || !$validId) {
+                return null;
+            }
+            $url .= "/$form/field/$grid/item/$id";
+        }
+        return $url . ($action === 'view' ? '/view/schema' : '/schema');
+    }
+
+    /**
+     * A URL ending in `.js` preloads as a script, anything else as a fetch. Same-origin pilet scripts load
+     * without a crossorigin attribute and others with `anonymous`, as SystemJS loads them; a fetch preload
+     * is `anonymous` because that is the credentials mode `same-origin` requests use
+     */
+    public function PiralPreloadLinks(): ArrayList
+    {
+        $origin = Director::protocolAndHost() . '/';
+        $links = ArrayList::create();
+        foreach ($this->getPiralPreloads() as $url) {
+            $isScript = (bool) preg_match('#\.js(\?|$)#', $url);
+            $sameOrigin = !preg_match('#^(https?:)?//#', $url) || str_starts_with($url, $origin);
+            $links->push(ArrayData::create([
+                'URL' => $url,
+                'As' => $isScript ? 'script' : 'fetch',
+                'CrossOrigin' => $isScript && $sameOrigin ? '' : 'anonymous',
+            ]));
+        }
+        return $links;
+    }
+
+    private ?array $piralPiletItems = null;
+
+    private bool $piralPiletItemsRead = false;
+
+    /**
+     * Read once per request for both the inline feed and the preloads; the flag is separate because null,
+     * a member the feed refuses, is a valid answer
+     */
+    private function piralPiletItems(): ?array
+    {
+        if (!$this->piralPiletItemsRead) {
+            $this->piralPiletItemsRead = true;
+            $this->piralPiletItems = PiletFeedController::singleton()->canView() ? PiletFeed::singleton()->getItems() : null;
+        }
+        return $this->piralPiletItems;
+    }
+
+    public function AdminURL(): string
+    {
+        return AdminRootController::admin_url();
+    }
+
+    /**
+     * The main menu as JSON for the Piral shell: the same items the legacy menu template renders
+     */
+    public function PiralMenu(): string
+    {
+        $items = [];
+        foreach ($this->MainMenu() as $item) {
+            $items[] = [
+                'code' => $item->Code,
+                'title' => (string) $item->Title,
+                'link' => (string) $item->Link,
+                'iconClass' => (string) $item->IconClass,
+                'current' => $item->LinkingMode === 'current',
+            ];
+        }
+        return json_encode($items, JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * The Piral shell's top bar as JSON: the site, the signed-in member and the help links the legacy
+     * menu template renders
+     */
+    public function PiralTopBar(): string
+    {
+        $member = Security::getCurrentUser();
+        $helpLinks = [];
+        foreach ($this->getHelpLinks() as $link) {
+            $helpLinks[] = ['title' => (string) $link->Title, 'url' => (string) $link->URL];
+        }
+        return json_encode([
+            'siteName' => (string) ($this->SiteConfig()?->Title ?: $this->getApplicationName()),
+            'siteUrl' => Director::absoluteBaseURL(),
+            'applicationName' => (string) $this->getApplicationName(),
+            'applicationLink' => (string) $this->ApplicationLink(),
+            'member' => $member ? [
+                'name' => $this->memberDisplayName($member),
+                'profileUrl' => AdminRootController::admin_url('myprofile'),
+            ] : null,
+            'logoutUrl' => $this->LogoutURL(),
+            'helpLinks' => $helpLinks,
+        ], JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * Composed as LeftAndMain_MenuStatus.ss does: first name and surname, else the first name, else the email
+     */
+    private function memberDisplayName(Member $member): string
+    {
+        if ($member->FirstName && $member->Surname) {
+            return $member->FirstName . ' ' . $member->Surname;
+        }
+        return (string) ($member->FirstName ?: $member->Email);
     }
 
     /**
@@ -1455,7 +1813,7 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
         $perms = [
             "CMS_ACCESS_LeftAndMain" => [
                 'name' => _t(__CLASS__ . '.ACCESSALLINTERFACES', 'Access to all CMS sections'),
-                'category' => _t(__CLASS__ . '.CMS_ACCESS_CATEGORY', 'CMS Access'),
+                'category' => _t(__CLASS__ . '.CMS_ACCESS_CATEGORY', 'CMS access'),
                 'help' => _t(__CLASS__ . '.ACCESSALLINTERFACESHELP', 'Overrules more specific access settings.'),
                 'sort' => -100
             ]
@@ -1491,7 +1849,7 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
                     "Access to '{title}' section",
                     ['title' => $title]
                 ),
-                'category' => _t(__CLASS__ . '.CMS_ACCESS_CATEGORY', 'CMS Access')
+                'category' => _t(__CLASS__ . '.CMS_ACCESS_CATEGORY', 'CMS access')
             ];
         }
         return $perms;

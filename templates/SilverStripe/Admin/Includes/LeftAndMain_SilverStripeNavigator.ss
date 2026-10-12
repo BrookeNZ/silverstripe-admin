@@ -32,7 +32,7 @@
 			</div>
 		<% else %>
 			<span id="preview-state-dropdown" class="cms-preview-states field dropdown">
-				<select title="<%t SilverStripe\\Admin\\LeftAndMain_ViewModeSelector.PreviewState 'Preview State' %>" id="preview-states" class="preview-state dropdown form-group--no-label" autocomplete="off" name="preview-state">
+				<select title="<%t SilverStripe\\Admin\\LeftAndMain_ViewModeSelector.PreviewState 'Preview state' %>" id="preview-states" class="preview-state dropdown form-group--no-label" autocomplete="off" name="preview-state">
 					<% loop $Items %>
 					<option name="$Name" data-name="$Name" data-link="$Link" class="state-name $FirstLast" value="$Link" <% if $isActive %>selected<% end_if %>>
 						$Title

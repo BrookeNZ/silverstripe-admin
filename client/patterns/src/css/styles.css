@@ -1,0 +1,27 @@
+/**
+ * Admin components stylesheet
+ *
+ * Every stylesheet the package's components need, tokens first, each in its cascade layer. Loaded once by
+ * the shell, which declares the layer order (shell/src/layers.css). A component's stylesheet sits beside
+ * it; this folder keeps the tokens and the shared classes no component renders
+ */
+
+@import "./tokens.css" layer(admin.tokens);
+@import "../Stack.css" layer(admin.components);
+@import "../FieldHolder.css" layer(admin.components);
+@import "../structure.css" layer(admin.components);
+@import "../TabStrip.css" layer(admin.components);
+@import "../Disclosure.css" layer(admin.components);
+@import "../icons/Icon.css" layer(admin.components);
+@import "../Button.css" layer(admin.components);
+@import "../Link.css" layer(admin.components);
+@import "../Dialog.css" layer(admin.components);
+@import "../Popover.css" layer(admin.components);
+@import "../Toggle.css" layer(admin.components);
+@import "../Combobox.css" layer(admin.components);
+@import "../UnsavedChangesIndicator.css" layer(admin.components);
+@import "../Toast.css" layer(admin.components);
+@import "../Alert.css" layer(admin.components);
+@import "./badge.css" layer(admin.components);
+@import "./error-text.css" layer(admin.components);
+@import "./visually-hidden.css" layer(admin.components);

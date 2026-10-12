@@ -1,0 +1,637 @@
+<?php
+
+namespace SilverStripe\Admin\UserInterface;
+
+use ReflectionMethod;
+use SilverStripe\Control\HTTPRequest;
+use SilverStripe\Control\HTTPResponse;
+use SilverStripe\ORM\DataList;
+use SilverStripe\ORM\DataObject;
+use SilverStripe\Security\InheritedPermissions;
+use SilverStripe\Security\Member;
+use SilverStripe\Security\Permission;
+use SilverStripe\Security\PermissionChecker;
+use SilverStripe\Security\Security;
+use SilverStripe\Versioned\Versioned;
+
+/**
+ * Read-only JSON for the page tree at admin/pages/tree: paged children of a node, the path to a node, and search.
+ *
+ * Every record passes canView() before it is listed or counted in `pageInfo.totalCount`; `childCount` and
+ * `hasChildren` are the rows in the stage before that check, as the legacy tree's counts are, so a node can report
+ * children the member then cannot see. Unlike the legacy tree, which shows nodes the member cannot view as
+ * disabled, this one leaves them out. Search also leaves out a match below a page the member cannot view, since
+ * the tree cannot reach it.
+ *
+ * Reads the draft stage. Errors use PageEndpointController's envelope, with `field` for a bad parameter.
+ */
+class PageTreeController extends PageEndpointController
+{
+    private static ?string $url_segment = 'pages/tree';
+
+    private static string $url_rule = '/$Action/$ID';
+
+    // Above CMSMain (39) and its edit (41) and settings (42) subsections, which share the pages prefix
+    private static int $url_priority = 43;
+
+    private static array $allowed_actions = [
+        'children',
+        'ancestors',
+        'search',
+    ];
+
+    private static int $default_limit = 50;
+
+    private static int $max_limit = 250;
+
+    private static int $search_default_limit = 20;
+
+    private static int $search_max_limit = 100;
+
+    private static int $search_min_length = 2;
+
+    /**
+     * @var array<int, array<DataObject>> viewable children per parent ID, for the current request
+     */
+    private array $viewableChildren = [];
+
+    /**
+     * @var array<string, bool>
+     */
+    private array $overrides = [];
+
+    protected function serverErrorMessage(): string
+    {
+        return 'The page tree could not be loaded';
+    }
+
+    protected function usage(): string
+    {
+        return 'Use children, ancestors or search';
+    }
+
+    protected function runAction(callable $next): mixed
+    {
+        if (!in_array($this->getRequest()->httpMethod(), ['GET', 'HEAD'])) {
+            throw ShellSubmission::jsonException(405, 'Only GET is supported', null, null, ['Allow' => 'GET, HEAD']);
+        }
+        return Versioned::withVersionedMode(function () use ($next) {
+            Versioned::set_stage(Versioned::DRAFT);
+            return $next();
+        });
+    }
+
+    /**
+     * GET pages/tree/children/<id>?page=&limit=, where id 0 is the root
+     */
+    public function children(HTTPRequest $request): HTTPResponse
+    {
+        $id = $this->idParam($request, true);
+        $page = $this->intParam($request, 'page', 1, 1, PHP_INT_MAX);
+        $limit = $this->intParam(
+            $request,
+            'limit',
+            static::config()->get('default_limit'),
+            1,
+            static::config()->get('max_limit')
+        );
+
+        if ($id !== 0) {
+            $this->viewableRecord($id);
+        }
+        $children = $this->viewableChildrenOf($id);
+        $slice = $this->pageSlice($children, $page, $limit);
+        $data = [
+            'items' => $this->serialiseNodes($slice),
+            'pageInfo' => [
+                'totalCount' => count($children),
+                'pageSize' => $limit,
+                'page' => $page,
+                'hasMore' => $page * $limit < count($children),
+            ],
+        ];
+        $this->extend('updateApiChildren', $data, $id);
+        return $this->jsonSuccess(200, $data);
+    }
+
+    /**
+     * GET pages/tree/ancestors/<id>?limit=
+     *
+     * `items` runs from the top-level ancestor down to the node's parent. Each item and `node` carry `page`, the
+     * page of its parent's children (at `pageSize`, the `limit` parameter, per page) that it falls on, so a client can load just the pages
+     * needed to expand down to the node and scroll to it.
+     */
+    public function ancestors(HTTPRequest $request): HTTPResponse
+    {
+        $id = $this->idParam($request, false);
+        $limit = $this->intParam(
+            $request,
+            'limit',
+            static::config()->get('default_limit'),
+            1,
+            static::config()->get('max_limit')
+        );
+
+        $record = $this->viewableRecord($id);
+        $path = [];
+        $parent = $record;
+        while ($parent->ParentID) {
+            $parent = DataObject::get($this->modelClass())->byID($parent->ParentID);
+            if (!$parent) {
+                break;
+            }
+            if (!$parent->canView()) {
+                throw ShellSubmission::jsonException(
+                    403,
+                    'An ancestor of this page cannot be viewed',
+                    'ancestorNotViewable'
+                );
+            }
+            array_unshift($path, $parent);
+        }
+
+        $items = $this->serialiseNodes($path);
+        foreach ($path as $index => $ancestor) {
+            $items[$index]['page'] = $this->pageOf($ancestor, $limit);
+        }
+        $data = [
+            'items' => $items,
+            'node' => [
+                'id' => (int) $record->ID,
+                'parentId' => (int) $record->ParentID,
+                'page' => $this->pageOf($record, $limit),
+            ],
+            'pageSize' => $limit,
+        ];
+        $this->extend('updateApiAncestors', $data, $record);
+        return $this->jsonSuccess(200, $data);
+    }
+
+    /**
+     * GET pages/tree/search?q=&page=&limit=, matching Title or MenuTitle; each item adds `ancestorIds`
+     * from the top-level ancestor down to its parent
+     */
+    public function search(HTTPRequest $request): HTTPResponse
+    {
+        $query = $request->getVar('q') ?? '';
+        if (!is_string($query)) {
+            throw ShellSubmission::jsonException(400, 'q must be a string', 'invalid', 'q');
+        }
+        $query = trim($query);
+        $minLength = static::config()->get('search_min_length');
+        if (mb_strlen($query) < $minLength) {
+            throw ShellSubmission::jsonException(
+                400,
+                sprintf('q needs at least %d characters', $minLength),
+                $query === '' ? 'required' : 'tooShort',
+                'q'
+            );
+        }
+        $page = $this->intParam($request, 'page', 1, 1, PHP_INT_MAX);
+        $limit = $this->intParam(
+            $request,
+            'limit',
+            static::config()->get('search_default_limit'),
+            1,
+            static::config()->get('search_max_limit')
+        );
+
+        $matches = $this->visibleList()
+            ->filterAny(['Title:PartialMatch' => $query, 'MenuTitle:PartialMatch' => $query])
+            ->sort(['Title' => 'ASC', 'ID' => 'ASC']);
+        $parentOf = array_combine(
+            array_map('intval', $matches->column('ID')),
+            array_map('intval', $matches->column('ParentID'))
+        );
+        $viewable = array_intersect_key($parentOf, array_flip($this->viewableIds(array_keys($parentOf))));
+        $ancestorIds = $this->ancestorIdsOf($viewable);
+        $ancestors = array_unique(array_merge([], ...array_values($ancestorIds)));
+        $hiddenAncestors = array_diff($ancestors, $this->viewableIds($ancestors));
+        $reachable = array_keys(array_filter(
+            $ancestorIds,
+            fn (array $path) => !array_intersect($path, $hiddenAncestors)
+        ));
+        $sliceIds = $this->pageSlice($reachable, $page, $limit);
+        $records = DataObject::get($this->modelClass())->filter('ID', $sliceIds ?: [0])->toArray();
+        $byId = array_combine(array_map(fn (DataObject $record) => (int) $record->ID, $records), $records);
+        $slice = array_values(array_filter(array_map(fn (int $id) => $byId[$id] ?? null, $sliceIds)));
+        $this->prepopulateVersionCache($slice);
+        $items = $this->serialiseNodes($slice);
+        foreach ($slice as $index => $match) {
+            $items[$index]['ancestorIds'] = $ancestorIds[(int) $match->ID];
+        }
+        $data = [
+            'items' => $items,
+            'pageInfo' => [
+                'totalCount' => count($reachable),
+                'pageSize' => $limit,
+                'page' => $page,
+                'hasMore' => $page * $limit < count($reachable),
+            ],
+        ];
+        $this->extend('updateApiSearch', $data, $query);
+        return $this->jsonSuccess(200, $data);
+    }
+
+    private function pageSlice(array $items, int $page, int $limit): array
+    {
+        if ($page - 1 > intdiv(count($items), $limit)) {
+            return [];
+        }
+        return array_slice($items, ($page - 1) * $limit, $limit);
+    }
+
+    /**
+     * The model's records minus the classes hidden from the hierarchy or the CMS tree
+     */
+    private function visibleList(): DataList
+    {
+        $class = $this->modelClass();
+        $list = DataObject::get($class);
+        $config = DataObject::singleton($class)->config();
+        $hidden = array_merge(
+            (array) $config->get('hide_from_hierarchy'),
+            (array) $config->get('hide_from_cms_tree')
+        );
+        if ($hidden) {
+            $list = $list->exclude('ClassName', $hidden);
+        }
+        return $list;
+    }
+
+    /**
+     * Kept per request because ancestors() asks for the same sibling lists again, once per level, through pageOf()
+     *
+     * @return array<DataObject>
+     */
+    private function viewableChildrenOf(int $parentId): array
+    {
+        if (isset($this->viewableChildren[$parentId])) {
+            return $this->viewableChildren[$parentId];
+        }
+        $candidates = $this->visibleList()->filter('ParentID', $parentId)->toArray();
+        $this->prepopulateVersionCache($candidates);
+        $viewable = array_flip($this->viewableAmong($candidates));
+        $children = array_values(array_filter($candidates, fn (DataObject $child) => isset($viewable[(int) $child->ID])));
+        return $this->viewableChildren[$parentId] = $children;
+    }
+
+    /**
+     * canView() and the status flags look up each record's draft and live version one query at a time; this
+     * fetches them for the whole list in two
+     *
+     * @param array<DataObject> $records
+     */
+    private function prepopulateVersionCache(array $records): void
+    {
+        $class = $this->modelClass();
+        if (!$records || !DataObject::has_extension($class, Versioned::class)) {
+            return;
+        }
+        $ids = array_map(fn (DataObject $record) => (int) $record->ID, $records);
+        Versioned::prepopulate_versionnumber_cache($class, Versioned::DRAFT, $ids);
+        Versioned::prepopulate_versionnumber_cache($class, Versioned::LIVE, $ids);
+    }
+
+    private function viewableRecord(int $id): DataObject
+    {
+        $record = DataObject::get($this->modelClass())->byID($id);
+        if (!$record) {
+            throw ShellSubmission::jsonException(404, sprintf('No page with ID %d in this stage', $id));
+        }
+        if (!$record->canView()) {
+            throw ShellSubmission::jsonException(403, 'This page cannot be viewed');
+        }
+        return $record;
+    }
+
+    /**
+     * The IDs among $ids the current member can view, in their order. Where the model's canView() is
+     * SiteTree's, it is evaluated here without its walk up the parents, which costs queries per level for every
+     * record: extensions and the view-all override as canView() has them, then the permission checker's batch
+     * check, which resolves Inherit in one query per tree level for the whole set. A class that overrides
+     * canView() still gets its own canView() call.
+     *
+     * @param array<int> $ids
+     * @return array<int>
+     */
+    private function viewableIds(array $ids): array
+    {
+        $viewable = [];
+        foreach (array_chunk($ids, 500) as $chunk) {
+            $records = DataObject::get($this->modelClass())->filter('ID', $chunk)->toArray();
+            $this->prepopulateVersionCache($records);
+            $allowed = array_flip($this->viewableAmong($records));
+            foreach ($chunk as $id) {
+                if (isset($allowed[$id])) {
+                    $viewable[] = $id;
+                }
+            }
+        }
+        return $viewable;
+    }
+
+    /**
+     * @param array<DataObject> $records
+     * @return array<int> IDs of the records the current member can view, in their order
+     */
+    private function viewableAmong(array $records): array
+    {
+        $checker = $this->permissionChecker();
+        $member = Security::getCurrentUser();
+        $viewAll = $member && Permission::checkMember($member, ['ADMIN', 'SITETREE_VIEW_ALL']);
+        $ids = array_map(fn (DataObject $record) => (int) $record->ID, $records);
+        $inherited = $checker instanceof InheritedPermissions && !$viewAll && $ids
+            ? $checker->canViewMultiple($ids, $member, false)
+            : [];
+        $viewable = [];
+        foreach ($records as $record) {
+            if (!$checker instanceof InheritedPermissions || $this->overrides($record, 'canView')) {
+                $allowed = (bool) $record->canView($member);
+            } else {
+                $allowed = $record->extendedCan('canView', $member)
+                    ?? ($viewAll || !empty($inherited[(int) $record->ID]));
+            }
+            if ($allowed) {
+                $viewable[] = (int) $record->ID;
+            }
+        }
+        return $viewable;
+    }
+
+    /**
+     * Whether the record's class replaces the model's own $method, so the batched checks here cannot stand in for it
+     */
+    private function overrides(DataObject $record, string $method): bool
+    {
+        $key = get_class($record) . '::' . $method;
+        if (!isset($this->overrides[$key])) {
+            $declaring = (new ReflectionMethod($record, $method))->getDeclaringClass()->getName();
+            $this->overrides[$key] = $declaring !== DataObject::getSchema()->baseDataClass($record);
+        }
+        return $this->overrides[$key];
+    }
+
+    private function pageOf(DataObject $record, int $limit): ?int
+    {
+        foreach ($this->viewableChildrenOf((int) $record->ParentID) as $position => $sibling) {
+            if ((int) $sibling->ID === (int) $record->ID) {
+                return intdiv($position, $limit) + 1;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * @param array<int, int> $matches record ID => parent ID
+     * @return array<int, array<int>> record ID => IDs from the top-level ancestor down to the parent, in the
+     * order of $matches
+     */
+    private function ancestorIdsOf(array $matches): array
+    {
+        $parentOf = $matches;
+        $pending = array_diff(array_unique(array_values($parentOf)), [0], array_keys($parentOf));
+        while ($pending) {
+            $found = DataObject::get($this->modelClass())->filter('ID', $pending)->map('ID', 'ParentID')->toArray();
+            foreach ($pending as $id) {
+                $parentOf[$id] = (int) ($found[$id] ?? 0);
+            }
+            $pending = array_diff(array_unique(array_values($parentOf)), [0], array_keys($parentOf));
+        }
+
+        $paths = [];
+        foreach (array_keys($matches) as $matchId) {
+            $path = [];
+            $id = $parentOf[$matchId];
+            while ($id && !in_array($id, $path)) {
+                array_unshift($path, $id);
+                $id = $parentOf[$id] ?? 0;
+            }
+            $paths[$matchId] = $path;
+        }
+        return $paths;
+    }
+
+    /**
+     * @param array<DataObject> $records
+     */
+    private function serialiseNodes(array $records): array
+    {
+        if (!$records) {
+            return [];
+        }
+        $ids = array_map(fn (DataObject $record) => (int) $record->ID, $records);
+        $childCounts = $this->childCounts($ids);
+        $deletable = $this->deletableAmong($records);
+
+        $nodes = [];
+        foreach ($records as $record) {
+            $childCount = $childCounts[(int) $record->ID] ?? 0;
+            $node = [
+                'id' => (int) $record->ID,
+                'parentId' => (int) $record->ParentID,
+                'title' => (string) $record->Title,
+                'menuTitle' => (string) ($record->MenuTitle ?: $record->Title),
+                'urlSegment' => (string) $record->URLSegment,
+                'className' => $record->ClassName,
+            ] + $this->copiedClassName($record) + [
+                'hasChildren' => $childCount > 0,
+                'childCount' => $childCount,
+                'statusFlags' => $this->statusFlags($record),
+                'canEdit' => (bool) $record->canEdit(),
+                'canDelete' => $deletable[(int) $record->ID],
+                'sort' => (int) $record->Sort,
+            ];
+            $this->extend('updatePageTreeNode', $node, $record);
+            $nodes[] = $node;
+        }
+        return $nodes;
+    }
+
+    /**
+     * The class a virtual page's drop rules check, which the legacy tree read from a `VirtualPage-<class>` CSS class
+     *
+     * @return array{copiedClassName?: string}
+     */
+    private function copiedClassName(DataObject $record): array
+    {
+        if (!$record->hasMethod('getRecordForAllowedChildrenValidation')) {
+            return [];
+        }
+        $subject = $record->getRecordForAllowedChildrenValidation();
+        if (!$subject || $subject === $record) {
+            return [];
+        }
+        return ['copiedClassName' => $subject->ClassName];
+    }
+
+    /**
+     * canDelete() for each record, keyed by ID. Where the model's canDelete() is SiteTree's, it is evaluated here:
+     * extensions first, then the edit-all permission, then the checker's rule that a page is deletable when it and
+     * every descendant is editable. The checker's own batch loads every descendant as a full record, which on a
+     * large tree costs more than the rest of the request; this walks the descendants by ID and ParentID only.
+     *
+     * @param array<DataObject> $records
+     * @return array<int, bool>
+     */
+    private function deletableAmong(array $records): array
+    {
+        $checker = $this->permissionChecker();
+        $member = Security::getCurrentUser();
+        $editAll = $member && Permission::checkMember($member, ['ADMIN', 'SITETREE_EDIT_ALL']);
+        if ($checker instanceof InheritedPermissions && !$editAll) {
+            $checker->prePopulatePermissionCache(
+                InheritedPermissions::EDIT,
+                array_map(fn (DataObject $record) => (int) $record->ID, $records)
+            );
+        }
+
+        $deletable = [];
+        $pending = [];
+        foreach ($records as $record) {
+            $id = (int) $record->ID;
+            if (!$checker instanceof InheritedPermissions || $this->overrides($record, 'canDelete')) {
+                $deletable[$id] = (bool) $record->canDelete($member);
+                continue;
+            }
+            $extended = $record->extendedCan('canDelete', $member);
+            if ($extended !== null || !$member || $editAll) {
+                $deletable[$id] = $extended ?? (bool) $member;
+                continue;
+            }
+            $pending[] = $id;
+        }
+        if ($pending) {
+            $deletable += $this->subtreesEditable($checker, $pending, $member);
+        }
+        return $deletable;
+    }
+
+    /**
+     * Whether each of $ids and all of its descendants in the current stage pass the checker's canEdit, as
+     * InheritedPermissions::canDeleteMultiple() decides deletion
+     *
+     * @param array<int> $ids
+     * @return array<int, bool>
+     */
+    private function subtreesEditable(InheritedPermissions $checker, array $ids, Member $member): array
+    {
+        $parentColumn = DataObject::getSchema()->sqlColumnForField($this->modelClass(), 'ParentID');
+        $idColumn = DataObject::getSchema()->sqlColumnForField($this->modelClass(), 'ID');
+        $parentOf = [];
+        $editable = [];
+        $level = $ids;
+        while ($level) {
+            $editable += $checker->canEditMultiple($level, $member);
+            $editableParents = array_keys(array_filter(array_intersect_key($editable, array_flip($level))));
+            $level = [];
+            foreach (array_chunk($editableParents, 500) as $chunk) {
+                $query = DataObject::get($this->modelClass())->filter('ParentID', $chunk)->dataQuery()->query();
+                $query->setSelect(['ID' => $idColumn, 'ParentID' => $parentColumn])->setOrderBy([]);
+                foreach ($query->execute() as $row) {
+                    $childId = (int) $row['ID'];
+                    // A child already in the batch keeps its parent link, so a blocked descendant still
+                    // reaches every ancestor
+                    if (!isset($parentOf[$childId])) {
+                        $parentOf[$childId] = (int) $row['ParentID'];
+                        if (!isset($editable[$childId])) {
+                            $level[] = $childId;
+                        }
+                    }
+                }
+            }
+        }
+
+        $blocked = [];
+        foreach ($parentOf as $childId => $parentId) {
+            if (empty($editable[$childId])) {
+                for ($id = $parentId; $id && !isset($blocked[$id]); $id = $parentOf[$id] ?? 0) {
+                    $blocked[$id] = true;
+                }
+            }
+        }
+        $result = [];
+        foreach ($ids as $id) {
+            $result[$id] = !empty($editable[$id]) && !isset($blocked[$id]);
+        }
+        return $result;
+    }
+
+    /**
+     * One grouped query in the current stage, with the same hidden classes left out as the listing
+     *
+     * @param array<int> $ids
+     * @return array<int, int>
+     */
+    private function childCounts(array $ids): array
+    {
+        $query = $this->visibleList()->filter('ParentID', $ids)->dataQuery()->query();
+        $parentColumn = DataObject::getSchema()->sqlColumnForField($this->modelClass(), 'ParentID');
+        $query->setSelect(['ParentID' => $parentColumn, 'ChildCount' => 'COUNT(*)']);
+        $query->setGroupBy($parentColumn);
+        $query->setOrderBy([]);
+        $counts = [];
+        foreach ($query->execute() as $row) {
+            $counts[(int) $row['ParentID']] = (int) $row['ChildCount'];
+        }
+        return $counts;
+    }
+
+    /**
+     * @return array<array{key: string, text: string, title: string|null}>
+     */
+    private function statusFlags(DataObject $record): array
+    {
+        if (!$record->hasMethod('getStatusFlags')) {
+            return [];
+        }
+        $flags = [];
+        foreach ($record->getStatusFlags() as $key => $flag) {
+            $flag = is_array($flag) ? $flag : ['text' => $flag];
+            $flags[] = [
+                'key' => (string) $key,
+                'text' => (string) ($flag['text'] ?? ''),
+                'title' => isset($flag['title']) ? (string) $flag['title'] : null,
+            ];
+        }
+        return $flags;
+    }
+
+    private function permissionChecker(): ?PermissionChecker
+    {
+        $singleton = DataObject::singleton($this->modelClass());
+        return $singleton->hasMethod('getPermissionChecker') ? $singleton->getPermissionChecker() : null;
+    }
+
+    private function idParam(HTTPRequest $request, bool $allowRoot): int
+    {
+        $id = $request->param('ID');
+        if (($id === null || $id === '') && $allowRoot) {
+            return 0;
+        }
+        if (!is_string($id) || !ctype_digit($id) || (!$allowRoot && (int) $id === 0)) {
+            throw ShellSubmission::jsonException(404, 'The ID must be a page ID');
+        }
+        return (int) $id;
+    }
+
+    private function intParam(HTTPRequest $request, string $name, int $default, int $min, int $max): int
+    {
+        $value = $request->getVar($name);
+        if ($value === null || $value === '') {
+            return $default;
+        }
+        if (!is_string($value) || !ctype_digit($value)) {
+            throw ShellSubmission::jsonException(400, sprintf('%s must be a whole number', $name), 'invalid', $name);
+        }
+        if ((int) $value < $min || (int) $value > $max) {
+            throw ShellSubmission::jsonException(
+                400,
+                sprintf('%s must be between %d and %d', $name, $min, $max),
+                'outOfRange',
+                $name
+            );
+        }
+        return (int) $value;
+    }
+}

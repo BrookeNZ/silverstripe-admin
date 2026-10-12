@@ -1,0 +1,51 @@
+SilverStripe\Security\Group:
+  editors:
+    Title: Editors
+  other:
+    Title: Other
+
+SilverStripe\Security\Permission:
+  editorsaccess:
+    Code: CMS_ACCESS_CMSMain
+    Group: =>SilverStripe\Security\Group.editors
+
+SilverStripe\Security\Member:
+  editor:
+    Email: editor@example.com
+    Groups: =>SilverStripe\Security\Group.editors
+
+SilverStripe\CMS\Model\SiteTree:
+  top:
+    Title: Top
+    URLSegment: top
+    Sort: 1
+    CanEditType: OnlyTheseUsers
+    EditorGroups: =>SilverStripe\Security\Group.editors
+  mid:
+    Title: Top mid
+    URLSegment: mid
+    Parent: =>SilverStripe\CMS\Model\SiteTree.top
+    Sort: 1
+  leaf:
+    Title: Leaf
+    URLSegment: leaf
+    Parent: =>SilverStripe\CMS\Model\SiteTree.mid
+    Sort: 1
+    CanEditType: OnlyTheseUsers
+    EditorGroups: =>SilverStripe\Security\Group.other
+  wf:
+    Title: Locked by workflow
+    URLSegment: locked-by-workflow
+    Parent: =>SilverStripe\CMS\Model\SiteTree.top
+    Sort: 2
+  open:
+    Title: Open
+    URLSegment: open
+    Sort: 2
+    CanEditType: OnlyTheseUsers
+    EditorGroups: =>SilverStripe\Security\Group.editors
+  openchild:
+    Title: Open child
+    URLSegment: open-child
+    Parent: =>SilverStripe\CMS\Model\SiteTree.open
+    Sort: 1

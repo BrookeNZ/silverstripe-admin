@@ -12,7 +12,7 @@ en:
     PERMDEFAULT: 'You must be logged in to access the administration area.'
   SilverStripe\Admin\CMSProfileController:
     CANTEDIT: "You don't have permission to do that"
-    MENUTITLE: 'My Profile'
+    MENUTITLE: 'My profile'
   SilverStripe\Admin\Forms\EditorEmailLinkFormFactory:
     EMAIL: 'Email address'
     LINKDESCR: 'Link description'
@@ -46,7 +46,7 @@ en:
     ACCESSALLINTERFACESHELP: 'Overrules more specific access settings.'
     BROWSER_WARNING_HEADING: 'Unsupported browser'
     BROWSER_WARNING_TEXT: 'You&apos;re using a web browser that&apos;s not supported by SilverStripe.<br />Please upgrade to one of the following options.'
-    CMS_ACCESS_CATEGORY: 'CMS Access'
+    CMS_ACCESS_CATEGORY: 'CMS access'
     CollapsePanel: 'Collapse panel'
     DELETE: Delete
     DELETED: Deleted.
@@ -84,10 +84,10 @@ en:
     Auto: Auto
     ChangeViewMode: 'Change view mode'
     Desktop: Desktop
-    DualWindowView: 'Dual Window'
+    DualWindowView: 'Dual window'
     EditView: 'Edit mode'
     Mobile: Mobile
-    PreviewState: 'Preview State'
+    PreviewState: 'Preview state'
     PreviewView: 'Preview mode'
     Responsive: Responsive
     SplitView: 'Split mode'
@@ -96,7 +96,7 @@ en:
     Width: width
   SilverStripe\Admin\MemberImportForm:
     BtnImport: 'Import from CSV'
-    FileFieldLabel: 'CSV File <small>(Allowed extensions: *.csv)</small>'
+    FileFieldLabel: 'CSV file <small>(Allowed extensions: *.csv)</small>'
     Help1: '<p>Import users in <em>CSV format</em> (comma-separated values). <small><a href="#" class="toggle-advanced">Show advanced usage</a></small></p>'
     Help2: '<div class="advanced"><h4>Advanced usage</h4><ul><li>Allowed columns: <em>{columns}</em></li><li>Existing users are matched by their unique <em>Code</em> property, and updated with any new values from the imported file.</li><li>Groups can be assigned by the <em>Groups</em> column. Groups are identified by their <em>Code</em> property, multiple groups can be separated by comma. Existing group memberships are not cleared.</li></ul></div>'
     ImportFormHelpGroup: '<ul><li>Existing groups are matched by their unique <em>Code</em> value, and updated with any new values from the imported file</li><li>Group hierarchies can be created by using a <em>ParentCode</em> column.</li><li>Permission codes can be assigned by the <em>PermissionCode</em> column. Existing permission codes are not cleared.</li></ul>'
@@ -112,12 +112,12 @@ en:
     IMPORT: 'Import from CSV'
     IMPORTEDRECORDS: 'Imported {count} records.'
     IMPORTSPECFIELDS: 'Database columns'
-    IMPORTSPECLINK: 'Show Specification for {model}'
+    IMPORTSPECLINK: 'Show specification for {model}'
     IMPORTSPECRELATIONS: Relations
     IMPORTSPECTITLE: 'Specification for {model}'
     NOCSVFILE: 'Please browse for a CSV file to import'
     NOIMPORT: 'Nothing to import'
-    Title: 'Data Models'
+    Title: 'Data models'
     UPDATEDRECORDS: 'Updated {count} records.'
   SilverStripe\Admin\Navigator\SilverStripeNavigatorItem:
     WONT_BE_SHOWN: 'Note: this message will not be shown to your visitors'
@@ -128,13 +128,13 @@ en:
     APPLY_ROLES: 'Apply roles to groups'
     APPLY_ROLES_HELP: 'Ability to edit the roles assigned to a group. Requires the "Access to ''Users'' section" permission.'
     EDITPERMISSIONS: 'Manage permissions for groups'
-    EDITPERMISSIONS_HELP: 'Ability to edit Permissions and IP Addresses for a group. Requires the "Access to ''Security'' section" permission.'
+    EDITPERMISSIONS_HELP: 'Ability to edit permissions and IP addresses for a group. Requires the "Access to ''Security'' section" permission.'
     IMPORTGROUPS: 'Import groups'
     IMPORTUSERS: 'Import users'
     ImportFormHelpGroup: '<ul><li>Existing groups are matched by their unique <em>Code</em> value, and updated with any new values from the imported file</li><li>Group hierarchies can be created by using a <em>ParentCode</em> column.</li><li>Permission codes can be assigned by the <em>PermissionCode</em> column. Existing permission codes are not cleared.</li></ul>'
     ImportFormHelpMember: '<p>Groups can be assigned by the <em>Groups</em> column. Groups are identified by their <em>Code</em> property, multiple groups can be separated by comma. Existing group memberships are not cleared.</p>'
     MENUTITLE: Security
-    MemberListCaution: 'Caution: Removing members from this list will remove them from all groups and the database'
+    MemberListCaution: 'Caution: removing members from this list will remove them from all groups and the database'
     TABROLES: Roles
     Users: Users
   SilverStripe\Admin\SudoModeController:
@@ -143,3 +143,7 @@ en:
     ImportFormHelpMember: '<p>Groups can be assigned by the <em>Groups</em> column. Groups are identified by their <em>Code</em> property, multiple groups can be separated by comma. Existing group memberships are not cleared.</p>'
     MENUTITLE: SilverStripe\Admin\SudoModeController
     TIMEOUT: 'Session timed out, please refresh and try again.'
+  SilverStripe\Admin\UserInterface\GridField\GridFieldRowsEndpoint:
+    CONFIRM_ARCHIVE: 'Are you sure you want to archive this record?'
+    CONFIRM_DELETE: 'Are you sure you want to delete this record?'
+    CONFIRM_UNLINK: 'Are you sure you want to unlink this record?'

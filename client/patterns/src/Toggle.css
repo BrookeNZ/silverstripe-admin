@@ -1,0 +1,80 @@
+/**
+ * Toggle
+ *
+ * The segmented radio group from Toggle.tsx, after the CMS Refresh "Draft published" segments (Figma
+ * node 2:6140): Bright Blue outline and label, the selected option filled Bright Blue with a white
+ * label, hover Bright Blue 100, 12px semibold labels. The native radios are visually hidden; the
+ * group draws one outset ring while any of them has keyboard focus, as an inset ring would vanish
+ * on the filled option. The control is the design's 25px tall, border included, so each segment is
+ * 23px: under the 24px target size, which the spacing exception covers, as the segments are 80px wide
+ */
+
+.admin-toggle {
+  --admin-toggle-bg-color: var(--admin-bg-color);
+  --admin-toggle-border-width: 0.1rem;
+  --admin-toggle-color: var(--admin-accent-color);
+
+  /* Figma "Draft published" 2:6140: 25px segments */
+  --admin-toggle-height: 2.5rem;
+  --admin-toggle-hover-bg-color: var(--admin-hover-bg-color);
+  --admin-toggle-option-min-width: 8rem;
+  --admin-toggle-selected-fg-color: var(--admin-accent-fg-color);
+
+  border: var(--admin-toggle-border-width) solid var(--admin-toggle-color);
+  border-radius: var(--admin-radius);
+  display: inline-flex;
+  overflow: clip;
+}
+
+.admin-toggle:has(:focus-visible) {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: var(--admin-focus-outline-offset);
+}
+
+.admin-toggle__option {
+  --admin-toggle-option-bg-color: var(--admin-toggle-bg-color);
+  --admin-toggle-option-fg-color: var(--admin-toggle-color);
+
+  align-items: center;
+  background-color: var(--admin-toggle-option-bg-color);
+  box-sizing: border-box;
+  color: var(--admin-toggle-option-fg-color);
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: var(--admin-font-weight-bold);
+  justify-content: center;
+  line-height: 1;
+  min-height: calc(var(--admin-toggle-height) - 2 * var(--admin-toggle-border-width));
+  min-width: var(--admin-toggle-option-min-width);
+  padding-inline: var(--admin-gap-sm);
+  position: relative;
+  transition: var(--admin-transition);
+}
+
+.admin-toggle__option:hover {
+  --admin-toggle-option-bg-color: var(--admin-toggle-hover-bg-color);
+}
+
+.admin-toggle__option--selected,
+.admin-toggle__option--selected:hover {
+  --admin-toggle-option-bg-color: var(--admin-toggle-color);
+  --admin-toggle-option-fg-color: var(--admin-toggle-selected-fg-color);
+}
+
+@media (forced-colors: active) {
+  .admin-toggle__option--selected {
+    --admin-toggle-option-bg-color: Highlight;
+    --admin-toggle-option-fg-color: HighlightText;
+
+    forced-color-adjust: none;
+  }
+}
+
+.admin-toggle__option--disabled {
+  cursor: not-allowed;
+  opacity: var(--admin-disabled-opacity);
+}
+
+.admin-toggle__option--disabled:hover {
+  --admin-toggle-option-bg-color: var(--admin-toggle-bg-color);
+}

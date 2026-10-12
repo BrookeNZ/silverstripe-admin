@@ -1,0 +1,10 @@
+SilverStripe\Admin\Tests\UserInterface\GridFieldItemSchemaTest\Note:
+  first:
+    Title: First
+    Body: The first note
+  second:
+    Title: Second
+
+SilverStripe\Admin\Tests\UserInterface\GridFieldItemSchemaTest\Notice:
+  draft:
+    Title: Draft

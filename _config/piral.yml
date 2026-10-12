@@ -1,0 +1,37 @@
+---
+Name: adminpiral
+---
+SilverStripe\Admin\UserInterface\PiletFeed:
+  pilets:
+    silverstripe-admin-fields:
+      link: 'silverstripe/admin:client/dist/pilet/index.js'
+    silverstripe-cms-pages:
+      link: 'silverstripe/admin:client/dist/pilets/pages/index.js'
+
+SilverStripe\Forms\GridField\GridFieldConfig:
+  extensions:
+    - SilverStripe\Admin\UserInterface\GridField\GridFieldConfigRowsExtension
+
+SilverStripe\Forms\GridField\GridField:
+  default_readonly_components:
+    - SilverStripe\Admin\UserInterface\GridField\GridFieldRowsEndpoint
+
+SilverStripe\Forms\GridField\GridFieldDetailForm_ItemRequest:
+  extensions:
+    - SilverStripe\Admin\UserInterface\GridField\GridFieldItemSchemaExtension
+
+SilverStripe\Forms\FormRequestHandler:
+  extensions:
+    - SilverStripe\Admin\UserInterface\GridField\GridFieldItemSubmissionExtension
+
+SilverStripe\Control\RequestHandler:
+  extensions:
+    - SilverStripe\Admin\UserInterface\SchemaRequestErrorExtension
+
+SilverStripe\Admin\AdminController:
+  extensions:
+    - SilverStripe\Admin\UserInterface\ShellPermissionFailureExtension
+
+SilverStripe\Admin\LeftAndMain:
+  extensions:
+    - SilverStripe\Admin\UserInterface\ShellErrorResponseExtension

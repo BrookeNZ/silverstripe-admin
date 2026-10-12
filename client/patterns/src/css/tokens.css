@@ -1,0 +1,271 @@
+/**
+ * Admin design tokens
+ *
+ * The shared palette, spacing, type and focus tokens every component in this package reads. The shell
+ * loads them once on :root; its own chrome tokens (menu, badge, notifications) stay in the shell and
+ * point at the roles here. A host page retints the components by reassigning these.
+ *
+ * Colour has two tiers, and this is the only file with colour literals:
+ * - Palette (--admin-palette-*): raw values named after the CMS Refresh Figma variables, folder path dropped. Values with no design source say so.
+ * - Roles (every other --admin-*-color): what components read. Each points at a palette token.
+ *
+ * A theme redefines the roles only, in one block after the :root block below, using the house pattern:
+ * `:root[data-theme="dark"] { color-scheme: dark; ... }` plus the same declarations inside
+ * `@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { ... } }`. New palette steps a
+ * theme needs go in the palette block. Theming is document-level only: component tokens declared on
+ * :root that alias a role resolve there, so a subtree with its own scheme is not supported.
+ *
+ * Forced colours are handled per component, in the component's own file. prefers-contrast: more moves
+ * the border, divider, line and muted text roles to the darker greys already in the palette.
+ */
+
+:root {
+  /* Palette */
+  --admin-palette-background-modified: #fdf2eb;
+  --admin-palette-black: #292b2e;
+  --admin-palette-blue-100: #f8fafc;
+  --admin-palette-blue-200: #f1f5f9;
+  --admin-palette-blue-300: #e6edf4;
+  --admin-palette-blue-500: #a9c2da;
+  --admin-palette-blue-600: #86a9cb;
+
+  /* Figma Border/Invalid */
+  --admin-palette-border-invalid: #da273b;
+  --admin-palette-bright-blue: #005ae1;
+  --admin-palette-bright-blue-100: #e5f0ff;
+  --admin-palette-bright-blue-200: #cce1ff;
+  --admin-palette-button-primary: #008a00;
+  --admin-palette-button-primary-hover: #006400;
+
+  /* Figma node 2:6244 Save outline hover fill; no variable */
+  --admin-palette-button-primary-tint: rgb(0 138 0 / 0.1);
+
+  /* Figma "Add a block" 2:6259 and its hover 2:6262; no Figma variable for any of the three */
+  --admin-palette-button-warning: #f6c445;
+  --admin-palette-button-warning-hover: #e0a800;
+  --admin-palette-button-warning-text: #3e464e;
+
+  /* Figma Secondary/Dark Blue */
+  --admin-palette-dark-blue: #0049a3;
+
+  /* Figma New/New Grey/Grey 100 to 900 */
+  --admin-palette-grey-100: #f7f8f8;
+  --admin-palette-grey-200: #f1f3f3;
+  --admin-palette-grey-300: #e9ebec;
+  --admin-palette-grey-400: #dcdee0;
+  --admin-palette-grey-500: #c1c4c8;
+  --admin-palette-grey-700: #8b9098;
+  --admin-palette-grey-800: #71767f;
+  --admin-palette-grey-900: #595d64;
+  --admin-palette-line-grey: #dadee1;
+
+  /* Figma Grey/700, from the older Grey folder; the icons still use it */
+  --admin-palette-old-grey-700: #43536d;
+
+  /* Figma node 2:6270 Remove hover fill; no variable */
+  --admin-palette-red-100: #fbe5e7;
+  --admin-palette-royal-blue: #003e94;
+  --admin-palette-text-draft-modified: #cb3e00;
+  --admin-palette-white: #fff;
+
+  /* No design source */
+  --admin-palette-ink: #1a1f24;
+  --admin-palette-red-700: #b3261e;
+  --admin-palette-yellow-100: #fff4d6;
+  --admin-palette-yellow-800: #8a6d00;
+
+  /* Roles */
+  --admin-accent-color: var(--admin-palette-bright-blue);
+  --admin-accent-fg-color: var(--admin-palette-white);
+  --admin-accent-hover-color: var(--admin-palette-royal-blue);
+
+  /* The Bright Blue label is 4.45:1 on it, under 4.5:1; kept as designed */
+  --admin-accent-tint-color: var(--admin-palette-bright-blue-200);
+  --admin-backdrop-color: rgb(from var(--admin-palette-black) r g b / 0.5);
+
+  /* Figma "Top bar" 2:53077 drop shadow, pure black with no variable */
+  --admin-bar-shadow: 0 0.3rem 0.45rem rgb(0 0 0 / 0.05);
+  --admin-bg-color: var(--admin-palette-white);
+  --admin-border: 0.1rem solid;
+
+  /* Grey 500 is 1.75:1 on white, under 3:1; kept as designed */
+  --admin-border-color: var(--admin-palette-grey-500);
+  --admin-check-size: 1.8rem;
+  --admin-control-min-height: 4rem;
+
+  /* The item open beside the list, as the details panel's file: Figma "File list item" Active 2:37437 */
+  --admin-current-bg-color: var(--admin-palette-bright-blue-100);
+
+  /* Figma "Image/doc file" State=Active 2:6491 edge; 2.46:1 on white, under 3:1, kept as designed */
+  --admin-current-border-color: var(--admin-palette-blue-600);
+
+  /* 4.84:1 on white; on the tint the label is 4.03:1, under 4.5:1, kept as designed */
+  --admin-danger-color: var(--admin-palette-border-invalid);
+  --admin-danger-tint-color: var(--admin-palette-red-100);
+  --admin-disabled-bg-color: var(--admin-palette-grey-200);
+
+  /* 2.88:1 on the disabled ground, under 4.5:1; kept as designed */
+  --admin-disabled-fg-color: var(--admin-palette-grey-700);
+  --admin-disabled-opacity: 0.6;
+
+  /* Grey 400 is 1.35:1 on white, so decorative only */
+  --admin-divider-color: var(--admin-palette-grey-400);
+
+  /* Figma "Text field" Type=Dropdown 2:57781: 12px by 15px, 14px text on a 1.4 line */
+  --admin-dropdown-line-height: 1.4;
+  --admin-dropdown-padding: 1.2rem 1.5rem;
+
+  /* No design source for error; its ground is the page until one exists */
+  --admin-error-bg-color: var(--admin-palette-white);
+  --admin-error-fg-color: var(--admin-palette-red-700);
+
+  /* Legacy toasts faded in; the keyframes are at the foot of this file */
+  --admin-fade-in: admin-fade-in var(--admin-transition-duration) var(--admin-transition-easing);
+
+  /* Grey 300, the dropdown option rule; decorative only */
+  --admin-faint-divider-color: var(--admin-palette-grey-300);
+  --admin-fg-color: var(--admin-palette-black);
+  --admin-focus-outline: 0.2rem solid;
+
+  /* The design has no focus ring; it takes the accent's value but can move apart from it */
+  --admin-focus-outline-color: var(--admin-palette-bright-blue);
+  --admin-focus-outline-offset: 0.2rem;
+  --admin-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --admin-font-family-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* md is the body size, Figma New/Body 14px, on the 10px html base */
+  --admin-font-size-xs: 1rem;
+  --admin-font-size-md: 1.4rem;
+  --admin-font-size-lg: 1.6rem;
+  --admin-font-size-xl: 2rem;
+  --admin-font-size-xxl: 2.4rem;
+  --admin-font-weight-normal: 400;
+  --admin-font-weight-medium: 500;
+  --admin-font-weight-bold: 600;
+  --admin-gap-xs: 0.4rem;
+  --admin-gap-sm: 0.8rem;
+  --admin-gap-md: 1.6rem;
+
+  /* The design file has no spacing variables; lg to xxl continue the scale with no design source */
+  --admin-gap-lg: 2.4rem;
+  --admin-gap-xl: 3.2rem;
+  --admin-gap-xxl: 4.8rem;
+  --admin-hover-bg-color: var(--admin-palette-bright-blue-100);
+
+  /* The top bar's help and person icons; 8.46:1 on white */
+  --admin-header-icon-color: var(--admin-palette-dark-blue);
+
+  /* 7.79:1 on white */
+  --admin-icon-color: var(--admin-palette-old-grey-700);
+  --admin-input-bg-color: var(--admin-palette-white);
+  --admin-inverse-bg-color: var(--admin-palette-ink);
+  --admin-inverse-fg-color: var(--admin-palette-white);
+
+  /* Line Grey is 1.35:1 on white, so decorative only */
+  --admin-line-color: var(--admin-palette-line-grey);
+  --admin-link-color: var(--admin-palette-bright-blue);
+
+  /* Figma text style New/Meta data; 4.57:1 on white */
+  --admin-meta-fg-color: var(--admin-palette-grey-800);
+  --admin-modified-bg-color: var(--admin-palette-background-modified);
+
+  /* 4.51:1 on the modified ground */
+  --admin-modified-fg-color: var(--admin-palette-text-draft-modified);
+
+  /* Grey 100, the disclosure header ground; New/Black text on it 13.34:1 */
+  --admin-muted-bg-color: var(--admin-palette-grey-100);
+  --admin-muted-fg-color: var(--admin-palette-grey-900);
+  --admin-nav-fg-color: var(--admin-palette-royal-blue);
+  --admin-nav-hover-bg-color: var(--admin-palette-blue-200);
+
+  /* The focus point marker sits on an image, so these stay fixed in every theme */
+  --admin-on-image-fg-color: var(--admin-palette-white);
+  --admin-on-image-ring-color: var(--admin-palette-black);
+  --admin-panel-bg-color: var(--admin-palette-white);
+
+  /* White label 4.53:1 on the fill, 7.44:1 on hover */
+  --admin-primary-action-color: var(--admin-palette-button-primary);
+  --admin-primary-action-fg-color: var(--admin-palette-white);
+  --admin-primary-action-hover-color: var(--admin-palette-button-primary-hover);
+  --admin-radius: 0.4rem;
+
+  /* Figma "Collapse expand button" 2:6289 drop shadows, pure black with no variable */
+  --admin-raised-hover-shadow: 0 0 0.6rem rgb(0 0 0 / 0.4);
+  --admin-raised-shadow: 0 0 0.4rem rgb(0 0 0 / 0.25);
+
+  /* The green label is 3.95:1 on this tint over white; kept as designed */
+  --admin-secondary-action-hover-color: var(--admin-palette-button-primary-tint);
+  --admin-selected-bg-color: var(--admin-palette-blue-300);
+
+  /* Figma "Image/doc file" State=Hover 2:6482 edge; 1.84:1 on white, under 3:1, kept as designed */
+  --admin-selected-border-color: var(--admin-palette-blue-500);
+  --admin-shadow-color: rgb(from var(--admin-palette-black) r g b / 0.2);
+
+  /* 4.57:1 on white, so it meets 3:1 for a control's edge */
+  --admin-strong-border-color: var(--admin-palette-grey-800);
+
+  /* The design has no success message; its colour is the save button's green, 4.53:1 on white */
+  --admin-success-bg-color: var(--admin-palette-white);
+  --admin-success-fg-color: var(--admin-palette-button-primary);
+  --admin-sunken-bg-color: var(--admin-palette-blue-100);
+
+  /* WCAG 2.5.8 target size */
+  --admin-target-min-size: 2.4rem;
+
+  /* Grey 900 label 5.94:1 on it */
+  --admin-tertiary-action-hover-color: var(--admin-palette-grey-200);
+  --admin-transition: background-color var(--admin-transition-duration) var(--admin-transition-easing),
+    border-color var(--admin-transition-duration) var(--admin-transition-easing),
+    color var(--admin-transition-duration) var(--admin-transition-easing);
+  --admin-transition-duration: 0.2s;
+  --admin-transition-easing: ease-in-out;
+  --admin-warning-action-color: var(--admin-palette-button-warning);
+
+  /* 5.89:1 on the fill, 4.46:1 on hover, under 4.5:1; kept as designed */
+  --admin-warning-action-fg-color: var(--admin-palette-button-warning-text);
+  --admin-warning-action-hover-color: var(--admin-palette-button-warning-hover);
+  --admin-warning-bg-color: var(--admin-palette-yellow-100);
+
+  /* 4.49:1 on the warning ground */
+  --admin-warning-border-color: var(--admin-palette-yellow-800);
+
+  /*
+   * Stacking layers, lowest first: the sticky header and action bar, the narrow-screen menu overlay, the
+   * top bar (its shadow falls on the menu), popovers (menus, combobox lists) where the browser has no
+   * popover API, then toasts, then the skip link.
+   * Dialogs, and popovers where the API exists, open in the top layer above all of these and need none.
+   * The fallback popover is fixed to the viewport like its top-layer self, so it sits over the sticky bars
+   * and the overlay; it still cannot leave a stacking context its control is in, such as the action bar
+   */
+  --admin-z-sticky: 20;
+  --admin-z-overlay: 30;
+  --admin-z-top-bar: 32;
+  --admin-z-popover-fallback: 35;
+  --admin-z-toast: 40;
+  --admin-z-skip-link: 50;
+
+  color-scheme: light;
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --admin-border-color: var(--admin-palette-grey-900);
+    --admin-divider-color: var(--admin-palette-grey-900);
+    --admin-faint-divider-color: var(--admin-palette-grey-900);
+    --admin-line-color: var(--admin-palette-grey-900);
+    --admin-muted-fg-color: var(--admin-palette-black);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --admin-fade-in: none;
+    --admin-transition: none;
+  }
+}
+
+@keyframes admin-fade-in {
+  from {
+    opacity: 0;
+  }
+}

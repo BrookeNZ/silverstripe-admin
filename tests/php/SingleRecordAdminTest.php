@@ -138,8 +138,8 @@ class SingleRecordAdminTest extends SapphireTest
         if (is_array($code)) {
             $code = reset($code);
         }
-        $this->assertSame("Access to 'My Profile' section", $permissions[$code]['name']);
-        $this->assertSame('CMS Access', $permissions[$code]['category']);
+        $this->assertSame("Access to 'My profile' section", $permissions[$code]['name']);
+        $this->assertSame('CMS access', $permissions[$code]['category']);
     }
 
     public static function provideCurrentRecordID(): array

@@ -1,0 +1,212 @@
+/**
+ * Piral shell: the chrome around pilet content while the legacy admin is switched off.
+ *
+ * The legacy admin bundle is not loaded when the shell is. Shared tokens (--admin-*) and component
+ * styles come from @silverstripe/admin-patterns, imported before this file; the chrome tokens here
+ * cover what only the shell draws: the sidebar, the content area and notifications. The top bar is
+ * styled in topbar/topbar.css and the menu inside the sidebar in menu/menu.css, each owning its own
+ * tokens; the sidebar's own (--shell-sidebar-*, including its width) stay here because the layout
+ * reads them.
+ *
+ * The top bar spans the viewport above the sidebar and the content. Below 1024px the menu collapses
+ * behind the bar's toggle and opens over the content under it. The design has mobile (375px) and
+ * tablet (769px) frames but no breakpoint value, so 1024px is the shell's own choice. From 1024px the
+ * menu is the sticky sidebar under the bar, 200px wide, or the 62px icon rail when the menu's collapse
+ * button has collapsed it. --shell-sticky-top is the bar's height at every width: how far it pushes
+ * the sticky section header (header.css), the sidebar and the scroll padding down.
+ *
+ * The scroll padding keeps a focused element and its focus ring clear of the sticky header and the
+ * form's action bar, using the heights measure.ts publishes from the rendered elements
+ */
+
+@layer shell {
+  :root {
+    --shell-content-columns: auto minmax(0, 1fr);
+    --shell-content-display: flex;
+
+    /* The 0.2rem is the outline width in --admin-focus-outline (tokens.css) */
+    --shell-focus-ring-clearance: calc(0.2rem + var(--admin-focus-outline-offset));
+
+    /* The content inset: form fields (form.css), page content and the pages pilet's column all read it */
+    --shell-inset: var(--admin-gap-md);
+    --shell-link-fg-color: var(--admin-nav-fg-color);
+    --shell-notifications-z-index: var(--admin-z-toast);
+    --shell-sidebar-bg-color: var(--admin-bg-color);
+    --shell-sidebar-border-width: 0.1rem;
+
+    /* Figma "Sidebar" 2:1960, collapsed */
+    --shell-sidebar-collapsed-width: 6.2rem;
+
+    /* Figma "Sidebar" 2:1931 */
+    --shell-sidebar-width: 20rem;
+    --shell-sidebar-z-index: var(--admin-z-overlay);
+    --shell-skip-link-z-index: var(--admin-z-skip-link);
+
+    /* The top bar's tokens are on :root in topbar/topbar.css */
+    --shell-sticky-top: calc(var(--shell-top-bar-block-size) + var(--shell-top-bar-border-width));
+  }
+
+  html {
+    font-size: 62.5%;
+    scroll-padding-block:
+      calc(var(--shell-sticky-top) + var(--shell-header-offset) + var(--shell-focus-ring-clearance))
+      calc(var(--shell-form-actions-offset) + var(--shell-focus-ring-clearance));
+  }
+
+  body {
+    background-color: var(--admin-bg-color);
+    color: var(--admin-fg-color);
+    font-family: var(--admin-font-family);
+    font-size: var(--admin-font-size-md);
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  /* The top bar spans the first row (topbar.css); the sidebar and the content share the second */
+  .shell {
+    align-content: start;
+    display: grid;
+    grid-template-columns: 1fr;
+    min-height: 100vh;
+  }
+
+  @media (width >= 1024px) {
+    .shell {
+      grid-template-columns: auto 1fr;
+    }
+  }
+
+  /* Shown only while focused, so the first Tab stop on every page can jump past the menu */
+  .shell__skip-link {
+    --shell-skip-link-clip-path: inset(50%);
+
+    background-color: var(--admin-bg-color);
+    clip-path: var(--shell-skip-link-clip-path);
+    color: var(--admin-link-color);
+    inset-block-start: var(--admin-gap-sm);
+    inset-inline-start: var(--admin-gap-sm);
+    padding: var(--admin-gap-sm) var(--admin-gap-md);
+    position: absolute;
+    white-space: nowrap;
+    z-index: var(--shell-skip-link-z-index);
+  }
+
+  .shell__skip-link:focus {
+    --shell-skip-link-clip-path: none;
+  }
+
+  .shell__skip-link:focus-visible {
+    outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+    outline-offset: var(--admin-focus-outline-offset);
+  }
+
+  /*
+   * Until 1024px an empty sticky strip under the top bar that the menu's disclosure hangs from; from there
+   * the sidebar, where start alignment stops the grid stretching it to the page height, which sticky needs
+   */
+  .shell__sidebar {
+    align-self: start;
+    background-color: var(--shell-sidebar-bg-color);
+    color: var(--shell-link-fg-color);
+    inset-block-start: var(--shell-sticky-top);
+    position: sticky;
+    z-index: var(--shell-sidebar-z-index);
+  }
+
+  @media (width >= 1024px) {
+    .shell__sidebar {
+      --shell-sidebar-bg-color: var(--admin-sunken-bg-color);
+
+      border-inline-end: var(--shell-sidebar-border-width) solid var(--admin-divider-color);
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - var(--shell-sticky-top));
+      inline-size: var(--shell-sidebar-width);
+    }
+  }
+
+  @media (width >= 1024px) {
+    .shell__sidebar--collapsed {
+      --shell-sidebar-width: var(--shell-sidebar-collapsed-width);
+    }
+  }
+
+  /* Content, column, body and page are flex columns so a form can grow to the viewport and pin its action bar; min-width 0 lets the grid column shrink below wide content */
+  .shell__content {
+    display: var(--shell-content-display);
+    flex-direction: column;
+    grid-template-columns: var(--shell-content-columns);
+    min-height: calc(100vh - var(--shell-sticky-top));
+    min-width: 0;
+  }
+
+  /* A section sidebar (header/section-sidebar.css) beside the content column; stacked above it until 1024px */
+  @media (width >= 1024px) {
+    .shell__content--split {
+      --shell-content-display: grid;
+    }
+  }
+
+  .shell__column {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  /* The body beside the preview pane (preview/preview.css); a row whatever the mode, so the body stays mounted */
+  .shell__workspace {
+    display: flex;
+    flex: 1;
+  }
+
+  .shell__body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .shell__body--hidden {
+    display: none;
+  }
+
+  .shell-page {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    padding-block-start: var(--admin-gap-md);
+  }
+
+  /* Content that is not a form keeps the inset a form gives its fields */
+  .shell-page__inset {
+    padding-inline: var(--shell-inset);
+  }
+
+  /* Top right under the sticky header, clear of the form's action bar whatever its height */
+  .piral-notifications-host {
+    display: flex;
+    flex-direction: column;
+    gap: var(--admin-gap-sm);
+    inset-block-start: calc(var(--shell-sticky-top) + var(--shell-header-offset) + var(--admin-gap-md));
+    inset-inline-end: var(--admin-gap-md);
+    max-inline-size: calc(100% - 2 * var(--admin-gap-md));
+    position: fixed;
+    z-index: var(--shell-notifications-z-index);
+  }
+
+  .shell-page__title {
+    font-size: var(--admin-font-size-xxl);
+    margin: 0 0 var(--admin-gap-md);
+  }
+
+  .shell-page__link {
+    color: var(--admin-link-color);
+  }
+
+  .shell-page__link:focus-visible {
+    outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+    outline-offset: var(--admin-focus-outline-offset);
+  }
+}

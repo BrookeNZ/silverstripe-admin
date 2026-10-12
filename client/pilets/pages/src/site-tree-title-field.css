@@ -1,0 +1,20 @@
+/**
+ * Page title field
+ *
+ * The page Title input with its "Update URL" button after it, as legacy's input group drew them; the
+ * button wraps below the input when the column is narrow
+ */
+
+@layer pilets {
+  .pages-title-field {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--admin-gap-sm);
+  }
+
+  .pages-title-field__input {
+    flex: 1 1 var(--admin-field-control-basis);
+    min-width: 0;
+  }
+}

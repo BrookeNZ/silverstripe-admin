@@ -1,0 +1,39 @@
+/**
+ * Collapse button
+ *
+ * The CMS Refresh "Collapse expand button" (Figma 2:6289): a 25px white circle with a raised shadow round a
+ * 13px Bright Blue chevron, the shadow deepening on hover. The section menu and the section sidebar each put
+ * one in their footer. It reassigns the tertiary icon-only Button's tokens, and wins over
+ * .admin-button--tertiary on the same element because the shell layer follows the components layer.
+ * Pointer events come back on because the section sidebar's footer passes them through. Its tokens sit on
+ * :root so a host can retint it
+ */
+
+@layer shell {
+  :root {
+    --shell-collapse-button-bg-color: var(--admin-panel-bg-color);
+    --shell-collapse-button-fg-color: var(--admin-accent-color);
+    --shell-collapse-button-hover-shadow: var(--admin-raised-hover-shadow);
+    --shell-collapse-button-icon-size: 1.3rem;
+    --shell-collapse-button-shadow: var(--admin-raised-shadow);
+    --shell-collapse-button-size: 2.5rem;
+  }
+
+  .shell-collapse-button {
+    --admin-button-bg-color: var(--shell-collapse-button-bg-color);
+    --admin-button-border-color: var(--shell-collapse-button-bg-color);
+    --admin-button-border-radius: 50%;
+    --admin-button-border-width: 0rem;
+    --admin-button-fg-color: var(--shell-collapse-button-fg-color);
+    --admin-button-hover-bg-color: var(--shell-collapse-button-bg-color);
+    --admin-button-padding-block: calc((var(--shell-collapse-button-size) - var(--shell-collapse-button-icon-size)) / 2);
+    --admin-icon-size: var(--shell-collapse-button-icon-size);
+
+    box-shadow: var(--shell-collapse-button-shadow);
+    pointer-events: auto;
+
+    &:hover {
+      --shell-collapse-button-shadow: var(--shell-collapse-button-hover-shadow);
+    }
+  }
+}

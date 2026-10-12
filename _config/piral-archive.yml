@@ -1,0 +1,13 @@
+---
+Name: adminpiralarchive
+Only:
+  moduleexists: silverstripe/versioned-admin
+---
+SilverStripe\VersionedAdmin\ArchiveAdmin:
+  extensions:
+    - SilverStripe\Admin\UserInterface\ArchiveAdminShellExtension
+
+SilverStripe\Admin\UserInterface\PiletFeed:
+  pilets:
+    silverstripe-versioned-admin-archive:
+      link: 'silverstripe/admin:client/dist/pilets/archive/index.js'

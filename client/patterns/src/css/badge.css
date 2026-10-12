@@ -1,0 +1,28 @@
+/**
+ * Badge
+ *
+ * The CMS Refresh "Site tree tag" (Figma 2:6578): a 10px uppercase label on the modified ground, 1px 3px
+ * 2px padding and a 2px radius. Used for the page tree's flags, the file list's Draft tag and the panel
+ * title's state, and the one text the design sets under the 14px floor. Its tokens sit on :root so a
+ * host can retint it
+ */
+
+:root {
+  --admin-badge-bg-color: var(--admin-modified-bg-color);
+  --admin-badge-border-radius: 0.2rem;
+  --admin-badge-fg-color: var(--admin-modified-fg-color);
+  --admin-badge-font-size: var(--admin-font-size-xs);
+  --admin-badge-padding: 0.1rem 0.3rem 0.2rem;
+}
+
+.admin-badge {
+  background-color: var(--admin-badge-bg-color);
+  border-radius: var(--admin-badge-border-radius);
+  color: var(--admin-badge-fg-color);
+  flex: none;
+  font-size: var(--admin-badge-font-size);
+  font-weight: var(--admin-font-weight-normal);
+  line-height: 1.2;
+  padding: var(--admin-badge-padding);
+  text-transform: uppercase;
+}

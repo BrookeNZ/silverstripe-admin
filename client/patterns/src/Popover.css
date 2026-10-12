@@ -1,0 +1,65 @@
+/**
+ * Popover
+ *
+ * A button with a panel of secondary fields or a menu of actions. The panel opens in the top layer
+ * (`popover="manual"`) at the place useAnchoredLayer measures from the button, passed in as
+ * `--admin-anchor-top` and `--admin-anchor-left`; `--admin-z-popover-fallback` stacks it where the
+ * popover API is missing. The margin is the gap to the button, which the placement reads back. A long
+ * panel scrolls inside its maximum height, as the combobox list does. A titled menu's trigger is the
+ * design's dropdown (Figma 2:6220): 10px between icon, label and caret, and a 6px caret in the label colour
+ */
+
+.admin-popover {
+  display: inline-flex;
+}
+
+.admin-popover__trigger {
+  --admin-button-gap: 1rem;
+}
+
+/* Inside the button's label, so the gap is a margin; 1.2rem draws the 14px frame's glyph 6px wide */
+.admin-popover__caret {
+  --admin-icon-size: 1.2rem;
+
+  margin-inline-start: var(--admin-button-gap);
+  vertical-align: middle;
+}
+
+.admin-popover__panel {
+  --admin-anchor-left: 0;
+  --admin-anchor-top: 0;
+  --admin-popover-panel-max-height: 40rem;
+  --admin-popover-panel-min-width: 24rem;
+  --admin-popover-panel-shadow: 0 0.4rem 1.6rem var(--admin-shadow-color);
+
+  background-color: var(--admin-panel-bg-color);
+  border: var(--admin-border) var(--admin-border-color);
+  border-radius: var(--admin-radius);
+  box-shadow: var(--admin-popover-panel-shadow);
+  box-sizing: border-box;
+  color: var(--admin-fg-color);
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-gap-sm);
+  inset: var(--admin-anchor-top) auto auto var(--admin-anchor-left);
+  margin: var(--admin-gap-xs) 0;
+  max-height: var(--admin-popover-panel-max-height);
+  min-width: var(--admin-popover-panel-min-width);
+  overflow-y: auto;
+  padding: var(--admin-gap-sm);
+  position: fixed;
+  z-index: var(--admin-z-popover-fallback);
+}
+
+.admin-popover__panel[hidden] {
+  display: none;
+}
+
+.admin-popover__title {
+  font-weight: var(--admin-font-weight-bold);
+  margin: 0;
+}
+
+.admin-popover__panel[role="menu"] {
+  --admin-button-justify: flex-start;
+}

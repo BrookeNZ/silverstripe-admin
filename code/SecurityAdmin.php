@@ -145,7 +145,7 @@ class SecurityAdmin extends ModelAdmin implements PermissionProvider
                     "Access to '{title}' section",
                     ['title' => $title]
                 ),
-                'category' => _t(LeftAndMain::class . '.CMS_ACCESS_CATEGORY', 'CMS Access'),
+                'category' => _t(LeftAndMain::class . '.CMS_ACCESS_CATEGORY', 'CMS access'),
                 'help' => _t(
                     __CLASS__ . '.ACCESS_HELP',
                     'Allow viewing, adding and editing users, as well as assigning permissions and roles to them.'
@@ -159,7 +159,7 @@ class SecurityAdmin extends ModelAdmin implements PermissionProvider
                 ),
                 'help' => _t(
                     __CLASS__ . '.EDITPERMISSIONS_HELP',
-                    'Ability to edit Permissions and IP Addresses for a group.'
+                    'Ability to edit permissions and IP addresses for a group.'
                     . ' Requires the "Access to \'Security\' section" permission.'
                 ),
                 'sort' => 0,

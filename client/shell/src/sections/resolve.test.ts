@@ -1,0 +1,162 @@
+import { describe, expect, it } from 'vitest';
+import { editFormSchemaUrl, menuSections, midSentence, modelTabPath, piletOwnsSection, resolveSectionRoute, sectionHeader } from './resolve';
+import type { SilverstripeMenuItem, SilverstripeSection } from '../silverstripe';
+
+const menuItem = (title: string, link: string): SilverstripeMenuItem => ({
+  code: title,
+  title,
+  link,
+  iconClass: '',
+  current: false,
+});
+
+const menu = [
+  menuItem('Pages', 'admin/pages/'),
+  menuItem('Security', 'admin/security/'),
+  menuItem('Settings', 'admin/settings/'),
+  menuItem('Help', 'https://userhelp.silverstripe.org/'),
+];
+
+const config: Array<SilverstripeSection> = [
+  { name: 'CMSPageEditController', url: 'admin/pages/edit', reactRoutePath: 'pages/edit' },
+  { name: 'CMSMain', url: 'admin/pages', reactRoutePath: 'pages' },
+  {
+    name: 'SecurityAdmin',
+    url: 'admin/security',
+    reactRoutePath: 'security',
+    modelTabs: [
+      { tab: 'users', title: 'Users' },
+      { tab: 'groups', title: 'Groups' },
+      { tab: 'roles', title: 'Roles' },
+    ],
+  },
+  { name: 'SiteConfigLeftAndMain', url: 'admin/settings', reactRoutePath: 'settings' },
+  { name: 'LeftAndMain', url: 'admin', reactRoutePath: '' },
+];
+
+const sections = menuSections(menu, config);
+
+describe('menuSections', () => {
+  it('keeps menu items that are admin sections, joined to their config by URL', () => {
+    expect(sections.map((section) => [section.route, section.title, section.url])).toEqual([
+      ['pages', 'Pages', 'admin/pages'],
+      ['security', 'Security', 'admin/security'],
+      ['settings', 'Settings', 'admin/settings'],
+    ]);
+    expect(sections[1].modelTabs.map((tab) => tab.tab)).toEqual(['users', 'groups', 'roles']);
+    expect(sections[2].modelTabs).toEqual([]);
+  });
+});
+
+describe('resolveSectionRoute', () => {
+  it('resolves a plain section to its EditForm schema', () => {
+    const route = resolveSectionRoute('/settings/', sections);
+    expect(route?.section.title).toBe('Settings');
+    expect(route?.tab).toBeNull();
+    expect(route?.unhandled).toEqual([]);
+    expect(route && editFormSchemaUrl(route)).toBe('admin/settings/schema/EditForm');
+  });
+
+  it('lands a ModelAdmin on its first model tab', () => {
+    const route = resolveSectionRoute('/security', sections);
+    expect(route?.tab?.tab).toBe('users');
+    expect(route && editFormSchemaUrl(route)).toBe('admin/security/users/schema/EditForm');
+  });
+
+  it('reads the model tab from the segment after the section', () => {
+    const route = resolveSectionRoute('/security/groups/', sections);
+    expect(route?.tab?.title).toBe('Groups');
+    expect(route?.unhandled).toEqual([]);
+    expect(route && editFormSchemaUrl(route)).toBe('admin/security/groups/schema/EditForm');
+    expect(route && route.tab && modelTabPath(route.section, route.tab)).toBe('/security/groups/');
+  });
+
+  it('reports deeper segments as unhandled, after the tab when there is one', () => {
+    expect(resolveSectionRoute('/security/users/EditForm/field/users/item/3/edit', sections)?.unhandled).toEqual([
+      'EditForm',
+      'field',
+      'users',
+      'item',
+      '3',
+      'edit',
+    ]);
+    const untabbed = resolveSectionRoute('/security/EditForm/field/Members/item/3/edit', sections);
+    expect(untabbed?.tab?.tab).toBe('users');
+    expect(untabbed?.unhandled[0]).toBe('EditForm');
+    expect(resolveSectionRoute('/settings/EditForm', sections)?.unhandled).toEqual(['EditForm']);
+  });
+
+  it('does not match a section by a prefix of its name or outside the menu', () => {
+    expect(resolveSectionRoute('/securityx/', sections)).toBeNull();
+    expect(resolveSectionRoute('/hello/', sections)).toBeNull();
+    expect(resolveSectionRoute('/', sections)).toBeNull();
+  });
+});
+
+describe('sectionHeader', () => {
+  const headerFor = (path: string) => {
+    const route = resolveSectionRoute(path, sections);
+    if (!route) {
+      throw new Error(`No section for ${path}`);
+    }
+    return sectionHeader(route);
+  };
+
+  it('titles a plain section with no back button and no views', () => {
+    expect(headerFor('/settings/')).toEqual({ title: 'Settings' });
+  });
+
+  it('lists the model tabs as views on the landing tab, without a back button', () => {
+    const header = headerFor('/security/');
+    expect(header.title).toBe('Security');
+    expect(header.backTo).toBeUndefined();
+    expect(header.views?.map((view) => [view.label, view.to, view.current])).toEqual([
+      ['Users', '/security/users/', true],
+      ['Groups', '/security/groups/', false],
+      ['Roles', '/security/roles/', false],
+    ]);
+  });
+
+  it('goes back to the section from a named tab, and marks that tab current', () => {
+    const header = headerFor('/security/groups/');
+    expect([header.backTo, header.backLabel]).toEqual(['/security/', 'Back to security']);
+    expect(header.views?.find((view) => view.current)?.key).toBe('groups');
+  });
+
+  it('goes back to the tab, or the section, from a path below it', () => {
+    expect(headerFor('/security/users/EditForm/field/users/item/3/edit').backTo).toBe('/security/users/');
+    expect(headerFor('/security/users/EditForm/field/users/item/3/edit').backLabel).toBe('Back to users');
+    expect(headerFor('/security/EditForm/field/Members/item/3/edit').backTo).toBe('/security/');
+    expect(headerFor('/settings/EditForm').backLabel).toBe('Back to settings');
+  });
+});
+
+describe('midSentence', () => {
+  it('lowers the first letter of a sentence-case title, but not of a leading acronym', () => {
+    expect(midSentence('Site banners')).toBe('site banners');
+    expect(midSentence('SEO reports')).toBe('SEO reports');
+  });
+
+  it('keeps a leading single capital letter and a product name', () => {
+    expect(midSentence('X posts')).toBe('X posts');
+    expect(midSentence('Google sitemaps')).toBe('Google sitemaps');
+    expect(midSentence('Silverstripe modules')).toBe('Silverstripe modules');
+    expect(midSentence('TinyMCE settings')).toBe('TinyMCE settings');
+    expect(midSentence('Googled pages')).toBe('googled pages');
+  });
+});
+
+describe('piletOwnsSection', () => {
+  const [pages, security] = sections;
+
+  it('leaves a section to a pilet that registered any page in it', () => {
+    expect(piletOwnsSection(['/pages/*'], pages)).toBe(true);
+    expect(piletOwnsSection(['pages/edit/show/:id'], pages)).toBe(true);
+    expect(piletOwnsSection(['/pages'], pages)).toBe(true);
+  });
+
+  it('ignores pages in other sections or with a longer first segment', () => {
+    expect(piletOwnsSection(['/assets/edit/:id', '/hello', '/pagesx/*'], pages)).toBe(false);
+    expect(piletOwnsSection([], security)).toBe(false);
+  });
+});

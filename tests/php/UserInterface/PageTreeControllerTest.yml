@@ -1,0 +1,145 @@
+SilverStripe\Security\Group:
+  other:
+    Title: Other
+
+SilverStripe\CMS\Model\SiteTree:
+  alpha:
+    Title: Alpha
+    URLSegment: alpha
+    Sort: 1
+  bravo:
+    Title: Bravo
+    MenuTitle: Bravo menu
+    URLSegment: bravo
+    Sort: 2
+  restricted:
+    Title: Restricted
+    URLSegment: restricted
+    Sort: 3
+    CanViewType: OnlyTheseUsers
+    ViewerGroups: =>SilverStripe\Security\Group.other
+  restrictedchild:
+    Title: Restricted child
+    URLSegment: restricted-child
+    Parent: =>SilverStripe\CMS\Model\SiteTree.restricted
+    Sort: 1
+  wide:
+    Title: Wide
+    URLSegment: wide
+    Sort: 4
+  wide1:
+    Title: Wide one
+    URLSegment: wide-one
+    Parent: =>SilverStripe\CMS\Model\SiteTree.wide
+    Sort: 1
+  wide2:
+    Title: Wide two
+    URLSegment: wide-two
+    Parent: =>SilverStripe\CMS\Model\SiteTree.wide
+    Sort: 2
+  wide3:
+    Title: Wide three
+    URLSegment: wide-three
+    Parent: =>SilverStripe\CMS\Model\SiteTree.wide
+    Sort: 3
+  wide4:
+    Title: Wide four
+    URLSegment: wide-four
+    Parent: =>SilverStripe\CMS\Model\SiteTree.wide
+    Sort: 4
+  wide5:
+    Title: Wide five
+    URLSegment: wide-five
+    Parent: =>SilverStripe\CMS\Model\SiteTree.wide
+    Sort: 5
+  deep1:
+    Title: Deep 1
+    URLSegment: deep-1
+    Parent: =>SilverStripe\CMS\Model\SiteTree.bravo
+    Sort: 1
+  deep2:
+    Title: Deep 2
+    URLSegment: deep-2
+    Parent: =>SilverStripe\CMS\Model\SiteTree.deep1
+    Sort: 1
+  deep3sibling:
+    Title: Deep 3 sibling
+    URLSegment: deep-3-sibling
+    Parent: =>SilverStripe\CMS\Model\SiteTree.deep2
+    Sort: 1
+  deep3:
+    Title: Deep 3
+    URLSegment: deep-3
+    Parent: =>SilverStripe\CMS\Model\SiteTree.deep2
+    Sort: 2
+  deep4:
+    Title: Deep 4
+    URLSegment: deep-4
+    Parent: =>SilverStripe\CMS\Model\SiteTree.deep3
+    Sort: 1
+  deep5:
+    Title: Deep 5
+    URLSegment: deep-5
+    Parent: =>SilverStripe\CMS\Model\SiteTree.deep4
+    Sort: 1
+  deep6:
+    Title: Deep 6
+    URLSegment: deep-6
+    Parent: =>SilverStripe\CMS\Model\SiteTree.deep5
+    Sort: 1
+  openedchild:
+    Title: Opened child
+    URLSegment: opened-child
+    Parent: =>SilverStripe\CMS\Model\SiteTree.restricted
+    CanViewType: Anyone
+    Sort: 2
+  family:
+    Title: Family
+    URLSegment: family
+    Sort: 5
+  familypublished:
+    Title: Family published
+    URLSegment: family-published
+    Parent: =>SilverStripe\CMS\Model\SiteTree.family
+    Sort: 1
+  familydraft:
+    Title: Family draft
+    URLSegment: family-draft
+    Parent: =>SilverStripe\CMS\Model\SiteTree.family
+    Sort: 2
+  familymodified:
+    Title: Family modified
+    URLSegment: family-modified
+    Parent: =>SilverStripe\CMS\Model\SiteTree.family
+    Sort: 3
+  familyhidden:
+    Title: Family hidden
+    URLSegment: family-hidden
+    Parent: =>SilverStripe\CMS\Model\SiteTree.family
+    Sort: 4
+    CanViewType: OnlyTheseUsers
+    ViewerGroups: =>SilverStripe\Security\Group.other
+  familylocked:
+    Title: Family locked
+    URLSegment: family-locked
+    Parent: =>SilverStripe\CMS\Model\SiteTree.family
+    Sort: 5
+    CanEditType: OnlyTheseUsers
+    EditorGroups: =>SilverStripe\Security\Group.other
+  familyguarded:
+    Title: Family guarded
+    URLSegment: family-guarded
+    Parent: =>SilverStripe\CMS\Model\SiteTree.family
+    Sort: 6
+  familyguardedchild:
+    Title: Family guarded child
+    URLSegment: family-guarded-child
+    Parent: =>SilverStripe\CMS\Model\SiteTree.familyguarded
+    Sort: 1
+  familyguardedgrandchild:
+    Title: Family guarded grandchild
+    URLSegment: family-guarded-grandchild
+    Parent: =>SilverStripe\CMS\Model\SiteTree.familyguardedchild
+    Sort: 1
+    CanEditType: OnlyTheseUsers
+    EditorGroups: =>SilverStripe\Security\Group.other

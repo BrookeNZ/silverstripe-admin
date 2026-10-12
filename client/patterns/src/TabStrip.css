@@ -1,0 +1,82 @@
+/**
+ * Tab strip
+ *
+ * The CMS Refresh "Tabs" component (Figma node 2:1773 in the page edit tab bar, 2:1788 in the section
+ * header): labels 25px apart at the inherited text size in Figma New/Black, the current one semibold
+ * over a 3px underline in the same colour, 20px between label and underline. Shared by the section
+ * header's views and the form Tabs, which supply the semantics. The strip scrolls sideways when its
+ * tabs outgrow it, so each tab rings its focus inside its own box. Its tokens sit on :root so a host can
+ * reassign them; the shell form insets a full-width tab set's labels through the inline padding
+ */
+
+:root {
+  --admin-tab-strip-border: none;
+  --admin-tab-strip-gap: 2.5rem;
+  --admin-tab-strip-indicator-width: 0.3rem;
+  --admin-tab-strip-padding-inline: 0rem;
+  --admin-tab-strip-tab-font-weight: var(--admin-font-weight-normal);
+  --admin-tab-strip-tab-indicator-color: transparent;
+  --admin-tab-strip-tab-padding-block-end: 2rem;
+}
+
+.admin-tab-strip {
+  border-block-end: var(--admin-tab-strip-border);
+  box-sizing: border-box;
+  display: flex;
+  gap: var(--admin-tab-strip-gap);
+  inline-size: 100%;
+  list-style: none;
+  margin: 0;
+  min-width: 0;
+  overflow-x: auto;
+  padding-block: 0;
+  padding-inline: var(--admin-tab-strip-padding-inline);
+}
+
+/* Figma tab bar 2:1773: a Line Grey baseline under the form tabs, drawn full width by decision */
+.admin-tab-strip--lined {
+  --admin-tab-strip-border: 0.1rem solid var(--admin-line-color);
+}
+
+.admin-tab-strip__item {
+  display: flex;
+}
+
+.admin-tab-strip__tab {
+  align-items: flex-end;
+  background: none;
+  border: 0;
+  border-block-end: var(--admin-tab-strip-indicator-width) solid var(--admin-tab-strip-tab-indicator-color);
+  color: var(--admin-fg-color);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-weight: var(--admin-tab-strip-tab-font-weight);
+  line-height: normal;
+  padding: 0 0 var(--admin-tab-strip-tab-padding-block-end);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.admin-tab-strip__tab:focus-visible {
+  outline: var(--admin-focus-outline) var(--admin-focus-outline-color);
+  outline-offset: calc(var(--admin-focus-outline-offset) * -1);
+}
+
+.admin-tab-strip__tab--current {
+  --admin-tab-strip-tab-font-weight: var(--admin-font-weight-bold);
+  --admin-tab-strip-tab-indicator-color: var(--admin-fg-color);
+}
+
+/* Forced colours draw a transparent border, so the idle indicator takes the ground colour */
+@media (forced-colors: active) {
+  .admin-tab-strip__tab {
+    --admin-tab-strip-tab-indicator-color: Canvas;
+  }
+}
+
+@media (forced-colors: active) {
+  .admin-tab-strip__tab--current {
+    --admin-tab-strip-tab-indicator-color: Highlight;
+  }
+}
