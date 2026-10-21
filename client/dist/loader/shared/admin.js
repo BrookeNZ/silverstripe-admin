@@ -1,0 +1,1 @@
+let e;function n(){if(!e)throw new Error("The admin client config is not available yet: the admin loader has not read it from the page");return e}let t=!1;function a(){if(t)throw new Error("The admin runtime internals are claimed by the admin loader and cannot be claimed again");return t=!0,{setClientConfig(n){e=n}}}export{a as claimInternals,n as clientConfig};
