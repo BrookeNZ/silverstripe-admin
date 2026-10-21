@@ -5,6 +5,7 @@ namespace SilverStripe\Admin;
 use InvalidArgumentException;
 use LogicException;
 use ReflectionClass;
+use SilverStripe\Admin\Client\ChromePage;
 use SilverStripe\CMS\Controllers\CMSMain;
 use SilverStripe\Admin\Navigator\SilverStripeNavigator;
 use SilverStripe\Control\Controller;
@@ -39,6 +40,7 @@ use SilverStripe\Core\Validation\ValidationException;
 use SilverStripe\Core\Validation\ValidationResult;
 use SilverStripe\Admin\Forms\UnsavedChangesIndicator;
 use SilverStripe\Security\Permission;
+use SilverStripe\Security\PermissionFailureException;
 use SilverStripe\Security\PermissionProvider;
 use SilverStripe\Security\Security;
 use SilverStripe\Security\SecurityToken;
@@ -107,6 +109,16 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
         'AddForm',
         'batchactions',
         'BatchActionsForm',
+    ];
+
+    /**
+     * Last URL segments a page navigation still sends to the server rather than the chrome page, such as a print
+     * view or a GridField export. A trailing record ID is skipped, so `printable/5` matches `printable`
+     */
+    private static array $server_url_segments = [
+        'printable',
+        'print',
+        'export',
     ];
 
     private static $dependencies = [
@@ -298,7 +310,11 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
         $combinedClientConfig['environment'] = Director::get_environment_type();
         $combinedClientConfig['debugging'] = LeftAndMain::config()->uninherited('client_debugging');
 
-        return json_encode($combinedClientConfig);
+        // ChromePage::ClientConfig() writes this into a script block as it is
+        return json_encode(
+            $combinedClientConfig,
+            JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+        );
     }
 
     public function getClientConfig(): array
@@ -338,6 +354,11 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
             // Audit logging hook
             if (empty($_REQUEST['executeForm']) && !$this->getRequest()->isAjax()) {
                 $this->extend('accessedCMS');
+            }
+
+            // The chrome page writes its own tags and config
+            if ($this->isChromeNavigation($this->getRequest())) {
+                return;
             }
 
             Requirements::customScript("
@@ -465,7 +486,11 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
     public function handleRequest(HTTPRequest $request): HTTPResponse
     {
         try {
-            $response = parent::handleRequest($request);
+            if ($this->isChromeNavigation($request)) {
+                $response = $this->handleChromeNavigation($request);
+            } else {
+                $response = parent::handleRequest($request);
+            }
         } catch (ValidationException $e) {
             // Nicer presentation of model-level validation errors
             $msgs = _t(__CLASS__ . '.ValidationError', 'Validation error') . ': '
@@ -489,7 +514,13 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
         // Prevent clickjacking, see https://developer.mozilla.org/en-US/docs/HTTP/X-Frame-Options
         $originalResponse = $this->getResponse();
         $originalResponse->addHeader('X-Frame-Options', LeftAndMain::config()->uninherited('frame_options'));
-        $originalResponse->addHeader('Vary', 'X-Requested-With');
+        // isChromeNavigation() picks the chrome page or the legacy one from these headers
+        // Merged by hand because addVary() is dropped when another Vary is already set
+        $vary = $originalResponse->getHeader('Vary');
+        $originalResponse->addHeader(
+            'Vary',
+            ($vary ? $vary . ', ' : '') . 'X-Requested-With, Accept, Sec-Fetch-Dest, Sec-Fetch-Mode, X-Pjax, X-Formschema-Request'
+        );
 
         return $response;
     }
@@ -497,6 +528,123 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
     public function index(HTTPRequest $request): HTTPResponse
     {
         return $this->getResponseNegotiator()->respond($request);
+    }
+
+    /**
+     * Controller::handleRequest() without the url rules and action lookup, so every URL under a section gets the
+     * chrome page while init() still runs first and a redirect or permission failure from it wins. Section-wide access
+     * belongs in canView() or init(), since no action, allowed_actions check or handleAction() override runs on a
+     * navigation.
+     */
+    private function handleChromeNavigation(HTTPRequest $request): HTTPResponse
+    {
+        $this->beforeHandleRequest($request);
+        if (!$this->getResponse()->isFinished()) {
+            // The same exceptions RequestHandler::handleRequest() turns into responses around an action
+            try {
+                $this->setResponse($this->renderChrome());
+            } catch (HTTPResponse_Exception $e) {
+                $this->setResponse($e->getResponse());
+            } catch (PermissionFailureException $e) {
+                $this->setResponse(Security::permissionFailure(null, $e->getMessage()));
+            }
+        }
+        $this->afterHandleRequest();
+        return $this->getResponse();
+    }
+
+    /**
+     * @internal
+     */
+    protected function isChromeNavigation(HTTPRequest $request): bool
+    {
+        if (LeftAndMain::isDataRequest($request)) {
+            return false;
+        }
+        $segment = LeftAndMain::lastURLSegment($request->remaining());
+        if (in_array($segment, (array) $this->config()->get('server_url_segments'), true)) {
+            return false;
+        }
+        $destination = $request->getHeader('Sec-Fetch-Dest');
+        if ($destination) {
+            $mode = $request->getHeader('Sec-Fetch-Mode');
+            $isNavigation = !$mode || $mode === 'navigate';
+            return $destination === 'document' && $isNavigation;
+        }
+        return LeftAndMain::acceptsHTMLFirst($request);
+    }
+
+    private static function lastURLSegment(string $path): string
+    {
+        $segments = explode('/', $path);
+        $last = array_pop($segments);
+        if ($segments && ctype_digit($last)) {
+            return array_pop($segments);
+        }
+        return $last;
+    }
+
+    private static function isDataRequest(HTTPRequest $request): bool
+    {
+        return $request->httpMethod() !== 'GET'
+            || $request->isAjax()
+            || $request->getHeader('X-Pjax')
+            || $request->getHeader('X-Formschema-Request');
+    }
+
+    /**
+     * Wildcards count as neither HTML nor JSON
+     */
+    private static function acceptsHTMLFirst(HTTPRequest $request): bool
+    {
+        $html = 0.0;
+        $json = 0.0;
+        foreach ($request->getAcceptMimetypes(true) as $range) {
+            $parameters = array_map('trim', explode(';', $range));
+            $type = strtolower(array_shift($parameters));
+            $quality = LeftAndMain::rangeQuality($parameters);
+            if (LeftAndMain::isHTMLType($type)) {
+                $html = max($html, $quality);
+            } elseif (LeftAndMain::isJSONType($type)) {
+                $json = max($json, $quality);
+            }
+        }
+        return $html > 0 && $html >= $json;
+    }
+
+    private static function rangeQuality(array $parameters): float
+    {
+        $quality = 1.0;
+        foreach ($parameters as $parameter) {
+            if (preg_match('#^q\s*=\s*([0-9.]+)$#i', $parameter, $matches)) {
+                $quality = (float) $matches[1];
+            }
+        }
+        return $quality;
+    }
+
+    private static function isHTMLType(string $type): bool
+    {
+        return $type === 'text/html' || $type === 'application/xhtml+xml';
+    }
+
+    private static function isJSONType(string $type): bool
+    {
+        return str_ends_with($type, '/json') || str_ends_with($type, '+json');
+    }
+
+    /**
+     * @internal
+     */
+    protected function renderChrome(): HTTPResponse
+    {
+        // Building the client config instantiates section forms, which require their own JS
+        $clientConfig = $this->getCombinedClientConfig();
+        Requirements::clear();
+        $page = ChromePage::create($this, $clientConfig);
+        $template = SSViewer::create('SilverStripe/Admin/Client/ChromePage', $this->getTemplateEngine());
+        // The controller's own response, so headers set during init() stay on the page
+        return $this->getResponse()->setBody((string) $page->renderWith($template));
     }
 
     /**
