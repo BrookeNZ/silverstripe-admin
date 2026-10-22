@@ -85,6 +85,22 @@ describe('bootModules', () => {
   it('refuses a second claim of the runtime internals', () => {
     expect(() => claimInternals()).toThrow('cannot be claimed again');
   });
+
+  it("removes a failed module's stylesheet link and keeps the others", async () => {
+    const link = (name: string) => {
+      const element = document.createElement('link');
+      element.rel = 'stylesheet';
+      element.dataset.module = name;
+      document.head.append(element);
+    };
+    link('broken');
+    link('working');
+    const { importer } = countingImporter({ broken: new TypeError('Failed to fetch'), working: { setup: () => undefined } });
+
+    await bootModules([listed('broken'), listed('working')], importer);
+
+    expect([...document.querySelectorAll('link')].map((element) => element.dataset.module)).toEqual(['working']);
+  });
 });
 
 describe('readModuleList', () => {

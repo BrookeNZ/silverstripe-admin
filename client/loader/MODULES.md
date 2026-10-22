@@ -51,15 +51,16 @@ The types are exported from the same specifier (`ModuleSetup`, `ModuleMetadata`,
 A module is declared under `ModuleRegistry.modules`, keyed by module name, in a config file such as
 `_config/client.yml`. This declaration is what replaces `LeftAndMain.extra_requirements_javascript` and
 `extra_requirements_css`: the chrome page loads no `Requirements` at all, so a script a section used to add that way
-reaches the admin only as a module. The `expose` block in `composer.json` stays: it is what makes the module's built
-files public. A module is named `vendor/name` after its Composer package: the name is also its import map specifier,
-and the loader imports the module by it. A module name without exactly one `/` leaves the entry out with the warning
-`Module "<name>" is not vendor/name: a module is named after its Composer package, one vendor and one name, so single
-words stay free for other owners; the entry was left out`. An entry that is not a map is left out with a warning. A
-module ignores a key not in the table, with no warning; an entry with no `link` sets only `imports` and `enabled`, and
-any other key leaves it out with a warning. Two config fragments that declare one name merge as Silverstripe config
-does: a later fragment's value replaces an earlier one key by key, its `imports` are added to the earlier map, and its
-`requires` to the earlier list.
+reaches the admin only as a module, and a stylesheet only through a `css` key, a module's or that of an entry with no
+`link` (see *Module CSS*). The `expose` block in `composer.json` stays: it is what makes the module's built files
+public. A module is named `vendor/name` after its Composer package: the name is also its import map specifier, and the
+loader imports the module by it. A module name without exactly one `/` leaves the entry out with the warning `Module
+"<name>" is not vendor/name: a module is named after its Composer package, one vendor and one name, so single words stay
+free for other owners; the entry was left out`. An entry that is not a map is left out with a warning. A module ignores
+a key not in the table, with no warning; an entry with no `link` sets only `imports`, `css` and `enabled`, and any other
+key leaves it out with a warning. Two config fragments that declare one name merge as Silverstripe config does: a later
+fragment's value replaces an earlier one key by key, its `imports` are added to the earlier map, and its `requires` to
+the earlier list.
 
 ```yaml
 ---
@@ -69,11 +70,13 @@ SilverStripe\Admin\Client\ModuleRegistry:
   modules:
     vendor-name/module-name:
       link: 'vendor-name/module-name:client/dist/module/index.js'
+      css: 'vendor-name/module-name:client/dist/module/main.css'
 ```
 
 | Key | Meaning |
 |---|---|
-| `link` | Required. A `vendor/package:path` link, a path relative to the project root (for the project's own files, see below), or a URL (`http://`, `https://`, `//` or a path starting with `/`). A file link with a `..` segment, to a file that does not exist, or to a project file the site does not serve (see below), skips the entry with a warning, and a skipped module provides none of its `imports` |
+| `link` | Required for a module. A `vendor/package:path` link, a path relative to the project root (for the project's own files, see below), or a URL (`http://`, `https://`, `//` or a path starting with `/`). A file link with a `..` segment, to a file that does not exist, or to a project file the site does not serve (see below), skips the entry with a warning, and a skipped module provides none of its `imports` |
+| `css` | A stylesheet, a link of the same forms as `link`, with the same cache-busting query. There is no default file: an entry with no `css` has no stylesheet. A missing file, a `..` segment, a project file the site does not serve or a value that is not a link drops the stylesheet with a warning, and the module still loads. An entry with `css` and no `link` is a stylesheet-only entry, or a library package when it also has `imports`. See *Module CSS* |
 | `enabled` | `false` drops the entry. This is how a later config fragment removes an entry, since YAML merging cannot unset a key. Any other value, even `1` or the quoted string `'true'`, drops the entry with a warning |
 | `imports` | A map of bare specifier to a link of the same forms as `link`: libraries the module adds to the import map (see *Shared libraries*). Anything but a map with named keys leaves the entry out with a warning |
 | `requires` | A list of bare specifiers the module imports from the map and does not bundle |
@@ -92,6 +95,59 @@ a module or `imports` file there must be served with CORS headers, a stylesheet 
 Warnings are logged when a browser loads an admin page, not on flush, and a stock site discards them until the
 project gives the logger a handler (see [IMPORT-MAP.md](IMPORT-MAP.md), *Warnings*).
 
+## Module CSS
+
+The page writes a `<link rel="stylesheet">` in the head for each stylesheet, in config order, before the loader runs,
+so the styles apply before any `setup`. Each link carries the page's nonce. A stylesheet a bundler extracts from a
+CSS import in the module's JavaScript is a separate file the built JavaScript never references, so it loads only
+when the entry's `css` names it.
+
+- **A module's stylesheet** is linked when the module is in the page's module list. Its link carries
+  `data-module="<name>"`, and when the module fails to load (see *When something fails*) the loader removes it, so a
+  broken module's styles do not linger.
+- **A stylesheet-only entry** has a `css` and no `link`, and is the replacement for `extra_requirements_css`. It is
+  not a module: it adds nothing to the import map or the module list, and its name is not a specifier, so the name
+  rules do not apply. Its link has no `data-module`, so the loader never removes it. A library package may carry a
+  `css` the same way. An entry whose `link` is present but empty, as a later config fragment leaves it when it clears
+  the link, is left out with a warning, stylesheet included; set `enabled: false` to turn a module off.
+
+```yaml
+SilverStripe\Admin\Client\ModuleRegistry:
+  modules:
+    acme/admin-theme:
+      css: 'acme/admin-theme:client/dist/theme.css'
+```
+
+Module stylesheets always load after the admin's own, so a module's rule beats an admin rule of equal specificity
+(the chrome page links no admin stylesheet yet). Restyling runs on CSS custom properties, never on selectors the
+module does not own:
+
+- **A module documents the CSS custom properties it supports**, with what each one sets. They are its styling
+  contract with other modules and projects; its class names are not. It names them after itself and never declares
+  them: it reads each through a `--local-` copy with its default as the fallback, so a value set on any ancestor
+  reaches it:
+
+  ```css
+  .acme-calendar {
+    --local-bg-color: var(--acme-calendar-bg-color, Canvas);
+    background-color: var(--local-bg-color);
+  }
+  ```
+
+- **To restyle the admin or another module, set the custom properties it documents, on `:root` for every instance
+  or on a wrapper for one area; don't select `admin-*` classes or another module's classes.** Since a module never
+  declares them, the value applies whichever stylesheet loads first. The admin's stylesheet, once the chrome page
+  links one, declares the admin's own custom properties with zero specificity (`:where()`), so a value set on a
+  bare `:root` wins in every colour scheme without cascade layers:
+
+  ```css
+  :root {
+    --acme-calendar-bg-color: LightYellow;
+  }
+  ```
+
+  Nothing checks these rules yet.
+
 ## Shared libraries
 
 A module can provide a library that others import by a bare specifier, downloaded once and shared by every importer:
@@ -101,6 +157,7 @@ SilverStripe\Admin\Client\ModuleRegistry:
   modules:
     acme/dates:
       link: 'acme/dates:client/dist/index.js'
+      css: 'acme/dates:client/dist/dates.css'
       imports:
         '@acme/dates': 'acme/dates:client/dist/dates.js'
     acme/calendar:
@@ -145,12 +202,14 @@ public; a module's server endpoints check permissions themselves.
 
 - A module that fails to import (a 404, a network error, a syntax error), exports no `setup`, or whose `setup` throws
   or rejects gets one console error, `The admin module "<name>" failed to load`, with the cause, and the other modules
-  still run. It is not fetched again until the page reloads.
+  still run. It is not fetched again until the page reloads, and its stylesheet link is removed.
 - The loader imports every listed module at once with `Promise.allSettled`, then calls each `setup` in list order,
   waiting for a returned promise before the next. There is no timeout: a module whose import or `setup` never
   settles holds back every module after it.
-- A name listed twice keeps its first item, with a console warning, so the order `updateModuleItems` leaves decides
-  which wins.
+- Every stylesheet is linked before the loader script, and the browser runs no module script while a stylesheet
+  before it is still loading, so a stylesheet that never finishes loading holds back the loader and every module.
+- A name listed twice keeps its first item, with a console warning; its stylesheet link follows the same item, so the
+  order `updateModuleItems` leaves decides which wins.
 - A page without its client config logs `The admin could not start` and loads no module. A module list that is
   missing or not a JSON list logs `The page module list is missing or not a JSON list` and loads no module. A loader
   that is not built is logged on the server in dev.
@@ -176,7 +235,7 @@ module imports from the map. The specifier list is `sharedSpecifiers` in `@silve
 types are all a build takes from the admin, which ships no generator or build preset. The loader itself builds with
 webpack 5, and the example below is for Vite 7. Vite's app build drops an entry's exports, `setup` included, so a
 module builds in library mode. A Vite config for the `acme/dates` module above, which provides `@acme/dates` from its
-own `src/dates.ts` and writes `dist/index.js` and `dist/dates.js` under `client/`, for example:
+own `src/dates.ts` and writes `dist/index.js`, `dist/dates.js` and `dist/dates.css` under `client/`, for example:
 
 ```ts
 import { defineConfig } from 'vite';
@@ -217,10 +276,12 @@ To load a module from a dev server rather than its committed build, set `SS_ADMI
 entry with no build is dropped before the override is applied:
 
 ```sh
-SS_ADMIN_MODULE_DEV_URLS="vendor-name/module-name=http://localhost:8080/index.js"
+SS_ADMIN_MODULE_DEV_URLS="vendor-name/module-name=http://localhost:8080/index.js http://localhost:8080/main.css"
 ```
 
-- Pairs are separated by commas (so no URL may contain one): a listed module's name and its entry file's URL.
+- Pairs are separated by commas (so no URL may contain one): a listed module's name, its entry file's URL and,
+  after a space, an optional stylesheet URL. With one, the page links it in place of the module's committed
+  stylesheet, or adds one when the module has no `css`; without one, the committed stylesheet stays.
 - It applies only in `dev`; anywhere else it is ignored with a logged warning. Every URL must be absolute `http://`
   or `https://`; a pair with any other URL, or naming a module no entry configures, is ignored with a warning.
 - It applies to every member who opens the admin on that site, not only the developer, so set it only on a dev site
@@ -228,5 +289,6 @@ SS_ADMIN_MODULE_DEV_URLS="vendor-name/module-name=http://localhost:8080/index.js
 - The override replaces the module's URL in the import map, so the loader, which imports the module by name, and any
   module importing it by name get the dev server's copy.
 - The dev server must answer cross-origin requests with CORS headers, since the page imports the module with
-  `import()`. A nonce-only policy needs no origin for it, since the import inherits the loader's nonce
-  ([IMPORT-MAP.md](IMPORT-MAP.md), *Content Security Policy*); a live-reload socket needs `connect-src`.
+  `import()`. A nonce-only policy needs no origin for it, since the import inherits the loader's nonce and PHP writes
+  the same nonce on the stylesheet link ([IMPORT-MAP.md](IMPORT-MAP.md), *Content Security Policy*); a live-reload
+  socket needs `connect-src`.

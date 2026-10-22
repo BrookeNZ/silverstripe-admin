@@ -34,6 +34,11 @@ design. For writing a module, see [MODULES.md](MODULES.md).
    - `<link rel="modulepreload">`, from `ChromePage::ModulePreloads()`: the loader's `main.js`, then `shared/admin.js`,
      then the other shared files only when the page lists at least one module, then each listed module, each at the
      URL the map gives it;
+   - `<link rel="stylesheet">`, in config order, for each listed module with a `css`, carrying
+     `data-module="<name>"`, and for each stylesheet-only entry or library package with a `css`, with no
+     `data-module` ([MODULES.md](MODULES.md), *Module CSS*). PHP writes these links; the module list does not carry
+     them. The browser runs no module script while a stylesheet before it is loading, so a stylesheet that hangs holds
+     back the loader;
    - the module list as JSON in `#ss-admin-modules`, from `ModuleRegistry::getModuleItems()`, and empty for a member the
      section's `canView()` refuses. Each item is `{name, specifier}`. The list travels in the page, there is no
      separate module endpoint, and an item carries no version: a file's URL carries its modification time. A later
@@ -46,14 +51,15 @@ design. For writing a module, see [MODULES.md](MODULES.md).
 4. **The loader** (`client/loader/src/index.ts`, built to `client/dist/loader/main.js`) reads the config and module
    list, imports every listed module by its specifier with `Promise.allSettled`, then calls each one's `setup()` with
    its deep-frozen list item in list order, each in a try and catch (failures: [MODULES.md](MODULES.md), *When
-   something fails*). Importing by specifier makes the map the one source of a module's URL, so an override of the
-   module's map URL changes what loads rather than loading a second copy. The loader imports `@silverstripe/admin`
-   through the map as modules do, so both share one instance, and claims its setter before any module loads.
+   something fails*), removing a failed module's stylesheet link. Importing by specifier makes the map the one source
+   of a module's URL, so an override of the module's map URL changes what loads rather than loading a second copy.
+   The loader imports `@silverstripe/admin` through the map as modules do, so both share one instance, and claims its
+   setter before any module loads.
 
 ## Contracts and hooks
 
-The element ids `ss-admin-modules` and `ss-admin-config` are a contract between the template and the loader:
-renaming one breaks the loader with no server error.
+The element ids `ss-admin-modules` and `ss-admin-config`, and a module stylesheet link's `data-module`, are a contract
+between the template and the loader: renaming one breaks the loader with no server error.
 
 `ModuleRegistry` fires `updateModuleItems(array &$items)` on the module list. It changes what the loader imports, not
 the import map, so an item it adds must name a specifier a module or library package adds; any other item is dropped
@@ -120,33 +126,39 @@ module name, before anything is listed ([MODULES.md](MODULES.md), *Shared librar
 
 ## Content Security Policy
 
-The page writes a nonce on the import map, every modulepreload and the loader's script. It comes from
-`updateChromeNonce`; an extension on `LeftAndMain` supplies it for every section, and it must equal the nonce in the
-response's policy header, which is the site's to send. With no extension the page writes no nonce attributes.
+The page writes a nonce on the import map, every modulepreload, every stylesheet link and the loader's script. It comes
+from `updateChromeNonce`; an extension on `LeftAndMain` supplies it for every section, and it must equal the nonce in
+the response's policy header, which is the site's to send. With no extension the page writes no nonce attributes.
 
 What a policy must allow:
 
 - `script-src` with the nonce only. It covers the import map, the loader, the shared files and every module:
   `import()` runs with the nonce of the script that calls it, so the modules the loader imports need no origin in the
   policy. The two JSON blocks are data, not scripts. Neither `'unsafe-inline'` nor `'unsafe-eval'` is needed.
+- `style-src` with the nonce only. It covers every stylesheet a module or entry names, since PHP writes each link with
+  the nonce; no `'self'` is needed. The page writes no `<style>` element and no `style` attribute.
 - Do not add `'strict-dynamic'`. Under it a modulepreload with no nonce is allowed, and a module script with the wrong
   nonce for that preloaded URL then runs, so a wrong nonce no longer stops the loader.
 
 A working policy:
 
 ```
-default-src 'none'; script-src 'nonce-<n>'; connect-src 'self'; img-src 'self'; base-uri 'self'; form-action 'self'
+default-src 'none'; script-src 'nonce-<n>'; style-src 'nonce-<n>'; connect-src 'self'; img-src 'self'; base-uri 'self'; form-action 'self'
 ```
 
-With a wrong nonce the import map, the loader, the shared files and the modules are each refused, and the loader
-never runs.
+With a wrong nonce the import map, the loader, the shared files, the modules and the stylesheets are each refused,
+and the loader never runs.
+
+The nonce covers only the `<link>` fetch, not what the stylesheet itself loads. Under this policy an `@import` inside
+a module stylesheet is refused by `style-src`, a font from `@font-face` needs a `font-src` allowing its origin, and an
+image from `url()` on another site needs `img-src` to allow that site.
 
 ## Warnings
 
-`ModuleRegistry`, `ModuleEntryChecker`, `ImportMap` and `ChromePage` log every warning (a skipped entry, a missing
-file, a `requires` nothing in the map provides, a bad dev override, an item `updateModuleItems` added for an
-unmapped specifier, and in dev an unbuilt loader). A warning never stops the page; only a specifier claimed twice does,
-and only in dev.
+`ModuleRegistry`, `ModuleEntryChecker`, `ImportMap` and `ChromePage` log every warning (a skipped entry, a missing file,
+a dropped module stylesheet, a `requires` nothing in the map provides, a bad dev override, an item
+`updateModuleItems` added for an unmapped specifier, and in dev an unbuilt loader). A warning never stops the page;
+only a specifier claimed twice does, and only in dev.
 
 They log to `Psr\Log\LoggerInterface` when a navigation renders the chrome page, not on flush. The framework's
 `logging.yml` gives that logger no handler, so a stock site discards every warning until the project adds one, for

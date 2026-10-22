@@ -32,6 +32,11 @@ class ModuleEntryChecker
     private array $libraryPackages = [];
 
     /**
+     * @var array<string, array>
+     */
+    private array $stylesheetEntries = [];
+
+    /**
      * @var Closure(string): void
      */
     private Closure $warn;
@@ -49,6 +54,22 @@ class ModuleEntryChecker
     public static function isLibraryPackage(array $entry): bool
     {
         return !array_key_exists('link', $entry) && !empty($entry['imports']);
+    }
+
+    /**
+     * Adds a stylesheet to the page and nothing to the import map or the module list
+     */
+    public static function isStylesheetOnly(array $entry): bool
+    {
+        if (array_key_exists('link', $entry) || !empty($entry['imports'])) {
+            return false;
+        }
+        return array_key_exists('css', $entry);
+    }
+
+    public static function isModule(array $entry): bool
+    {
+        return !ModuleEntryChecker::isLibraryPackage($entry) && !ModuleEntryChecker::isStylesheetOnly($entry);
     }
 
     /**
@@ -75,6 +96,7 @@ class ModuleEntryChecker
     public function checkEntries(array $entries): array
     {
         $this->libraryPackages = array_filter($entries, ModuleEntryChecker::isLibraryPackage(...));
+        $this->stylesheetEntries = array_filter($entries, ModuleEntryChecker::isStylesheetOnly(...));
         foreach ($entries as $name => $entry) {
             $problem = $this->entryProblem($name, $entry);
             if ($problem !== null) {
@@ -91,18 +113,19 @@ class ModuleEntryChecker
 
     private function entryProblem(string $name, array $entry): ?string
     {
-        return $this->importsProblem($name, $entry)
-            ?? $this->libraryPackageKeysProblem($name, $entry)
-            ?? $this->moduleNameProblem($name, $entry);
+        return ModuleEntryChecker::emptyLinkProblem($name, $entry)
+            ?? $this->importsProblem($name, $entry)
+            ?? $this->linklessKeysProblem($name, $entry)
+            ?? ModuleEntryChecker::moduleNameProblem($name, $entry);
     }
 
     /**
      * A module's name is its import map key: one that is not a bare specifier would remap a URL or a path, a trailing
      * slash would map a whole prefix, and an `@` scope or a single word is kept for shared files and `imports` keys
      */
-    private function moduleNameProblem(string $name, array $entry): ?string
+    private static function moduleNameProblem(string $name, array $entry): ?string
     {
-        if (isset($this->libraryPackages[$name])) {
+        if (!ModuleEntryChecker::hasLink($entry)) {
             return null;
         }
         if (!ModuleEntryChecker::isBareSpecifier($name)) {
@@ -151,12 +174,30 @@ class ModuleEntryChecker
         return null;
     }
 
-    private function libraryPackageKeysProblem(string $name, array $entry): ?string
+    /**
+     * A later config fragment cannot unset a key, so an empty link means a module was turned off the wrong way
+     */
+    private static function emptyLinkProblem(string $name, array $entry): ?string
     {
-        $refused = isset($this->libraryPackages[$name]) ? array_diff(array_keys($entry), ['imports', 'enabled']) : [];
+        if (!array_key_exists('link', $entry) || ModuleEntryChecker::hasLink($entry)) {
+            return null;
+        }
+        return sprintf(
+            'Entry "%s" has an empty link; leave the key out of a library package or stylesheet entry, and set'
+                . ' enabled: false to turn a module off',
+            $name
+        );
+    }
+
+    private function linklessKeysProblem(string $name, array $entry): ?string
+    {
+        if (ModuleEntryChecker::hasLink($entry)) {
+            return null;
+        }
+        $refused = array_diff(array_keys($entry), ['imports', 'css', 'enabled']);
         return $refused ? sprintf(
-            'Library package "%s" sets %s, which only a module with a link takes; a library package sets only imports',
-            $name,
+            '%s sets %s, which only a module with a link takes; an entry with no link sets only imports, css and enabled',
+            ucfirst($this->entryLabel($name)),
             implode(', ', $refused)
         ) : null;
     }
@@ -202,7 +243,7 @@ class ModuleEntryChecker
     {
         $owners = [];
         foreach ($entries as $name => $entry) {
-            if (!isset($this->libraryPackages[$name])) {
+            if (ModuleEntryChecker::hasLink($entry)) {
                 $owners[(string) $name][] = (string) $name;
             }
             foreach (array_keys((array) ($entry['imports'] ?? [])) as $specifier) {
@@ -239,10 +280,13 @@ class ModuleEntryChecker
         return $entries;
     }
 
+    /**
+     * A library package that also has a `css` stays as a stylesheet-only entry
+     */
     private function dropEmptyLibraryPackages(array $entries): array
     {
         foreach (array_keys($this->libraryPackages) as $name) {
-            if (isset($entries[$name]) && empty($entries[$name]['imports'])) {
+            if (isset($entries[$name]) && empty($entries[$name]['imports']) && !array_key_exists('css', $entries[$name])) {
                 unset($entries[$name]);
             }
         }
@@ -251,7 +295,11 @@ class ModuleEntryChecker
 
     private function entryLabel(string $name): string
     {
-        return sprintf('%s "%s"', isset($this->libraryPackages[$name]) ? 'library package' : 'module', $name);
+        return sprintf('%s "%s"', match (true) {
+            isset($this->libraryPackages[$name]) => 'library package',
+            isset($this->stylesheetEntries[$name]) => 'stylesheet entry',
+            default => 'module',
+        }, $name);
     }
 
     private function reportDuplicateSpecifier(string $message): void

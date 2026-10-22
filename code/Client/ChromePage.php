@@ -15,9 +15,8 @@ use SilverStripe\Model\ModelData;
  * the loader reads, so the loader makes no request for its config or module list. The section controller is its
  * failover, so the template's `$Title` and `$Locale` are the section's.
  *
- * The element ids `ss-admin-modules` and `ss-admin-config` are read by the loader's entry file,
- * client/loader/src/index.ts, and its readers (loader.ts and clientConfig.ts); renaming one breaks the loader with no
- * server error.
+ * The loader reads the element ids `ss-admin-modules` and `ss-admin-config` (client/loader/src/clientConfig.ts) and
+ * removes a failed module's stylesheet by its `data-module`. Renaming one breaks the loader with no server error.
  *
  * An extension on LeftAndMain that implements `updateChromeNonce` supplies the CSP nonce for every section.
  *
@@ -86,6 +85,32 @@ class ChromePage extends ModelData
         $urls = [$this->scriptURL, ...array_values($sharedImports), ...$moduleURLs];
         $urls = array_values(array_unique(array_filter($urls, fn (?string $url) => $url !== null)));
         return ArrayList::create(array_map(fn (string $url) => ['URL' => $url], $urls));
+    }
+
+    /**
+     * A module's stylesheet is linked only when the module is listed, with the module's name in `data-module`
+     * so the loader can remove it on failure. Other entries' stylesheets are always linked. Empty for a member the
+     * section refuses
+     */
+    public function ModuleStylesheets(): ArrayList
+    {
+        $items = $this->moduleItems;
+        if ($items === null) {
+            return ArrayList::create();
+        }
+        $listedNames = $this->listedNamesBySpecifier($items);
+        $links = [];
+        foreach (ModuleRegistry::singleton()->getStylesheets() as $stylesheet) {
+            if (!$stylesheet['module']) {
+                $links[] = ['IsModule' => false, 'Module' => '', 'URL' => $stylesheet['url']];
+                continue;
+            }
+            $module = $listedNames[$stylesheet['name']] ?? null;
+            if ($module !== null) {
+                $links[] = ['IsModule' => true, 'Module' => $module, 'URL' => $stylesheet['url']];
+            }
+        }
+        return ArrayList::create($links);
     }
 
     /**

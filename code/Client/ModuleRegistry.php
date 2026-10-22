@@ -16,10 +16,9 @@ use SilverStripe\Core\Manifest\ModuleResourceLoader;
 use SilverStripe\Core\Path;
 
 /**
- * Lists the client modules the admin's loader imports, from the `modules` config keyed by module name, and the import
- * map entries they add: each module's name at its entry file's URL, and the libraries in each entry's `imports`. The
- * config keys and the dev override are documented for module authors in client/loader/MODULES.md; keep the two in
- * step.
+ * Reads the `modules` config, keyed by module name, into the loader's module list, the import map entries the
+ * modules add and the stylesheets they link. client/loader/MODULES.md documents the config keys and the dev override
+ * for module authors; keep the two in step.
  *
  * ModuleEntryChecker checks the entries first. After that, each problem drops only what it concerns and logs a
  * warning, so one module's mistake cannot take the admin down.
@@ -42,7 +41,7 @@ class ModuleRegistry
     private ?array $checkedEntries = null;
 
     /**
-     * @var array<string, array{url: string}>|null
+     * @var array<string, array{url: string, css: ?string}>|null
      */
     private ?array $resolvedModules = null;
 
@@ -54,8 +53,11 @@ class ModuleRegistry
     private array $libraries = [];
 
     /**
-     * The module list: each enabled module entry whose entry file resolves, never a library package
-     *
+     * @var list<array{name: string, url: string, module: bool}>|null
+     */
+    private ?array $stylesheets = null;
+
+    /**
      * @return list<array{name: string, specifier: string}>
      * @throws RuntimeException in dev, on a specifier claimed twice
      */
@@ -78,6 +80,31 @@ class ModuleRegistry
     {
         $modules = $this->resolvedModules();
         return array_map(fn (array $module) => $module['url'], $modules) + $this->libraries;
+    }
+
+    /**
+     * In config order, with the dev override's stylesheet in place of a module's where it names one
+     *
+     * @return list<array{name: string, url: string, module: bool}>
+     * @throws RuntimeException as getModuleItems() does
+     * @internal
+     */
+    public function getStylesheets(): array
+    {
+        if ($this->stylesheets !== null) {
+            return $this->stylesheets;
+        }
+        $modules = $this->resolvedModules();
+        $this->stylesheets = [];
+        foreach ($this->checkedEntries() as $name => $entry) {
+            $name = (string) $name;
+            $isModule = ModuleEntryChecker::isModule($entry);
+            $url = $isModule ? ($modules[$name]['css'] ?? null) : $this->resolveStylesheet($name, $entry);
+            if ($url !== null) {
+                $this->stylesheets[] = ['name' => $name, 'url' => $url, 'module' => $isModule];
+            }
+        }
+        return $this->stylesheets;
     }
 
     private function dropUnmappedItems(array $items): array
@@ -131,9 +158,7 @@ class ModuleRegistry
     }
 
     /**
-     * Each module entry's URL, the dev override's where it names one, by name
-     *
-     * @return array<string, array{url: string}>
+     * @return array<string, array{url: string, css: ?string}>
      */
     private function resolvedModules(): array
     {
@@ -141,7 +166,7 @@ class ModuleRegistry
             return $this->resolvedModules;
         }
         $entries = $this->checkedEntries();
-        $moduleEntries = array_filter($entries, fn (array $entry) => !ModuleEntryChecker::isLibraryPackage($entry));
+        $moduleEntries = array_filter($entries, ModuleEntryChecker::isModule(...));
         $devUrls = $this->resolveDevURLs(array_keys($moduleEntries));
         $modules = [];
         foreach ($moduleEntries as $name => $entry) {
@@ -150,7 +175,10 @@ class ModuleRegistry
                 unset($entries[$name]);
                 continue;
             }
-            $modules[$name] = ['url' => $devUrls[$name] ?? $url];
+            $modules[$name] = [
+                'url' => $devUrls[$name]['url'] ?? $url,
+                'css' => $devUrls[$name]['css'] ?? $this->resolveStylesheet($name, $entry),
+            ];
         }
         $this->libraries = $this->libraries($entries);
         $this->warnAboutMissingRequires($entries, $modules);
@@ -207,10 +235,8 @@ class ModuleRegistry
     }
 
     /**
-     * The dev override's entry file URLs keyed by module name, empty outside dev
-     *
      * @param list<string> $names The module entries' names, the only ones an override may name
-     * @return array<string, string>
+     * @return array<string, array{url: string, css: ?string}>
      */
     private function resolveDevURLs(array $names): array
     {
@@ -227,15 +253,16 @@ class ModuleRegistry
             if (trim($pair) === '') {
                 continue;
             }
-            [$name, $url] = array_map('trim', explode('=', $pair, 2)) + [1 => ''];
-            if ($name === '' || !ModuleRegistry::isDevURL($url)) {
+            $override = ModuleRegistry::parseDevURLPair($pair);
+            if ($override === null) {
                 $this->warn(sprintf(
-                    '%s pair "%s" is not name=URL with an absolute http(s) URL, and was ignored',
+                    '%s pair "%s" is not name=URL with an optional stylesheet URL, each absolute http(s), and was ignored',
                     ModuleRegistry::DEV_URLS_ENV,
                     trim($pair)
                 ));
                 continue;
             }
+            $name = $override['name'];
             if (!in_array($name, $names, true)) {
                 $this->warn(sprintf(
                     '%s names "%s", which no module entry configures, and was ignored',
@@ -247,9 +274,29 @@ class ModuleRegistry
             if (isset($overrides[$name])) {
                 $this->warn(sprintf('%s names "%s" more than once; the last pair is used', ModuleRegistry::DEV_URLS_ENV, $name));
             }
-            $overrides[$name] = $url;
+            $overrides[$name] = ['url' => $override['url'], 'css' => $override['css']];
         }
         return $overrides;
+    }
+
+    /**
+     * Parses one `name=URL [stylesheet URL]` pair; null unless the name is set and every URL is absolute http(s)
+     *
+     * @return array{name: string, url: string, css: ?string}|null
+     */
+    private static function parseDevURLPair(string $pair): ?array
+    {
+        [$name, $urlText] = array_map('trim', explode('=', $pair, 2)) + [1 => ''];
+        $urls = preg_split('#\s+#', $urlText, -1, PREG_SPLIT_NO_EMPTY);
+        if ($name === '' || count($urls) < 1 || count($urls) > 2) {
+            return null;
+        }
+        foreach ($urls as $url) {
+            if (!ModuleRegistry::isDevURL($url)) {
+                return null;
+            }
+        }
+        return ['name' => $name, 'url' => $urls[0], 'css' => $urls[1] ?? null];
     }
 
     private static function isDevURL(string $url): bool
@@ -268,11 +315,20 @@ class ModuleRegistry
         }
         $this->warn(sprintf(
             '%s "%s" sets enabled to %s, which is not true or false; the entry was left out',
-            ModuleEntryChecker::isLibraryPackage($entry) ? 'Library package' : 'Module',
+            ModuleRegistry::entryType($entry),
             $name,
             ModuleEntryChecker::describeValue($value)
         ));
         return false;
+    }
+
+    private static function entryType(array $entry): string
+    {
+        return match (true) {
+            ModuleEntryChecker::isLibraryPackage($entry) => 'Library package',
+            ModuleEntryChecker::isStylesheetOnly($entry) => 'Stylesheet entry',
+            default => 'Module',
+        };
     }
 
     private function resolveScript(string $name, array $entry): ?string
@@ -286,6 +342,28 @@ class ModuleRegistry
             return $this->resolveLink($name, $link);
         } catch (InvalidArgumentException $exception) {
             $this->warn(sprintf('Module "%s" was skipped: %s', $name, $exception->getMessage()));
+            return null;
+        }
+    }
+
+    /**
+     * A missing or broken `css` drops only the stylesheet, so the module still loads unstyled
+     */
+    private function resolveStylesheet(string $name, array $entry): ?string
+    {
+        if (!array_key_exists('css', $entry)) {
+            return null;
+        }
+        $type = ModuleRegistry::entryType($entry);
+        $link = $entry['css'];
+        if (!is_string($link) || $link === '') {
+            $this->warn(sprintf('%s "%s" gives no link for its css, so its stylesheet was dropped', $type, $name));
+            return null;
+        }
+        try {
+            return $this->resolveLink($name, $link, 'its stylesheet was dropped', $type);
+        } catch (InvalidArgumentException $exception) {
+            $this->warn(sprintf('%s "%s" stylesheet was dropped: %s', $type, $name, $exception->getMessage()));
             return null;
         }
     }
@@ -318,12 +396,16 @@ class ModuleRegistry
     /**
      * @throws InvalidArgumentException for an unknown module or a path with `..` segments
      */
-    private function resolveLink(string $name, string $link, string $consequence = 'was skipped'): ?string
-    {
+    private function resolveLink(
+        string $name,
+        string $link,
+        string $consequence = 'was skipped',
+        string $type = 'Module'
+    ): ?string {
         $resource = ModuleResourceLoader::singleton()->resolveResource($link);
         if ($resource instanceof ModuleResource) {
             if (!$resource->exists()) {
-                $this->warn(sprintf('Module "%s" points at a missing file (%s) and %s', $name, $link, $consequence));
+                $this->warn(sprintf('%s "%s" points at a missing file (%s) and %s', $type, $name, $link, $consequence));
                 return null;
             }
             return Director::absoluteURL($resource->getURL());
@@ -335,15 +417,16 @@ class ModuleRegistry
         }
         // A path relative to the project root, as the root module addresses its own files
         if (!file_exists(Path::join(Director::baseFolder(), $link))) {
-            $this->warn(sprintf('Module "%s" points at a missing file (%s) and %s', $name, $link, $consequence));
+            $this->warn(sprintf('%s "%s" points at a missing file (%s) and %s', $type, $name, $link, $consequence));
             return null;
         }
         if (!ModuleRegistry::isServed($link)) {
             $publicDir = Director::publicDir();
             $this->warn(sprintf(
-                'Module "%s" points at "%s", which is outside %s/ and has no exposed copy in %s/%s/, so it would not be '
+                '%s "%s" points at "%s", which is outside %s/ and has no exposed copy in %s/%s/, so it would not be '
                     . 'served, and %s; add its folder to extra.expose in the composer.json of the package that holds it, '
                     . 'or the root one for project code, and run composer vendor-expose',
+                $type,
                 $name,
                 $link,
                 $publicDir,

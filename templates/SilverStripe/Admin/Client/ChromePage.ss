@@ -9,6 +9,9 @@
     <% loop $ModulePreloads %>
     <link rel="modulepreload"{$Top.NonceAttribute} href="$URL.ATT" />
     <% end_loop %>
+    <% loop $ModuleStylesheets %>
+    <link rel="stylesheet"{$Top.NonceAttribute} href="$URL.ATT"<% if $IsModule %> data-module="$Module.ATT"<% end_if %> />
+    <% end_loop %>
     <script type="application/json" id="ss-admin-modules">$ModuleList.RAW</script>
     <script type="application/json" id="ss-admin-config">$ClientConfig.RAW</script>
     <% if $ScriptURL %>

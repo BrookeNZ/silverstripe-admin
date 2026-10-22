@@ -43,8 +43,8 @@ export function readModuleList(): Array<ModuleMetadata> {
 
 /**
  * Imports every item at once, then runs each `setup` in list order, waiting for a returned promise before the next.
- * A failed import or `setup` gets one console error and the rest still run. There is no timeout, so an import or
- * `setup` that never settles holds back every item after it
+ * A failed import or `setup` gets one console error and its stylesheet removed, and the rest still run. There is
+ * no timeout, so an import or `setup` that never settles holds back every item after it
  */
 export async function bootModules(
   items: ReadonlyArray<ModuleMetadata>,
@@ -56,6 +56,16 @@ export async function bootModules(
       await setupModule(item, imported[index]);
     } catch (error) {
       console.error(`The admin module "${item.name}" failed to load`, error);
+      removeStylesheets(item.name);
+    }
+  }
+}
+
+/** A failed module's stylesheet must not keep restyling the page; ChromePage writes the `data-module` it is found by */
+function removeStylesheets(name: string): void {
+  for (const link of document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"][data-module]')) {
+    if (link.dataset.module === name) {
+      link.remove();
     }
   }
 }

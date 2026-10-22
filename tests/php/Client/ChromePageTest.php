@@ -79,6 +79,33 @@ class ChromePageTest extends FunctionalTest
         );
     }
 
+    public function testModuleStylesheetsAreLinkedInConfigOrderBeforeTheLoader(): void
+    {
+        Config::modify()->set(ModuleRegistry::class, 'modules', [
+            ChromePageTest::NAME => ['link' => 'https://cdn.example.test/hello.js', 'css' => 'https://cdn.example.test/hello.css'],
+            'acme-theme' => ['css' => 'https://cdn.example.test/theme.css'],
+        ]);
+
+        $body = $this->sectionNavigation();
+
+        $nonce = 'nonce="' . NonceExtension::NONCE . '"';
+        preg_match_all('#<link rel="stylesheet"[^>]*>|<script type="module"#', $body, $tags);
+        $this->assertSame(
+            [
+                '<link rel="stylesheet" ' . $nonce . ' href="https://cdn.example.test/hello.css" data-module="'
+                    . htmlspecialchars(ChromePageTest::NAME) . '" />',
+                '<link rel="stylesheet" ' . $nonce . ' href="https://cdn.example.test/theme.css" />',
+                '<script type="module"',
+            ],
+            $tags[0],
+            'In config order, then the loader; only a module link names a module'
+        );
+        $map = json_decode($this->scriptBlock($body, 'type="importmap"'), true, 512, JSON_THROW_ON_ERROR);
+        $this->assertArrayNotHasKey('acme-theme', $map['imports']);
+        $modules = json_decode($this->scriptBlock($body, 'id="ss-admin-modules"'), true, 512, JSON_THROW_ON_ERROR);
+        $this->assertSame([ChromePageTest::NAME], array_column($modules, 'name'));
+    }
+
     public function testAHeaderSetDuringInitStaysOnTheChromePage(): void
     {
         $response = $this->get(ChromePageTest::SECTION, null, ['Accept' => 'text/html']);

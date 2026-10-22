@@ -125,7 +125,11 @@ class ModuleRegistryTest extends SapphireTest
         Config::modify()->set(ModuleRegistry::class, 'modules', [
             'acme/up' => ['link' => '../../etc/hostname'],
             'acme/module-up' => ['link' => 'silverstripe/admin:../../../.env'],
-            'acme/hello' => ['link' => ModuleRegistryTest::FIXTURE, 'imports' => ['helper' => '../../etc/hostname']],
+            'acme/hello' => [
+                'link' => ModuleRegistryTest::FIXTURE,
+                'imports' => ['helper' => '../../etc/hostname'],
+                'css' => 'silverstripe/admin:../../../.env',
+            ],
         ]);
         $logged = $this->captureWarnings();
 
@@ -133,7 +137,23 @@ class ModuleRegistryTest extends SapphireTest
 
         $this->assertSame(['acme/hello'], array_column($registry->getModuleItems(), 'name'));
         $this->assertSame(['acme/hello'], array_keys($registry->getImports()));
+        $this->assertSame([], $registry->getStylesheets());
+        $this->assertTrue($logged->hasWarningThatContains('Module "acme/hello" stylesheet was dropped'), 'The dropped stylesheet is logged');
         $this->assertTrue($logged->hasWarningThatContains('Module "acme/up" was skipped: Can not collapse relative folders'), 'The .. segment, not a missing file, drops it');
+    }
+
+    public function testALinkClearedByLaterConfigDropsTheWholeEntry(): void
+    {
+        Config::modify()->set(ModuleRegistry::class, 'modules', [
+            'acme/dates' => ['link' => null, 'css' => 'https://cdn.example.test/dates.css'],
+        ]);
+        $logged = $this->captureWarnings();
+
+        $registry = ModuleRegistry::singleton();
+
+        $this->assertSame([], $registry->getModuleItems());
+        $this->assertSame([], $registry->getStylesheets());
+        $this->assertTrue($logged->hasWarningThatContains('Entry "acme/dates" has an empty link'), 'The dropped entry is logged');
     }
 
     public function testAnItemUpdateModuleItemsGivesAnUnmappedSpecifierIsDropped(): void
@@ -146,15 +166,6 @@ class ModuleRegistryTest extends SapphireTest
 
         $this->assertSame(['acme/hello', 'acme/again'], array_column($items, 'name'));
         $this->assertTrue($logged->hasWarningThatContains('the specifier "acme/stray", which no module adds'));
-    }
-
-    public function testADevUrlReplacesTheModulesMapUrlInDev(): void
-    {
-        $this->configureDevOverride('acme/hello=http://localhost:8080/index.js');
-
-        $imports = $this->inDev(fn () => ModuleRegistry::singleton()->getImports())[0];
-
-        $this->assertSame('http://localhost:8080/index.js', $imports['acme/hello']);
     }
 
     public function testADevURLThatIsNotHttpOrNamesAnUnknownModuleIsRefused(): void

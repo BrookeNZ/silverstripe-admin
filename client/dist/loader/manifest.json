@@ -7,7 +7,7 @@
     "react-dom/client": "shared/react-dom-client.js"
   },
   "files": {
-    "main.js": "sha384-8QyXQmjehz+VNxWDLNF+KJTvprfsyyXXwuuO+4pwtYRotDHPpiSGKbZUsbPK3VyX",
+    "main.js": "sha384-f03W/zuplxWReD5TPD1UzzYTQlLu6PAoYUcU4tPZt38EElBeztvGAq3XfFVChizi",
     "shared/admin.js": "sha384-xLola2DDx2ZnHJ4jGf206CkpouweU/LzkthGPTsQu2kxovHOcR4fKDT9yTKLTYG3",
     "shared/react-dom-client.js": "sha384-RNDaENeRU3TnbTcrfSyXfo34oLH/kQVG/HjA3CqE836b2IwF6WhgcYMcxtkpOzUX",
     "shared/react-dom.js": "sha384-Ag6Hja3QyqqQS0KaSXa6fu2db/AibSTikzWEl2AbAV4RvPDg1Q/3ma+2eWuCaEaS",
