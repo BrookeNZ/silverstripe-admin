@@ -49,7 +49,7 @@ class ChromePageTest extends FunctionalTest
         );
         $nonce = 'nonce="' . NonceExtension::NONCE . '"';
         $this->assertStringContainsString('<script type="importmap" ' . $nonce . '>', $body);
-        $map = json_decode($this->scriptBlock($body, 'type="importmap"'), true, 512, JSON_THROW_ON_ERROR);
+        $map = $this->jsonBlock($body, 'type="importmap"');
         $this->assertArrayHasKey('react', $map['imports']);
         $this->assertSame('https://cdn.example.test/hello.js', $map['imports'][ChromePageTest::NAME]);
         $preloads = $this->modulePreloads($body);
@@ -59,13 +59,13 @@ class ChromePageTest extends FunctionalTest
         $this->assertStringContainsString('?v=', $preloads[1]);
         $this->assertStringContainsString('<script type="module" ' . $nonce . ' src="' . $preloads[0] . '"></script>', $body);
 
-        $modules = json_decode($this->scriptBlock($body, 'id="ss-admin-modules"'), true, 512, JSON_THROW_ON_ERROR);
+        $modules = $this->jsonBlock($body, 'id="ss-admin-modules"');
         $this->assertSame(
             [['name' => ChromePageTest::NAME, 'specifier' => ChromePageTest::NAME]],
             $modules,
             'A value cannot close its block'
         );
-        $config = json_decode($this->scriptBlock($body, 'id="ss-admin-config"'), true, 512, JSON_THROW_ON_ERROR);
+        $config = $this->jsonBlock($body, 'id="ss-admin-config"');
         $this->assertArrayHasKey('sections', $config);
 
         $this->assertStringNotContainsString('window.ss.config', $body);
@@ -100,9 +100,9 @@ class ChromePageTest extends FunctionalTest
             $tags[0],
             'In config order, then the loader; only a module link names a module'
         );
-        $map = json_decode($this->scriptBlock($body, 'type="importmap"'), true, 512, JSON_THROW_ON_ERROR);
+        $map = $this->jsonBlock($body, 'type="importmap"');
         $this->assertArrayNotHasKey('acme-theme', $map['imports']);
-        $modules = json_decode($this->scriptBlock($body, 'id="ss-admin-modules"'), true, 512, JSON_THROW_ON_ERROR);
+        $modules = $this->jsonBlock($body, 'id="ss-admin-modules"');
         $this->assertSame([ChromePageTest::NAME], array_column($modules, 'name'));
     }
 
@@ -123,13 +123,16 @@ class ChromePageTest extends FunctionalTest
         }
     }
 
-    public function testInvalidUTF8InTheClientConfigIsSubstituted(): void
+    public function testInvalidUTF8IsSubstituted(): void
     {
         Config::modify()->set(LeftAndMain::class, 'client_debugging', "bad \xB1 byte</script>");
+        Config::modify()->set(ModuleRegistry::class, 'modules', ["acme/bad\xB1byte" => ['link' => 'https://cdn.example.test/hello.js']]);
 
-        $config = json_decode($this->scriptBlock($this->sectionNavigation(), 'id="ss-admin-config"'), true, 512, JSON_THROW_ON_ERROR);
+        $body = $this->sectionNavigation();
 
+        $config = $this->jsonBlock($body, 'id="ss-admin-config"');
         $this->assertSame("bad \u{FFFD} byte</script>", $config['debugging'], 'Substituted, and unable to close its block');
+        $this->assertSame(["acme/bad\u{FFFD}byte"], array_column($this->jsonBlock($body, 'id="ss-admin-modules"'), 'name'));
     }
 
     public function testADataRequestToASectionURLReachesItsLegacyAction(): void
@@ -188,9 +191,9 @@ class ChromePageTest extends FunctionalTest
         return $preloads[1];
     }
 
-    private function scriptBlock(string $body, string $attribute): string
+    private function jsonBlock(string $body, string $attribute): array
     {
         $this->assertSame(1, preg_match('#<script[^>]*' . preg_quote($attribute, '#') . '[^>]*>(.*?)</script>#s', $body, $matches), $attribute);
-        return $matches[1];
+        return json_decode($matches[1], true, 512, JSON_THROW_ON_ERROR);
     }
 }

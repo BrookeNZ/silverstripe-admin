@@ -157,10 +157,14 @@ class ChromePage extends ModelData
     }
 
     /**
-     * JSON_HEX_TAG keeps a value from closing the `<script>` element the JSON sits in
+     * JSON_HEX_TAG keeps a value from closing the `<script>` element the JSON sits in, and JSON_INVALID_UTF8_SUBSTITUTE
+     * keeps a bad byte from failing the page, as in LeftAndMain::getCombinedClientConfig()
      */
     private static function jsonForScriptBlock(mixed $value): string
     {
-        return json_encode($value, JSON_HEX_TAG | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        return json_encode(
+            $value,
+            JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
+        );
     }
 }

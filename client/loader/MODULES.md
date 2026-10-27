@@ -56,11 +56,11 @@ reaches the admin only as a module, and a stylesheet only through a `css` key, a
 public. A module is named `vendor/name` after its Composer package: the name is also its import map specifier, and the
 loader imports the module by it. A module name without exactly one `/` leaves the entry out with the warning `Module
 "<name>" is not vendor/name: a module is named after its Composer package, one vendor and one name, so single words stay
-free for other owners; the entry was left out`. An entry that is not a map is left out with a warning. A module ignores
-a key not in the table, with no warning; an entry with no `link` sets only `imports`, `css` and `enabled`, and any other
-key leaves it out with a warning. Two config fragments that declare one name merge as Silverstripe config does: a later
-fragment's value replaces an earlier one key by key, its `imports` are added to the earlier map, and its `requires` to
-the earlier list.
+free for other owners; the entry was left out`. An entry that is not a map is left out with a warning. A key in a
+module's entry that is not in the table is ignored, and in dev logged with a warning naming it, which catches a misspelt
+key such as `require`; an entry with no `link` sets only `imports`, `css` and `enabled`, and any other key leaves it out
+with a warning. Two config fragments that declare one name merge as Silverstripe config does: a later fragment's value
+replaces an earlier one key by key, its `imports` are added to the earlier map, and its `requires` to the earlier list.
 
 ```yaml
 ---
@@ -75,7 +75,7 @@ SilverStripe\Admin\Client\ModuleRegistry:
 
 | Key | Meaning |
 |---|---|
-| `link` | Required for a module. A `vendor/package:path` link, a path relative to the project root (for the project's own files, see below), or a URL (`http://`, `https://`, `//` or a path starting with `/`). A file link with a `..` segment, to a file that does not exist, or to a project file the site does not serve (see below), skips the entry with a warning, and a skipped module provides none of its `imports` |
+| `link` | Required for a module. A `vendor/package:path` link, a path relative to the project root (for the project's own files, see below), or a URL (`http://`, `https://`, `//` or a path starting with `/`). A value that is not a string (such as `5`), a file link with a `..` segment, to a file that does not exist, or to a project file the site does not serve (see below), skips the entry with a warning, and a skipped module provides none of its `imports` |
 | `css` | A stylesheet, a link of the same forms as `link`, with the same cache-busting query. There is no default file: an entry with no `css` has no stylesheet. A missing file, a `..` segment, a project file the site does not serve or a value that is not a link drops the stylesheet with a warning, and the module still loads. An entry with `css` and no `link` is a stylesheet-only entry, or a library package when it also has `imports`. See *Module CSS* |
 | `enabled` | `false` drops the entry. This is how a later config fragment removes an entry, since YAML merging cannot unset a key. Any other value, even `1` or the quoted string `'true'`, drops the entry with a warning |
 | `imports` | A map of bare specifier to a link of the same forms as `link`: libraries the module adds to the import map (see *Shared libraries*). Anything but a map with named keys leaves the entry out with a warning |
@@ -166,8 +166,8 @@ SilverStripe\Admin\Client\ModuleRegistry:
         - '@acme/dates'
 ```
 
-- Each `imports` path gets a `link`'s forms and cache-busting query; a missing file, a `..` segment or a project
-  file the site does not serve leaves that specifier out with a warning.
+- Each `imports` path gets a `link`'s forms and cache-busting query; a value that is not a string, a missing file, a
+  `..` segment or a project file the site does not serve leaves that specifier out with a warning.
 - Any entry may add bare specifiers, scoped or not. Choosing a scope for a library, such as `@acme/` for the
   `acme` packages, is a convention; nothing checks it.
 - Module names, specifiers and `requires` values must be bare: no whitespace or control characters (a browser strips

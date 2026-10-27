@@ -98,6 +98,7 @@ class ModuleRegistryTest extends SapphireTest
                 'imports' => ['@acme/missing-helper' => ModuleRegistryTest::FIXTURE],
             ],
             'acme/linkless' => ['requires' => ['react']],
+            'acme/missing-library' => ['imports' => ['missing-helper' => 'silverstripe/admin:tests/php/Client/ModuleRegistryTest/missing.js']],
             'acme/unknown-module' => ['link' => 'nobody/nothing:client/dist/hello.js'],
             'acme/not-a-module-path' => ['link' => 'app:client/dist/hello.js'],
             'acme/hello' => ['link' => ModuleRegistryTest::FIXTURE],
@@ -108,7 +109,14 @@ class ModuleRegistryTest extends SapphireTest
 
         $this->assertSame(['acme/hello'], array_column($registry->getModuleItems(), 'name'));
         $this->assertSame(['acme/hello'], array_keys($registry->getImports()), 'A skipped module adds none of its imports');
-        $this->assertTrue($logged->hasWarningThatContains('Module "acme/missing" points at a missing file'));
+        $this->assertTrue($logged->hasWarningThatContains(
+            'Module "acme/missing" points its script at "silverstripe/admin:tests/php/Client/ModuleRegistryTest/missing.js",'
+                . ' which does not exist, so the module was skipped'
+        ));
+        $this->assertTrue(
+            $logged->hasWarningThatContains('Library package "acme/missing-library" points its import "missing-helper" at'),
+            'A library package is named as one'
+        );
     }
 
     public function testAnUpperCaseSchemeLinkStaysOffSite(): void
@@ -138,14 +146,21 @@ class ModuleRegistryTest extends SapphireTest
         $this->assertSame(['acme/hello'], array_column($registry->getModuleItems(), 'name'));
         $this->assertSame(['acme/hello'], array_keys($registry->getImports()));
         $this->assertSame([], $registry->getStylesheets());
-        $this->assertTrue($logged->hasWarningThatContains('Module "acme/hello" stylesheet was dropped'), 'The dropped stylesheet is logged');
-        $this->assertTrue($logged->hasWarningThatContains('Module "acme/up" was skipped: Can not collapse relative folders'), 'The .. segment, not a missing file, drops it');
+        $this->assertTrue(
+            $logged->hasWarningThatContains('Module "acme/hello" points its stylesheet at "silverstripe/admin:../../../.env", which cannot be resolved'),
+            'The dropped stylesheet is logged'
+        );
+        $this->assertTrue(
+            $logged->hasWarningThatContains('Module "acme/up" points its script at "../../etc/hostname", which cannot be resolved (Can not collapse relative folders)'),
+            'The .. segment, not a missing file, drops it'
+        );
     }
 
     public function testALinkClearedByLaterConfigDropsTheWholeEntry(): void
     {
         Config::modify()->set(ModuleRegistry::class, 'modules', [
             'acme/dates' => ['link' => null, 'css' => 'https://cdn.example.test/dates.css'],
+            'acme/list' => ['link' => ['not', 'a', 'link']],
         ]);
         $logged = $this->captureWarnings();
 
@@ -154,6 +169,7 @@ class ModuleRegistryTest extends SapphireTest
         $this->assertSame([], $registry->getModuleItems());
         $this->assertSame([], $registry->getStylesheets());
         $this->assertTrue($logged->hasWarningThatContains('Entry "acme/dates" has an empty link'), 'The dropped entry is logged');
+        $this->assertTrue($logged->hasWarningThatContains('Entry "acme/list" has an empty link'), 'A non-scalar link counts as none');
     }
 
     public function testAnItemUpdateModuleItemsGivesAnUnmappedSpecifierIsDropped(): void
@@ -265,6 +281,11 @@ class ModuleRegistryTest extends SapphireTest
                 . ' name, so single words stay free for other owners; the entry was left out']],
             [$items, $warnings]
         );
+
+        Config::modify()->set(ModuleRegistry::class, 'modules', ['acme/typo' => ['link' => ModuleRegistryTest::FIXTURE, 'require' => ['x']]]);
+        [$items, $warnings] = $this->inDev(fn () => ModuleRegistry::create()->getModuleItems());
+        $this->assertSame(['acme/typo'], array_column($items, 'name'), 'An unknown key is ignored');
+        $this->assertSame(['Module "acme/typo" sets require, which the registry does not read; a module takes link, css, enabled, imports, requires'], $warnings, 'And named in dev');
     }
 
     public function testAScalarImportsDropsTheEntryWithAWarning(): void

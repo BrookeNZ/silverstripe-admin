@@ -193,7 +193,7 @@ class ModuleRegistry
     {
         $libraries = [];
         foreach ($entries as $name => $entry) {
-            $libraries += $this->resolveImports($name, $entry['imports'] ?? []);
+            $libraries += $this->resolveImports($name, $entry);
         }
         return $libraries;
     }
@@ -315,35 +315,17 @@ class ModuleRegistry
         }
         $this->warn(sprintf(
             '%s "%s" sets enabled to %s, which is not true or false; the entry was left out',
-            ModuleRegistry::entryType($entry),
+            ucfirst(ModuleEntryChecker::entryType($entry)),
             $name,
             ModuleEntryChecker::describeValue($value)
         ));
         return false;
     }
 
-    private static function entryType(array $entry): string
-    {
-        return match (true) {
-            ModuleEntryChecker::isLibraryPackage($entry) => 'Library package',
-            ModuleEntryChecker::isStylesheetOnly($entry) => 'Stylesheet entry',
-            default => 'Module',
-        };
-    }
-
     private function resolveScript(string $name, array $entry): ?string
     {
-        $link = (string) ($entry['link'] ?? '');
-        if ($link === '') {
-            $this->warn(sprintf('Module "%s" has no link and was skipped', $name));
-            return null;
-        }
-        try {
-            return $this->resolveLink($name, $link);
-        } catch (InvalidArgumentException $exception) {
-            $this->warn(sprintf('Module "%s" was skipped: %s', $name, $exception->getMessage()));
-            return null;
-        }
+        $type = ModuleEntryChecker::entryType($entry);
+        return $this->resolveLink($type, $name, $entry['link'] ?? null, 'its script', 'the module was skipped');
     }
 
     /**
@@ -354,38 +336,20 @@ class ModuleRegistry
         if (!array_key_exists('css', $entry)) {
             return null;
         }
-        $type = ModuleRegistry::entryType($entry);
-        $link = $entry['css'];
-        if (!is_string($link) || $link === '') {
-            $this->warn(sprintf('%s "%s" gives no link for its css, so its stylesheet was dropped', $type, $name));
-            return null;
-        }
-        try {
-            return $this->resolveLink($name, $link, 'its stylesheet was dropped', $type);
-        } catch (InvalidArgumentException $exception) {
-            $this->warn(sprintf('%s "%s" stylesheet was dropped: %s', $type, $name, $exception->getMessage()));
-            return null;
-        }
+        $type = ModuleEntryChecker::entryType($entry);
+        return $this->resolveLink($type, $name, $entry['css'], 'its stylesheet', 'the stylesheet was dropped');
     }
 
     /**
      * @return array<string, string> Absolute URLs by specifier
      */
-    private function resolveImports(string $name, array $imports): array
+    private function resolveImports(string $name, array $entry): array
     {
+        $type = ModuleEntryChecker::entryType($entry);
         $urls = [];
-        foreach ($imports as $specifier => $link) {
-            $leftOut = sprintf('its import "%s" was left out', $specifier);
-            if (!is_string($link) || $link === '') {
-                $this->warn(sprintf('Module "%s" gives no link for an import, so %s', $name, $leftOut));
-                continue;
-            }
-            try {
-                $url = $this->resolveLink($name, $link, $leftOut);
-            } catch (InvalidArgumentException $exception) {
-                $this->warn(sprintf('Module "%s" import "%s" was left out: %s', $name, $specifier, $exception->getMessage()));
-                continue;
-            }
+        foreach ($entry['imports'] ?? [] as $specifier => $link) {
+            $purpose = sprintf('its import "%s"', $specifier);
+            $url = $this->resolveLink($type, $name, $link, $purpose, 'the import was left out');
             if ($url !== null) {
                 $urls[(string) $specifier] = $url;
             }
@@ -394,49 +358,64 @@ class ModuleRegistry
     }
 
     /**
-     * @throws InvalidArgumentException for an unknown module or a path with `..` segments
+     * @param string $type As ModuleEntryChecker::entryType() gives it
+     * @param string $purpose What the link is for, such as "its stylesheet"
+     * @param string $consequence What dropping the link drops, logged with the reason
      */
-    private function resolveLink(
-        string $name,
-        string $link,
-        string $consequence = 'was skipped',
-        string $type = 'Module'
-    ): ?string {
-        $resource = ModuleResourceLoader::singleton()->resolveResource($link);
-        if ($resource instanceof ModuleResource) {
-            if (!$resource->exists()) {
-                $this->warn(sprintf('%s "%s" points at a missing file (%s) and %s', $type, $name, $link, $consequence));
-                return null;
-            }
-            return Director::absoluteURL($resource->getURL());
-        }
-        if (preg_match('#^(https?:)?/#i', $link)) {
-            // Director::absoluteURL() treats an upper-case scheme as a relative path
-            $link = preg_replace_callback('#^https?:#i', fn (array $scheme) => strtolower($scheme[0]), $link);
-            return Director::absoluteURL($link);
-        }
-        // A path relative to the project root, as the root module addresses its own files
-        if (!file_exists(Path::join(Director::baseFolder(), $link))) {
-            $this->warn(sprintf('%s "%s" points at a missing file (%s) and %s', $type, $name, $link, $consequence));
-            return null;
-        }
-        if (!ModuleRegistry::isServed($link)) {
-            $publicDir = Director::publicDir();
+    private function resolveLink(string $type, string $name, mixed $link, string $purpose, string $consequence): ?string
+    {
+        if (!is_string($link) || $link === '') {
             $this->warn(sprintf(
-                '%s "%s" points at "%s", which is outside %s/ and has no exposed copy in %s/%s/, so it would not be '
-                    . 'served, and %s; add its folder to extra.expose in the composer.json of the package that holds it, '
-                    . 'or the root one for project code, and run composer vendor-expose',
-                $type,
+                '%s "%s" gives %s for %s, which is not a link, so %s',
+                ucfirst($type),
                 $name,
-                $link,
-                $publicDir,
-                $publicDir,
-                RESOURCES_DIR,
+                $link === null || $link === '' ? 'nothing' : ModuleEntryChecker::describeValue($link),
+                $purpose,
                 $consequence
             ));
             return null;
         }
-        return Director::absoluteURL(ModuleResourceLoader::singleton()->resolveURL($link));
+        $points = sprintf('%s "%s" points %s at "%s"', ucfirst($type), $name, $purpose, $link);
+        try {
+            if (preg_match('#^(https?:)?/#i', $link)) {
+                // Director::absoluteURL() treats an upper-case scheme as a relative path
+                return Director::absoluteURL(preg_replace_callback('#^https?:#i', fn (array $scheme) => strtolower($scheme[0]), $link));
+            }
+            $resource = ModuleResourceLoader::singleton()->resolveResource($link);
+            $isModuleResource = $resource instanceof ModuleResource;
+            // A non-module link is a path relative to the project root, as the root module addresses its own files
+            $exists = $isModuleResource ? $resource->exists() : file_exists(Path::join(Director::baseFolder(), $link));
+            if (!$exists) {
+                $this->warn(sprintf('%s, which does not exist, so %s', $points, $consequence));
+                return null;
+            }
+            if ($isModuleResource) {
+                return Director::absoluteURL($resource->getURL());
+            }
+            if (!ModuleRegistry::isServed($link)) {
+                $this->warn(ModuleRegistry::unservedWarning($points, $consequence));
+                return null;
+            }
+            return Director::absoluteURL(ModuleResourceLoader::singleton()->resolveURL($link));
+        } catch (InvalidArgumentException $exception) {
+            $this->warn(sprintf('%s, which cannot be resolved (%s), so %s', $points, $exception->getMessage(), $consequence));
+            return null;
+        }
+    }
+
+    private static function unservedWarning(string $points, string $consequence): string
+    {
+        $publicDir = Director::publicDir();
+        return sprintf(
+            '%s, which is outside %s/ and has no exposed copy in %s/%s/, so it would not be served and %s; add its '
+                . 'folder to extra.expose in the composer.json of the package that holds it, or the root one for '
+                . 'project code, and run composer vendor-expose',
+            $points,
+            $publicDir,
+            $publicDir,
+            RESOURCES_DIR,
+            $consequence
+        );
     }
 
     /**

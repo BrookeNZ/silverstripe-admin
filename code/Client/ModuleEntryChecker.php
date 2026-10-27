@@ -21,20 +21,23 @@ use SilverStripe\Core\Injector\Injector;
  */
 class ModuleEntryChecker
 {
+    private const string MODULE = 'module';
+
+    private const string LIBRARY_PACKAGE = 'library package';
+
+    private const string STYLESHEET_ENTRY = 'stylesheet entry';
+
     /**
      * @var array<string, true>
      */
     private array $sharedSpecifiers;
 
     /**
-     * @var array<string, array>
+     * Read from the entries as configured, since dropping a duplicate specifier can change what an entry looks like
+     *
+     * @var array<string, string>
      */
-    private array $libraryPackages = [];
-
-    /**
-     * @var array<string, array>
-     */
-    private array $stylesheetEntries = [];
+    private array $entryTypes = [];
 
     /**
      * @var Closure(string): void
@@ -73,6 +76,18 @@ class ModuleEntryChecker
     }
 
     /**
+     * Lower case, for the middle of a sentence
+     */
+    public static function entryType(array $entry): string
+    {
+        return match (true) {
+            ModuleEntryChecker::isLibraryPackage($entry) => ModuleEntryChecker::LIBRARY_PACKAGE,
+            ModuleEntryChecker::isStylesheetOnly($entry) => ModuleEntryChecker::STYLESHEET_ENTRY,
+            default => ModuleEntryChecker::MODULE,
+        };
+    }
+
+    /**
      * A config value for a warning: a scalar as JSON, so every value in a message is double-quoted
      */
     public static function describeValue(mixed $value): string
@@ -85,7 +100,8 @@ class ModuleEntryChecker
 
     private static function hasLink(array $entry): bool
     {
-        return (string) ($entry['link'] ?? '') !== '';
+        $link = $entry['link'] ?? '';
+        return is_scalar($link) && (string) $link !== '';
     }
 
     /**
@@ -95,8 +111,7 @@ class ModuleEntryChecker
      */
     public function checkEntries(array $entries): array
     {
-        $this->libraryPackages = array_filter($entries, ModuleEntryChecker::isLibraryPackage(...));
-        $this->stylesheetEntries = array_filter($entries, ModuleEntryChecker::isStylesheetOnly(...));
+        $this->entryTypes = array_map(ModuleEntryChecker::entryType(...), $entries);
         foreach ($entries as $name => $entry) {
             $problem = $this->entryProblem($name, $entry);
             if ($problem !== null) {
@@ -104,6 +119,7 @@ class ModuleEntryChecker
                 unset($entries[$name]);
                 continue;
             }
+            $this->warnAboutUnknownKeys($name, $entry);
             $entries[$name] = $this->dropRefusedImports($name, $entry);
             $entries[$name]['requires'] = $this->checkedRequires($name, $entry['requires'] ?? []);
         }
@@ -151,8 +167,9 @@ class ModuleEntryChecker
             return null;
         }
         return sprintf(
-            '%s has imports %s, but imports is a map of bare specifier to link',
-            ucfirst($this->entryLabel($name)),
+            '%s "%s" has imports %s, but imports is a map of bare specifier to link',
+            ucfirst($this->entryTypes[$name]),
+            $name,
             $shapeProblem
         );
     }
@@ -189,6 +206,27 @@ class ModuleEntryChecker
         );
     }
 
+    /**
+     * A key a later admin may add must not break an older one, so a module's unknown key is ignored and only dev
+     * hears about it, which catches a misspelt key
+     */
+    private function warnAboutUnknownKeys(string $name, array $entry): void
+    {
+        if (!ModuleEntryChecker::hasLink($entry) || !Director::isDev()) {
+            return;
+        }
+        $known = ['link', 'css', 'enabled', 'imports', 'requires'];
+        $unknown = array_diff(array_keys($entry), $known);
+        if ($unknown) {
+            $this->warn(sprintf(
+                'Module "%s" sets %s, which the registry does not read; a module takes %s',
+                $name,
+                implode(', ', $unknown),
+                implode(', ', $known)
+            ));
+        }
+    }
+
     private function linklessKeysProblem(string $name, array $entry): ?string
     {
         if (ModuleEntryChecker::hasLink($entry)) {
@@ -196,8 +234,9 @@ class ModuleEntryChecker
         }
         $refused = array_diff(array_keys($entry), ['imports', 'css', 'enabled']);
         return $refused ? sprintf(
-            '%s sets %s, which only a module with a link takes; an entry with no link sets only imports, css and enabled',
-            ucfirst($this->entryLabel($name)),
+            '%s "%s" sets %s, which only a module with a link takes; an entry with no link sets only imports, css and enabled',
+            ucfirst($this->entryTypes[$name]),
+            $name,
             implode(', ', $refused)
         ) : null;
     }
@@ -257,7 +296,7 @@ class ModuleEntryChecker
     {
         foreach ($this->specifierOwners($entries) as $specifier => $names) {
             $specifier = (string) $specifier;
-            $labels = array_map(fn (string $name) => $this->entryLabel($name), $names);
+            $labels = array_map(fn (string $name) => sprintf('%s "%s"', $this->entryTypes[$name], $name), $names);
             if (isset($this->sharedSpecifiers[$specifier])) {
                 array_unshift($labels, "the loader build's shared files");
             }
@@ -270,7 +309,7 @@ class ModuleEntryChecker
                 $specifier
             ));
             foreach ($names as $name) {
-                if ($name === $specifier && !isset($this->libraryPackages[$name])) {
+                if ($name === $specifier && $this->entryTypes[$name] !== ModuleEntryChecker::LIBRARY_PACKAGE) {
                     unset($entries[$name]);
                     continue;
                 }
@@ -285,21 +324,12 @@ class ModuleEntryChecker
      */
     private function dropEmptyLibraryPackages(array $entries): array
     {
-        foreach (array_keys($this->libraryPackages) as $name) {
+        foreach (array_keys($this->entryTypes, ModuleEntryChecker::LIBRARY_PACKAGE, true) as $name) {
             if (isset($entries[$name]) && empty($entries[$name]['imports']) && !array_key_exists('css', $entries[$name])) {
                 unset($entries[$name]);
             }
         }
         return $entries;
-    }
-
-    private function entryLabel(string $name): string
-    {
-        return sprintf('%s "%s"', match (true) {
-            isset($this->libraryPackages[$name]) => 'library package',
-            isset($this->stylesheetEntries[$name]) => 'stylesheet entry',
-            default => 'module',
-        }, $name);
     }
 
     private function reportDuplicateSpecifier(string $message): void
