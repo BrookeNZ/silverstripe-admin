@@ -18,6 +18,9 @@ files and `package.json`, so a module links the package by `file:` path from any
 
 ## Commands
 
+The commands need a git checkout of silverstripe/admin: a Composer dist carries only the packed files and
+`package.json`, with no `src/`, `.nvmrc`, lockfile or build config.
+
 On Node 24 (`.nvmrc`), with npm and its own `package-lock.json`, while the repository root uses Yarn on Node 18: the
 root build cannot build the loader, and a standalone package is what a module links by `file:` path. The
 `client-loader.yml` workflow runs the lint, tests and typecheck, then `npm run build`, and fails when the rebuild

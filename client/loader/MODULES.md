@@ -54,13 +54,13 @@ A module is declared under `ModuleRegistry.modules`, keyed by module name, in a 
 reaches the admin only as a module, and a stylesheet only through a `css` key, a module's or that of an entry with no
 `link` (see *Module CSS*). The `expose` block in `composer.json` stays: it is what makes the module's built files
 public. A module is named `vendor/name` after its Composer package: the name is also its import map specifier, and the
-loader imports the module by it. A module name without exactly one `/` leaves the entry out with the warning `Module
-"<name>" is not vendor/name: a module is named after its Composer package, one vendor and one name, so single words stay
-free for other owners; the entry was left out`. An entry that is not a map is left out with a warning. A key in a
-module's entry that is not in the table is ignored, and in dev logged with a warning naming it, which catches a misspelt
-key such as `require`; an entry with no `link` sets only `imports`, `css` and `enabled`, and any other key leaves it out
-with a warning. Two config fragments that declare one name merge as Silverstripe config does: a later fragment's value
-replaces an earlier one key by key, its `imports` are added to the earlier map, and its `requires` to the earlier list.
+loader imports the module by it. A module name has exactly one `/`, between a vendor and a name, and no `@` scope, so
+single words and `@` scopes stay free for shared files and `imports` keys; any other module name leaves the entry out
+with a warning. An entry that is not a map is left out with a warning. A key in a module's entry that is not in the
+table is ignored, and in dev logged with a warning naming it, which catches a misspelt key such as `require`; an entry
+with no `link` sets only `imports`, `css` and `enabled`, and any other key leaves it out with a warning. Two config
+fragments that declare one name merge as Silverstripe config does: a later fragment's value replaces an earlier one key
+by key, its `imports` are added to the earlier map, and its `requires` to the earlier list.
 
 ```yaml
 ---
@@ -79,13 +79,15 @@ SilverStripe\Admin\Client\ModuleRegistry:
 | `css` | A stylesheet, a link of the same forms as `link`, with the same cache-busting query. There is no default file: an entry with no `css` has no stylesheet. A missing file, a `..` segment, a project file the site does not serve or a value that is not a link drops the stylesheet with a warning, and the module still loads. An entry with `css` and no `link` is a stylesheet-only entry, or a library package when it also has `imports`. See *Module CSS* |
 | `enabled` | `false` drops the entry. This is how a later config fragment removes an entry, since YAML merging cannot unset a key. Any other value, even `1` or the quoted string `'true'`, drops the entry with a warning |
 | `imports` | A map of bare specifier to a link of the same forms as `link`: libraries the module adds to the import map (see *Shared libraries*). Anything but a map with named keys leaves the entry out with a warning |
-| `requires` | A list of bare specifiers the module imports from the map and does not bundle |
+| `requires` | A list of bare specifiers the module imports from the map and does not bundle, another module's name included when it imports that module by name |
 
 A project's own file is given by its path from the project root, and is accepted only where the site serves it. A
 path under `public/` is served from the web root as it is, so `link: 'public/my-module/index.js'` is served as
 `/my-module/index.js`. Any other (such as one under `app/`) is served from its copy under `public/_resources/`, which
 exists only once the root `composer.json` lists its folder in `extra.expose` and `composer vendor-expose` has run. A
 `link`, `css` or `imports` path with neither is handled as a missing file is, with a warning that names both steps.
+The simplest route for a module in the project itself: build it to a folder under `public/`, declare `link`, `css`
+and `imports` paths starting `public/`, and run `vendor/bin/sake flush`.
 
 A file's URL carries the framework's modification-time `?m=` query, so a rebuilt file gets a new URL; a link given
 as a URL is used as it is. A URL may name another origin (`https://host/...` or `//host/...`), as
@@ -170,12 +172,10 @@ SilverStripe\Admin\Client\ModuleRegistry:
   `..` segment or a project file the site does not serve leaves that specifier out with a warning.
 - Any entry may add bare specifiers, scoped or not. Choosing a scope for a library, such as `@acme/` for the
   `acme` packages, is a convention; nothing checks it.
-- Module names, specifiers and `requires` values must be bare: no whitespace or control characters (a browser strips
-  them from a map key), and no URL scheme, `/`, `./` or `../` prefix. A module name also has exactly one `/`, as
-  `vendor/name`, and may not start with `@`, and an `imports` specifier may not end with `/`. A module
-  named otherwise is dropped with a warning, since its name would remap a URL, a path or a whole prefix in the map;
-  `@` scopes and single words are left to shared files and `imports` keys. A library package's name is not a
-  specifier either, so it keeps any name.
+- Module names, specifiers and `requires` values must be bare, since any other would remap a URL, a path or a whole
+  prefix in the map: no whitespace or control characters (a browser strips them from a map key), no URL scheme, `/`,
+  `./` or `../` prefix, and no trailing `/` on an `imports` specifier. A module name also follows the `vendor/name`
+  rule (see *Declaring a module*). A library package's name is not a specifier either, so it keeps any name.
 - A **library package** (`acme/dayjs: { imports: { dayjs: 'acme/dayjs:dist/dayjs.js' } }`) has `imports` and no
   `link`: a Composer package giving one npm library to the map. It has no `setup` and is never listed.
 - One specifier has one owner, whether it is a shared file, a module's name or an `imports` key. A specifier claimed
@@ -216,26 +216,60 @@ public; a module's server endpoints check permissions themselves.
 
 ## Building a module
 
-`@silverstripe/admin` (`client/loader`) is not on npm. The Composer dist carries its `package.json`, `runtime.js`,
-`shared.js`, `shared.d.ts`, `types/`, `README.md`, `MODULES.md` and `IMPORT-MAP.md`, so a module links it by `file:`
-path into any install of the admin, such as `"@silverstripe/admin": "file:vendor/silverstripe/admin/client/loader"`
-from the project root. A `file:` link installs none of the package's devDependencies, so the module installs its own
-bundler, and `typescript`, `react`, `react-dom`, `@types/react` and `@types/react-dom` for types and tests only:
-React pinned to the exact versions `sharedVersions` in `@silverstripe/admin/shared` gives, which the shared files are
-built from, and the types at the same major. React 19 ships no types of its own, so `tsc` needs the two `@types`
-packages. The package's `peerDependencies` name only the major, `^19.0.0`. For example, with npm (`-E` saves the
-exact versions):
+`@silverstripe/admin` (`client/loader`) is not on npm. The Composer dist carries the package ([README.md](README.md)),
+so a module links it by `file:` path into any install of the admin, from the project root with:
 
 ```sh
-npm install -D -E vite@7 typescript@5 react@19.3.0 react-dom@19.3.0 @types/react@19 @types/react-dom@19
+npm install -D file:vendor/silverstripe/admin/client/loader
+```
+
+A module in its own repository links it the same way, so it needs silverstripe/admin installed there, as a Composer
+dev requirement.
+
+A `file:` link installs none of the package's devDependencies, so the module installs its own bundler, and
+`typescript`, `react`, `react-dom`, `@types/react` and `@types/react-dom` for types and tests only: React pinned to the
+exact versions `sharedVersions` in `@silverstripe/admin/shared` gives, which the shared files are built from, and the
+types at the same major. React 19 ships no types of its own, so `tsc` needs the two `@types` packages, and Vite's own
+types need `@types/node` when `tsc` checks the Vite config. The package's `peerDependencies` name only the major,
+`^19.0.0`. Once the package is linked, this prints the versions:
+
+```sh
+node --input-type=module -e "import { sharedVersions } from '@silverstripe/admin/shared'; console.log(sharedVersions)"
+```
+
+Then install with React at the versions it prints, which the line below gives for this release; for example, with npm
+(`-E` saves the exact versions):
+
+```sh
+npm install -D -E vite@7 typescript@5 react@19.3.0 react-dom@19.3.0 @types/react@19 @types/react-dom@19 @types/node@24
+```
+
+A `tsconfig.json` for the `acme/dates` module above, for example, with the `paths` entry for the library it provides
+(see *Shared libraries*):
+
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM"],
+    "paths": { "@acme/dates": ["./src/dates.ts"] }
+  },
+  "include": ["src"]
+}
 ```
 
 Build with any bundler that writes ES modules, keeping external the shared specifiers and every specifier the
 module imports from the map. The specifier list is `sharedSpecifiers` in `@silverstripe/admin/shared`; it and the
 types are all a build takes from the admin, which ships no generator or build preset. The loader itself builds with
 webpack 5, and the example below is for Vite 7. Vite's app build drops an entry's exports, `setup` included, so a
-module builds in library mode. A Vite config for the `acme/dates` module above, which provides `@acme/dates` from its
-own `src/dates.ts` and writes `dist/index.js`, `dist/dates.js` and `dist/dates.css` under `client/`, for example:
+module builds in library mode. In library mode Vite 7 names an ES file `.mjs` unless the module's `package.json` sets
+`"type": "module"` (`npm pkg set type=module`), so set it, or the YAML's `.js` links point at missing files. Vite also
+writes one stylesheet for all the entries, named by `cssFileName`. A Vite config for the `acme/dates` module above,
+which provides `@acme/dates` from its own `src/dates.ts` and writes `dist/index.js`, `dist/dates.js` and
+`dist/dates.css` under `client/`, for example:
 
 ```ts
 import { defineConfig } from 'vite';
@@ -266,8 +300,8 @@ Commit the built folder and list it in `extra.expose` in the `composer.json` of 
 ## Development loop
 
 Rebuild a module with its bundler's watch mode, or the loader and shared files with `npm run watch` in
-`client/loader`, and reload: the registry reads file times on every request. A YAML or PHP change needs
-`vendor/bin/sake flush`.
+`client/loader` of a git checkout of the admin, and reload: the registry reads file times on every request. A YAML
+or PHP change needs `vendor/bin/sake flush`.
 
 ### Dev override
 

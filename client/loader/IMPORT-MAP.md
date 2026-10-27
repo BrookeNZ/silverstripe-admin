@@ -37,8 +37,7 @@ design. For writing a module, see [MODULES.md](MODULES.md).
    - `<link rel="stylesheet">`, in config order, for each listed module with a `css`, carrying
      `data-module="<name>"`, and for each stylesheet-only entry or library package with a `css`, with no
      `data-module` ([MODULES.md](MODULES.md), *Module CSS*). PHP writes these links; the module list does not carry
-     them. The browser runs no module script while a stylesheet before it is loading, so a stylesheet that hangs holds
-     back the loader;
+     them (one that hangs: [MODULES.md](MODULES.md), *When something fails*);
    - the module list as JSON in `#ss-admin-modules`, from `ModuleRegistry::getModuleItems()`, and empty for a member the
      section's `canView()` refuses. Each item is `{name, specifier}`. The list travels in the page, there is no
      separate module endpoint, and an item carries no version: a file's URL carries its modification time. A later
@@ -88,9 +87,9 @@ The list has one source, `client/loader/shared.js`, published as `@silverstripe/
 build (`webpack.shared.config.js`), the loader build and every module build read, so a specifier is external
 everywhere or nowhere. Each shared file imports the others by bare name and contains none of their code, so the set
 holds one copy of each package. `admin.js` is the admin's own runtime file, built from `client/loader/src/runtime.ts`
-and importing nothing; the others are built from the loader package's devDependencies, which pin the exact versions
-`sharedVersions` exports. The package's `peerDependencies` name only the major, `^19.0.0`. The loader imports
-`admin.js` and none of the others (step 3 gives the preloads).
+and importing nothing; the others are built from the loader package's devDependencies (versions:
+[MODULES.md](MODULES.md), *Building a module*). The loader imports `admin.js` and none of the others (step 3 gives the
+preloads).
 
 `client/loader/webpack.config.js` writes `manifest.json` from the files on disk after every build: `shared`
 (specifier to file) and `files` (every JavaScript file of the release to its `sha384-` digest). `LoaderAssets`
@@ -122,7 +121,7 @@ Besides the shared files, `ImportMap::getMap()` writes `ModuleRegistry::getImpor
 
 Both are in the map for every member, whether or not the page lists modules for them. `ModuleEntryChecker` enforces
 the bare-name and one-owner rules for every module name and `imports` key, and the `vendor/name` rule for every
-module name, before anything is listed ([MODULES.md](MODULES.md), *Shared libraries*).
+module name, before anything is listed ([MODULES.md](MODULES.md), *Declaring a module* and *Shared libraries*).
 
 ## Content Security Policy
 
@@ -167,7 +166,7 @@ example:
 
 ```yaml
 ---
-Name: app-logging
+Name: app-admin-module-warnings
 After: '#logging'
 ---
 SilverStripe\Core\Injector\Injector:
@@ -207,9 +206,9 @@ apart from the server URL segments below.
 
 Every request that fails the navigation test (step 1) keeps its legacy action and response: XHR, PJAX and form schema
 requests, every non-`GET`, and a `GET` whose `Sec-Fetch-Dest` is not `document`, such as a `fetch()` or an iframe
-load. So does a page load whose last URL segment, or the one before a trailing record ID, is one of
-`LeftAndMain.server_url_segments`, so print views such as `admin/pages/printable/5` and GridField exports work from a
-link. The match is by name only: any admin URL ending in `print` or `export` reaches its server action.
+load. So does a page load whose URL matches `LeftAndMain.server_url_segments` (see step 1), so print views such as
+`admin/pages/printable/5` and GridField exports work from a link. The match is by name only: any admin URL
+ending in `print` or `export` reaches its server action.
 
 Known gaps:
 
