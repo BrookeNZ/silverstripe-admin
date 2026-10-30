@@ -1,0 +1,56 @@
+{
+  "name": "@silverstripe/admin",
+  "version": "3.0.0",
+  "description": "Module loader, shared dependencies and module types for the Silverstripe CMS admin",
+  "license": "BSD-3-Clause",
+  "private": true,
+  "type": "module",
+  "types": "types/types.d.ts",
+  "exports": {
+    ".": {
+      "types": "./types/types.d.ts",
+      "default": "./runtime.js"
+    },
+    "./shared": {
+      "types": "./shared.d.ts",
+      "default": "./shared.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "IMPORT-MAP.md",
+    "MODULES.md",
+    "README.md",
+    "runtime.js",
+    "shared.d.ts",
+    "shared.js",
+    "types"
+  ],
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "scripts": {
+    "build": "node webpack.config.js && npm run build:package",
+    "watch": "node webpack.config.js --watch",
+    "build:package": "node build-package.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint --no-warn-ignored src *.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.19.2",
+    "eslint": "^10.12.0",
+    "globals": "^17.13.0",
+    "happy-dom": "^21.0.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "terser-webpack-plugin": "^5.6.1",
+    "ts-loader": "^9.6.2",
+    "typescript": "^5.5",
+    "typescript-eslint": "^8.71.2",
+    "vitest": "^4.1.11",
+    "webpack": "^5.111.1"
+  }
+}

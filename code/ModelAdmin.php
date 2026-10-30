@@ -161,7 +161,11 @@ abstract class ModelAdmin extends LeftAndMain
                 $this->modelTab = $this->unsanitiseClassName($this->modelTab);
 
                 if (!$this->isManagedModel($this->modelTab)) {
-                    throw new \RuntimeException(sprintf('ModelAdmin::init(): Invalid Model class %s', $this->modelTab));
+                    // The client owns routing under a section, so on a page load the segment may be a client route
+                    if (!$this->isChromeNavigation($this->getRequest())) {
+                        throw new \RuntimeException(sprintf('ModelAdmin::init(): Invalid Model class %s', $this->modelTab));
+                    }
+                    $this->modelTab = null;
                 }
             }
         }

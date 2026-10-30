@@ -1,0 +1,17 @@
+{
+  "shared": {
+    "@silverstripe/admin": "shared/admin.js",
+    "react": "shared/react.js",
+    "react/jsx-runtime": "shared/react-jsx-runtime.js",
+    "react-dom": "shared/react-dom.js",
+    "react-dom/client": "shared/react-dom-client.js"
+  },
+  "files": {
+    "main.js": "sha384-f03W/zuplxWReD5TPD1UzzYTQlLu6PAoYUcU4tPZt38EElBeztvGAq3XfFVChizi",
+    "shared/admin.js": "sha384-xLola2DDx2ZnHJ4jGf206CkpouweU/LzkthGPTsQu2kxovHOcR4fKDT9yTKLTYG3",
+    "shared/react-dom-client.js": "sha384-RNDaENeRU3TnbTcrfSyXfo34oLH/kQVG/HjA3CqE836b2IwF6WhgcYMcxtkpOzUX",
+    "shared/react-dom.js": "sha384-Ag6Hja3QyqqQS0KaSXa6fu2db/AibSTikzWEl2AbAV4RvPDg1Q/3ma+2eWuCaEaS",
+    "shared/react-jsx-runtime.js": "sha384-5TVFsSKSi8JMt7b9lOSDK/HBLOsijK/fdUf1ghl2cUA52A7+dvlzK8R1p65D7Ck+",
+    "shared/react.js": "sha384-jsE0UOPWfPpYnvUSyUNhMlrJE9WM69MkznPdvkAVee5THbD3wwp/fW+fnyLxeK8i"
+  }
+}
