@@ -132,6 +132,7 @@ class ModuleEntryChecker
         return ModuleEntryChecker::emptyLinkProblem($name, $entry)
             ?? $this->importsProblem($name, $entry)
             ?? $this->linklessKeysProblem($name, $entry)
+            ?? $this->requiresProblem($name, $entry)
             ?? ModuleEntryChecker::moduleNameProblem($name, $entry);
     }
 
@@ -186,6 +187,33 @@ class ModuleEntryChecker
         foreach (array_keys($value) as $key) {
             if (is_int($key)) {
                 return 'with a numbered key';
+            }
+        }
+        return null;
+    }
+
+    private function requiresProblem(string $name, array $entry): ?string
+    {
+        $shapeProblem = ModuleEntryChecker::listShapeProblem($entry['requires'] ?? []);
+        if ($shapeProblem === null) {
+            return null;
+        }
+        return sprintf(
+            '%s "%s" has requires %s, but requires is a list of bare specifiers',
+            ucfirst($this->entryTypes[$name]),
+            $name,
+            $shapeProblem
+        );
+    }
+
+    private static function listShapeProblem(mixed $value): ?string
+    {
+        if (!is_array($value)) {
+            return sprintf('of type %s', get_debug_type($value));
+        }
+        foreach (array_keys($value) as $key) {
+            if (is_string($key)) {
+                return 'with a named key';
             }
         }
         return null;
@@ -257,10 +285,10 @@ class ModuleEntryChecker
     /**
      * @return list<string>
      */
-    private function checkedRequires(string $name, mixed $requires): array
+    private function checkedRequires(string $name, array $requires): array
     {
         $checked = [];
-        foreach ((array) $requires as $specifier) {
+        foreach ($requires as $specifier) {
             if (is_string($specifier) && ModuleEntryChecker::isBareSpecifier($specifier)) {
                 $checked[] = $specifier;
                 continue;

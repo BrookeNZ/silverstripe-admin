@@ -75,11 +75,11 @@ SilverStripe\Admin\Client\ModuleRegistry:
 
 | Key | Meaning |
 |---|---|
-| `link` | Required for a module. A `vendor/package:path` link, a path relative to the project root (for the project's own files, see below), or a URL (`http://`, `https://`, `//` or a path starting with `/`). A value that is not a string (such as `5`), a file link with a `..` segment, to a file that does not exist, or to a project file the site does not serve (see below), skips the entry with a warning, and a skipped module provides none of its `imports` |
-| `css` | A stylesheet, a link of the same forms as `link`, with the same cache-busting query. There is no default file: an entry with no `css` has no stylesheet. A missing file, a `..` segment, a project file the site does not serve or a value that is not a link drops the stylesheet with a warning, and the module still loads. An entry with `css` and no `link` is a stylesheet-only entry, or a library package when it also has `imports`. See *Module CSS* |
+| `link` | Required for a module. A `vendor/package:path` link, a path relative to the project root (for the project's own files, see below), or a URL (`http://`, `https://`, `//` or a path starting with `/`). A value that is not a string (such as `5`), a file link with a `..` segment, to a file that does not exist, or to a file the site does not serve (see below), skips the entry with a warning, and a skipped module provides none of its `imports` |
+| `css` | A stylesheet, a link of the same forms as `link`, with the same cache-busting query. There is no default file: an entry with no `css` has no stylesheet. A missing file, a `..` segment, a file the site does not serve or a value that is not a link drops the stylesheet with a warning, and the module still loads. An entry with `css` and no `link` is a stylesheet-only entry, or a library package when it also has `imports`. See *Module CSS* |
 | `enabled` | `false` drops the entry. This is how a later config fragment removes an entry, since YAML merging cannot unset a key. Any other value, even `1` or the quoted string `'true'`, drops the entry with a warning |
 | `imports` | A map of bare specifier to a link of the same forms as `link`: libraries the module adds to the import map (see *Shared libraries*). Anything but a map with named keys leaves the entry out with a warning |
-| `requires` | A list of bare specifiers the module imports from the map and does not bundle, another module's name included when it imports that module by name |
+| `requires` | A list of bare specifiers the module imports from the map and does not bundle, another module's name included when it imports that module by name. Anything but a list leaves the entry out with a warning |
 
 A project's own file is given by its path from the project root, and is accepted only where the site serves it. A
 path under `public/` is served from the web root as it is, so `link: 'public/my-module/index.js'` is served as
@@ -88,6 +88,10 @@ exists only once the root `composer.json` lists its folder in `extra.expose` and
 `link`, `css` or `imports` path with neither is handled as a missing file is, with a warning that names both steps.
 The simplest route for a module in the project itself: build it to a folder under `public/`, declare `link`, `css`
 and `imports` paths starting `public/`, and run `vendor/bin/sake flush`.
+
+A `vendor/package:path` value for `link`, `css` or an `imports` entry is served from its copy under
+`public/_resources/`, so its folder must be in `extra.expose` and `composer vendor-expose` must have run; a file with
+neither is left out with the same warning.
 
 A file's URL carries the framework's modification-time `?m=` query, so a rebuilt file gets a new URL; a link given
 as a URL is used as it is. A URL may name another origin (`https://host/...` or `//host/...`), as
@@ -169,7 +173,7 @@ SilverStripe\Admin\Client\ModuleRegistry:
 ```
 
 - Each `imports` path gets a `link`'s forms and cache-busting query; a value that is not a string, a missing file, a
-  `..` segment or a project file the site does not serve leaves that specifier out with a warning.
+  `..` segment or a file the site does not serve leaves that specifier out with a warning.
 - Any entry may add bare specifiers, scoped or not. Choosing a scope for a library, such as `@acme/` for the
   `acme` packages, is a convention; nothing checks it.
 - Module names, specifiers and `requires` values must be bare, since any other would remap a URL, a path or a whole

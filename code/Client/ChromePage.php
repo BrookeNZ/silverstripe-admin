@@ -114,8 +114,9 @@ class ChromePage extends ModelData
     }
 
     /**
-     * The first item's name by specifier; a registry module's specifier is its name. Mirrors readModuleList()
-     * in client/loader/src/loader.ts: the first item of a name wins and a non-string name is skipped
+     * Each item's name by specifier, which getModuleItems() keeps unique; a registry module's specifier is its name.
+     * Skips what readModuleList() in client/loader/src/loader.ts skips: a later item of a name, a non-string name
+     * and a non-string specifier
      *
      * @return array<string, string>
      */
@@ -130,7 +131,7 @@ class ChromePage extends ModelData
             }
             $seen[$name] = true;
             $specifier = (string) ($item['specifier'] ?? '');
-            $names[$specifier] ??= $name;
+            $names[$specifier] = $name;
         }
         return $names;
     }

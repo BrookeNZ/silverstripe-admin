@@ -44,28 +44,28 @@ class ImportMapTest extends SapphireTest
     {
         Config::modify()->set(ModuleRegistry::class, 'modules', [
             'silverstripe/dates' => [
-                'link' => 'silverstripe/admin:tests/php/Client/ModuleRegistryTest/esm.js',
-                'imports' => ['@silverstripe/dayjs' => 'silverstripe/admin:tests/php/Client/ModuleRegistryTest/esm.js'],
+                'link' => 'silverstripe/admin:client/dist/js/i18n.js',
+                'imports' => ['@silverstripe/dayjs' => 'silverstripe/admin:client/dist/js/i18n.js'],
             ],
         ]);
 
         $map = ImportMap::singleton()->getMap(ModuleRegistry::singleton()->getImports());
 
-        $this->assertMatchesRegularExpression('#^https?://.*/ModuleRegistryTest/esm\.js\?m=\d+$#', $map['imports']['silverstripe/dates']);
-        $this->assertMatchesRegularExpression('#^https?://.*/ModuleRegistryTest/esm\.js\?m=\d+$#', $map['imports']['@silverstripe/dayjs']);
+        $this->assertMatchesRegularExpression('#^https?://.*/client/dist/js/i18n\.js\?m=\d+$#', $map['imports']['silverstripe/dates']);
+        $this->assertMatchesRegularExpression('#^https?://.*/client/dist/js/i18n\.js\?m=\d+$#', $map['imports']['@silverstripe/dayjs']);
     }
 
     public function testALibraryPackageAddsAnUnscopedSpecifierAndIsNotAModule(): void
     {
         Config::modify()->set(ModuleRegistry::class, 'modules', [
-            'silverstripe/dayjs' => ['imports' => ['dayjs' => 'silverstripe/admin:tests/php/Client/ModuleRegistryTest/esm.js']],
+            'silverstripe/dayjs' => ['imports' => ['dayjs' => 'silverstripe/admin:client/dist/js/i18n.js']],
         ]);
         $registry = ModuleRegistry::singleton();
 
         $map = ImportMap::singleton()->getMap($registry->getImports());
 
         $this->assertSame([], $registry->getModuleItems());
-        $this->assertStringContainsString('/ModuleRegistryTest/esm.js?m=', $map['imports']['dayjs']);
+        $this->assertStringContainsString('/client/dist/js/i18n.js?m=', $map['imports']['dayjs']);
         $this->assertArrayNotHasKey('silverstripe/dayjs', $map['imports']);
     }
 

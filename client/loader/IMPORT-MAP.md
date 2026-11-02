@@ -155,10 +155,11 @@ image from `url()` on another site needs `img-src` to allow that site.
 ## Warnings
 
 `ModuleRegistry`, `ModuleEntryChecker`, `ImportMap` and `ChromePage` log every warning (a skipped entry, a missing file,
-a dropped module stylesheet, a bad dev override, an item `updateModuleItems` added for an unmapped specifier, a missing
-or empty loader manifest, and in dev an unbuilt loader, a `requires` nothing in the map provides or a key in a module's
-entry the registry does not read). A warning never stops the page; only a specifier claimed twice does, and only in
-dev.
+a link, project path or `vendor/package:path`, to a file outside `public/` with no exposed copy in
+`public/_resources/`, a dropped module stylesheet, a bad dev override, an item `updateModuleItems` added for an
+unmapped specifier or one already listed, a missing or empty loader manifest, and in dev an unbuilt loader, a
+`requires` nothing in the map provides or a key in a module's entry the registry does not read). A warning never
+stops the page; only a specifier claimed twice does, and only in dev.
 
 They log to `Psr\Log\LoggerInterface` when a navigation renders the chrome page, not on flush. The framework's
 `logging.yml` gives that logger no handler, so a stock site discards every warning until the project adds one, for

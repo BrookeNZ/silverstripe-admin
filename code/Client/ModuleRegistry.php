@@ -59,7 +59,7 @@ class ModuleRegistry
 
     /**
      * @return list<array{name: string, specifier: string}>
-     * @throws RuntimeException in dev, on a specifier claimed twice
+     * @throws RuntimeException in dev, on a specifier claimed twice in the import map
      */
     public function getModuleItems(): array
     {
@@ -68,7 +68,7 @@ class ModuleRegistry
             $items[] = ['name' => $name, 'specifier' => $name];
         }
         $this->extend('updateModuleItems', $items);
-        return $this->dropUnmappedItems($items);
+        return $this->dropRefusedItems($items);
     }
 
     /**
@@ -107,14 +107,32 @@ class ModuleRegistry
         return $this->stylesheets;
     }
 
-    private function dropUnmappedItems(array $items): array
+    /**
+     * Drops an item whose specifier is unmapped or already listed, since the loader skips only a repeated name
+     */
+    private function dropRefusedItems(array $items): array
     {
         $imports = $this->getImports();
         $mapped = [];
+        $namesBySpecifier = [];
         foreach ($items as $item) {
             $specifier = is_array($item) ? ($item['specifier'] ?? null) : null;
+            $name = is_array($item) ? ($item['name'] ?? null) : null;
+            if (is_string($specifier) && isset($namesBySpecifier[$specifier])) {
+                $this->warn(sprintf(
+                    'After updateModuleItems: the item named %s names the specifier "%s", which the item named %s already'
+                        . ' lists; the item was left out',
+                    ModuleEntryChecker::describeValue($name),
+                    $specifier,
+                    ModuleEntryChecker::describeValue($namesBySpecifier[$specifier])
+                ));
+                continue;
+            }
             if (is_string($specifier) && isset($imports[$specifier])) {
                 $mapped[] = $item;
+                if (is_string($name)) {
+                    $namesBySpecifier[$specifier] = $name;
+                }
                 continue;
             }
             $this->warn(sprintf(
@@ -389,12 +407,12 @@ class ModuleRegistry
                 $this->warn(sprintf('%s, which does not exist, so %s', $points, $consequence));
                 return null;
             }
-            if ($isModuleResource) {
-                return Director::absoluteURL($resource->getURL());
-            }
-            if (!ModuleRegistry::isServed($link)) {
+            if (!ModuleRegistry::isServed($isModuleResource ? $resource->getRelativePath() : $link)) {
                 $this->warn(ModuleRegistry::unservedWarning($points, $consequence));
                 return null;
+            }
+            if ($isModuleResource) {
+                return Director::absoluteURL($resource->getURL());
             }
             return Director::absoluteURL(ModuleResourceLoader::singleton()->resolveURL($link));
         } catch (InvalidArgumentException $exception) {
@@ -419,15 +437,17 @@ class ModuleRegistry
     }
 
     /**
-     * Follows SimpleResourceURLGenerator::resolvePublicResource(), which links any other project file into
-     * _resources/ without checking that the copy exists
+     * Follows SimpleResourceURLGenerator, which links a module resource or any other project file into _resources/
+     * without checking that the copy exists
+     *
+     * @param string $path Relative to the project root
      */
-    private static function isServed(string $link): bool
+    private static function isServed(string $path): bool
     {
         if (!Director::publicDir()) {
             return true;
         }
-        $relative = Path::normalise($link, true);
+        $relative = Path::normalise($path, true);
         return str_starts_with($relative, Director::publicDir() . DIRECTORY_SEPARATOR)
             || file_exists(Path::join(Director::publicFolder(), RESOURCES_DIR, $relative));
     }

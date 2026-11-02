@@ -21,7 +21,8 @@ class ModuleRegistryTest extends SapphireTest
 {
     protected $usesDatabase = false;
 
-    private const string FIXTURE = 'silverstripe/admin:tests/php/Client/ModuleRegistryTest/esm.js';
+    // A module link must be in a folder the module exposes
+    private const string FIXTURE = 'silverstripe/admin:client/dist/js/i18n.js';
 
     private string $originalEnvironment = '';
 
@@ -87,6 +88,17 @@ class ModuleRegistryTest extends SapphireTest
         $logged = $this->captureWarnings();
 
         $this->assertSame([], ModuleRegistry::singleton()->getImports());
+        $this->assertTrue($logged->hasWarningThatContains('add its folder to extra.expose'));
+    }
+
+    public function testAModuleFileOutsideTheModulesExposedFoldersIsDropped(): void
+    {
+        $link = 'silverstripe/admin:tests/php/Client/ModuleRegistryTest/esm.js';
+        Config::modify()->set(ModuleRegistry::class, 'modules', ['acme/hidden' => ['link' => $link]]);
+        $logged = $this->captureWarnings();
+
+        $this->assertSame([], ModuleRegistry::singleton()->getImports());
+        $this->assertTrue($logged->hasWarningThatContains('points its script at "' . $link . '", which is outside'));
         $this->assertTrue($logged->hasWarningThatContains('add its folder to extra.expose'));
     }
 
@@ -172,7 +184,7 @@ class ModuleRegistryTest extends SapphireTest
         $this->assertTrue($logged->hasWarningThatContains('Entry "acme/list" has an empty link'), 'A non-scalar link counts as none');
     }
 
-    public function testAnItemUpdateModuleItemsGivesAnUnmappedSpecifierIsDropped(): void
+    public function testAnUpdateModuleItemsItemWithAnUnmappedOrListedSpecifierIsDropped(): void
     {
         Config::modify()->set(ModuleRegistry::class, 'modules', ['acme/hello' => ['link' => ModuleRegistryTest::FIXTURE]]);
         ModuleRegistry::add_extension(UpdateModuleItemsExtension::class);
@@ -180,8 +192,11 @@ class ModuleRegistryTest extends SapphireTest
 
         $items = ModuleRegistry::singleton()->getModuleItems();
 
-        $this->assertSame(['acme/hello', 'acme/again'], array_column($items, 'name'));
+        $this->assertSame([['name' => 'acme/hello', 'specifier' => 'acme/hello']], $items);
         $this->assertTrue($logged->hasWarningThatContains('the specifier "acme/stray", which no module adds'));
+        $this->assertTrue($logged->hasWarningThatContains(
+            'the item named "acme/again" names the specifier "acme/hello", which the item named "acme/hello" already lists'
+        ));
     }
 
     public function testADevURLThatIsNotHttpOrNamesAnUnknownModuleIsRefused(): void
@@ -193,7 +208,7 @@ class ModuleRegistryTest extends SapphireTest
 
         [$imports, $warnings] = $this->inDev(fn () => ModuleRegistry::singleton()->getImports());
 
-        $this->assertStringContainsString('tests/php/Client/ModuleRegistryTest/esm.js', $imports['acme/hello']);
+        $this->assertStringContainsString('client/dist/js/i18n.js', $imports['acme/hello']);
         $this->assertCount(5, $warnings);
         $this->assertStringContainsString('names "acme/nobody"', $warnings[4]);
     }
@@ -205,7 +220,7 @@ class ModuleRegistryTest extends SapphireTest
 
         $imports = ModuleRegistry::singleton()->getImports();
 
-        $this->assertStringContainsString('tests/php/Client/ModuleRegistryTest/esm.js', $imports['acme/hello']);
+        $this->assertStringContainsString('client/dist/js/i18n.js', $imports['acme/hello']);
         $this->assertTrue($logged->hasWarningThatContains('SS_ADMIN_MODULE_DEV_URLS is set outside dev'));
     }
 
@@ -302,6 +317,19 @@ class ModuleRegistryTest extends SapphireTest
         $this->assertSame([], $registry->getImports());
         $this->assertTrue($logged->hasWarningThatContains('Module "silverstripe/dates" has imports of type string'));
         $this->assertTrue($logged->hasWarningThatContains('Library package "silverstripe/dayjs" has imports of type string'));
+    }
+
+    public function testAScalarRequiresDropsTheEntryWithAWarning(): void
+    {
+        Config::modify()->set(ModuleRegistry::class, 'modules', [
+            'silverstripe/dates' => ['link' => ModuleRegistryTest::FIXTURE, 'requires' => 'react'],
+        ]);
+        $logged = $this->captureWarnings();
+
+        $this->assertSame([], ModuleRegistry::singleton()->getModuleItems());
+        $this->assertTrue($logged->hasWarningThatContains(
+            'Module "silverstripe/dates" has requires of type string, but requires is a list of bare specifiers; the entry was left out'
+        ));
     }
 
     /**
