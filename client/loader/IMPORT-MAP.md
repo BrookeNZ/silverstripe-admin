@@ -6,10 +6,12 @@ design. For writing a module, see [MODULES.md](MODULES.md).
 
 ## From request to setup
 
-1. **The navigation test.** `LeftAndMain::isChromeNavigation()` (`code/LeftAndMain.php`) tells a browser page load
-   from a data request. A request is a navigation when it is a `GET`, is not XHR (`isAjax()`), sends neither
-   `X-Pjax` nor `X-Formschema-Request`, and its last URL segment, or the one before a trailing record ID, is not in
-   `LeftAndMain.server_url_segments` (`printable`, `print` and `export` by default), and then:
+1. **The navigation test.** `LeftAndMain::handleRequest()` (`code/LeftAndMain.php`) tells a browser page load from
+   a data request once, before any URL handling, and `isChromeNavigation()` gives that answer for the rest of the
+   request, including the `init()` that `afterHandleRequest()` runs again for an error page. A request is a
+   navigation when it is a `GET`, is not XHR (`isAjax()`), sends neither `X-Pjax` nor `X-Formschema-Request`, and its
+   last URL segment, or the one before a trailing record ID, is not in `LeftAndMain.server_url_segments` (`printable`,
+   `print` and `export` by default), and then:
    - when the browser sends `Sec-Fetch-Dest`, it is `document` and `Sec-Fetch-Mode` is absent or `navigate`;
    - otherwise the `Accept` header takes `text/html` or `application/xhtml+xml` with a quality above 0 and no lower
      than any JSON type (`*/json`, `*+json`). Wildcards count as neither, so `Accept: */*` is a data request.

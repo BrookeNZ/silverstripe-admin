@@ -164,7 +164,7 @@ class ChromePageTest extends FunctionalTest
         $this->assertStringContainsString('<table', $print->getBody());
         $this->assertStringContainsString('text/csv', (string) $export->getHeader('Content-Type'));
         // Not a request: LeftAndMain::printable() fails in core, as Form::setActions() does not take null
-        $isNavigation = new ReflectionMethod(LeftAndMain::class, 'isChromeNavigation');
+        $isNavigation = new ReflectionMethod(LeftAndMain::class, 'decideChromeNavigation');
         $navigation = function (string $url) use ($isNavigation): bool {
             $request = new HTTPRequest('GET', $url);
             $request->addHeader('Accept', 'text/html');
@@ -172,6 +172,14 @@ class ChromePageTest extends FunctionalTest
         };
         $this->assertFalse($navigation(ChromePageTest::SECTION . 'printable/5'), 'A trailing record ID is skipped');
         $this->assertTrue($navigation(ChromePageTest::SECTION . 'edit/show/5'));
+    }
+
+    public function testAServerSegmentActionThatFailsKeepsTheLegacyErrorPageRequirements(): void
+    {
+        $response = $this->get(ChromePageTest::SECTION . 'export', null, ['Accept' => 'text/html']);
+
+        $this->assertSame(500, $response->getStatusCode());
+        $this->assertStringContainsString('window.ss.config', $response->getBody());
     }
 
     private function sectionNavigation(): string

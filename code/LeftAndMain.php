@@ -141,6 +141,11 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
     private bool $suppressAdminErrorContext = false;
 
     /**
+     * Decided before any URL handling, since afterHandleRequest() runs init() again once the URL has been shifted
+     */
+    private ?bool $chromeNavigation = null;
+
+    /**
      * Themes to use within the CMS
      *
      * Default themes are assigned in _config/themes.yml
@@ -357,7 +362,7 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
             }
 
             // The chrome page writes its own tags and config
-            if ($this->isChromeNavigation($this->getRequest())) {
+            if ($this->isChromeNavigation()) {
                 return;
             }
 
@@ -485,8 +490,9 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
 
     public function handleRequest(HTTPRequest $request): HTTPResponse
     {
+        $this->chromeNavigation = $this->decideChromeNavigation($request);
         try {
-            if ($this->isChromeNavigation($request)) {
+            if ($this->chromeNavigation) {
                 $response = $this->handleChromeNavigation($request);
             } else {
                 $response = parent::handleRequest($request);
@@ -514,7 +520,7 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
         // Prevent clickjacking, see https://developer.mozilla.org/en-US/docs/HTTP/X-Frame-Options
         $originalResponse = $this->getResponse();
         $originalResponse->addHeader('X-Frame-Options', LeftAndMain::config()->uninherited('frame_options'));
-        // isChromeNavigation() picks the chrome page or the legacy one from these headers
+        // decideChromeNavigation() picks the chrome page or the legacy one from these headers
         // Merged by hand because addVary() is dropped when another Vary is already set
         $vary = $originalResponse->getHeader('Vary');
         $originalResponse->addHeader(
@@ -556,7 +562,13 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
     /**
      * @internal
      */
-    protected function isChromeNavigation(HTTPRequest $request): bool
+    protected function isChromeNavigation(): bool
+    {
+        // init() can run outside handleRequest(), as in a test
+        return $this->chromeNavigation ?? $this->decideChromeNavigation($this->getRequest());
+    }
+
+    private function decideChromeNavigation(HTTPRequest $request): bool
     {
         if (LeftAndMain::isDataRequest($request)) {
             return false;
