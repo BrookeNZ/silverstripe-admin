@@ -44,7 +44,7 @@ valid after an `await`, and `setup` may receive further arguments after it.
 
 The types are exported from the same specifier (`ModuleSetup`, `ModuleMetadata`, `ClientConfig`,
 `Section`); import them with `import type`. A module's own tests resolve the package's `runtime.js`, where
-`clientConfig()` throws until something sets it.
+`clientConfig()` throws until something sets it (see *Testing a module*).
 
 ## Declaring a module
 
@@ -302,6 +302,30 @@ and none of the loader's state in `@silverstripe/admin`.
 
 Commit the built folder and list it in `extra.expose` in the `composer.json` of the package that holds it, so
 `vendor-plugin` publishes it: a module package's own, or the project's root one for a module outside `public/`.
+
+## Testing a module
+
+Only the loader can set the client config, so in a module's own tests `clientConfig()` throws, and a module that calls
+it at its top level cannot even be imported. Mock the package with a stub config. Vitest hoists `vi.mock` above the
+imports, so the module under test loads with the stub:
+
+```ts
+import { vi } from 'vitest';
+
+vi.mock('@silverstripe/admin', () => ({
+  clientConfig: () => ({
+    sections: [],
+    baseUrl: '/',
+    absoluteBaseUrl: 'http://localhost/',
+    adminUrl: 'admin',
+    environment: 'dev',
+    debugging: false,
+  }),
+}));
+```
+
+`clientConfig()` is the only runtime export a module uses, so the stub needs nothing else. Add the fields the module
+reads, the CSRF token under its name included.
 
 ## Development loop
 

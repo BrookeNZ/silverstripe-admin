@@ -9,9 +9,6 @@ import type { ClientConfig } from './types';
 export const CONFIG_BLOCK_ID = 'ss-admin-config';
 export const MODULES_BLOCK_ID = 'ss-admin-modules';
 
-/**
- * Undefined when the block is missing, empty or not valid JSON, so a JSON `null` stays distinguishable
- */
 export function readDataBlock(id: string): unknown {
   const json = document.getElementById(id)?.textContent;
   if (!json) {

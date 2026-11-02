@@ -36,7 +36,7 @@
     "build:package": "node build-package.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "lint": "eslint --no-warn-ignored src *.js"
+    "lint": "eslint --no-warn-ignored src *.js vitest.config.mts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

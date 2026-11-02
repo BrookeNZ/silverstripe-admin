@@ -1,5 +1,5 @@
 /**
- * What a module imports from `@silverstripe/admin`: the types below and the runtime function (runtime.ts).
+ * What a module imports from `@silverstripe/admin`: the types below and `clientConfig()`, provided at runtime.
  * `setup()` receives the module's deep-frozen list item; the client config comes from `clientConfig()`.
  * ModuleMetadata is an interface, not an alias, so a module can augment it.
  */
@@ -25,6 +25,10 @@ export interface Section {
     }>;
     [key: string]: unknown;
 }
+/**
+ * The client config LeftAndMain::getCombinedClientConfig() builds for `#ss-admin-config`; keep both interfaces' fields
+ * in step. The CSRF token sits under its configurable name, so it is not typed here
+ */
 export interface ClientConfig {
     sections: Array<Section>;
     baseUrl: string;

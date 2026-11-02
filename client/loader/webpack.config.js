@@ -1,6 +1,6 @@
 /**
  * Builds the loader release into ../dist/loader/: main.js from src/index.ts, the shared files
- * (webpack.shared.config.js) and manifest.json. --watch rebuilds and rewrites the manifest.
+ * (webpack.shared.config.js) and manifest.json. --watch rebuilds, rewrites the manifest and reruns build-package.js.
  *
  * The manifest is a contract with the PHP that writes the admin page, which reads nothing else from the build:
  * `shared` maps each import map specifier to its file, which the PHP turns into the map's imports, and `files` maps
@@ -10,6 +10,7 @@
  * Digests are taken from the files on disk after every build, so they match the bytes served. Keys are written in a
  * fixed order so an unchanged rebuild writes the same file.
  */
+import { spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -19,6 +20,7 @@ import { sharedFiles, sharedSpecifiers } from './shared.js';
 import sharedConfigs, { baseConfig } from './webpack.shared.config.js';
 
 const releaseDir = path.resolve(import.meta.dirname, '../dist/loader');
+const watching = process.argv.includes('--watch');
 const sha384 = (file) => `sha384-${crypto.createHash('sha384').update(fs.readFileSync(file)).digest('base64')}`;
 
 function writeManifest() {
@@ -46,6 +48,14 @@ const loaderConfig = {
   externals: Object.fromEntries(sharedSpecifiers.map((name) => [name, name])),
 };
 
+// The build imports src/types.ts only as types, so it is not a dependency; watching it reruns build-package.js
+const watchTypes = {
+  apply: (compiler) =>
+    compiler.hooks.afterCompile.tap('watch-types', (compilation) => {
+      compilation.fileDependencies.add(path.join(import.meta.dirname, 'src/types.ts'));
+    }),
+};
+
 const configs = [loaderConfig, ...sharedConfigs];
 
 function report(error, stats) {
@@ -58,14 +68,19 @@ function report(error, stats) {
     return;
   }
   writeManifest();
+  if (watching) {
+    spawnSync(process.execPath, [path.join(import.meta.dirname, 'build-package.js')], { stdio: 'inherit' });
+  }
 }
 
 export default configs;
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   fs.rmSync(releaseDir, { recursive: true, force: true });
-  const compiler = webpack(configs);
-  if (process.argv.includes('--watch')) {
+  const compiler = webpack(watching
+    ? [{ ...loaderConfig, plugins: [...(loaderConfig.plugins ?? []), watchTypes] }, ...sharedConfigs]
+    : configs);
+  if (watching) {
     compiler.watch({}, report);
   } else {
     compiler.run((error, stats) => {

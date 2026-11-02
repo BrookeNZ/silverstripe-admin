@@ -32,5 +32,5 @@ leaves the checkout changed.
 | `npm run typecheck` | Typechecks `src/` |
 | `npm run lint` | Lints `src/` and the package's own scripts |
 | `npm run build` | Builds the release, then the types and `runtime.js`; an unchanged rebuild writes the same files |
-| `npm run watch` | Rebuilds the release on change |
+| `npm run watch` | Rebuilds the release, the types and `runtime.js` on change |
 | `npm run build:package` | Builds the types and `runtime.js` only |

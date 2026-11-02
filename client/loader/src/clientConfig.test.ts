@@ -17,17 +17,26 @@ function configBlock(json: string) {
 }
 
 describe('startChrome', () => {
-  it('starts nothing and logs once without a config, and with one hands modules the page config frozen', () => {
+  it('starts nothing and logs once for a config that is missing or not an object', () => {
     const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const start = vi.fn();
     startChrome(start);
+    configBlock('[]');
+    startChrome(start);
     expect(start).not.toHaveBeenCalled();
-    expect(logged).toHaveBeenCalledTimes(1);
+    expect(logged).toHaveBeenCalledTimes(2);
+  });
 
-    configBlock('{"SecurityID":"csrf-token","adminUrl":"admin/","sections":[]}');
+  it('hands modules the page config frozen, readable once the start callback runs', () => {
+    let readInStart: unknown;
+    const start = vi.fn(() => {
+      readInStart = clientConfig();
+    });
+    configBlock('{"SecurityID":"csrf-token","adminUrl":"admin","sections":[]}');
     startChrome(start);
     expect(start).toHaveBeenCalledTimes(1);
     const config = clientConfig();
+    expect(readInStart).toBe(config);
     expect(config.SecurityID).toBe('csrf-token');
     expect(Object.isFrozen(config)).toBe(true);
     expect(Object.isFrozen(config.sections)).toBe(true);

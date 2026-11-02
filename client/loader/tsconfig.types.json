@@ -4,7 +4,6 @@
     "declaration": true,
     "emitDeclarationOnly": true,
     "stripInternal": true,
-    "sourceMap": false,
     "rootDir": "src",
     "outDir": "types"
   },

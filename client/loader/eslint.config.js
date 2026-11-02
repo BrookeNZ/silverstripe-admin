@@ -29,4 +29,10 @@ export default defineConfig(
     languageOptions: { globals: globals.node },
     rules: style,
   },
+  {
+    files: ['*.mts'],
+    extends: [js.configs.recommended, tseslint.configs.recommended],
+    languageOptions: { globals: globals.node },
+    rules: style,
+  },
 );

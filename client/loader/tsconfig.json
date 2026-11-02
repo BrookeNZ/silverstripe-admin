@@ -1,12 +1,10 @@
 {
   "compilerOptions": {
     "target": "es2022",
-    "sourceMap": true,
     "skipLibCheck": true,
     "lib": ["dom", "dom.iterable", "es2022"],
     "moduleResolution": "Bundler",
     "module": "esnext",
-    "jsx": "react-jsx",
     "strict": true,
     "rootDir": ".",
     "paths": {
