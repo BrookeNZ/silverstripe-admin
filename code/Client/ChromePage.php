@@ -28,9 +28,9 @@ class ChromePage extends ModelData
         'NonceAttribute' => 'HTMLFragment',
     ];
 
-    private LeftAndMain $controller;
-
     private string $clientConfig;
+
+    private string $nonce;
 
     /**
      * Null for a member the section refuses
@@ -42,9 +42,11 @@ class ChromePage extends ModelData
     public function __construct(LeftAndMain $controller, string $clientConfig)
     {
         parent::__construct();
-        $this->controller = $controller;
         $this->clientConfig = $clientConfig;
         $this->setFailover($controller);
+        $nonce = '';
+        $controller->extend('updateChromeNonce', $nonce);
+        $this->nonce = (string) $nonce;
         $this->moduleItems = $controller->canView() ? ModuleRegistry::singleton()->getModuleItems() : null;
         $this->scriptURL = LoaderAssets::singleton()->getScriptURL();
         if ($this->scriptURL === null && Director::isDev()) {
@@ -55,7 +57,7 @@ class ChromePage extends ModelData
     }
 
     /**
-     * Encoded with JSON_HEX_TAG by LeftAndMain::getCombinedClientConfig(), so it cannot close its block
+     * Encoded by jsonForScriptBlock() in LeftAndMain::getCombinedClientConfig(), so it cannot close its block
      */
     public function ClientConfig(): string
     {
@@ -146,10 +148,7 @@ class ChromePage extends ModelData
      */
     public function NonceAttribute(): string
     {
-        $nonce = '';
-        $this->controller->extend('updateChromeNonce', $nonce);
-        $nonce = (string) $nonce;
-        return $nonce === '' ? '' : sprintf(' nonce="%s"', Convert::raw2att($nonce));
+        return $this->nonce === '' ? '' : sprintf(' nonce="%s"', Convert::raw2att($this->nonce));
     }
 
     public function ModuleList(): string
@@ -159,9 +158,9 @@ class ChromePage extends ModelData
 
     /**
      * JSON_HEX_TAG keeps a value from closing the `<script>` element the JSON sits in, and JSON_INVALID_UTF8_SUBSTITUTE
-     * keeps a bad byte from failing the page, as in LeftAndMain::getCombinedClientConfig()
+     * keeps a bad byte from failing the page
      */
-    private static function jsonForScriptBlock(mixed $value): string
+    public static function jsonForScriptBlock(mixed $value): string
     {
         return json_encode(
             $value,

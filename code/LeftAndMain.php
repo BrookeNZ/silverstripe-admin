@@ -315,11 +315,7 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
         $combinedClientConfig['environment'] = Director::get_environment_type();
         $combinedClientConfig['debugging'] = LeftAndMain::config()->uninherited('client_debugging');
 
-        // ChromePage::ClientConfig() writes this into a script block as it is
-        return json_encode(
-            $combinedClientConfig,
-            JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
-        );
+        return ChromePage::jsonForScriptBlock($combinedClientConfig);
     }
 
     public function getClientConfig(): array
