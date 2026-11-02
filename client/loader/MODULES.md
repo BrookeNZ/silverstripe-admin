@@ -207,13 +207,15 @@ public; a module's server endpoints check permissions themselves.
 - A module that fails to import (a 404, a network error, a syntax error), exports no `setup`, or whose `setup` throws
   or rejects gets one console error, `The admin module "<name>" failed to load`, with the cause, and the other modules
   still run. It is not fetched again until the page reloads, and its stylesheet link is removed.
-- The loader imports every listed module at once with `Promise.allSettled`, then calls each `setup` in list order,
-  waiting for a returned promise before the next. There is no timeout: a module whose import or `setup` never
-  settles holds back every module after it.
+- The loader starts every listed module's import at once, then calls each `setup` in list order as soon as that
+  module's import arrives, waiting for a returned promise before the next. There is no timeout: a module whose import
+  or `setup` never settles holds back every module after it, and a module held back that way is never reported.
 - Every stylesheet is linked before the loader script, and the browser runs no module script while a stylesheet
   before it is still loading, so a stylesheet that never finishes loading holds back the loader and every module.
-- A name listed twice keeps its first item, with a console warning; its stylesheet link follows the same item, so the
-  order `updateModuleItems` leaves decides which wins.
+- A specifier listed twice (two items from `updateModuleItems` naming one specifier) keeps its first item; the later
+  one is left out with a logged warning naming both. A name listed twice keeps its first item, with a console
+  warning; its stylesheet link follows the same item, so the order `updateModuleItems` leaves decides which wins. An
+  item without a specifier is skipped with a console warning.
 - A page without its client config logs `The admin could not start` and loads no module. A module list that is
   missing or not a JSON list logs `The page module list is missing or not a JSON list` and loads no module. A loader
   that is not built is logged on the server in dev.

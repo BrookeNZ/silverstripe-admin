@@ -42,20 +42,23 @@ design. For writing a module, see [MODULES.md](MODULES.md).
      them (one that hangs: [MODULES.md](MODULES.md), *When something fails*);
    - the module list as JSON in `#ss-admin-modules`, from `ModuleRegistry::getModuleItems()`, and empty for a member the
      section's `canView()` refuses. Each item is `{name, specifier}`. The list travels in the page, there is no
-     separate module endpoint, and an item carries no version: a file's URL carries its modification time. A later
-     item of a name listed twice is ignored ([MODULES.md](MODULES.md), *When something fails*);
+     separate module endpoint, and an item carries no version: a file's URL carries its modification time.
+     `getModuleItems()` leaves out, with a warning, a later item for a specifier already listed, and the loader
+     ignores a later item of a name listed twice ([MODULES.md](MODULES.md), *When something fails*);
    - the client config as JSON in `#ss-admin-config`;
    - the loader, `<script type="module">`, when `main.js` is built; in dev a missing one is logged.
 
    The client config is encoded once, in `getCombinedClientConfig()`, and the import map and module list by
-   `ChromePage`, each with `JSON_HEX_TAG`, so no value can close its element. The body is empty.
+   `ChromePage`, all three through `ChromePage::jsonForScriptBlock()` with `JSON_HEX_TAG`, so no value can close its
+   element. The body is empty.
 4. **The loader** (`client/loader/src/index.ts`, built to `client/dist/loader/main.js`) reads the config and module
-   list, imports every listed module by its specifier with `Promise.allSettled`, then calls each one's `setup()` with
-   its deep-frozen list item in list order, each in a try and catch (failures: [MODULES.md](MODULES.md), *When
-   something fails*), removing a failed module's stylesheet link. Importing by specifier makes the map the one source
-   of a module's URL, so an override of the module's map URL changes what loads rather than loading a second copy.
-   The loader imports `@silverstripe/admin` through the map as modules do, so both share one instance, and claims its
-   setter before any module loads.
+   list, starts the import of every listed module by its specifier at once, then in list order awaits each one's own
+   import and calls its `setup()` with its deep-frozen list item, each in a try and catch, so a stalled import holds
+   back only the items after it (failures: [MODULES.md](MODULES.md), *When something fails*), removing a failed
+   module's stylesheet link. Importing by specifier makes the map the one source of a module's URL, so an override of
+   the module's map URL changes what loads rather than loading a second copy. The loader imports
+   `@silverstripe/admin` through the map as modules do, so both share one instance, and claims its setter before any
+   module loads.
 
 ## Contracts and hooks
 
@@ -63,8 +66,9 @@ The element ids `ss-admin-modules` and `ss-admin-config`, and a module styleshee
 between the template and the loader: renaming one breaks the loader with no server error.
 
 `ModuleRegistry` fires `updateModuleItems(array &$items)` on the module list. It changes what the loader imports, not
-the import map, so an item it adds must name a specifier a module or library package adds; any other item is dropped
-with a warning. `ChromePage::NonceAttribute()` fires `updateChromeNonce(string &$nonce)` on the section controller.
+the import map, so an item it adds must name a specifier a module or library package adds and no earlier item names;
+any other item is dropped with a warning. `ChromePage` fires `updateChromeNonce(string &$nonce)` on the section
+controller once per page.
 
 The public surface is the `ModuleRegistry.modules` YAML and its keys, the `updateModuleItems` and
 `updateChromeNonce` hooks, `LeftAndMain.server_url_segments`, `SS_ADMIN_MODULE_DEV_URLS`, and what the

@@ -27,33 +27,44 @@ export function readModuleList(): Array<ModuleMetadata> {
     console.error('The page module list is missing or not a JSON list; no modules were loaded');
     return [];
   }
-  const byName = new Map<string, ModuleMetadata>();
+  const seen = new Set<string>();
+  const listed: Array<ModuleMetadata> = [];
   for (const item of items) {
     if (typeof item?.name !== 'string') {
       continue;
     }
-    if (byName.has(item.name)) {
+    if (seen.has(item.name)) {
       console.warn(`The admin module "${item.name}" is listed more than once; only its first item is used`);
       continue;
     }
-    byName.set(item.name, item as ModuleMetadata);
+    seen.add(item.name);
+    if (typeof item.specifier !== 'string') {
+      console.warn(`The admin module "${item.name}" is listed without a specifier; it is not loaded`);
+      continue;
+    }
+    listed.push(item as ModuleMetadata);
   }
-  return [...byName.values()];
+  return listed;
 }
 
 /**
- * Imports every item at once, then runs each `setup` in list order, waiting for a returned promise before the next.
- * A failed import or `setup` gets one console error and its stylesheet removed, and the rest still run. There is
- * no timeout, so an import or `setup` that never settles holds back every item after it
+ * Starts every import at once, then runs each `setup` in list order once its own import arrives and the previous
+ * `setup` has settled. A failure gets one console error and its stylesheet removed; one that never settles holds back
+ * every item after it, since there is no timeout
  */
 export async function bootModules(
   items: ReadonlyArray<ModuleMetadata>,
   importer: ModuleImporter = importModule,
 ): Promise<void> {
-  const imported = await Promise.allSettled(items.map((item) => importer(item.specifier)));
+  const imports = items.map((item) => {
+    const imported = importer(item.specifier);
+    // A rejection is reported when its item's turn comes; until then it must not count as unhandled
+    imported.catch(() => undefined);
+    return imported;
+  });
   for (const [index, item] of items.entries()) {
     try {
-      await setupModule(item, imported[index]);
+      await setupModule(item, imports[index]);
     } catch (error) {
       console.error(`The admin module "${item.name}" failed to load`, error);
       removeStylesheets(item.name);
@@ -74,11 +85,8 @@ function removeStylesheets(name: string): void {
  * Throws for a rejected import, a missing `setup` and a `setup` that throws or rejects alike, so bootModules()
  * reports all three the same way. The item is cloned and frozen so one module cannot change what the next one sees
  */
-async function setupModule(item: ModuleMetadata, imported: PromiseSettledResult<ModuleExports>): Promise<void> {
-  if (imported.status === 'rejected') {
-    throw imported.reason;
-  }
-  const module = imported.value;
+async function setupModule(item: ModuleMetadata, imported: Promise<ModuleExports>): Promise<void> {
+  const module = await imported;
   if (typeof module?.setup !== 'function') {
     throw new Error(`The module "${item.name}" exports no setup function`);
   }
