@@ -7,7 +7,7 @@ use Monolog\Logger;
 use Psr\Log\LoggerInterface;
 use SilverStripe\Admin\Client\ImportMap;
 use SilverStripe\Admin\Client\LoaderAssets;
-use SilverStripe\Admin\Client\ModuleRegistry;
+use SilverStripe\Admin\ClientRegistry;
 use SilverStripe\Core\Config\Config;
 use SilverStripe\Core\Injector\Injector;
 use SilverStripe\Dev\SapphireTest;
@@ -40,31 +40,31 @@ class ImportMapTest extends SapphireTest
         $this->assertFalse($this->warnings->hasWarningRecords());
     }
 
-    public function testAModulesNameAndImportsAreMapEntriesWithACacheKey(): void
+    public function testAnEntrysNameAndAModulesImportsAreMapEntriesWithACacheKey(): void
     {
-        Config::modify()->set(ModuleRegistry::class, 'modules', [
+        Config::modify()->set(ClientRegistry::class, 'modules', [
             'silverstripe/dates' => [
-                'link' => 'silverstripe/admin:client/dist/js/i18n.js',
                 'imports' => ['@silverstripe/dayjs' => 'silverstripe/admin:client/dist/js/i18n.js'],
+                'entries' => ['main' => ['link' => 'silverstripe/admin:client/dist/js/i18n.js']],
             ],
         ]);
 
-        $map = ImportMap::singleton()->getMap(ModuleRegistry::singleton()->getImports());
+        $map = ImportMap::singleton()->getMap(ClientRegistry::singleton()->getImports());
 
-        $this->assertMatchesRegularExpression('#^https?://.*/client/dist/js/i18n\.js\?m=\d+$#', $map['imports']['silverstripe/dates']);
+        $this->assertMatchesRegularExpression('#^https?://.*/client/dist/js/i18n\.js\?m=\d+$#', $map['imports']['silverstripe/dates/main']);
         $this->assertMatchesRegularExpression('#^https?://.*/client/dist/js/i18n\.js\?m=\d+$#', $map['imports']['@silverstripe/dayjs']);
     }
 
-    public function testALibraryPackageAddsAnUnscopedSpecifierAndIsNotAModule(): void
+    public function testALibraryPackageAddsAnUnscopedSpecifierAndNoEntry(): void
     {
-        Config::modify()->set(ModuleRegistry::class, 'modules', [
+        Config::modify()->set(ClientRegistry::class, 'modules', [
             'silverstripe/dayjs' => ['imports' => ['dayjs' => 'silverstripe/admin:client/dist/js/i18n.js']],
         ]);
-        $registry = ModuleRegistry::singleton();
+        $registry = ClientRegistry::singleton();
 
         $map = ImportMap::singleton()->getMap($registry->getImports());
 
-        $this->assertSame([], $registry->getModuleItems());
+        $this->assertSame([], $registry->getEntries());
         $this->assertStringContainsString('/client/dist/js/i18n.js?m=', $map['imports']['dayjs']);
         $this->assertArrayNotHasKey('silverstripe/dayjs', $map['imports']);
     }

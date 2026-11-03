@@ -3,6 +3,7 @@
 namespace SilverStripe\Admin\Client;
 
 use Psr\Log\LoggerInterface;
+use SilverStripe\Admin\ClientRegistry;
 use SilverStripe\Admin\LeftAndMain;
 use SilverStripe\Control\Director;
 use SilverStripe\Core\Convert;
@@ -12,11 +13,11 @@ use SilverStripe\Model\ModelData;
 
 /**
  * The admin chrome page, which LeftAndMain renders for every page navigation into a section. It inlines everything
- * the loader reads, so the loader makes no request for its config or module list. The section controller is its
+ * the loader reads, so the loader makes no request for its config or entry list. The section controller is its
  * failover, so the template's `$Title` and `$Locale` are the section's.
  *
  * The loader reads the element ids `ss-admin-modules` and `ss-admin-config` (client/loader/src/clientConfig.ts) and
- * removes a failed module's stylesheet by its `data-module`. Renaming one breaks the loader with no server error.
+ * removes a failed entry's stylesheet by its `data-module`. Renaming one breaks the loader with no server error.
  *
  * An extension on LeftAndMain that implements `updateChromeNonce` supplies the CSP nonce for every section.
  *
@@ -35,7 +36,7 @@ class ChromePage extends ModelData
     /**
      * Null for a member the section refuses
      */
-    private ?array $moduleItems;
+    private ?array $entryItems;
 
     private ?string $scriptURL;
 
@@ -47,7 +48,7 @@ class ChromePage extends ModelData
         $nonce = '';
         $controller->extend('updateChromeNonce', $nonce);
         $this->nonce = (string) $nonce;
-        $this->moduleItems = $controller->canView() ? ModuleRegistry::singleton()->getModuleItems() : null;
+        $this->entryItems = $controller->canView() ? ClientRegistry::singleton()->getEntries() : null;
         $this->scriptURL = LoaderAssets::singleton()->getScriptURL();
         if ($this->scriptURL === null && Director::isDev()) {
             Injector::inst()->get(LoggerInterface::class)->warning(
@@ -66,58 +67,58 @@ class ChromePage extends ModelData
 
     public function ImportMap(): string
     {
-        return ChromePage::jsonForScriptBlock(ImportMap::singleton()->getMap(ModuleRegistry::singleton()->getImports()));
+        return ChromePage::jsonForScriptBlock(ImportMap::singleton()->getMap(ClientRegistry::singleton()->getImports()));
     }
 
     /**
-     * The loader always imports `@silverstripe/admin`; the other shared files are preloaded only when a module is
-     * listed, since any module may import them
+     * The loader always imports `@silverstripe/admin`; the other shared files are preloaded only when an entry is
+     * listed, since any entry may import them
      */
-    public function ModulePreloads(): ArrayList
+    public function EntryPreloads(): ArrayList
     {
-        $moduleURLs = [];
-        $imports = ModuleRegistry::singleton()->getImports();
-        foreach (array_keys($this->listedNamesBySpecifier($this->moduleItems ?? [])) as $specifier) {
-            $moduleURLs[] = $imports[$specifier];
+        $entryURLs = [];
+        $imports = ClientRegistry::singleton()->getImports();
+        foreach (array_keys($this->listedNamesBySpecifier($this->entryItems ?? [])) as $specifier) {
+            $entryURLs[] = $imports[$specifier];
         }
         $sharedImports = ImportMap::singleton()->getSharedImports();
-        if (!$moduleURLs) {
+        if (!$entryURLs) {
             $sharedImports = array_intersect_key($sharedImports, [LoaderAssets::ADMIN_SPECIFIER => true]);
         }
-        $urls = [$this->scriptURL, ...array_values($sharedImports), ...$moduleURLs];
+        $urls = [$this->scriptURL, ...array_values($sharedImports), ...$entryURLs];
         $urls = array_values(array_unique(array_filter($urls, fn (?string $url) => $url !== null)));
         return ArrayList::create(array_map(fn (string $url) => ['URL' => $url], $urls));
     }
 
     /**
-     * A module's stylesheet is linked only when the module is listed, with the module's name in `data-module`
-     * so the loader can remove it on failure. Other entries' stylesheets are always linked. Empty for a member the
+     * A client entry's stylesheet is linked only when the entry is listed, with the entry's name in `data-module`
+     * so the loader can remove it on failure. A stylesheet entry's is always linked. Empty for a member the
      * section refuses
      */
-    public function ModuleStylesheets(): ArrayList
+    public function EntryStylesheets(): ArrayList
     {
-        $items = $this->moduleItems;
+        $items = $this->entryItems;
         if ($items === null) {
             return ArrayList::create();
         }
         $listedNames = $this->listedNamesBySpecifier($items);
         $links = [];
-        foreach (ModuleRegistry::singleton()->getStylesheets() as $stylesheet) {
-            if (!$stylesheet['module']) {
-                $links[] = ['IsModule' => false, 'Module' => '', 'URL' => $stylesheet['url']];
+        foreach (ClientRegistry::singleton()->getStylesheets() as $stylesheet) {
+            if (!$stylesheet['entry']) {
+                $links[] = ['IsEntry' => false, 'Entry' => '', 'URL' => $stylesheet['url']];
                 continue;
             }
-            $module = $listedNames[$stylesheet['name']] ?? null;
-            if ($module !== null) {
-                $links[] = ['IsModule' => true, 'Module' => $module, 'URL' => $stylesheet['url']];
+            $entry = $listedNames[$stylesheet['name']] ?? null;
+            if ($entry !== null) {
+                $links[] = ['IsEntry' => true, 'Entry' => $entry, 'URL' => $stylesheet['url']];
             }
         }
         return ArrayList::create($links);
     }
 
     /**
-     * Each item's name by specifier, which getModuleItems() keeps unique; a registry module's specifier is its name.
-     * Skips what readModuleList() in client/loader/src/loader.ts skips: a later item of a name, a non-string name
+     * Each item's name by specifier, which getEntries() keeps unique; a registry entry's specifier is its name.
+     * Skips what readEntryList() in client/loader/src/loader.ts skips: a later item of a name, a non-string name
      * and a non-string specifier
      *
      * @return array<string, string>
@@ -151,9 +152,9 @@ class ChromePage extends ModelData
         return $this->nonce === '' ? '' : sprintf(' nonce="%s"', Convert::raw2att($this->nonce));
     }
 
-    public function ModuleList(): string
+    public function EntryList(): string
     {
-        return ChromePage::jsonForScriptBlock($this->moduleItems ?? []);
+        return ChromePage::jsonForScriptBlock($this->entryItems ?? []);
     }
 
     /**

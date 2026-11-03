@@ -4,7 +4,7 @@ namespace SilverStripe\Admin\Tests\Client;
 
 use ReflectionMethod;
 use SilverStripe\Admin\Client\LoaderAssets;
-use SilverStripe\Admin\Client\ModuleRegistry;
+use SilverStripe\Admin\ClientRegistry;
 use SilverStripe\Admin\LeftAndMain;
 use SilverStripe\Admin\Tests\Client\ChromePageTest\NonceExtension;
 use SilverStripe\Admin\Tests\Client\ChromePageTest\SectionController;
@@ -17,7 +17,9 @@ use SilverStripe\Security\SudoMode\SudoModeServiceInterface;
 class ChromePageTest extends FunctionalTest
 {
     // One slash, as the name rule requires; the tags still prove nothing can close a script block
-    private const string NAME = 'acme/<script>alert(1)<!--';
+    private const string MODULE = 'acme/<script>alert(1)<!--';
+
+    private const string NAME = ChromePageTest::MODULE . '/main';
 
     private const string SECTION = 'admin/chrome-test-section/';
 
@@ -32,13 +34,13 @@ class ChromePageTest extends FunctionalTest
     protected function setUp(): void
     {
         parent::setUp();
-        Config::modify()->set(ModuleRegistry::class, 'modules', [
-            ChromePageTest::NAME => ['link' => 'https://cdn.example.test/hello.js'],
+        Config::modify()->set(ClientRegistry::class, 'modules', [
+            ChromePageTest::MODULE => ['entries' => ['main' => ['link' => 'https://cdn.example.test/hello.js']]],
         ]);
         $this->logInWithPermission('ADMIN');
     }
 
-    public function testANavigationGetsTheChromePageWithTheMapModulesAndConfig(): void
+    public function testANavigationGetsTheChromePageWithTheMapEntriesAndConfig(): void
     {
         $body = $this->sectionNavigation();
 
@@ -52,17 +54,17 @@ class ChromePageTest extends FunctionalTest
         $map = $this->jsonBlock($body, 'type="importmap"');
         $this->assertArrayHasKey('react', $map['imports']);
         $this->assertSame('https://cdn.example.test/hello.js', $map['imports'][ChromePageTest::NAME]);
-        $preloads = $this->modulePreloads($body);
+        $preloads = $this->entryPreloads($body);
         $this->assertStringContainsString('client/dist/loader/main.js', $preloads[0]);
         $shared = array_map(fn (string $specifier) => $map['imports'][$specifier], LoaderAssets::SHARED_SPECIFIERS);
-        $this->assertSame([$preloads[0], ...$shared, 'https://cdn.example.test/hello.js'], $preloads, 'The loader, the shared files, then the module');
+        $this->assertSame([$preloads[0], ...$shared, 'https://cdn.example.test/hello.js'], $preloads, 'The loader, the shared files, then the client entry');
         $this->assertStringContainsString('?v=', $preloads[1]);
         $this->assertStringContainsString('<script type="module" ' . $nonce . ' src="' . $preloads[0] . '"></script>', $body);
 
-        $modules = $this->jsonBlock($body, 'id="ss-admin-modules"');
+        $entries = $this->jsonBlock($body, 'id="ss-admin-modules"');
         $this->assertSame(
             [['name' => ChromePageTest::NAME, 'specifier' => ChromePageTest::NAME]],
-            $modules,
+            $entries,
             'A value cannot close its block'
         );
         $config = $this->jsonBlock($body, 'id="ss-admin-config"');
@@ -71,19 +73,21 @@ class ChromePageTest extends FunctionalTest
         $this->assertStringNotContainsString('window.ss.config', $body);
         $this->assertStringNotContainsString('<script type="text/javascript"', $body);
 
-        Config::modify()->set(ModuleRegistry::class, 'modules', []);
+        Config::modify()->set(ClientRegistry::class, 'modules', []);
         $this->assertSame(
             [$preloads[0], $map['imports'][LoaderAssets::ADMIN_SPECIFIER]],
-            $this->modulePreloads($this->sectionNavigation()),
-            'With no module, only the loader and the file it imports'
+            $this->entryPreloads($this->sectionNavigation()),
+            'With no client entry, only the loader and the file it imports'
         );
     }
 
-    public function testModuleStylesheetsAreLinkedInConfigOrderBeforeTheLoader(): void
+    public function testEntryStylesheetsAreLinkedInConfigOrderBeforeTheLoader(): void
     {
-        Config::modify()->set(ModuleRegistry::class, 'modules', [
-            ChromePageTest::NAME => ['link' => 'https://cdn.example.test/hello.js', 'css' => 'https://cdn.example.test/hello.css'],
-            'acme-theme' => ['css' => 'https://cdn.example.test/theme.css'],
+        Config::modify()->set(ClientRegistry::class, 'modules', [
+            ChromePageTest::MODULE => ['entries' => [
+                'main' => ['link' => 'https://cdn.example.test/hello.js', 'css' => 'https://cdn.example.test/hello.css'],
+            ]],
+            'acme/theme' => ['entries' => ['styles' => ['css' => 'https://cdn.example.test/theme.css']]],
         ]);
 
         $body = $this->sectionNavigation();
@@ -98,12 +102,12 @@ class ChromePageTest extends FunctionalTest
                 '<script type="module"',
             ],
             $tags[0],
-            'In config order, then the loader; only a module link names a module'
+            'In config order, then the loader; only a client entry link names an entry'
         );
         $map = $this->jsonBlock($body, 'type="importmap"');
-        $this->assertArrayNotHasKey('acme-theme', $map['imports']);
-        $modules = $this->jsonBlock($body, 'id="ss-admin-modules"');
-        $this->assertSame([ChromePageTest::NAME], array_column($modules, 'name'));
+        $this->assertArrayNotHasKey('acme/theme/styles', $map['imports']);
+        $entries = $this->jsonBlock($body, 'id="ss-admin-modules"');
+        $this->assertSame([ChromePageTest::NAME], array_column($entries, 'name'));
     }
 
     public function testAHeaderSetDuringInitStaysOnTheChromePage(): void
@@ -126,13 +130,13 @@ class ChromePageTest extends FunctionalTest
     public function testInvalidUTF8IsSubstituted(): void
     {
         Config::modify()->set(LeftAndMain::class, 'client_debugging', "bad \xB1 byte</script>");
-        Config::modify()->set(ModuleRegistry::class, 'modules', ["acme/bad\xB1byte" => ['link' => 'https://cdn.example.test/hello.js']]);
+        Config::modify()->set(ClientRegistry::class, 'modules', ["acme/bad\xB1byte" => ['entries' => ['main' => ['link' => 'https://cdn.example.test/hello.js']]]]);
 
         $body = $this->sectionNavigation();
 
         $config = $this->jsonBlock($body, 'id="ss-admin-config"');
         $this->assertSame("bad \u{FFFD} byte</script>", $config['debugging'], 'Substituted, and unable to close its block');
-        $this->assertSame(["acme/bad\u{FFFD}byte"], array_column($this->jsonBlock($body, 'id="ss-admin-modules"'), 'name'));
+        $this->assertSame(["acme/bad\u{FFFD}byte/main"], array_column($this->jsonBlock($body, 'id="ss-admin-modules"'), 'name'));
     }
 
     public function testADataRequestToASectionURLReachesItsLegacyAction(): void
@@ -192,7 +196,7 @@ class ChromePageTest extends FunctionalTest
     /**
      * @return list<string>
      */
-    private function modulePreloads(string $body): array
+    private function entryPreloads(string $body): array
     {
         $nonce = 'nonce="' . NonceExtension::NONCE . '"';
         preg_match_all('#<link rel="modulepreload" ' . preg_quote($nonce, '#') . ' href="([^"]*)"#', $body, $preloads);

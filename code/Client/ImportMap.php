@@ -8,8 +8,8 @@ use SilverStripe\Core\Injector\Injector;
 use stdClass;
 
 /**
- * Builds the admin page's import map: the shared files from the loader build, then the modules and libraries from
- * ModuleRegistry::getImports().
+ * Builds the admin page's import map: the shared files from the loader build, then the client entries and
+ * libraries from ClientRegistry::getImports().
  *
  * The shared files come from the build's `manifest.json`, whose `shared` and `files` keys are a contract with
  * client/loader/webpack.config.js. Each shared URL carries `?v=` and the first 8 hex digits of its file's digest, so
@@ -33,7 +33,7 @@ class ImportMap
     protected static array $warnedUndigested = [];
 
     /**
-     * @param array<string, string> $imports From ModuleRegistry::getImports()
+     * @param array<string, string> $imports From ClientRegistry::getImports()
      */
     public function getMap(array $imports = []): array
     {

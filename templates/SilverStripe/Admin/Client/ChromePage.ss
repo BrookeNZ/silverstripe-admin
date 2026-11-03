@@ -6,13 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>$Title</title>
     <script type="importmap"{$NonceAttribute}>$ImportMap.RAW</script>
-    <% loop $ModulePreloads %>
+    <% loop $EntryPreloads %>
     <link rel="modulepreload"{$Top.NonceAttribute} href="$URL.ATT" />
     <% end_loop %>
-    <% loop $ModuleStylesheets %>
-    <link rel="stylesheet"{$Top.NonceAttribute} href="$URL.ATT"<% if $IsModule %> data-module="$Module.ATT"<% end_if %> />
+    <% loop $EntryStylesheets %>
+    <link rel="stylesheet"{$Top.NonceAttribute} href="$URL.ATT"<% if $IsEntry %> data-module="$Entry.ATT"<% end_if %> />
     <% end_loop %>
-    <script type="application/json" id="ss-admin-modules">$ModuleList.RAW</script>
+    <script type="application/json" id="ss-admin-modules">$EntryList.RAW</script>
     <script type="application/json" id="ss-admin-config">$ClientConfig.RAW</script>
     <% if $ScriptURL %>
     <script type="module"{$NonceAttribute} src="$ScriptURL.ATT"></script>

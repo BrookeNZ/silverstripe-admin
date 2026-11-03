@@ -1,10 +1,12 @@
 <?php
 
-namespace SilverStripe\Admin\Client;
+namespace SilverStripe\Admin;
 
 use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
+use SilverStripe\Admin\Client\ClientEntryChecker;
+use SilverStripe\Admin\Client\LoaderAssets;
 use SilverStripe\Control\Director;
 use SilverStripe\Core\Config\Configurable;
 use SilverStripe\Core\Environment;
@@ -16,44 +18,44 @@ use SilverStripe\Core\Manifest\ModuleResourceLoader;
 use SilverStripe\Core\Path;
 
 /**
- * Reads the `modules` config, keyed by module name, into the loader's module list, the import map entries the
- * modules add and the stylesheets they link. client/loader/MODULES.md documents the config keys and the dev override
- * for module authors; keep the two in step.
+ * Reads the `modules` config, keyed by Composer package with client entries nested under each, into the loader's
+ * entry list, the import map entries and the stylesheets they link. client/loader/MODULES.md documents the config keys
+ * and the dev override for module authors; keep the two in step.
  *
- * ModuleEntryChecker checks the entries first. After that, each problem drops only what it concerns and logs a
+ * ClientEntryChecker checks the config first. After that, each problem drops only what it concerns and logs a
  * warning, so one module's mistake cannot take the admin down.
  */
-class ModuleRegistry
+class ClientRegistry
 {
     use Injectable;
     use Configurable;
     use Extensible;
 
-    public const string DEV_URLS_ENV = 'SS_ADMIN_MODULE_DEV_URLS';
+    public const string DEV_URLS_ENV = 'SS_ADMIN_ENTRY_DEV_URLS';
 
     private static array $modules = [];
 
     /**
      * Cached so each problem is logged once
      *
-     * @var array<string, array>|null
+     * @var array{modules: array<string, array>, entries: array<string, array>}|null
      */
-    private ?array $checkedEntries = null;
+    private ?array $checked = null;
 
     /**
      * @var array<string, array{url: string, css: ?string}>|null
      */
-    private ?array $resolvedModules = null;
+    private ?array $resolvedEntries = null;
 
     /**
-     * Set by resolvedModules(), since a module whose link does not resolve adds no imports either
+     * Set by resolvedEntries(), since a module's imports resolve whether or not its entries do
      *
      * @var array<string, string>
      */
     private array $libraries = [];
 
     /**
-     * @var list<array{name: string, url: string, module: bool}>|null
+     * @var list<array{name: string, url: string, entry: bool}>|null
      */
     private ?array $stylesheets = null;
 
@@ -61,32 +63,32 @@ class ModuleRegistry
      * @return list<array{name: string, specifier: string}>
      * @throws RuntimeException in dev, on a specifier claimed twice in the import map
      */
-    public function getModuleItems(): array
+    public function getEntries(): array
     {
         $items = [];
-        foreach (array_keys($this->resolvedModules()) as $name) {
+        foreach (array_keys($this->resolvedEntries()) as $name) {
             $items[] = ['name' => $name, 'specifier' => $name];
         }
-        $this->extend('updateModuleItems', $items);
+        $this->extend('updateEntries', $items);
         return $this->dropRefusedItems($items);
     }
 
     /**
      * @return array<string, string>
-     * @throws RuntimeException as getModuleItems() does
+     * @throws RuntimeException as getEntries() does
      * @internal
      */
     public function getImports(): array
     {
-        $modules = $this->resolvedModules();
-        return array_map(fn (array $module) => $module['url'], $modules) + $this->libraries;
+        $entries = $this->resolvedEntries();
+        return array_map(fn (array $entry) => $entry['url'], $entries) + $this->libraries;
     }
 
     /**
-     * In config order, with the dev override's stylesheet in place of a module's where it names one
+     * In config order, with the dev override's stylesheet in place of an entry's where it names one
      *
-     * @return list<array{name: string, url: string, module: bool}>
-     * @throws RuntimeException as getModuleItems() does
+     * @return list<array{name: string, url: string, entry: bool}>
+     * @throws RuntimeException as getEntries() does
      * @internal
      */
     public function getStylesheets(): array
@@ -94,14 +96,14 @@ class ModuleRegistry
         if ($this->stylesheets !== null) {
             return $this->stylesheets;
         }
-        $modules = $this->resolvedModules();
+        $resolved = $this->resolvedEntries();
         $this->stylesheets = [];
-        foreach ($this->checkedEntries() as $name => $entry) {
+        foreach ($this->checked()['entries'] as $name => $entry) {
             $name = (string) $name;
-            $isModule = ModuleEntryChecker::isModule($entry);
-            $url = $isModule ? ($modules[$name]['css'] ?? null) : $this->resolveStylesheet($name, $entry);
+            $isEntry = ClientEntryChecker::hasLink($entry);
+            $url = $isEntry ? ($resolved[$name]['css'] ?? null) : $this->resolveStylesheet($name, $entry);
             if ($url !== null) {
-                $this->stylesheets[] = ['name' => $name, 'url' => $url, 'module' => $isModule];
+                $this->stylesheets[] = ['name' => $name, 'url' => $url, 'entry' => $isEntry];
             }
         }
         return $this->stylesheets;
@@ -120,11 +122,11 @@ class ModuleRegistry
             $name = is_array($item) ? ($item['name'] ?? null) : null;
             if (is_string($specifier) && isset($namesBySpecifier[$specifier])) {
                 $this->warn(sprintf(
-                    'After updateModuleItems: the item named %s names the specifier "%s", which the item named %s already'
+                    'After updateEntries: the item named %s names the specifier "%s", which the item named %s already'
                         . ' lists; the item was left out',
-                    ModuleEntryChecker::describeValue($name),
+                    ClientEntryChecker::describeValue($name),
                     $specifier,
-                    ModuleEntryChecker::describeValue($namesBySpecifier[$specifier])
+                    ClientEntryChecker::describeValue($namesBySpecifier[$specifier])
                 ));
                 continue;
             }
@@ -136,7 +138,7 @@ class ModuleRegistry
                 continue;
             }
             $this->warn(sprintf(
-                'After updateModuleItems: an item names %s, which no module adds to the import map; the item was left out',
+                'After updateEntries: an item names %s, which no module adds to the import map; the item was left out',
                 is_scalar($specifier) ? sprintf('the specifier "%s"', $specifier) : 'no specifier'
             ));
         }
@@ -144,74 +146,58 @@ class ModuleRegistry
     }
 
     /**
-     * @return array<string, array>
+     * @return array{modules: array<string, array>, entries: array<string, array>}
      */
-    private function checkedEntries(): array
+    private function checked(): array
     {
-        if ($this->checkedEntries !== null) {
-            return $this->checkedEntries;
+        if ($this->checked !== null) {
+            return $this->checked;
         }
         $configured = $this->config()->get('modules');
         if (!is_array($configured)) {
             $this->warn('The modules config must be an array keyed by module name');
-            return $this->checkedEntries = [];
+            return $this->checked = ['modules' => [], 'entries' => []];
         }
-        $enabled = [];
-        foreach ($configured as $name => $entry) {
-            $name = (string) $name;
-            if (!is_array($entry)) {
-                $this->warn(sprintf(
-                    'Module entry "%s" is of type %s, but an entry is a map of its keys; the entry was left out',
-                    $name,
-                    get_debug_type($entry)
-                ));
-                continue;
-            }
-            if ($this->isEnabled($name, $entry)) {
-                $enabled[$name] = $entry;
-            }
-        }
-        $checker = new ModuleEntryChecker($this->getSharedSpecifiers(), $this->warn(...));
-        return $this->checkedEntries = $checker->checkEntries($enabled);
+        $checker = new ClientEntryChecker($this->getSharedSpecifiers(), $this->warn(...));
+        return $this->checked = $checker->check($configured);
     }
 
     /**
      * @return array<string, array{url: string, css: ?string}>
      */
-    private function resolvedModules(): array
+    private function resolvedEntries(): array
     {
-        if ($this->resolvedModules !== null) {
-            return $this->resolvedModules;
+        if ($this->resolvedEntries !== null) {
+            return $this->resolvedEntries;
         }
-        $entries = $this->checkedEntries();
-        $moduleEntries = array_filter($entries, ModuleEntryChecker::isModule(...));
-        $devUrls = $this->resolveDevURLs(array_keys($moduleEntries));
-        $modules = [];
-        foreach ($moduleEntries as $name => $entry) {
+        $checked = $this->checked();
+        $scripts = array_filter($checked['entries'], ClientEntryChecker::hasLink(...));
+        $devUrls = $this->resolveDevURLs(array_keys($scripts));
+        $resolved = [];
+        foreach ($scripts as $name => $entry) {
             $url = $this->resolveScript($name, $entry);
             if ($url === null) {
-                unset($entries[$name]);
                 continue;
             }
-            $modules[$name] = [
+            $resolved[$name] = [
                 'url' => $devUrls[$name]['url'] ?? $url,
                 'css' => $devUrls[$name]['css'] ?? $this->resolveStylesheet($name, $entry),
             ];
         }
-        $this->libraries = $this->libraries($entries);
-        $this->warnAboutMissingRequires($entries, $modules);
-        return $this->resolvedModules = $modules;
+        $this->libraries = $this->libraries($checked['modules']);
+        $this->warnAboutMissingRequires($checked, $resolved);
+        return $this->resolvedEntries = $resolved;
     }
 
     /**
-     * @param array<string, array> $entries
+     * @param array<string, array> $modules
      * @return array<string, string>
      */
-    private function libraries(array $entries): array
+    private function libraries(array $modules): array
     {
         $libraries = [];
-        foreach ($entries as $name => $entry) {
-            $libraries += $this->resolveImports($name, $entry);
+        foreach ($modules as $key => $module) {
+            $libraries += $this->resolveImports((string) $key, $module);
         }
         return $libraries;
     }
@@ -229,22 +215,23 @@ class ModuleRegistry
     }
 
     /**
-     * @param array<string, array> $entries
-     * @param array<string, array> $modules
+     * @param array{modules: array<string, array>, entries: array<string, array>} $checked
+     * @param array<string, array> $resolved
      */
-    private function warnAboutMissingRequires(array $entries, array $modules): void
+    private function warnAboutMissingRequires(array $checked, array $resolved): void
     {
         if (!Director::isDev()) {
             return;
         }
-        $mapped = array_fill_keys($this->getSharedSpecifiers(), true) + $modules + $this->libraries;
-        foreach (array_keys($modules) as $name) {
-            foreach ($entries[$name]['requires'] as $specifier) {
+        $mapped = array_fill_keys($this->getSharedSpecifiers(), true) + $resolved + $this->libraries;
+        $listedModules = array_unique(array_map(fn (string $name) => $checked['entries'][$name]['module'], array_keys($resolved)));
+        foreach ($listedModules as $key) {
+            foreach ($checked['modules'][$key]['requires'] as $specifier) {
                 if (!isset($mapped[$specifier])) {
                     $this->warn(sprintf(
                         'Module "%s" requires "%s", which nothing adds to the import map, so the import will fail if '
                             . 'the module imports it; install and enable the module or library package that provides it',
-                        $name,
+                        $key,
                         $specifier
                     ));
                 }
@@ -253,17 +240,17 @@ class ModuleRegistry
     }
 
     /**
-     * @param list<string> $names The module entries' names, the only ones an override may name
+     * @param list<string> $names The client entries' names, the only ones an override may name
      * @return array<string, array{url: string, css: ?string}>
      */
     private function resolveDevURLs(array $names): array
     {
-        $value = Environment::getEnv(ModuleRegistry::DEV_URLS_ENV);
+        $value = Environment::getEnv(ClientRegistry::DEV_URLS_ENV);
         if (!is_string($value) || trim($value) === '') {
             return [];
         }
         if (!Director::isDev()) {
-            $this->warn(ModuleRegistry::DEV_URLS_ENV . ' is set outside dev and was ignored');
+            $this->warn(ClientRegistry::DEV_URLS_ENV . ' is set outside dev and was ignored');
             return [];
         }
         $overrides = [];
@@ -271,11 +258,11 @@ class ModuleRegistry
             if (trim($pair) === '') {
                 continue;
             }
-            $override = ModuleRegistry::parseDevURLPair($pair);
+            $override = ClientRegistry::parseDevURLPair($pair);
             if ($override === null) {
                 $this->warn(sprintf(
                     '%s pair "%s" is not name=URL with an optional stylesheet URL, each absolute http(s), and was ignored',
-                    ModuleRegistry::DEV_URLS_ENV,
+                    ClientRegistry::DEV_URLS_ENV,
                     trim($pair)
                 ));
                 continue;
@@ -283,14 +270,14 @@ class ModuleRegistry
             $name = $override['name'];
             if (!in_array($name, $names, true)) {
                 $this->warn(sprintf(
-                    '%s names "%s", which no module entry configures, and was ignored',
-                    ModuleRegistry::DEV_URLS_ENV,
+                    '%s names "%s", which no client entry configures, and was ignored',
+                    ClientRegistry::DEV_URLS_ENV,
                     $name
                 ));
                 continue;
             }
             if (isset($overrides[$name])) {
-                $this->warn(sprintf('%s names "%s" more than once; the last pair is used', ModuleRegistry::DEV_URLS_ENV, $name));
+                $this->warn(sprintf('%s names "%s" more than once; the last pair is used', ClientRegistry::DEV_URLS_ENV, $name));
             }
             $overrides[$name] = ['url' => $override['url'], 'css' => $override['css']];
         }
@@ -310,7 +297,7 @@ class ModuleRegistry
             return null;
         }
         foreach ($urls as $url) {
-            if (!ModuleRegistry::isDevURL($url)) {
+            if (!ClientRegistry::isDevURL($url)) {
                 return null;
             }
         }
@@ -322,52 +309,34 @@ class ModuleRegistry
         return preg_match('#^https?://#i', $url) === 1 && filter_var($url, FILTER_VALIDATE_URL) !== false;
     }
 
-    private function isEnabled(string $name, array $entry): bool
-    {
-        if (!array_key_exists('enabled', $entry)) {
-            return true;
-        }
-        $value = $entry['enabled'];
-        if (is_bool($value)) {
-            return $value;
-        }
-        $this->warn(sprintf(
-            '%s "%s" sets enabled to %s, which is not true or false; the entry was left out',
-            ucfirst(ModuleEntryChecker::entryType($entry)),
-            $name,
-            ModuleEntryChecker::describeValue($value)
-        ));
-        return false;
-    }
-
     private function resolveScript(string $name, array $entry): ?string
     {
-        $type = ModuleEntryChecker::entryType($entry);
-        return $this->resolveLink($type, $name, $entry['link'] ?? null, 'its script', 'the module was skipped');
+        $type = ClientEntryChecker::entryType($entry);
+        return $this->resolveLink($type, $name, $entry['link'] ?? null, 'its script', 'the client entry was skipped');
     }
 
     /**
-     * A missing or broken `css` drops only the stylesheet, so the module still loads unstyled
+     * A missing or broken `css` drops only the stylesheet, so the entry still loads unstyled
      */
     private function resolveStylesheet(string $name, array $entry): ?string
     {
         if (!array_key_exists('css', $entry)) {
             return null;
         }
-        $type = ModuleEntryChecker::entryType($entry);
+        $type = ClientEntryChecker::entryType($entry);
         return $this->resolveLink($type, $name, $entry['css'], 'its stylesheet', 'the stylesheet was dropped');
     }
 
     /**
      * @return array<string, string> Absolute URLs by specifier
      */
-    private function resolveImports(string $name, array $entry): array
+    private function resolveImports(string $key, array $module): array
     {
-        $type = ModuleEntryChecker::entryType($entry);
+        $type = ClientEntryChecker::moduleType($module);
         $urls = [];
-        foreach ($entry['imports'] ?? [] as $specifier => $link) {
+        foreach ($module['imports'] as $specifier => $link) {
             $purpose = sprintf('its import "%s"', $specifier);
-            $url = $this->resolveLink($type, $name, $link, $purpose, 'the import was left out');
+            $url = $this->resolveLink($type, $key, $link, $purpose, 'the import was left out');
             if ($url !== null) {
                 $urls[(string) $specifier] = $url;
             }
@@ -376,7 +345,7 @@ class ModuleRegistry
     }
 
     /**
-     * @param string $type As ModuleEntryChecker::entryType() gives it
+     * @param string $type As ClientEntryChecker::entryType() or moduleType() gives it
      * @param string $purpose What the link is for, such as "its stylesheet"
      * @param string $consequence What dropping the link drops, logged with the reason
      */
@@ -387,7 +356,7 @@ class ModuleRegistry
                 '%s "%s" gives %s for %s, which is not a link, so %s',
                 ucfirst($type),
                 $name,
-                $link === null || $link === '' ? 'nothing' : ModuleEntryChecker::describeValue($link),
+                $link === null || $link === '' ? 'nothing' : ClientEntryChecker::describeValue($link),
                 $purpose,
                 $consequence
             ));
@@ -407,8 +376,8 @@ class ModuleRegistry
                 $this->warn(sprintf('%s, which does not exist, so %s', $points, $consequence));
                 return null;
             }
-            if (!ModuleRegistry::isServed($isModuleResource ? $resource->getRelativePath() : $link)) {
-                $this->warn(ModuleRegistry::unservedWarning($points, $consequence));
+            if (!ClientRegistry::isServed($isModuleResource ? $resource->getRelativePath() : $link)) {
+                $this->warn(ClientRegistry::unservedWarning($points, $consequence));
                 return null;
             }
             if ($isModuleResource) {
