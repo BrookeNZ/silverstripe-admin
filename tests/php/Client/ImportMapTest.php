@@ -7,7 +7,7 @@ use Monolog\Logger;
 use Psr\Log\LoggerInterface;
 use SilverStripe\Admin\Client\ImportMap;
 use SilverStripe\Admin\Client\LoaderAssets;
-use SilverStripe\Admin\ClientRegistry;
+use SilverStripe\Admin\Client\ClientRegistry;
 use SilverStripe\Core\Config\Config;
 use SilverStripe\Core\Injector\Injector;
 use SilverStripe\Dev\SapphireTest;

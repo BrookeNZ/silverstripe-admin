@@ -4,7 +4,7 @@ namespace SilverStripe\Admin\Tests\Client;
 
 use ReflectionMethod;
 use SilverStripe\Admin\Client\LoaderAssets;
-use SilverStripe\Admin\ClientRegistry;
+use SilverStripe\Admin\Client\ClientRegistry;
 use SilverStripe\Admin\LeftAndMain;
 use SilverStripe\Admin\Tests\Client\ChromePageTest\NonceExtension;
 use SilverStripe\Admin\Tests\Client\ChromePageTest\SectionController;

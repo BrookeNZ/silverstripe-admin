@@ -51,7 +51,7 @@ until something sets it (see *Testing a module*).
 
 ## Declaring a module
 
-A module is declared under `SilverStripe\Admin\ClientRegistry.modules`, keyed by its Composer package name, with its
+A module is declared under `SilverStripe\Admin\Client\ClientRegistry.modules`, keyed by its Composer package name, with its
 client entries nested under it, in a config file such as `_config/client.yml`. This declaration is what replaces
 `LeftAndMain.extra_requirements_javascript` and `extra_requirements_css`: the chrome page loads no `Requirements` at
 all, so a script a section used to add that way reaches the admin only as an entry, and a stylesheet only through a
@@ -62,7 +62,7 @@ public. The project's own entries go under the root package's name, the `name` i
 ---
 Name: mymodule-client
 ---
-SilverStripe\Admin\ClientRegistry:
+SilverStripe\Admin\Client\ClientRegistry:
   modules:
     vendor-name/module-name:
       entries:
@@ -147,7 +147,7 @@ when the entry's `css` names it.
   no `data-entry`, so the loader never removes it.
 
 ```yaml
-SilverStripe\Admin\ClientRegistry:
+SilverStripe\Admin\Client\ClientRegistry:
   modules:
     acme/admin-theme:
       entries:
@@ -191,7 +191,7 @@ A module can provide a library that others import by a bare specifier, downloade
 `imports` and `requires` belong to the module, not to one of its entries:
 
 ```yaml
-SilverStripe\Admin\ClientRegistry:
+SilverStripe\Admin\Client\ClientRegistry:
   modules:
     acme/dates:
       imports:

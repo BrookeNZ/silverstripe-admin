@@ -3,7 +3,6 @@
 namespace SilverStripe\Admin\Client;
 
 use Psr\Log\LoggerInterface;
-use SilverStripe\Admin\ClientRegistry;
 use SilverStripe\Admin\LeftAndMain;
 use SilverStripe\Control\Director;
 use SilverStripe\Core\Convert;

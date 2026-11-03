@@ -1,12 +1,10 @@
 <?php
 
-namespace SilverStripe\Admin;
+namespace SilverStripe\Admin\Client;
 
 use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
-use SilverStripe\Admin\Client\ClientEntryChecker;
-use SilverStripe\Admin\Client\LoaderAssets;
 use SilverStripe\Control\Director;
 use SilverStripe\Core\Config\Configurable;
 use SilverStripe\Core\Environment;

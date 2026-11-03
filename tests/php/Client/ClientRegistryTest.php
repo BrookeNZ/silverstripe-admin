@@ -7,7 +7,7 @@ use Monolog\Logger;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 use SilverStripe\Admin\Client\ImportMap;
-use SilverStripe\Admin\ClientRegistry;
+use SilverStripe\Admin\Client\ClientRegistry;
 use SilverStripe\Admin\Tests\Client\ClientRegistryTest\UpdateEntriesExtension;
 use SilverStripe\Control\Director;
 use SilverStripe\Core\Config\Config;
