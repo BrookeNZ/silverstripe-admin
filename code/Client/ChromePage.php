@@ -74,7 +74,7 @@ class ChromePage extends ModelData
      * The loader always imports `@silverstripe/admin`; the other shared files are preloaded only when an entry is
      * listed, since any entry may import them
      */
-    public function EntryPreloads(): ArrayList
+    public function ClientEntryPreloads(): ArrayList
     {
         $entryURLs = [];
         $imports = ClientRegistry::singleton()->getImports();
@@ -95,7 +95,7 @@ class ChromePage extends ModelData
      * so the loader can remove it on failure. A stylesheet entry's is always linked. Empty for a member the
      * section refuses
      */
-    public function EntryStylesheets(): ArrayList
+    public function ClientEntryStylesheets(): ArrayList
     {
         $items = $this->entryItems;
         if ($items === null) {

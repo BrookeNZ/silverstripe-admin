@@ -81,7 +81,7 @@ class ChromePageTest extends FunctionalTest
         );
     }
 
-    public function testEntryStylesheetsAreLinkedInConfigOrderBeforeTheLoader(): void
+    public function testClientEntryStylesheetsAreLinkedInConfigOrderBeforeTheLoader(): void
     {
         Config::modify()->set(ClientRegistry::class, 'modules', [
             ChromePageTest::MODULE => ['entries' => [

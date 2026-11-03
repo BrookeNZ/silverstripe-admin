@@ -6,10 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>$Title</title>
     <script type="importmap"{$NonceAttribute}>$ImportMap.RAW</script>
-    <% loop $EntryPreloads %>
+    <% loop $ClientEntryPreloads %>
     <link rel="modulepreload"{$Top.NonceAttribute} href="$URL.ATT" />
     <% end_loop %>
-    <% loop $EntryStylesheets %>
+    <% loop $ClientEntryStylesheets %>
     <link rel="stylesheet"{$Top.NonceAttribute} href="$URL.ATT"<% if $IsEntry %> data-entry="$Entry.ATT"<% end_if %> />
     <% end_loop %>
     <script type="application/json" id="ss-admin-entries">$ClientEntryList.RAW</script>

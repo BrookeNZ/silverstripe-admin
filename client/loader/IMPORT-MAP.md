@@ -33,7 +33,7 @@ design. For writing a module and its entries, see [MODULES.md](MODULES.md).
    the page's failover, so `$Title` and `$Locale` are the section's. In the head, in order:
    - the import map, `<script type="importmap">`, from `ImportMap::getMap()`: the shared files, then each client
      entry's name and each library from `ClientRegistry::getImports()` (see *Entries and libraries in the map*);
-   - `<link rel="modulepreload">`, from `ChromePage::EntryPreloads()`: the loader's `main.js`, then `shared/admin.js`,
+   - `<link rel="modulepreload">`, from `ChromePage::ClientEntryPreloads()`: the loader's `main.js`, then `shared/admin.js`,
      then the other shared files only when the page lists at least one entry, then each listed entry, each at the
      URL the map gives it;
    - `<link rel="stylesheet">`, in config order, for each listed client entry with a `css`, carrying
