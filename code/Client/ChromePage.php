@@ -77,7 +77,7 @@ class ChromePage extends ModelData
     {
         $entryURLs = [];
         $imports = ClientRegistry::singleton()->getImports();
-        foreach ($this->listedNames($this->entryItems ?? []) as $name) {
+        foreach (array_column($this->entryItems ?? [], 'name') as $name) {
             $entryURLs[] = $imports[$name];
         }
         $sharedImports = ImportMap::singleton()->getSharedImports();
@@ -100,7 +100,7 @@ class ChromePage extends ModelData
         if ($items === null) {
             return ArrayList::create();
         }
-        $listedNames = $this->listedNames($items);
+        $listedNames = array_column($items, 'name');
         $links = [];
         foreach (ClientRegistry::singleton()->getStylesheets() as $stylesheet) {
             if (!$stylesheet['entry']) {
@@ -112,24 +112,6 @@ class ChromePage extends ModelData
             }
         }
         return ArrayList::create($links);
-    }
-
-    /**
-     * The names of the items the loader keeps, which getEntries() keeps unique. Skips what readEntryList() in
-     * client/loader/src/loader.ts skips: a later item of a name, a non-string name and a non-string module
-     *
-     * @return list<string>
-     */
-    private function listedNames(array $items): array
-    {
-        $names = [];
-        foreach ($items as $item) {
-            $name = is_array($item) ? ($item['name'] ?? null) : null;
-            if (is_string($name) && is_string($item['module'] ?? null) && !in_array($name, $names, true)) {
-                $names[] = $name;
-            }
-        }
-        return $names;
     }
 
     public function ScriptURL(): ?string

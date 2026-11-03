@@ -11,5 +11,6 @@ class UpdateEntriesExtension extends Extension implements TestOnly
     {
         $items[] = ['name' => 'acme/stray/main', 'module' => 'acme/stray'];
         $items[] = ['name' => 'acme/hello/main', 'module' => 'acme/hello'];
+        $items[] = ['name' => 'acme/hello/main', 'module' => null];
     }
 }

@@ -47,26 +47,17 @@ class ImportMapTest extends SapphireTest
                 'imports' => ['@silverstripe/dayjs' => 'silverstripe/admin:client/dist/js/i18n.js'],
                 'entries' => ['main' => ['link' => 'silverstripe/admin:client/dist/js/i18n.js']],
             ],
-        ]);
-
-        $map = ImportMap::singleton()->getMap(ClientRegistry::singleton()->getImports());
-
-        $this->assertMatchesRegularExpression('#^https?://.*/client/dist/js/i18n\.js\?m=\d+$#', $map['imports']['silverstripe/dates/main']);
-        $this->assertMatchesRegularExpression('#^https?://.*/client/dist/js/i18n\.js\?m=\d+$#', $map['imports']['@silverstripe/dayjs']);
-    }
-
-    public function testALibraryPackageAddsAnUnscopedSpecifierAndNoEntry(): void
-    {
-        Config::modify()->set(ClientRegistry::class, 'modules', [
             'silverstripe/dayjs' => ['imports' => ['dayjs' => 'silverstripe/admin:client/dist/js/i18n.js']],
         ]);
         $registry = ClientRegistry::singleton();
 
         $map = ImportMap::singleton()->getMap($registry->getImports());
 
-        $this->assertSame([], $registry->getEntries());
-        $this->assertStringContainsString('/client/dist/js/i18n.js?m=', $map['imports']['dayjs']);
-        $this->assertArrayNotHasKey('silverstripe/dayjs', $map['imports']);
+        $cacheKeyed = '#^https?://.*/client/dist/js/i18n\.js\?m=\d+$#';
+        $this->assertMatchesRegularExpression($cacheKeyed, $map['imports']['silverstripe/dates/main']);
+        $this->assertMatchesRegularExpression($cacheKeyed, $map['imports']['@silverstripe/dayjs']);
+        $this->assertMatchesRegularExpression($cacheKeyed, $map['imports']['dayjs']);
+        $this->assertSame(['silverstripe/dates/main'], array_column($registry->getEntries(), 'name'), 'A library package lists no entry');
     }
 
     public function testTheFixedSharedSpecifiersMatchTheLoadersSharedList(): void

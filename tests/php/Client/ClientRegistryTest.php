@@ -241,7 +241,7 @@ class ClientRegistryTest extends SapphireTest
         $this->assertTrue($logged->hasWarningThatContains('Entry "acme/list/main" has an empty link'), 'A non-scalar link counts as none');
     }
 
-    public function testAnUpdateEntriesItemWithAnUnmappedOrListedNameIsDropped(): void
+    public function testAnUpdateEntriesItemWithAnUnmappedOrListedNameOrNoModuleIsDropped(): void
     {
         Config::modify()->set(ClientRegistry::class, 'modules', [
             'acme/hello' => ['entries' => ['main' => ['link' => ClientRegistryTest::FIXTURE]]],
@@ -254,6 +254,7 @@ class ClientRegistryTest extends SapphireTest
         $this->assertSame([['name' => 'acme/hello/main', 'module' => 'acme/hello']], $items);
         $this->assertTrue($logged->hasWarningThatContains('an item names "acme/stray/main", which no client entry adds'));
         $this->assertTrue($logged->hasWarningThatContains('the item named "acme/hello/main" is listed more than once'));
+        $this->assertTrue($logged->hasWarningThatContains('the item named "acme/hello/main" gives a value of type null for its module'));
     }
 
     public function testADevURLThatIsNotHttpOrNamesAnUnknownEntryIsRefused(): void
@@ -354,7 +355,7 @@ class ClientRegistryTest extends SapphireTest
             'specifier ends with a slash' => $this->refusedFor('silverstripe/dates', 'main', '@silverstripe/dayjs/'),
             'module is a URL' => $this->refusedFor('https://evil.test/x', 'main'),
             'module takes a scope' => $this->refusedFor('@silverstripe/whatever', 'main'),
-            'module ends with a slash' => $this->refusedFor('silverstripe/dates/', 'main'),
+            'module ends with a slash' => $this->refusedFor('silverstripe/', 'main'),
             'module has two slashes' => $this->refusedFor('silverstripe/dates/extra', 'main'),
             'entry key has a slash' => $this->refusedFor('silverstripe/dates', 'main/extra'),
             'entry key starts with a dot' => $this->refusedFor('silverstripe/dates', '.main'),

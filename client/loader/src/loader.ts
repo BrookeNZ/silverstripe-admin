@@ -19,7 +19,7 @@ const importEntry: EntryImporter = (specifier) => import(/* webpackIgnore: true 
 
 /**
  * The page's entry list with duplicates and malformed items removed; empty, with a console error, when the block
- * is missing or not a list. Keep the first-item-wins rule in step with ChromePage::listedNamesBySpecifier()
+ * is missing or not a list. Keep the first-item-wins rule in step with ClientRegistry::dropRefusedItems()
  */
 export function readEntryList(): Array<ClientEntry> {
   const items = readDataBlock(ENTRIES_BLOCK_ID);

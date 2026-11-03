@@ -51,11 +51,9 @@ class ClientRegistry
     private ?array $resolvedEntries = null;
 
     /**
-     * Set by resolvedEntries(), since a module's imports resolve whether or not its entries do
-     *
-     * @var array<string, string>
+     * @var array<string, string>|null
      */
-    private array $libraries = [];
+    private ?array $libraries = null;
 
     /**
      * @var list<array{name: string, url: string, entry: bool}>|null
@@ -84,7 +82,7 @@ class ClientRegistry
     public function getImports(): array
     {
         $entries = $this->resolvedEntries();
-        return array_map(fn (array $entry) => $entry['url'], $entries) + $this->libraries;
+        return array_map(fn (array $entry) => $entry['url'], $entries) + $this->libraries();
     }
 
     /**
@@ -113,7 +111,8 @@ class ClientRegistry
     }
 
     /**
-     * Drops an item whose name is not a mapped entry or is already listed, since the loader skips only a repeated name
+     * Drops an item whose name is not a mapped entry, and what readEntryList() in client/loader/src/loader.ts would
+     * skip without a word: a non-string module and a later item of a name
      */
     private function dropRefusedItems(array $items): array
     {
@@ -122,22 +121,30 @@ class ClientRegistry
         $listed = [];
         foreach ($items as $item) {
             $name = is_array($item) ? ($item['name'] ?? null) : null;
-            if (is_string($name) && isset($listed[$name])) {
+            if (!is_string($name) || !isset($imports[$name])) {
+                $this->warn(sprintf(
+                    'After updateEntries: an item names %s, which no client entry adds to the import map; the item was left out',
+                    is_scalar($name) ? sprintf('"%s"', $name) : 'nothing'
+                ));
+                continue;
+            }
+            if (!is_string($item['module'] ?? null)) {
+                $this->warn(sprintf(
+                    'After updateEntries: the item named "%s" gives %s for its module, which is not a module name; the item was left out',
+                    $name,
+                    ClientEntryChecker::describeValue($item['module'] ?? null)
+                ));
+                continue;
+            }
+            if (isset($listed[$name])) {
                 $this->warn(sprintf(
                     'After updateEntries: the item named "%s" is listed more than once; the later item was left out',
                     $name
                 ));
                 continue;
             }
-            if (is_string($name) && isset($imports[$name])) {
-                $mapped[] = $item;
-                $listed[$name] = true;
-                continue;
-            }
-            $this->warn(sprintf(
-                'After updateEntries: an item names %s, which no client entry adds to the import map; the item was left out',
-                is_scalar($name) ? sprintf('"%s"', $name) : 'nothing'
-            ));
+            $mapped[] = $item;
+            $listed[$name] = true;
         }
         return $mapped;
     }
@@ -181,22 +188,25 @@ class ClientRegistry
                 'css' => $devUrls[$name]['css'] ?? $this->resolveStylesheet($name, $entry),
             ];
         }
-        $this->libraries = $this->libraries($checked['modules']);
         $this->warnAboutMissingRequires($checked, $resolved);
         return $this->resolvedEntries = $resolved;
     }
 
     /**
-     * @param array<string, array> $modules
+     * Every enabled module's imports, whether or not its entries resolve
+     *
      * @return array<string, string>
      */
-    private function libraries(array $modules): array
+    private function libraries(): array
     {
+        if ($this->libraries !== null) {
+            return $this->libraries;
+        }
         $libraries = [];
-        foreach ($modules as $key => $module) {
+        foreach ($this->checked()['modules'] as $key => $module) {
             $libraries += $this->resolveImports((string) $key, $module);
         }
-        return $libraries;
+        return $this->libraries = $libraries;
     }
 
     /**
@@ -220,7 +230,7 @@ class ClientRegistry
         if (!Director::isDev()) {
             return;
         }
-        $mapped = array_fill_keys($this->getSharedSpecifiers(), true) + $resolved + $this->libraries;
+        $mapped = array_fill_keys($this->getSharedSpecifiers(), true) + $resolved + $this->libraries();
         $listedModules = array_unique(array_map(fn (string $name) => $checked['entries'][$name]['module'], array_keys($resolved)));
         foreach ($listedModules as $key) {
             foreach ($checked['modules'][$key]['requires'] as $specifier) {
