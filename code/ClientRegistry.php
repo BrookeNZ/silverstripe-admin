@@ -22,6 +22,11 @@ use SilverStripe\Core\Path;
  * entry list, the import map entries and the stylesheets they link. client/loader/MODULES.md documents the config keys
  * and the dev override for module authors; keep the two in step.
  *
+ * A module is a Composer package. A client entry is one JavaScript file a module ships, whose `setup` export the
+ * loader calls once. An entry is not a component: its setup may register several components or none. An entry such
+ * as elemental's might register its editor, block views and hooks; one for a keyboard shortcut registers nothing and
+ * only adds a listener; another might add a page route, a modal or a menu item.
+ *
  * ClientEntryChecker checks the config first. After that, each problem drops only what it concerns and logs a
  * warning, so one module's mistake cannot take the admin down.
  */
