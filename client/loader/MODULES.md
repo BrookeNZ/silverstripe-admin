@@ -72,7 +72,8 @@ SilverStripe\Admin\Client\ClientRegistry:
 
 **Names.** A module key is `vendor/name`: exactly one `/`, between a vendor and a name, no `@` anywhere, and bare as
 *Shared libraries* describes, so single words and `@` scopes stay free for shared files and `imports` keys. An entry
-key is one segment of letters, digits, `.`, `_` and `-`, starting with a letter or digit. The entry's import map name,
+key is one segment of letters, digits, `.`, `_` and `-`, starting with a letter or digit, and not starting with
+`component.` or `wrap.`, which *ComponentRegistry* names its entries with. The entry's import map name,
 which the loader imports it by and the list item carries, is `<module>/<entry>`: `vendor-name/module-name/main` above.
 A module or entry that breaks a rule is left out with a warning. A module or entry that is not a map is left out with
 a warning too. In dev, a key the tables below don't list is logged with a warning naming it, which catches a misspelt

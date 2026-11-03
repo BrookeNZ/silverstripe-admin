@@ -280,6 +280,16 @@ class ClientEntryChecker
                 $module
             );
         }
+        foreach ([ComponentRegistry::KIND_COMPONENT, ComponentRegistry::KIND_WRAP] as $kind) {
+            if (str_starts_with($key, $kind . '.')) {
+                return sprintf(
+                    'Entry key "%s" of module "%s" starts with "%s.", which is reserved for entries ComponentRegistry compiles',
+                    $key,
+                    $module,
+                    $kind
+                );
+            }
+        }
         if (array_key_exists('enabled', $entry) && !is_bool($entry['enabled'])) {
             return sprintf(
                 '%s "%s" sets enabled to %s, which is not true or false',
