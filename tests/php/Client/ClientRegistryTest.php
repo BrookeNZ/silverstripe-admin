@@ -74,8 +74,8 @@ class ClientRegistryTest extends SapphireTest
 
         $this->assertSame(
             [
-                ['name' => 'acme/on/main', 'specifier' => 'acme/on/main'],
-                ['name' => 'acme/on/default', 'specifier' => 'acme/on/default'],
+                ['name' => 'acme/on/main', 'module' => 'acme/on'],
+                ['name' => 'acme/on/default', 'module' => 'acme/on'],
             ],
             $registry->getEntries()
         );
@@ -241,7 +241,7 @@ class ClientRegistryTest extends SapphireTest
         $this->assertTrue($logged->hasWarningThatContains('Entry "acme/list/main" has an empty link'), 'A non-scalar link counts as none');
     }
 
-    public function testAnUpdateEntriesItemWithAnUnmappedOrListedSpecifierIsDropped(): void
+    public function testAnUpdateEntriesItemWithAnUnmappedOrListedNameIsDropped(): void
     {
         Config::modify()->set(ClientRegistry::class, 'modules', [
             'acme/hello' => ['entries' => ['main' => ['link' => ClientRegistryTest::FIXTURE]]],
@@ -251,11 +251,9 @@ class ClientRegistryTest extends SapphireTest
 
         $items = ClientRegistry::singleton()->getEntries();
 
-        $this->assertSame([['name' => 'acme/hello/main', 'specifier' => 'acme/hello/main']], $items);
-        $this->assertTrue($logged->hasWarningThatContains('the specifier "acme/stray/main", which no module adds'));
-        $this->assertTrue($logged->hasWarningThatContains(
-            'the item named "acme/again/main" names the specifier "acme/hello/main", which the item named "acme/hello/main" already lists'
-        ));
+        $this->assertSame([['name' => 'acme/hello/main', 'module' => 'acme/hello']], $items);
+        $this->assertTrue($logged->hasWarningThatContains('an item names "acme/stray/main", which no client entry adds'));
+        $this->assertTrue($logged->hasWarningThatContains('the item named "acme/hello/main" is listed more than once'));
     }
 
     public function testADevURLThatIsNotHttpOrNamesAnUnknownEntryIsRefused(): void

@@ -16,8 +16,8 @@ use SilverStripe\Model\ModelData;
  * the loader reads, so the loader makes no request for its config or entry list. The section controller is its
  * failover, so the template's `$Title` and `$Locale` are the section's.
  *
- * The loader reads the element ids `ss-admin-modules` and `ss-admin-config` (client/loader/src/clientConfig.ts) and
- * removes a failed entry's stylesheet by its `data-module`. Renaming one breaks the loader with no server error.
+ * The loader reads the element ids `ss-admin-client` and `ss-admin-config` (client/loader/src/clientConfig.ts) and
+ * removes a failed entry's stylesheet by its `data-entry`. Renaming one breaks the loader with no server error.
  *
  * An extension on LeftAndMain that implements `updateChromeNonce` supplies the CSP nonce for every section.
  *
@@ -78,8 +78,8 @@ class ChromePage extends ModelData
     {
         $entryURLs = [];
         $imports = ClientRegistry::singleton()->getImports();
-        foreach (array_keys($this->listedNamesBySpecifier($this->entryItems ?? [])) as $specifier) {
-            $entryURLs[] = $imports[$specifier];
+        foreach ($this->listedNames($this->entryItems ?? []) as $name) {
+            $entryURLs[] = $imports[$name];
         }
         $sharedImports = ImportMap::singleton()->getSharedImports();
         if (!$entryURLs) {
@@ -91,7 +91,7 @@ class ChromePage extends ModelData
     }
 
     /**
-     * A client entry's stylesheet is linked only when the entry is listed, with the entry's name in `data-module`
+     * A client entry's stylesheet is linked only when the entry is listed, with the entry's name in `data-entry`
      * so the loader can remove it on failure. A stylesheet entry's is always linked. Empty for a member the
      * section refuses
      */
@@ -101,40 +101,34 @@ class ChromePage extends ModelData
         if ($items === null) {
             return ArrayList::create();
         }
-        $listedNames = $this->listedNamesBySpecifier($items);
+        $listedNames = $this->listedNames($items);
         $links = [];
         foreach (ClientRegistry::singleton()->getStylesheets() as $stylesheet) {
             if (!$stylesheet['entry']) {
                 $links[] = ['IsEntry' => false, 'Entry' => '', 'URL' => $stylesheet['url']];
                 continue;
             }
-            $entry = $listedNames[$stylesheet['name']] ?? null;
-            if ($entry !== null) {
-                $links[] = ['IsEntry' => true, 'Entry' => $entry, 'URL' => $stylesheet['url']];
+            if (in_array($stylesheet['name'], $listedNames, true)) {
+                $links[] = ['IsEntry' => true, 'Entry' => $stylesheet['name'], 'URL' => $stylesheet['url']];
             }
         }
         return ArrayList::create($links);
     }
 
     /**
-     * Each item's name by specifier, which getEntries() keeps unique; a registry entry's specifier is its name.
-     * Skips what readEntryList() in client/loader/src/loader.ts skips: a later item of a name, a non-string name
-     * and a non-string specifier
+     * The names of the items the loader keeps, which getEntries() keeps unique. Skips what readEntryList() in
+     * client/loader/src/loader.ts skips: a later item of a name, a non-string name and a non-string module
      *
-     * @return array<string, string>
+     * @return list<string>
      */
-    private function listedNamesBySpecifier(array $items): array
+    private function listedNames(array $items): array
     {
-        $seen = [];
         $names = [];
         foreach ($items as $item) {
             $name = is_array($item) ? ($item['name'] ?? null) : null;
-            if (!is_string($name) || isset($seen[$name])) {
-                continue;
+            if (is_string($name) && is_string($item['module'] ?? null) && !in_array($name, $names, true)) {
+                $names[] = $name;
             }
-            $seen[$name] = true;
-            $specifier = (string) ($item['specifier'] ?? '');
-            $names[$specifier] = $name;
         }
         return $names;
     }

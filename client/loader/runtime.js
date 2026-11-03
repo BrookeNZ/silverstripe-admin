@@ -8,7 +8,7 @@ export function clientConfig() {
 }
 let claimed = false;
 /**
- * For the loader only; every call after the first throws, so no module can claim the setter
+ * For the loader only; every call after the first throws, so no entry can claim the setter
  * @internal
  */
 export function claimInternals() {

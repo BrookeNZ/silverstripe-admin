@@ -1,10 +1,10 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { claimInternals } from '@silverstripe/admin';
-import { MODULES_BLOCK_ID } from './clientConfig';
-import { bootModules, readModuleList } from './loader';
-import type { ModuleExports, ModuleImporter } from './loader';
-import type { ModuleMetadata } from './types';
+import { ENTRIES_BLOCK_ID } from './clientConfig';
+import { bootEntries, readEntryList } from './loader';
+import type { EntryExports, EntryImporter } from './loader';
+import type { AdminApi, ClientEntry } from './types';
 
 let errors: ReturnType<typeof vi.spyOn>;
 
@@ -17,26 +17,26 @@ afterEach(() => {
   document.head.replaceChildren();
 });
 
-function countingImporter(modules: Record<string, ModuleExports | Error | Promise<ModuleExports>>) {
+function countingImporter(entries: Record<string, EntryExports | Error | Promise<EntryExports>>) {
   const imported: Array<string> = [];
-  const importer: ModuleImporter = (specifier) => {
+  const importer: EntryImporter = (specifier) => {
     imported.push(specifier);
-    const module = modules[specifier];
-    return module instanceof Error ? Promise.reject(module) : Promise.resolve(module);
+    const entry = entries[specifier];
+    return entry instanceof Error ? Promise.reject(entry) : Promise.resolve(entry);
   };
   return { imported, importer };
 }
 
-const listed = (name: string): ModuleMetadata => ({ name, specifier: name });
+const listed = (name: string): ClientEntry => ({ name, module: 'acme/files' });
 
 const failedNames = () => errors.mock.calls.map(([message]: Array<unknown>) => String(message).match(/"([\w-]+)"/)?.[1]);
 
-describe('bootModules', () => {
-  it('imports every listed module, sets them up in list order, and skips each failure with one error', async () => {
-    let finishSlow: (module: ModuleExports) => void = () => undefined;
+describe('bootEntries', () => {
+  it('imports every listed entry, sets them up in list order, and skips each failure with one error', async () => {
+    let finishSlow: (module: EntryExports) => void = () => undefined;
     const seen: Array<string> = [];
-    const setup: ModuleExports['setup'] = (module) => {
-      seen.push(module.name);
+    const setup: EntryExports['setup'] = (admin) => {
+      seen.push(admin.entry.name);
     };
     const { imported, importer } = countingImporter({
       'slow': new Promise((resolve) => {
@@ -52,7 +52,7 @@ describe('bootModules', () => {
       },
       'rejects': { setup: () => Promise.reject(new Error('Setup failed later')) },
     });
-    const booted = bootModules(
+    const booted = bootEntries(
       ['slow', 'missing', 'fast', 'no-setup', 'throws', 'rejects'].map(listed),
       importer,
     );
@@ -66,42 +66,48 @@ describe('bootModules', () => {
     expect(failedNames()).toEqual(['missing', 'no-setup', 'throws', 'rejects']);
   });
 
-  it('passes setup() a frozen copy of its list item', async () => {
+  it('passes setup() a frozen admin object whose entry and package are the item and its module', async () => {
     const item = listed('files');
-    let received: unknown;
+    let received: AdminApi | undefined;
+    let afterAwait: AdminApi | undefined;
     const { importer } = countingImporter({
       files: {
-        setup: (module) => {
-          received = module;
+        setup: async (admin) => {
+          received = admin;
+          await Promise.resolve();
+          afterAwait = admin;
         },
       },
     });
-    await bootModules([item], importer);
-    expect(received).not.toBe(item);
-    expect(received).toEqual(item);
+    await bootEntries([item], importer);
+    expect(received).toBe(afterAwait);
+    expect(received?.entry).not.toBe(item);
+    expect(received?.entry).toEqual(item);
+    expect(received?.package).toBe(item.module);
     expect(Object.isFrozen(received)).toBe(true);
+    expect(Object.isFrozen(received?.entry)).toBe(true);
   });
 
   it('sets up an item without waiting for a later item whose import never settles', async () => {
     const seen: Array<string> = [];
     const { importer } = countingImporter({
       first: {
-        setup: (module) => {
-          seen.push(module.name);
+        setup: (admin) => {
+          seen.push(admin.entry.name);
         },
       },
-      hangs: new Promise<ModuleExports>(() => undefined),
+      hangs: new Promise<EntryExports>(() => undefined),
     });
-    void bootModules([listed('first'), listed('hangs')], importer);
+    void bootEntries([listed('first'), listed('hangs')], importer);
     await vi.waitFor(() => expect(seen).toEqual(['first']));
   });
 
-  it("removes a failed module's stylesheet link and keeps the others, stylesheet-only links included", async () => {
+  it("removes a failed entry's stylesheet link and keeps the others, stylesheet-only links included", async () => {
     const link = (name?: string) => {
       const element = document.createElement('link');
       element.rel = 'stylesheet';
       if (name) {
-        element.dataset.module = name;
+        element.dataset.entry = name;
       }
       document.head.append(element);
     };
@@ -110,9 +116,9 @@ describe('bootModules', () => {
     link('working');
     const { importer } = countingImporter({ broken: new TypeError('Failed to fetch'), working: { setup: () => undefined } });
 
-    await bootModules([listed('broken'), listed('working')], importer);
+    await bootEntries([listed('broken'), listed('working')], importer);
 
-    expect([...document.querySelectorAll('link')].map((element) => element.dataset.module)).toEqual([
+    expect([...document.querySelectorAll('link')].map((element) => element.dataset.entry)).toEqual([
       undefined,
       'working',
     ]);
@@ -125,36 +131,36 @@ describe('claimInternals', () => {
   });
 });
 
-describe('readModuleList', () => {
-  function moduleBlock(json: string) {
+describe('readEntryList', () => {
+  function entryBlock(json: string) {
     const block = document.createElement('script');
-    block.id = MODULES_BLOCK_ID;
+    block.id = ENTRIES_BLOCK_ID;
     block.textContent = json;
     document.head.append(block);
   }
 
   it('keeps the first item of a name listed twice, with a warning', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    moduleBlock(JSON.stringify([
-      { name: 'files', specifier: 'first' },
-      { name: 'files', specifier: 'second' },
+    entryBlock(JSON.stringify([
+      { name: 'files', module: 'first' },
+      { name: 'files', module: 'second' },
     ]));
-    expect(readModuleList().map(({ specifier }) => specifier)).toEqual(['first']);
+    expect(readEntryList().map(({ module }) => module)).toEqual(['first']);
     expect(warn).toHaveBeenCalledTimes(1);
   });
 
-  it('skips an item without a specifier, with a warning', () => {
+  it('skips an item without a module, with a warning', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    moduleBlock(JSON.stringify([{ name: 'broken' }, listed('files')]));
-    expect(readModuleList()).toEqual([listed('files')]);
+    entryBlock(JSON.stringify([{ name: 'broken' }, listed('files')]));
+    expect(readEntryList()).toEqual([listed('files')]);
     expect(warn).toHaveBeenCalledTimes(1);
   });
 
   it('logs an error and lists nothing when the block is missing, not JSON or not a list', () => {
-    expect(readModuleList()).toEqual([]);
-    for (const json of ['[{"name"', '{"name":"files","specifier":"files"}']) {
-      moduleBlock(json);
-      expect(readModuleList()).toEqual([]);
+    expect(readEntryList()).toEqual([]);
+    for (const json of ['[{"name"', '{"name":"files","module":"acme/files"}']) {
+      entryBlock(json);
+      expect(readEntryList()).toEqual([]);
       document.head.replaceChildren();
     }
     expect(errors).toHaveBeenCalledTimes(3);

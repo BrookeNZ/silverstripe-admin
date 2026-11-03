@@ -60,14 +60,14 @@ class ClientRegistry
     private ?array $stylesheets = null;
 
     /**
-     * @return list<array{name: string, specifier: string}>
+     * @return list<array{name: string, module: string}>
      * @throws RuntimeException in dev, on a specifier claimed twice in the import map
      */
     public function getEntries(): array
     {
         $items = [];
         foreach (array_keys($this->resolvedEntries()) as $name) {
-            $items[] = ['name' => $name, 'specifier' => $name];
+            $items[] = ['name' => $name, 'module' => $this->checked()['entries'][$name]['module']];
         }
         $this->extend('updateEntries', $items);
         return $this->dropRefusedItems($items);
@@ -110,36 +110,30 @@ class ClientRegistry
     }
 
     /**
-     * Drops an item whose specifier is unmapped or already listed, since the loader skips only a repeated name
+     * Drops an item whose name is not a mapped entry or is already listed, since the loader skips only a repeated name
      */
     private function dropRefusedItems(array $items): array
     {
         $imports = $this->getImports();
         $mapped = [];
-        $namesBySpecifier = [];
+        $listed = [];
         foreach ($items as $item) {
-            $specifier = is_array($item) ? ($item['specifier'] ?? null) : null;
             $name = is_array($item) ? ($item['name'] ?? null) : null;
-            if (is_string($specifier) && isset($namesBySpecifier[$specifier])) {
+            if (is_string($name) && isset($listed[$name])) {
                 $this->warn(sprintf(
-                    'After updateEntries: the item named %s names the specifier "%s", which the item named %s already'
-                        . ' lists; the item was left out',
-                    ClientEntryChecker::describeValue($name),
-                    $specifier,
-                    ClientEntryChecker::describeValue($namesBySpecifier[$specifier])
+                    'After updateEntries: the item named "%s" is listed more than once; the later item was left out',
+                    $name
                 ));
                 continue;
             }
-            if (is_string($specifier) && isset($imports[$specifier])) {
+            if (is_string($name) && isset($imports[$name])) {
                 $mapped[] = $item;
-                if (is_string($name)) {
-                    $namesBySpecifier[$specifier] = $name;
-                }
+                $listed[$name] = true;
                 continue;
             }
             $this->warn(sprintf(
-                'After updateEntries: an item names %s, which no module adds to the import map; the item was left out',
-                is_scalar($specifier) ? sprintf('the specifier "%s"', $specifier) : 'no specifier'
+                'After updateEntries: an item names %s, which no client entry adds to the import map; the item was left out',
+                is_scalar($name) ? sprintf('"%s"', $name) : 'nothing'
             ));
         }
         return $mapped;

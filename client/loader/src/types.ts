@@ -1,23 +1,31 @@
 /**
- * What a module imports from `@silverstripe/admin`: the types below and `clientConfig()`, provided at runtime.
- * `setup()` receives the module's deep-frozen list item; the client config comes from `clientConfig()`.
- * ModuleMetadata is an interface, not an alias, so a module can augment it.
+ * What a client entry imports from `@silverstripe/admin`: the types below and `clientConfig()`, provided at runtime.
+ * `setup()` receives the frozen `admin` object; the client config comes from `clientConfig()`.
+ * AdminApi and ClientEntry are interfaces, not aliases, so later code can augment them.
  */
 export { clientConfig } from './runtime';
 
-/** A module's item in the page's module list (`#ss-admin-modules`); every listed module loads with the page */
-export interface ModuleMetadata {
+/** A client entry's item in the page's entry list (`#ss-admin-client`); every listed entry loads with the page */
+export interface ClientEntry {
+  /** The entry's import map specifier, `<module>/<entry>`, which the loader imports it by */
   name: string;
-  /** The import map specifier the loader imports the module by */
-  specifier: string;
+  /** The Composer package the entry belongs to */
+  module: string;
+}
+
+/** What `setup` receives: read-only, and still valid after an `await` */
+export interface AdminApi {
+  readonly entry: Readonly<ClientEntry>;
+  /** The Composer name of the entry's package, as `entry.module` gives it */
+  readonly package: string;
 }
 
 /**
- * What a module exports as `setup`. The item it receives is the module's handle for the admin's registration APIs,
- * which are still to come, and `setup` may receive further arguments after it. The loader waits for a returned promise
- * before the next module's setup runs
+ * What a client entry exports as `setup`. The admin object it receives is the entry's handle for the admin's
+ * registration APIs, which are still to come, and `setup` may receive further arguments after it. The loader waits for
+ * a returned promise before the next entry's setup runs
  */
-export type ModuleSetup = (module: Readonly<ModuleMetadata>) => void | Promise<void>;
+export type EntrySetup = (admin: Readonly<AdminApi>) => void | Promise<void>;
 
 export interface Section {
   name: string;

@@ -61,9 +61,9 @@ class ChromePageTest extends FunctionalTest
         $this->assertStringContainsString('?v=', $preloads[1]);
         $this->assertStringContainsString('<script type="module" ' . $nonce . ' src="' . $preloads[0] . '"></script>', $body);
 
-        $entries = $this->jsonBlock($body, 'id="ss-admin-modules"');
+        $entries = $this->jsonBlock($body, 'id="ss-admin-client"');
         $this->assertSame(
-            [['name' => ChromePageTest::NAME, 'specifier' => ChromePageTest::NAME]],
+            [['name' => ChromePageTest::NAME, 'module' => ChromePageTest::MODULE]],
             $entries,
             'A value cannot close its block'
         );
@@ -96,7 +96,7 @@ class ChromePageTest extends FunctionalTest
         preg_match_all('#<link rel="stylesheet"[^>]*>|<script type="module"#', $body, $tags);
         $this->assertSame(
             [
-                '<link rel="stylesheet" ' . $nonce . ' href="https://cdn.example.test/hello.css" data-module="'
+                '<link rel="stylesheet" ' . $nonce . ' href="https://cdn.example.test/hello.css" data-entry="'
                     . htmlspecialchars(ChromePageTest::NAME) . '" />',
                 '<link rel="stylesheet" ' . $nonce . ' href="https://cdn.example.test/theme.css" />',
                 '<script type="module"',
@@ -106,7 +106,7 @@ class ChromePageTest extends FunctionalTest
         );
         $map = $this->jsonBlock($body, 'type="importmap"');
         $this->assertArrayNotHasKey('acme/theme/styles', $map['imports']);
-        $entries = $this->jsonBlock($body, 'id="ss-admin-modules"');
+        $entries = $this->jsonBlock($body, 'id="ss-admin-client"');
         $this->assertSame([ChromePageTest::NAME], array_column($entries, 'name'));
     }
 
@@ -136,7 +136,7 @@ class ChromePageTest extends FunctionalTest
 
         $config = $this->jsonBlock($body, 'id="ss-admin-config"');
         $this->assertSame("bad \u{FFFD} byte</script>", $config['debugging'], 'Substituted, and unable to close its block');
-        $this->assertSame(["acme/bad\u{FFFD}byte/main"], array_column($this->jsonBlock($body, 'id="ss-admin-modules"'), 'name'));
+        $this->assertSame(["acme/bad\u{FFFD}byte/main"], array_column($this->jsonBlock($body, 'id="ss-admin-client"'), 'name'));
     }
 
     public function testADataRequestToASectionURLReachesItsLegacyAction(): void

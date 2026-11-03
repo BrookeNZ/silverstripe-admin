@@ -1,13 +1,13 @@
 /**
  * Reads the JSON data blocks ChromePage writes, and hands the client config ChromePage::ClientConfig() writes into
- * #ss-admin-config to the runtime file before any module loads
+ * #ss-admin-config to the runtime file before any entry loads
  */
 import { setClientConfig } from './internals';
 import type { ClientConfig } from './types';
 
 // Keep in step with the ids in templates/SilverStripe/Admin/Client/ChromePage.ss
 export const CONFIG_BLOCK_ID = 'ss-admin-config';
-export const MODULES_BLOCK_ID = 'ss-admin-modules';
+export const ENTRIES_BLOCK_ID = 'ss-admin-client';
 
 export function readDataBlock(id: string): unknown {
   const json = document.getElementById(id)?.textContent;

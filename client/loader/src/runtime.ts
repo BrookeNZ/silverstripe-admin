@@ -1,6 +1,6 @@
 /**
  * `@silverstripe/admin` at runtime, served by the import map as `shared/admin.js`. The loader imports it by that bare
- * specifier, never a relative path, so the page holds one instance and modules read what the loader writes. It
+ * specifier, never a relative path, so the page holds one instance and entries read what the loader writes. It
  * has no runtime imports, so it is safe to import before the loader starts.
  *
  * `clientConfig()` is a function, not a `config` export, because an ES module cannot export a getter: a live `let`
@@ -22,7 +22,7 @@ export function clientConfig(): Readonly<ClientConfig> {
 let claimed = false;
 
 /**
- * For the loader only; every call after the first throws, so no module can claim the setter
+ * For the loader only; every call after the first throws, so no entry can claim the setter
  * @internal
  */
 export function claimInternals() {

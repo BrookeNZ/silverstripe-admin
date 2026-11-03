@@ -27,7 +27,7 @@ describe('startChrome', () => {
     expect(logged).toHaveBeenCalledTimes(2);
   });
 
-  it('hands modules the page config frozen, readable once the start callback runs', () => {
+  it('hands entries the page config frozen, readable once the start callback runs', () => {
     let readInStart: unknown;
     const start = vi.fn(() => {
       readInStart = clientConfig();

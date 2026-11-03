@@ -9,7 +9,7 @@ class UpdateEntriesExtension extends Extension implements TestOnly
 {
     protected function updateEntries(array &$items): void
     {
-        $items[] = ['name' => 'acme/stray/main', 'specifier' => 'acme/stray/main'];
-        $items[] = ['name' => 'acme/again/main', 'specifier' => 'acme/hello/main'];
+        $items[] = ['name' => 'acme/stray/main', 'module' => 'acme/stray'];
+        $items[] = ['name' => 'acme/hello/main', 'module' => 'acme/hello'];
     }
 }
