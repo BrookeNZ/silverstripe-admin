@@ -370,27 +370,25 @@ class ClientEntryChecker
      */
     private function dropDuplicateSpecifiers(array $modules, array $entries): array
     {
-        $owners = [];
-        foreach ($entries as $name => $entry) {
-            if (ClientEntryChecker::hasLink($entry)) {
-                $owners[(string) $name][] = ['entry', (string) $name];
-            }
-        }
+        $importers = [];
         foreach ($modules as $key => $module) {
             foreach (array_keys($module['imports']) as $specifier) {
-                $owners[(string) $specifier][] = ['import', (string) $key];
+                $importers[(string) $specifier][] = (string) $key;
             }
         }
-        foreach ($owners as $specifier => $claimants) {
+        // A client entry's name is its specifier; a stylesheet entry claims none
+        $linked = array_filter($entries, ClientEntryChecker::hasLink(...));
+        foreach (array_unique([...array_keys($linked), ...array_keys($importers)]) as $specifier) {
             $specifier = (string) $specifier;
-            $labels = array_map(
-                fn (array $claimant) => $claimant[0] === 'entry'
-                    ? sprintf('%s "%s"', ClientEntryChecker::CLIENT_ENTRY, $claimant[1])
-                    : sprintf('%s "%s"', ClientEntryChecker::moduleType($modules[$claimant[1]]), $claimant[1]),
-                $claimants
-            );
+            $labels = [];
             if (isset($this->sharedSpecifiers[$specifier])) {
-                array_unshift($labels, "the loader build's shared files");
+                $labels[] = "the loader build's shared files";
+            }
+            if (isset($linked[$specifier])) {
+                $labels[] = sprintf('%s "%s"', ClientEntryChecker::CLIENT_ENTRY, $specifier);
+            }
+            foreach ($importers[$specifier] ?? [] as $key) {
+                $labels[] = sprintf('%s "%s"', ClientEntryChecker::moduleType($modules[$key]), $key);
             }
             if (count($labels) < 2) {
                 continue;
@@ -400,12 +398,11 @@ class ClientEntryChecker
                 ucfirst(implode(' and ', $labels)),
                 $specifier
             ));
-            foreach ($claimants as [$kind, $name]) {
-                if ($kind === 'entry') {
-                    unset($entries[$name]);
-                    continue;
-                }
-                unset($modules[$name]['imports'][$specifier]);
+            if (isset($linked[$specifier])) {
+                unset($entries[$specifier]);
+            }
+            foreach ($importers[$specifier] ?? [] as $key) {
+                unset($modules[$key]['imports'][$specifier]);
             }
         }
         return ['modules' => $modules, 'entries' => $entries];

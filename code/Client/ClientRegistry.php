@@ -369,32 +369,44 @@ class ClientRegistry
             ));
             return null;
         }
+        if (preg_match('#^(https?:)?/#i', $link)) {
+            // Director::absoluteURL() treats an upper-case scheme as a relative path
+            return Director::absoluteURL(preg_replace_callback('#^https?:#i', fn (array $scheme) => strtolower($scheme[0]), $link));
+        }
         $points = sprintf('%s "%s" points %s at "%s"', ucfirst($type), $name, $purpose, $link);
         try {
-            if (preg_match('#^(https?:)?/#i', $link)) {
-                // Director::absoluteURL() treats an upper-case scheme as a relative path
-                return Director::absoluteURL(preg_replace_callback('#^https?:#i', fn (array $scheme) => strtolower($scheme[0]), $link));
-            }
-            $resource = ModuleResourceLoader::singleton()->resolveResource($link);
-            $isModuleResource = $resource instanceof ModuleResource;
-            // A non-module link is a path relative to the project root, as the root module addresses its own files
-            $exists = $isModuleResource ? $resource->exists() : file_exists(Path::join(Director::baseFolder(), $link));
-            if (!$exists) {
-                $this->warn(sprintf('%s, which does not exist, so %s', $points, $consequence));
-                return null;
-            }
-            if (!ClientRegistry::isServed($isModuleResource ? $resource->getRelativePath() : $link)) {
-                $this->warn(ClientRegistry::unservedWarning($points, $consequence));
-                return null;
-            }
-            if ($isModuleResource) {
-                return Director::absoluteURL($resource->getURL());
-            }
-            return Director::absoluteURL(ModuleResourceLoader::singleton()->resolveURL($link));
+            return $this->resolveFileLink($link, $points, $consequence);
         } catch (InvalidArgumentException $exception) {
             $this->warn(sprintf('%s, which cannot be resolved (%s), so %s', $points, $exception->getMessage(), $consequence));
             return null;
         }
+    }
+
+    /**
+     * A module resource, or a path relative to the project root, as the root module addresses its own files
+     *
+     * @param string $points The link's owner and purpose, the start of each warning
+     * @throws InvalidArgumentException for an unknown module or a path with `..` segments
+     */
+    private function resolveFileLink(string $link, string $points, string $consequence): ?string
+    {
+        $resource = ModuleResourceLoader::singleton()->resolveResource($link);
+        if ($resource instanceof ModuleResource) {
+            $exists = $resource->exists();
+            $relativePath = $resource->getRelativePath();
+        } else {
+            $exists = file_exists(Path::join(Director::baseFolder(), $link));
+            $relativePath = $link;
+        }
+        if (!$exists) {
+            $this->warn(sprintf('%s, which does not exist, so %s', $points, $consequence));
+            return null;
+        }
+        if (!ClientRegistry::isServed($relativePath)) {
+            $this->warn(ClientRegistry::unservedWarning($points, $consequence));
+            return null;
+        }
+        return Director::absoluteURL(ModuleResourceLoader::singleton()->resolveURL($link));
     }
 
     private static function unservedWarning(string $points, string $consequence): string
