@@ -16,9 +16,9 @@ export function setup(admin: Readonly<AdminApi>): void | Promise<void> {
 }
 ```
 
-`setup` receives `admin`, a deep-frozen object with two read-only properties: `entry`, the entry's list item
-(`ClientEntry`: `name`, which is `<module>/<entry>`, and `module`), and `package`, the Composer name of the module
-that ships the entry. It may return a promise; the loader waits for it before setting up the next entry (see *When
+`setup` receives `admin`, a deep-frozen object with one read-only property: `entry`, the entry's list item
+(`ClientEntry`: `name`, which is `<module>/<entry>`, and `module`, the Composer name of the module that ships the
+entry). It may return a promise; the loader waits for it before setting up the next entry (see *When
 something fails*). The page's body is empty, so an entry that renders appends its own element to it and renders there,
 with `createRoot` from `react-dom/client` for React. Appending to the body is interim, until the admin's layout offers
 places to render.
