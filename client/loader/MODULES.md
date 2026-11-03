@@ -12,7 +12,7 @@ import { clientConfig } from '@silverstripe/admin';
 import type { AdminApi } from '@silverstripe/admin';
 
 export function setup(admin: Readonly<AdminApi>): void | Promise<void> {
-  console.log(admin.entry.name, admin.package, clientConfig().adminUrl);
+  console.log(admin.entry.name, admin.entry.module, clientConfig().adminUrl);
 }
 ```
 

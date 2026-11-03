@@ -17,8 +17,6 @@ export interface ClientEntry {
 /** What `setup` receives: read-only, and still valid after an `await` */
 export interface AdminApi {
     readonly entry: Readonly<ClientEntry>;
-    /** The Composer name of the entry's package, as `entry.module` gives it */
-    readonly package: string;
 }
 /**
  * What a client entry exports as `setup`. The admin object it receives is the entry's handle for the admin's

@@ -66,7 +66,7 @@ describe('bootEntries', () => {
     expect(failedNames()).toEqual(['missing', 'no-setup', 'throws', 'rejects']);
   });
 
-  it('passes setup() a frozen admin object whose entry and package are the item and its module', async () => {
+  it('passes setup() a frozen admin object whose entry is the item', async () => {
     const item = listed('files');
     let received: AdminApi | undefined;
     let afterAwait: AdminApi | undefined;
@@ -83,7 +83,6 @@ describe('bootEntries', () => {
     expect(received).toBe(afterAwait);
     expect(received?.entry).not.toBe(item);
     expect(received?.entry).toEqual(item);
-    expect(received?.package).toBe(item.module);
     expect(Object.isFrozen(received)).toBe(true);
     expect(Object.isFrozen(received?.entry)).toBe(true);
   });

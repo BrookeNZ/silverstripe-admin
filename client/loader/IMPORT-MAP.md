@@ -53,8 +53,8 @@ design. For writing a module and its entries, see [MODULES.md](MODULES.md).
    element. The body is empty.
 4. **The loader** (`client/loader/src/index.ts`, built to `client/dist/loader/main.js`) reads the config and entry
    list, starts the import of every listed entry by its name at once, then in list order awaits each one's own
-   import and calls its `setup(admin)` with a deep-frozen `admin` object holding the item as `admin.entry` and its
-   Composer package as `admin.package`, each in a try and catch, so a stalled import holds back only the items after it
+   import and calls its `setup(admin)` with a deep-frozen `admin` object holding the item as `admin.entry` (its `module` is the
+   Composer package), each in a try and catch, so a stalled import holds back only the items after it
    (failures: [MODULES.md](MODULES.md), *When something fails*), removing a failed entry's stylesheet link. Importing
    by name makes the map the one source of an entry's URL, so an override of the entry's map URL changes what loads
    rather than loading a second copy. The loader imports `@silverstripe/admin` through the map as entries do, so both

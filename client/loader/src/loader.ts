@@ -91,6 +91,6 @@ async function setupEntry(item: ClientEntry, imported: Promise<EntryExports>): P
   if (typeof exported?.setup !== 'function') {
     throw new Error(`The client entry "${item.name}" exports no setup function`);
   }
-  const admin: AdminApi = deepFreeze({ entry: structuredClone(item), package: item.module });
+  const admin: AdminApi = deepFreeze({ entry: structuredClone(item) });
   await exported.setup(admin);
 }
