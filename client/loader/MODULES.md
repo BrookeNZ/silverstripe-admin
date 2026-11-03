@@ -131,6 +131,26 @@ an entry or `imports` file there must be served with CORS headers, a stylesheet 
 Warnings are logged when a browser loads an admin page, not on flush, and a stock site discards them until the
 project gives the logger a handler (see [IMPORT-MAP.md](IMPORT-MAP.md), *Warnings*).
 
+## ComponentRegistry
+
+`SilverStripe\Admin\Client\ComponentRegistry` attaches component files to PHP classes. Its config is keyed by class name; a
+leading backslash is ignored. Each class takes a `component` link and a `wrap` map of named links, in the forms a
+client entry's `link` takes:
+
+```yaml
+SilverStripe\Admin\Client\ComponentRegistry:
+  SilverStripe\Forms\TextField:
+    component: 'vendor-name/module-name:client/dist/text-field/index.js'
+    wrap:
+      counter: 'vendor-name/module-name:client/dist/counter/index.js'
+```
+
+Each item compiles into a client entry of its module, the package of a `vendor/package:path` link or otherwise the
+root package, named `<module>/component.<Class.With.Dots>` or `<module>/wrap.<Class.With.Dots>.<item>`. Setting an
+item to `null` removes it from the same class key, `enabled: false` on the module drops its compiled entries, and in
+dev a class key naming no installed class logs a warning. The entries take effect once the admin draws components by
+class, which a later part adds; until then they are resolved and checked but not loaded.
+
 ## Module CSS
 
 The page writes a `<link rel="stylesheet">` in the head for each stylesheet, in config order, before the loader runs,
