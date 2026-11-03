@@ -73,7 +73,8 @@ SilverStripe\Admin\Client\ClientRegistry:
 
 **Names.** A module key is `vendor/name`: exactly one `/`, between a vendor and a name, no `@` anywhere, and bare as
 *Shared libraries* describes, so single words and `@` scopes stay free for shared files and `imports` keys. An entry
-key is one segment of letters, digits, `.`, `_` and `-`, starting with a letter or digit. The entry's import map name,
+key is one segment of letters, digits, `.`, `_` and `-`, starting with a letter or digit, and not starting with
+`component.` or `wrap.`, which *ComponentRegistry* names its entries with. The entry's import map name,
 which the loader imports it by and the list item carries, is `<module>/<entry>`: `vendor-name/module-name/main` above.
 A module or entry that breaks a rule is left out with a warning. A module or entry that is not a map is left out with
 a warning too. In dev, a key the tables below don't list is logged with a warning naming it, which catches a misspelt
@@ -136,6 +137,26 @@ an entry or `imports` file there must be served with CORS headers, a stylesheet 
 
 Warnings are logged when a browser loads an admin page, not on flush, and a stock site discards them until the
 project gives the logger a handler (see [IMPORT-MAP.md](IMPORT-MAP.md), *Warnings*).
+
+## ComponentRegistry
+
+`SilverStripe\Admin\Client\ComponentRegistry` attaches component files to PHP classes. Its config is keyed by class name; a
+leading backslash is ignored. Each class takes a `component` link and a `wrap` map of named links, in the forms a
+client entry's `js` takes, except that a bare path is the root package's file, since a class key names no module:
+
+```yaml
+SilverStripe\Admin\Client\ComponentRegistry:
+  SilverStripe\Forms\TextField:
+    component: 'vendor-name/module-name:client/dist/text-field/index.js'
+    wrap:
+      counter: 'vendor-name/module-name:client/dist/counter/index.js'
+```
+
+Each item compiles into a client entry of its module, the package of a `vendor/package:path` link or otherwise the
+root package, named `<module>/component.<Class.With.Dots>` or `<module>/wrap.<Class.With.Dots>.<item>`. Setting an
+item to `null` removes it from the same class key, `enabled: false` on the module drops its compiled entries, and in
+dev a class key naming no installed class logs a warning. The entries take effect once the admin draws components by
+class, which a later part adds; until then they are resolved and checked but not loaded.
 
 ## Module CSS
 

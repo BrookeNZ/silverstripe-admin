@@ -381,6 +381,8 @@ class ClientRegistryTest extends SapphireTest
             'entry key has a slash' => $this->refusedFor('silverstripe/dates', 'main/extra'),
             'entry key ends with a newline' => $this->refusedFor('silverstripe/dates', "main\n"),
             'entry key starts with a dot' => $this->refusedFor('silverstripe/dates', '.main'),
+            'entry key takes a compiled component name' => $this->refusedFor('silverstripe/dates', 'component.SilverStripe.Forms.TextField'),
+            'entry key takes a compiled wrap name' => $this->refusedFor('silverstripe/dates', 'wrap.SilverStripe.Forms.TextField.note'),
         ];
 
         $this->assertSame([], array_keys(array_filter($refused, fn (bool $dropped) => !$dropped)));

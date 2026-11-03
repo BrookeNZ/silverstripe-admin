@@ -111,6 +111,31 @@ class ClientRegistry
     }
 
     /**
+     * Resolves a link as a client entry's `js` is, logging a warning and returning null where it does not resolve
+     *
+     * @param string $name What the warning calls the link's owner
+     * @param string $module The package a bare path is relative to
+     * @internal
+     */
+    public function resolveItemLink(string $name, string $module, mixed $link): ?string
+    {
+        $type = ClientEntryChecker::CLIENT_ENTRY;
+        return $this->resolveLink($type, $name, $module, $link, 'its script', 'the item was left out');
+    }
+
+    /**
+     * False only where the `modules` config sets `enabled: false` for the module
+     *
+     * @internal
+     */
+    public function isModuleEnabled(string $module): bool
+    {
+        $configured = $this->config()->get('modules');
+        $settings = is_array($configured) ? ($configured[$module] ?? null) : null;
+        return !(is_array($settings) && ($settings['enabled'] ?? true) === false);
+    }
+
+    /**
      * Drops an item whose name is not a mapped entry, whose module is not a string, or whose name is already listed.
      * The loader (client/loader/src/loader.ts) loads the list as written, so nothing refuses such an item after this
      */
