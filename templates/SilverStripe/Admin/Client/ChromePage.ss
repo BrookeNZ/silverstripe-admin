@@ -12,7 +12,7 @@
     <% loop $EntryStylesheets %>
     <link rel="stylesheet"{$Top.NonceAttribute} href="$URL.ATT"<% if $IsEntry %> data-entry="$Entry.ATT"<% end_if %> />
     <% end_loop %>
-    <script type="application/json" id="ss-admin-client">$EntryList.RAW</script>
+    <script type="application/json" id="ss-admin-entries">$ClientEntryList.RAW</script>
     <script type="application/json" id="ss-admin-config">$ClientConfig.RAW</script>
     <% if $ScriptURL %>
     <script type="module"{$NonceAttribute} src="$ScriptURL.ATT"></script>

@@ -16,7 +16,7 @@ use SilverStripe\Model\ModelData;
  * the loader reads, so the loader makes no request for its config or entry list. The section controller is its
  * failover, so the template's `$Title` and `$Locale` are the section's.
  *
- * The loader reads the element ids `ss-admin-client` and `ss-admin-config` (client/loader/src/clientConfig.ts) and
+ * The loader reads the element ids `ss-admin-entries` and `ss-admin-config` (client/loader/src/clientConfig.ts) and
  * removes a failed entry's stylesheet by its `data-entry`. Renaming one breaks the loader with no server error.
  *
  * An extension on LeftAndMain that implements `updateChromeNonce` supplies the CSP nonce for every section.
@@ -146,7 +146,7 @@ class ChromePage extends ModelData
         return $this->nonce === '' ? '' : sprintf(' nonce="%s"', Convert::raw2att($this->nonce));
     }
 
-    public function EntryList(): string
+    public function ClientEntryList(): string
     {
         return ChromePage::jsonForScriptBlock($this->entryItems ?? []);
     }

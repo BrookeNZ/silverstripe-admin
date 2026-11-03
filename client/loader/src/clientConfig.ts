@@ -7,7 +7,7 @@ import type { ClientConfig } from './types';
 
 // Keep in step with the ids in templates/SilverStripe/Admin/Client/ChromePage.ss
 export const CONFIG_BLOCK_ID = 'ss-admin-config';
-export const ENTRIES_BLOCK_ID = 'ss-admin-client';
+export const ENTRIES_BLOCK_ID = 'ss-admin-entries';
 
 export function readDataBlock(id: string): unknown {
   const json = document.getElementById(id)?.textContent;

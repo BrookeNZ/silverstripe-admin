@@ -1,5 +1,5 @@
 /**
- * Loads the client entries ChromePage writes into `#ss-admin-client`. Each is imported by its name, which is its
+ * Loads the client entries ChromePage writes into `#ss-admin-entries`. Each is imported by its name, which is its
  * import map specifier, so the map is the only source of an entry's URL and an override of that URL cannot load a
  * second copy. client/loader/MODULES.md documents the failure behaviour for module authors; keep the two in step.
  */

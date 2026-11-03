@@ -5,7 +5,7 @@
  */
 export { clientConfig } from './runtime';
 
-/** A client entry's item in the page's entry list (`#ss-admin-client`); every listed entry loads with the page */
+/** A client entry's item in the page's entry list (`#ss-admin-entries`); every listed entry loads with the page */
 export interface ClientEntry {
   /** The entry's import map specifier, `<module>/<entry>`, which the loader imports it by */
   name: string;

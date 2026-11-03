@@ -40,7 +40,7 @@ design. For writing a module and its entries, see [MODULES.md](MODULES.md).
      `data-entry="<name>"`, and for each stylesheet entry with a `css`, with no `data-entry`
      ([MODULES.md](MODULES.md), *Module CSS*). PHP writes these links; the entry list does not carry
      them (one that hangs: [MODULES.md](MODULES.md), *When something fails*);
-   - the entry list as JSON in `#ss-admin-client`, from `ClientRegistry::getEntries()`, and empty for a member the
+   - the entry list as JSON in `#ss-admin-entries`, from `ClientRegistry::getEntries()`, and empty for a member the
      section's `canView()` refuses. Each item is `{name, module}`. The list travels in the page, there is no
      separate entry endpoint, and an item carries no version: a file's URL carries its modification time.
      `getEntries()` leaves out, with a warning, a later item of a name already listed, and the loader
@@ -62,7 +62,7 @@ design. For writing a module and its entries, see [MODULES.md](MODULES.md).
 
 ## Contracts and hooks
 
-The element ids `ss-admin-client` and `ss-admin-config`, and a client entry stylesheet link's `data-entry`, are a
+The element ids `ss-admin-entries` and `ss-admin-config`, and a client entry stylesheet link's `data-entry`, are a
 contract between the template and the loader: renaming one breaks the loader with no server error.
 
 `ClientRegistry` fires `updateEntries(array &$items)` on the entry list. It changes what the loader imports, not
