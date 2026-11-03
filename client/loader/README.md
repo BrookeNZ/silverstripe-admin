@@ -1,14 +1,15 @@
 # @silverstripe/admin
 
-The admin's module loader and shared files, built to `client/dist/loader/`, and the module types.
+The admin's client loader and shared files, built to `client/dist/loader/`, and the types for client entries.
 [MODULES.md](MODULES.md) is for module authors; [IMPORT-MAP.md](IMPORT-MAP.md) describes how the admin page loads
-modules, from the request to `setup`.
+client entries, from the request to `setup`.
 
-- **The loader** (`src/`, built to `main.js`) reads the page's config and module list and sets up the listed modules;
+- **The loader** (`src/`, built to `main.js`) reads the page's config and entry list and sets up the listed client entries;
   see [IMPORT-MAP.md](IMPORT-MAP.md), step 4.
 - **The runtime file** (`src/runtime.ts`) is `@silverstripe/admin` at runtime, served as `shared/admin.js`; the same
-  code is built as `runtime.js` for Node tooling and a module's tests ([MODULES.md](MODULES.md)).
-- **The types** (`types/`, committed) that a module imports from `@silverstripe/admin`.
+  code is built as `runtime.js` for Node tooling and an entry's tests ([MODULES.md](MODULES.md)).
+- **The types** (`types/`, committed) that a client entry imports from `@silverstripe/admin`: `AdminApi`,
+  `ClientEntry`, `EntrySetup`, `ClientConfig` and `Section`.
 - **The shared files** under `shared/` and their list, `shared.js` (`@silverstripe/admin/shared`, typed by
   `shared.d.ts`): see [IMPORT-MAP.md](IMPORT-MAP.md), *Shared files*.
 

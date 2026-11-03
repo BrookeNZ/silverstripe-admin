@@ -1,8 +1,8 @@
 # The admin page and its import map
 
-How a browser request to an admin section becomes a page that loads client modules: what PHP writes, what the
+How a browser request to an admin section becomes a page that loads client entries: what PHP writes, what the
 loader does with it, how React is shared, what a Content Security Policy must allow, and the decisions behind the
-design. For writing a module, see [MODULES.md](MODULES.md).
+design. For writing a module and its entries, see [MODULES.md](MODULES.md).
 
 ## From request to setup
 
@@ -31,50 +31,50 @@ design. For writing a module, see [MODULES.md](MODULES.md).
    (`code/Client/ChromePage.php`) with `templates/SilverStripe/Admin/Client/ChromePage.ss` into the controller's
    response, so headers set during `init()`, such as a policy header, stay on the page. The section controller is
    the page's failover, so `$Title` and `$Locale` are the section's. In the head, in order:
-   - the import map, `<script type="importmap">`, from `ImportMap::getMap()`: the shared files, then each module's
-     name and each library from `ModuleRegistry::getImports()` (see *Modules and libraries in the map*);
-   - `<link rel="modulepreload">`, from `ChromePage::ModulePreloads()`: the loader's `main.js`, then `shared/admin.js`,
-     then the other shared files only when the page lists at least one module, then each listed module, each at the
+   - the import map, `<script type="importmap">`, from `ImportMap::getMap()`: the shared files, then each client
+     entry's name and each library from `ClientRegistry::getImports()` (see *Entries and libraries in the map*);
+   - `<link rel="modulepreload">`, from `ChromePage::EntryPreloads()`: the loader's `main.js`, then `shared/admin.js`,
+     then the other shared files only when the page lists at least one entry, then each listed entry, each at the
      URL the map gives it;
-   - `<link rel="stylesheet">`, in config order, for each listed module with a `css`, carrying
-     `data-module="<name>"`, and for each stylesheet-only entry or library package with a `css`, with no
-     `data-module` ([MODULES.md](MODULES.md), *Module CSS*). PHP writes these links; the module list does not carry
+   - `<link rel="stylesheet">`, in config order, for each listed client entry with a `css`, carrying
+     `data-entry="<name>"`, and for each stylesheet entry with a `css`, with no `data-entry`
+     ([MODULES.md](MODULES.md), *Module CSS*). PHP writes these links; the entry list does not carry
      them (one that hangs: [MODULES.md](MODULES.md), *When something fails*);
-   - the module list as JSON in `#ss-admin-modules`, from `ModuleRegistry::getModuleItems()`, and empty for a member the
-     section's `canView()` refuses. Each item is `{name, specifier}`. The list travels in the page, there is no
-     separate module endpoint, and an item carries no version: a file's URL carries its modification time.
-     `getModuleItems()` leaves out, with a warning, a later item for a specifier already listed, and the loader
+   - the entry list as JSON in `#ss-admin-client`, from `ClientRegistry::getEntries()`, and empty for a member the
+     section's `canView()` refuses. Each item is `{name, module}`. The list travels in the page, there is no
+     separate entry endpoint, and an item carries no version: a file's URL carries its modification time.
+     `getEntries()` leaves out, with a warning, a later item of a name already listed, and the loader
      ignores a later item of a name listed twice ([MODULES.md](MODULES.md), *When something fails*);
    - the client config as JSON in `#ss-admin-config`;
    - the loader, `<script type="module">`, when `main.js` is built; in dev a missing one is logged.
 
-   The client config is encoded once, in `getCombinedClientConfig()`, and the import map and module list by
+   The client config is encoded once, in `getCombinedClientConfig()`, and the import map and entry list by
    `ChromePage`, all three through `ChromePage::jsonForScriptBlock()` with `JSON_HEX_TAG`, so no value can close its
    element. The body is empty.
-4. **The loader** (`client/loader/src/index.ts`, built to `client/dist/loader/main.js`) reads the config and module
-   list, starts the import of every listed module by its specifier at once, then in list order awaits each one's own
-   import and calls its `setup()` with its deep-frozen list item, each in a try and catch, so a stalled import holds
-   back only the items after it (failures: [MODULES.md](MODULES.md), *When something fails*), removing a failed
-   module's stylesheet link. Importing by specifier makes the map the one source of a module's URL, so an override of
-   the module's map URL changes what loads rather than loading a second copy. The loader imports
-   `@silverstripe/admin` through the map as modules do, so both share one instance, and claims its setter before any
-   module loads.
+4. **The loader** (`client/loader/src/index.ts`, built to `client/dist/loader/main.js`) reads the config and entry
+   list, starts the import of every listed entry by its name at once, then in list order awaits each one's own
+   import and calls its `setup(admin)` with a deep-frozen `admin` object holding the item as `admin.entry` and its
+   Composer package as `admin.package`, each in a try and catch, so a stalled import holds back only the items after it
+   (failures: [MODULES.md](MODULES.md), *When something fails*), removing a failed entry's stylesheet link. Importing
+   by name makes the map the one source of an entry's URL, so an override of the entry's map URL changes what loads
+   rather than loading a second copy. The loader imports `@silverstripe/admin` through the map as entries do, so both
+   share one instance, and claims its setter before any entry loads.
 
 ## Contracts and hooks
 
-The element ids `ss-admin-modules` and `ss-admin-config`, and a module stylesheet link's `data-module`, are a contract
-between the template and the loader: renaming one breaks the loader with no server error.
+The element ids `ss-admin-client` and `ss-admin-config`, and a client entry stylesheet link's `data-entry`, are a
+contract between the template and the loader: renaming one breaks the loader with no server error.
 
-`ModuleRegistry` fires `updateModuleItems(array &$items)` on the module list. It changes what the loader imports, not
-the import map, so an item it adds must name a specifier a module or library package adds and no earlier item names;
-any other item is dropped with a warning. `ChromePage` fires `updateChromeNonce(string &$nonce)` on the section
+`ClientRegistry` fires `updateEntries(array &$items)` on the entry list. It changes what the loader imports, not
+the import map, so an item it adds must name a client entry in the map and no earlier item names; any other item is
+dropped with a warning. `ChromePage` fires `updateChromeNonce(string &$nonce)` on the section
 controller once per page.
 
-The public surface is the `ModuleRegistry.modules` YAML and its keys, the `updateModuleItems` and
-`updateChromeNonce` hooks, `LeftAndMain.server_url_segments`, `SS_ADMIN_MODULE_DEV_URLS`, and what the
-`@silverstripe/admin` package exports for modules: `clientConfig()`, the types and
+The public surface is the `SilverStripe\Admin\ClientRegistry.modules` YAML and its keys, the `updateEntries` and
+`updateChromeNonce` hooks, `LeftAndMain.server_url_segments`, `SS_ADMIN_ENTRY_DEV_URLS`, and what the
+`@silverstripe/admin` package exports for entries: `clientConfig()`, the types and
 `@silverstripe/admin/shared` (`claimInternals()` is `@internal`, claimed by the loader). Every PHP class under
-`SilverStripe\Admin\Client` except `ModuleRegistry` is `@internal`, as are `ModuleRegistry::getImports()` and
+`SilverStripe\Admin\Client` is `@internal`, as are `ClientRegistry::getImports()` and
 `getStylesheets()` and what the chrome page adds to `LeftAndMain` (`isChromeNavigation()` and `renderChrome()`).
 
 ## Shared files
@@ -104,30 +104,29 @@ names inside the build folder, and maps each specifier to `<release URL>shared/<
 digest>`, so a rebuilt file gets a new URL. A missing or empty manifest gives an empty map and a logged warning.
 
 React is shared through the map because its hooks and context live in module-level state: a component rendered by
-one copy of React cannot use hooks or read context from another. One map gives the page and every module the same
+one copy of React cannot use hooks or read context from another. One map gives the page and every entry the same
 instance, fetched and evaluated once and cached by URL. The admin owns the versions. The map is written once, first
-in the head, before any module script or preload, which is the only position every browser accepts, so everything in
-it comes from PHP. A package that is neither shared nor provided by a module (below) is bundled by each module that
+in the head, before any entry script or preload, which is the only position every browser accepts, so everything in
+it comes from PHP. A package that is neither shared nor provided by a module (below) is bundled by each entry that
 uses it.
 
 The page loads no import map polyfill, so it needs native import maps and `structuredClone`: Chrome 98, Firefox 108 or
 Safari 16.4 at the earliest.
 
-## Modules and libraries in the map
+## Entries and libraries in the map
 
-Besides the shared files, `ImportMap::getMap()` writes `ModuleRegistry::getImports()`:
+Besides the shared files, `ImportMap::getMap()` writes `ClientRegistry::getImports()`:
 
-- **One specifier per module**: its name to its `link`'s URL, cache-busting query included. A
-  module can import another by name (`import('vendor/name')`) and gets the instance the loader set up, since both
-  resolve to one URL.
-- **One specifier per library an enabled entry provides** through its `imports` key: a library package's, or a
-  module's whose `link` resolves. Each maps to the file's URL with the framework's modification-time `?m=` query a
-  `link` gets. Any module can import it by that specifier; the file downloads only when one does, and every
-  importer shares one instance.
+- **One specifier per client entry**: its name, `<module>/<entry>`, to its `link`'s URL, cache-busting query
+  included. An entry can import another by name (`import('vendor/name/main')`) and gets the instance the loader set
+  up, since both resolve to one URL.
+- **One specifier per library an enabled module provides** through its `imports` key, whether or not its entries
+  load. Each maps to the file's URL with the framework's modification-time `?m=` query a `link` gets. Any entry can
+  import it by that specifier; the file downloads only when one does, and every importer shares one instance.
 
-Both are in the map for every member, whether or not the page lists modules for them. `ModuleEntryChecker` enforces
-the bare-name and one-owner rules for every module name and `imports` key, and the `vendor/name` rule for every
-module name, before anything is listed ([MODULES.md](MODULES.md), *Declaring a module* and *Shared libraries*).
+Both are in the map for every member, whether or not the page lists entries for them. `ClientEntryChecker` enforces
+the bare-name and one-owner rules for every `imports` key and entry name, and the `vendor/name` rule for every module
+key, before anything is listed ([MODULES.md](MODULES.md), *Declaring a module* and *Shared libraries*).
 
 ## Content Security Policy
 
@@ -137,10 +136,10 @@ the response's policy header, which is the site's to send. With no extension the
 
 What a policy must allow:
 
-- `script-src` with the nonce only. It covers the import map, the loader, the shared files and every module:
-  `import()` runs with the nonce of the script that calls it, so the modules the loader imports need no origin in the
+- `script-src` with the nonce only. It covers the import map, the loader, the shared files and every entry:
+  `import()` runs with the nonce of the script that calls it, so the entries the loader imports need no origin in the
   policy. The two JSON blocks are data, not scripts. Neither `'unsafe-inline'` nor `'unsafe-eval'` is needed.
-- `style-src` with the nonce only. It covers every stylesheet a module or entry names, since PHP writes each link with
+- `style-src` with the nonce only. It covers every stylesheet an entry names, since PHP writes each link with
   the nonce; no `'self'` is needed. The page writes no `<style>` element and no `style` attribute.
 - Do not add `'strict-dynamic'`. Under it a modulepreload with no nonce is allowed, and a module script with the wrong
   nonce for that preloaded URL then runs, so a wrong nonce no longer stops the loader.
@@ -151,7 +150,7 @@ A working policy:
 default-src 'none'; script-src 'nonce-<n>'; style-src 'nonce-<n>'; connect-src 'self'; img-src 'self'; base-uri 'self'; form-action 'self'
 ```
 
-With a wrong nonce the import map, the loader, the shared files, the modules and the stylesheets are each refused,
+With a wrong nonce the import map, the loader, the shared files, the entries and the stylesheets are each refused,
 and the loader never runs.
 
 The nonce covers only the `<link>` fetch, not what the stylesheet itself loads. Under this policy an `@import` inside
@@ -160,11 +159,11 @@ image from `url()` on another site needs `img-src` to allow that site.
 
 ## Warnings
 
-`ModuleRegistry`, `ModuleEntryChecker`, `ImportMap` and `ChromePage` log every warning (a skipped entry, a missing file,
+`ClientRegistry`, `ClientEntryChecker`, `ImportMap` and `ChromePage` log every warning (a skipped module or entry, a missing file,
 a link, project path or `vendor/package:path`, to a file outside `public/` with no exposed copy in
-`public/_resources/`, a dropped module stylesheet, a bad dev override, an item `updateModuleItems` added for an
-unmapped specifier or one already listed, a missing or empty loader manifest, and in dev an unbuilt loader, a
-`requires` nothing in the map provides or a key in a module's entry the registry does not read). A warning never
+`public/_resources/`, a dropped stylesheet, a bad dev override, an item `updateEntries` added for an
+unmapped name or one already listed, a missing or empty loader manifest, and in dev an unbuilt loader, a
+`requires` nothing in the map provides, a key the registry does not read or a module key naming no installed package). A warning never
 stops the page; only a specifier claimed twice does, and only in dev.
 
 They log to `Psr\Log\LoggerInterface` when a navigation renders the chrome page, not on flush. The framework's
@@ -173,7 +172,7 @@ example:
 
 ```yaml
 ---
-Name: app-admin-module-warnings
+Name: app-admin-client-warnings
 After: '#logging'
 ---
 SilverStripe\Core\Injector\Injector:
@@ -195,7 +194,7 @@ Why import maps and a small loader rather than a micro-frontend framework:
 
 - A module installs a types package rather than a package of the whole app shell with its own install and rebuild
   workflow.
-- A module is a native ES module any bundler can write, and a hand-written file is valid, rather than a framework
+- A client entry is a native ES module any bundler can write, and a hand-written file is valid, rather than a framework
   format built through the framework's CLI and bundler plugin.
 - The shared list and its versions have one source, where a framework resolves a shared bare name to whatever the
   shell exports, unchecked.
