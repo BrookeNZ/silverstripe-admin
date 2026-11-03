@@ -73,11 +73,12 @@ the import map, so an item it adds must name a client entry in the map (not a li
 and give its module as a string; any other item is dropped with a warning. `ChromePage` fires `updateChromeNonce(string &$nonce)` on the section
 controller once per page.
 
-The public surface is the `SilverStripe\Admin\Client\ClientRegistry.modules` YAML and its keys, the `updateEntries` and
+The public surface is the `SilverStripe\Admin\Client\ClientRegistry.modules` YAML and its keys, the
+`SilverStripe\Admin\Client\ComponentRegistry` YAML and its `component` and `wrap` keys, the `updateEntries` and
 `updateChromeNonce` hooks, `LeftAndMain.server_url_segments`, `SS_ADMIN_ENTRY_DEV_URLS`, and what the
 `@silverstripe/admin` package exports for entries: `clientConfig()`, the types and
-`@silverstripe/admin/shared` (`claimInternals()` is `@internal`, claimed by the loader). Every other PHP class under
-`SilverStripe\Admin\Client` is `@internal`, as are `ClientRegistry::getImports()` and
+`@silverstripe/admin/shared` (`claimInternals()` is `@internal`, claimed by the loader). Every PHP class under
+`SilverStripe\Admin\Client` other than those two registries is `@internal`, as are `ClientRegistry::getImports()` and
 `getStylesheets()` and what the chrome page adds to `LeftAndMain` (`isChromeNavigation()` and `renderChrome()`).
 
 ## Shared files
