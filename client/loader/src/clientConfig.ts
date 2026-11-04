@@ -9,6 +9,7 @@ import type { ClientConfig } from './types';
 export const CONFIG_BLOCK_ID = 'ss-admin-config';
 export const ENTRIES_BLOCK_ID = 'ss-admin-entries';
 
+/** The parsed JSON of the data block with that id; undefined when the block is missing, empty or not valid JSON */
 export function readDataBlock(id: string): unknown {
   const json = document.getElementById(id)?.textContent;
   if (!json) {
@@ -21,6 +22,7 @@ export function readDataBlock(id: string): unknown {
   }
 }
 
+/** The client config block as an object; null when it is missing or holds anything but a JSON object */
 export function readClientConfig(): ClientConfig | null {
   const value = readDataBlock(CONFIG_BLOCK_ID);
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -29,6 +31,10 @@ export function readClientConfig(): ClientConfig | null {
   return value as ClientConfig;
 }
 
+/**
+ * Hands a frozen copy of the page's client config to the runtime, then runs `start`. With no config block, or a
+ * `start` that throws, the admin logs one console error and does nothing else, so no entry can run without config
+ */
 export function startChrome(start: () => unknown): void {
   try {
     const config = readClientConfig();
@@ -42,6 +48,7 @@ export function startChrome(start: () => unknown): void {
   }
 }
 
+/** Freezes the value and every object reachable from it in place, stopping at anything already frozen */
 export function deepFreeze<T>(value: T): T {
   if (value && typeof value === 'object' && !Object.isFrozen(value)) {
     Object.freeze(value);

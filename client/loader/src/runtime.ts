@@ -22,7 +22,9 @@ export function clientConfig(): Readonly<ClientConfig> {
 let claimed = false;
 
 /**
- * For the loader only; every call after the first throws, so no entry can claim the setter
+ * Returns the setter for `clientConfig()` to the first caller only; every later call throws. The loader calls it
+ * first, from internals.ts, before any entry loads, so an entry that tries gets the error. Being first is the only
+ * protection
  * @internal
  */
 export function claimInternals() {
@@ -31,6 +33,7 @@ export function claimInternals() {
   }
   claimed = true;
   return {
+    /** Stores the config `clientConfig()` returns; the loader passes it deep-frozen, so entries share it read-only */
     setClientConfig(value: Readonly<ClientConfig>): void {
       config = value;
     },
