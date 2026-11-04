@@ -101,7 +101,7 @@ class ClientRegistry
         $this->stylesheets = [];
         foreach ($this->checked()['entries'] as $name => $entry) {
             $name = (string) $name;
-            $isEntry = ClientEntryChecker::hasLink($entry);
+            $isEntry = ClientEntryChecker::hasJs($entry);
             $url = $isEntry ? ($resolved[$name]['css'] ?? null) : $this->resolveStylesheet($name, $entry);
             if ($url !== null) {
                 $this->stylesheets[] = ['name' => $name, 'url' => $url, 'entry' => $isEntry];
@@ -198,7 +198,7 @@ class ClientRegistry
             return $this->resolvedEntries;
         }
         $checked = $this->checked();
-        $scripts = array_filter($checked['entries'], ClientEntryChecker::hasLink(...));
+        $scripts = array_filter($checked['entries'], ClientEntryChecker::hasJs(...));
         $devUrls = $this->resolveDevURLs(array_keys($scripts));
         $resolved = [];
         foreach ($scripts as $name => $entry) {
@@ -342,7 +342,8 @@ class ClientRegistry
     private function resolveScript(string $name, array $entry): ?string
     {
         $type = ClientEntryChecker::entryType($entry);
-        return $this->resolveLink($type, $name, $entry['link'] ?? null, 'its script', 'the client entry was skipped');
+        $js = $entry['js'] ?? null;
+        return $this->resolveLink($type, $name, $entry['module'], $js, 'its script', 'the client entry was skipped');
     }
 
     /**
@@ -354,7 +355,8 @@ class ClientRegistry
             return null;
         }
         $type = ClientEntryChecker::entryType($entry);
-        return $this->resolveLink($type, $name, $entry['css'], 'its stylesheet', 'the stylesheet was dropped');
+        $css = $entry['css'];
+        return $this->resolveLink($type, $name, $entry['module'], $css, 'its stylesheet', 'the stylesheet was dropped');
     }
 
     /**
@@ -366,7 +368,7 @@ class ClientRegistry
         $urls = [];
         foreach ($module['imports'] as $specifier => $link) {
             $purpose = sprintf('its import "%s"', $specifier);
-            $url = $this->resolveLink($type, $key, $link, $purpose, 'the import was left out');
+            $url = $this->resolveLink($type, $key, $key, $link, $purpose, 'the import was left out');
             if ($url !== null) {
                 $urls[(string) $specifier] = $url;
             }
@@ -376,11 +378,18 @@ class ClientRegistry
 
     /**
      * @param string $type As ClientEntryChecker::entryType() or moduleType() gives it
+     * @param string $module The package a bare path is relative to
      * @param string $purpose What the link is for, such as "its stylesheet"
      * @param string $consequence What dropping the link drops, logged with the reason
      */
-    private function resolveLink(string $type, string $name, mixed $link, string $purpose, string $consequence): ?string
-    {
+    private function resolveLink(
+        string $type,
+        string $name,
+        string $module,
+        mixed $link,
+        string $purpose,
+        string $consequence
+    ): ?string {
         if (!is_string($link) || $link === '') {
             $this->warn(sprintf(
                 '%s "%s" gives %s for %s, which is not a link, so %s',
@@ -396,9 +405,10 @@ class ClientRegistry
             // Director::absoluteURL() treats an upper-case scheme as a relative path
             return Director::absoluteURL(preg_replace_callback('#^https?:#i', fn (array $scheme) => strtolower($scheme[0]), $link));
         }
-        $points = sprintf('%s "%s" points %s at "%s"', ucfirst($type), $name, $purpose, $link);
+        $file = ClientRegistry::packagePath($module, $link);
+        $points = sprintf('%s "%s" points %s at "%s"', ucfirst($type), $name, $purpose, $file);
         try {
-            return $this->resolveFileLink($link, $points, $consequence);
+            return $this->resolveFileLink($file, $points, $consequence);
         } catch (InvalidArgumentException $exception) {
             $this->warn(sprintf('%s, which cannot be resolved (%s), so %s', $points, $exception->getMessage(), $consequence));
             return null;
@@ -406,7 +416,17 @@ class ClientRegistry
     }
 
     /**
-     * A module resource, or a path relative to the project root, as the root module addresses its own files
+     * A bare path is the module's own file, so `client/dist/main.js` under `acme/dates` is
+     * `acme/dates:client/dist/main.js`, except under the root package, whose folder is the project root
+     */
+    private static function packagePath(string $module, string $link): string
+    {
+        $isResource = ClientEntryChecker::packageOf($link) !== null;
+        return $isResource || ClientEntryChecker::isRootPackage($module) ? $link : $module . ':' . $link;
+    }
+
+    /**
+     * A `vendor/package:path` resource, or the project's own path from its root
      *
      * @param string $points The link's owner and purpose, the start of each warning
      * @throws InvalidArgumentException for an unknown module or a path with `..` segments

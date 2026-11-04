@@ -37,7 +37,7 @@ class ChromePageTest extends FunctionalTest
     {
         parent::setUp();
         Config::modify()->set(ClientRegistry::class, 'modules', [
-            ChromePageTest::MODULE => ['entries' => ['main' => ['link' => 'https://cdn.example.test/hello.js']]],
+            ChromePageTest::MODULE => ['entries' => ['main' => ['js' => 'https://cdn.example.test/hello.js']]],
         ]);
         $this->logInWithPermission('ADMIN');
     }
@@ -87,7 +87,7 @@ class ChromePageTest extends FunctionalTest
     {
         Config::modify()->set(ClientRegistry::class, 'modules', [
             ChromePageTest::MODULE => ['entries' => [
-                'main' => ['link' => 'https://cdn.example.test/hello.js', 'css' => 'https://cdn.example.test/hello.css'],
+                'main' => ['js' => 'https://cdn.example.test/hello.js', 'css' => 'https://cdn.example.test/hello.css'],
             ]],
             'acme/theme' => ['entries' => ['styles' => ['css' => 'https://cdn.example.test/theme.css']]],
         ]);
@@ -132,7 +132,7 @@ class ChromePageTest extends FunctionalTest
     public function testInvalidUTF8IsSubstitutedInConfigAndRefusedInAModuleKey(): void
     {
         Config::modify()->set(LeftAndMain::class, 'client_debugging', "bad \xB1 byte</script>");
-        Config::modify()->set(ClientRegistry::class, 'modules', ["acme/bad\xB1byte" => ['entries' => ['main' => ['link' => 'https://cdn.example.test/hello.js']]]]);
+        Config::modify()->set(ClientRegistry::class, 'modules', ["acme/bad\xB1byte" => ['entries' => ['main' => ['js' => 'https://cdn.example.test/hello.js']]]]);
 
         $body = $this->sectionNavigation();
 

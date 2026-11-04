@@ -45,7 +45,7 @@ class ImportMapTest extends SapphireTest
         Config::modify()->set(ClientRegistry::class, 'modules', [
             'silverstripe/dates' => [
                 'imports' => ['@silverstripe/dayjs' => 'silverstripe/admin:client/dist/js/i18n.js'],
-                'entries' => ['main' => ['link' => 'silverstripe/admin:client/dist/js/i18n.js']],
+                'entries' => ['main' => ['js' => 'silverstripe/admin:client/dist/js/i18n.js']],
             ],
             'silverstripe/dayjs' => ['imports' => ['dayjs' => 'silverstripe/admin:client/dist/js/i18n.js']],
         ]);
