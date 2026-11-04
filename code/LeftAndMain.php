@@ -642,10 +642,17 @@ class LeftAndMain extends FormSchemaController implements PermissionProvider
     }
 
     /**
+     * Checks `canView()` itself, so a section whose `init()` skips the gate in AdminController::init() still refuses
+     * a member with the permission failure rather than a page carrying the config and the import map
+     *
      * @internal
      */
     protected function renderChrome(): HTTPResponse
     {
+        if (!$this->canView()) {
+            $this->suppressAdminErrorContext = true;
+            return Security::permissionFailure($this);
+        }
         // Building the client config instantiates section forms, which require their own JS
         $clientConfig = $this->getCombinedClientConfig();
         Requirements::clear();

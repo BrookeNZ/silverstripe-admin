@@ -8,6 +8,7 @@ use SilverStripe\Admin\Client\ClientRegistry;
 use SilverStripe\Admin\LeftAndMain;
 use SilverStripe\Admin\Tests\Client\ChromePageTest\NonceExtension;
 use SilverStripe\Admin\Tests\Client\ChromePageTest\SectionController;
+use SilverStripe\Admin\Tests\Client\ChromePageTest\UngatedSectionController;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Core\Config\Config;
 use SilverStripe\Core\Injector\Injector;
@@ -29,6 +30,7 @@ class ChromePageTest extends FunctionalTest
 
     protected static $extra_controllers = [
         SectionController::class,
+        UngatedSectionController::class,
     ];
 
     protected function setUp(): void
@@ -184,6 +186,17 @@ class ChromePageTest extends FunctionalTest
 
         $this->assertSame(500, $response->getStatusCode());
         $this->assertStringContainsString('window.ss.config', $response->getBody());
+    }
+
+    public function testASectionWhoseInitSkipsTheGateStillRefusesAMemberItCannotView(): void
+    {
+        $this->autoFollowRedirection = false;
+
+        $response = $this->get('admin/chrome-ungated-section/', null, ['Accept' => 'text/html']);
+
+        $this->assertSame(403, $response->getStatusCode(), 'The permission failure, not a page');
+        $this->assertStringNotContainsString('ss-admin-config', (string) $response->getBody());
+        $this->assertStringNotContainsString('type="importmap"', (string) $response->getBody());
     }
 
     private function sectionNavigation(): string

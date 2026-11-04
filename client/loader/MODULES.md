@@ -237,9 +237,9 @@ SilverStripe\Admin\Client\ClientRegistry:
 
 ## Permissions
 
-The entry list is written into the page for a member the section being served lets in (its `canView()`). Every
-entry in it is listed for every such member. Listing decides what loads, not who can fetch the files, which are
-public; a module's server endpoints check permissions themselves.
+The page, and the entry list in it, is served to a member the section lets in (its `canView()`); any other member
+gets the permission failure. Every entry in the list is listed for every such member. Listing decides what loads,
+not who can fetch the files, which are public; a module's server endpoints check permissions themselves.
 
 ## When something fails
 

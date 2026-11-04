@@ -32,10 +32,7 @@ class ChromePage extends ModelData
 
     private string $nonce;
 
-    /**
-     * Null for a member the section refuses
-     */
-    private ?array $entryItems;
+    private array $entryItems;
 
     private ?string $scriptURL;
 
@@ -47,7 +44,7 @@ class ChromePage extends ModelData
         $nonce = '';
         $controller->extend('updateChromeNonce', $nonce);
         $this->nonce = (string) $nonce;
-        $this->entryItems = $controller->canView() ? ClientRegistry::singleton()->getEntries() : null;
+        $this->entryItems = ClientRegistry::singleton()->getEntries();
         $this->scriptURL = LoaderAssets::singleton()->getScriptURL();
         if ($this->scriptURL === null && Director::isDev()) {
             Injector::inst()->get(LoggerInterface::class)->warning(
@@ -77,7 +74,7 @@ class ChromePage extends ModelData
     {
         $entryURLs = [];
         $imports = ClientRegistry::singleton()->getImports();
-        foreach (array_column($this->entryItems ?? [], 'name') as $name) {
+        foreach (array_column($this->entryItems, 'name') as $name) {
             $entryURLs[] = $imports[$name];
         }
         $sharedImports = ImportMap::singleton()->getSharedImports();
@@ -91,16 +88,11 @@ class ChromePage extends ModelData
 
     /**
      * A client entry's stylesheet is linked only when the entry is listed, with the entry's name in `data-entry`
-     * so the loader can remove it on failure. A stylesheet entry's is always linked. Empty for a member the
-     * section refuses
+     * so the loader can remove it on failure. A stylesheet entry's is always linked
      */
     public function ClientEntryStylesheets(): ArrayList
     {
-        $items = $this->entryItems;
-        if ($items === null) {
-            return ArrayList::create();
-        }
-        $listedNames = array_column($items, 'name');
+        $listedNames = array_column($this->entryItems, 'name');
         $links = [];
         foreach (ClientRegistry::singleton()->getStylesheets() as $stylesheet) {
             if (!$stylesheet['entry']) {
@@ -129,7 +121,7 @@ class ChromePage extends ModelData
 
     public function ClientEntryList(): string
     {
-        return ChromePage::jsonForScriptBlock($this->entryItems ?? []);
+        return ChromePage::jsonForScriptBlock($this->entryItems);
     }
 
     /**

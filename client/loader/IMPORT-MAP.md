@@ -19,8 +19,10 @@ design. For writing a module and its entries, see [MODULES.md](MODULES.md).
    `init()`, then renders the chrome page with `renderChrome()` unless `init()` has already redirected or refused,
    before any URL rule or action lookup, so every URL under a section gets the same page and a client route with no
    server action, even one named `run` or `doinit`, neither 404s nor 403s. Section access is still `canView()` in
-   `AdminController::init()`, and section-wide access belongs in `canView()` or a section's `init()`: on a navigation
-   no `url_handlers` rule, action, `allowed_actions` check or `handleAction()` override runs, so
+   `AdminController::init()`, and `renderChrome()` checks it again, so a section whose `init()` skips that gate still
+   gets the permission failure rather than a page. Section-wide access belongs in `canView()` or a section's
+   `init()`: on a navigation no `url_handlers` rule, action, `allowed_actions` check or `handleAction()` override
+   runs, so
    `getCombinedClientConfig()` sees only the params `AdminRootController` matched against the section's `url_rule`,
    and a section's config must not key off params its `url_handlers` would set. The reports module's `ReportAdmin`
    refuses an unknown report (404) or one the member cannot view in `handleAction()`, so a navigation to either gets
@@ -40,9 +42,9 @@ design. For writing a module and its entries, see [MODULES.md](MODULES.md).
      `data-entry="<name>"`, and for each stylesheet entry with a `css`, with no `data-entry`
      ([MODULES.md](MODULES.md), *Module CSS*). PHP writes these links; the entry list does not carry
      them (one that hangs: [MODULES.md](MODULES.md), *When something fails*);
-   - the entry list as JSON in `#ss-admin-entries`, from `ClientRegistry::getEntries()`, and empty for a member the
-     section's `canView()` refuses. Each item is `{name, module}`. The list travels in the page, there is no
-     separate entry endpoint, and an item carries no version: a file's URL carries its modification time.
+   - the entry list as JSON in `#ss-admin-entries`, from `ClientRegistry::getEntries()`. Each item is
+     `{name, module}`. The list travels in the page, there is no separate entry endpoint, and an item carries no
+     version: a file's URL carries its modification time.
      `getEntries()` leaves out, with a warning, a later item of a name already listed, and the loader loads the
      list as written ([MODULES.md](MODULES.md), *When something fails*);
    - the client config as JSON in `#ss-admin-config`;
