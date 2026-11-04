@@ -165,7 +165,7 @@ image from `url()` on another site needs `img-src` to allow that site.
 ## Warnings
 
 `ClientRegistry`, `ClientEntryChecker`, `ImportMap` and `ChromePage` log every warning (a skipped module or entry, a missing file,
-a link, project path or `vendor/package:path`, to a file outside `public/` with no exposed copy in
+a bare path, project path or `vendor/package:path`, to a file outside `public/` with no exposed copy in
 `public/_resources/`, a dropped stylesheet, an `imports` specifier or `requires` value that is not bare, a bad dev
 override, an item `updateEntries` added for an unmapped name, one already listed or a module that is not a string, a
 missing or empty loader manifest, a shared file the manifest lists with no digest, and in dev an unbuilt loader, a

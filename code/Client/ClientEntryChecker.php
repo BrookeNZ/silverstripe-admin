@@ -229,7 +229,15 @@ class ClientEntryChecker
 
     private static function isInstalledPackage(string $name): bool
     {
-        return InstalledVersions::isInstalled($name) || (InstalledVersions::getRootPackage()['name'] ?? null) === $name;
+        return InstalledVersions::isInstalled($name) || ClientEntryChecker::isRootPackage($name);
+    }
+
+    /**
+     * The project itself, whose bare paths are relative to the project root rather than to a package folder
+     */
+    public static function isRootPackage(string $name): bool
+    {
+        return (InstalledVersions::getRootPackage()['name'] ?? null) === $name;
     }
 
     /**
@@ -377,14 +385,14 @@ class ClientEntryChecker
             }
         }
         // A client entry's name is its specifier; a stylesheet entry claims none
-        $linked = array_filter($entries, ClientEntryChecker::hasJs(...));
-        foreach (array_unique([...array_keys($linked), ...array_keys($importers)]) as $specifier) {
+        $scripted = array_filter($entries, ClientEntryChecker::hasJs(...));
+        foreach (array_unique([...array_keys($scripted), ...array_keys($importers)]) as $specifier) {
             $specifier = (string) $specifier;
             $labels = [];
             if (isset($this->sharedSpecifiers[$specifier])) {
                 $labels[] = "the loader build's shared files";
             }
-            if (isset($linked[$specifier])) {
+            if (isset($scripted[$specifier])) {
                 $labels[] = sprintf('%s "%s"', ClientEntryChecker::CLIENT_ENTRY, $specifier);
             }
             foreach ($importers[$specifier] ?? [] as $key) {
@@ -398,7 +406,7 @@ class ClientEntryChecker
                 ucfirst(implode(' and ', $labels)),
                 $specifier
             ));
-            if (isset($linked[$specifier])) {
+            if (isset($scripted[$specifier])) {
                 unset($entries[$specifier]);
             }
             foreach ($importers[$specifier] ?? [] as $key) {

@@ -2,6 +2,7 @@
 
 namespace SilverStripe\Admin\Tests\Client;
 
+use Composer\InstalledVersions;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
 use Psr\Log\LoggerInterface;
@@ -110,7 +111,7 @@ class ClientRegistryTest extends SapphireTest
     {
         Config::modify()->set(ClientRegistry::class, 'modules', [
             // A project path, which is served only through the exposed copy of admin's client/dist
-            'acme/hello' => ['entries' => ['main' => [
+            ClientRegistryTest::root() => ['entries' => ['main' => [
                 'js' => $path = ModuleResourceLoader::singleton()->resolvePath('silverstripe/admin:client/dist/js/bundle.js'),
             ]]],
         ]);
@@ -123,13 +124,25 @@ class ClientRegistryTest extends SapphireTest
             chdir($directory);
         }
 
-        $this->assertStringContainsString('/' . RESOURCES_DIR . '/' . $path, $map['imports']['acme/hello/main']);
+        $this->assertStringContainsString('/' . RESOURCES_DIR . '/' . $path, $map['imports'][ClientRegistryTest::root() . '/main']);
+    }
+
+    public function testABarePathIsTheModulesOwnFile(): void
+    {
+        // framework is a vendor module in every layout, admin's own CI included, where admin is the root package
+        Config::modify()->set(ClientRegistry::class, 'modules', [
+            'silverstripe/framework' => ['imports' => ['debug-styles' => 'client/styles/debug.css']],
+        ]);
+
+        $imports = ClientRegistry::singleton()->getImports();
+
+        $this->assertStringContainsString('silverstripe/framework/client/styles/debug.css', $imports['debug-styles']);
     }
 
     public function testAProjectFileOutsidePublicWithNoExposedCopyIsDropped(): void
     {
         Config::modify()->set(ClientRegistry::class, 'modules', [
-            'acme/root' => ['entries' => ['main' => ['js' => 'composer.json']]],
+            ClientRegistryTest::root() => ['entries' => ['main' => ['js' => 'composer.json']]],
         ]);
         $logged = $this->captureWarnings();
 
@@ -148,7 +161,7 @@ class ClientRegistryTest extends SapphireTest
         $this->assertTrue($logged->hasWarningThatContains('add its folder to extra.expose'));
     }
 
-    public function testMissingFilesAndLinklessEntriesAreDropped(): void
+    public function testMissingFilesAndEntriesWithoutJsAreDropped(): void
     {
         $missing = 'silverstripe/admin:tests/php/Client/ClientRegistryTest/missing.js';
         Config::modify()->set(ClientRegistry::class, 'modules', [
@@ -198,7 +211,7 @@ class ClientRegistryTest extends SapphireTest
     public function testLinksThatLeaveTheProjectAreDropped(): void
     {
         Config::modify()->set(ClientRegistry::class, 'modules', [
-            'acme/up' => ['entries' => ['main' => ['js' => '../../etc/hostname']]],
+            ClientRegistryTest::root() => ['entries' => ['main' => ['js' => '../../etc/hostname']]],
             'acme/module-up' => ['entries' => ['main' => ['js' => 'silverstripe/admin:../../../.env']]],
             'acme/hello' => [
                 'imports' => ['helper' => '../../etc/hostname'],
@@ -207,6 +220,7 @@ class ClientRegistryTest extends SapphireTest
                     'css' => 'silverstripe/admin:../../../.env',
                 ]],
             ],
+            ClientRegistryTest::INSTALLED => ['imports' => ['helper-up' => '../../etc/hostname']],
         ]);
         $logged = $this->captureWarnings();
 
@@ -214,18 +228,22 @@ class ClientRegistryTest extends SapphireTest
 
         $this->assertSame(['acme/hello/main'], array_column($registry->getEntries(), 'name'));
         $this->assertSame(['acme/hello/main'], array_keys($registry->getImports()));
+        $this->assertTrue(
+            $logged->hasWarningThatContains('points its import "helper-up" at "silverstripe/admin:../../etc/hostname", which cannot be resolved (Can not collapse relative folders)'),
+            'A bare path with .. under an installed module is resolved against the module, then refused for the ..'
+        );
         $this->assertSame([], $registry->getStylesheets());
         $this->assertTrue(
             $logged->hasWarningThatContains('Client entry "acme/hello/main" points its stylesheet at "silverstripe/admin:../../../.env", which cannot be resolved'),
             'The dropped stylesheet is logged'
         );
         $this->assertTrue(
-            $logged->hasWarningThatContains('Client entry "acme/up/main" points its script at "../../etc/hostname", which cannot be resolved (Can not collapse relative folders)'),
+            $logged->hasWarningThatContains('Client entry "' . ClientRegistryTest::root() . '/main" points its script at "../../etc/hostname", which cannot be resolved (Can not collapse relative folders)'),
             'The .. segment, not a missing file, drops it'
         );
     }
 
-    public function testALinkClearedByLaterConfigDropsTheWholeEntry(): void
+    public function testAJsClearedByLaterConfigDropsTheWholeEntry(): void
     {
         Config::modify()->set(ClientRegistry::class, 'modules', [
             'acme/dates' => ['entries' => ['main' => ['js' => null, 'css' => 'https://cdn.example.test/dates.css']]],
@@ -428,6 +446,14 @@ class ClientRegistryTest extends SapphireTest
         $this->assertTrue($logged->hasWarningThatContains(
             'Module "silverstripe/dates" has requires of type string, but requires is a list of bare specifiers; the module was left out'
         ));
+    }
+
+    /**
+     * The project's own package name, under which a bare path is relative to the project root
+     */
+    private static function root(): string
+    {
+        return InstalledVersions::getRootPackage()['name'];
     }
 
     /**

@@ -55,7 +55,8 @@ client entries nested under it, in a config file such as `_config/client.yml`. T
 `LeftAndMain.extra_requirements_javascript` and `extra_requirements_css`: the chrome page loads no `Requirements` at
 all, so a script a section used to add that way reaches the admin only as an entry, and a stylesheet only through a
 `css` key (see *Module CSS*). The `expose` block in `composer.json` stays: it is what makes the module's built files
-public. The project's own entries go under the root package's name, the `name` in the root `composer.json`.
+public. The project's own entries go under the root package's name, the `name` in the root `composer.json`, which it must
+have: Composer calls a nameless root `__root__`, which is not a module key.
 
 ```yaml
 ---
@@ -66,8 +67,8 @@ SilverStripe\Admin\Client\ClientRegistry:
     vendor-name/module-name:
       entries:
         main:
-          js: 'vendor-name/module-name:client/dist/main/index.js'
-          css: 'vendor-name/module-name:client/dist/main/main.css'
+          js: 'client/dist/main/index.js'
+          css: 'client/dist/main/main.css'
 ```
 
 **Names.** A module key is `vendor/name`: exactly one `/`, between a vendor and a name, no `@` anywhere, and bare as
@@ -93,7 +94,7 @@ that names them.
 
 | Key | Meaning |
 |---|---|
-| `js` | Required for a client entry. A `vendor/package:path` link, a path relative to the project root (for the project's own files, see below), or a URL (`http://`, `https://`, `//` or a path starting with `/`). A value that is not a string (such as `5`), a file link with a `..` segment, to a file that does not exist, or to a file the site does not serve (see below), skips the entry with a warning; the module's `imports` stay |
+| `js` | Required for a client entry. A path relative to the module's own package, a `vendor/package:path` link to another package's file, a path from the project root under the root package (see below), or a URL (`http://`, `https://`, `//` or a path starting with `/`). A value that is not a string (such as `5`), a file link with a `..` segment, to a file that does not exist, or to a file the site does not serve (see below), skips the entry with a warning; the module's `imports` stay |
 | `css` | A stylesheet, a link of the same forms as `js`, with the same cache-busting query. There is no default file: an entry with no `css` has no stylesheet. A missing file, a `..` segment, a file the site does not serve or a value that is not a link drops the stylesheet with a warning, and the entry still loads. An entry with `css` and no `js` is a stylesheet entry. See *Module CSS* |
 | `enabled` | `false` drops that entry and its stylesheet and leaves the module's other entries and imports alone. Any other value drops the entry with a warning |
 
@@ -111,7 +112,9 @@ that load together run `setup` in this order.
 Two config fragments that declare one module merge as Silverstripe config does: a later fragment's value replaces an
 earlier one key by key, entries and imports are added to the earlier map, and its `requires` to the earlier list.
 
-A project's own file is given by its path from the project root, and is accepted only where the site serves it. A
+A bare path, one with no `vendor/package:` prefix, is a file of the module's own package: `js: 'client/dist/main.js'`
+under `acme/dates` is `acme/dates:client/dist/main.js`, served from its exposed copy as below. Under the root package,
+the project itself, a bare path is relative to the project root, and is accepted only where the site serves it. A
 path under `public/` is served from the web root as it is, so `js: 'public/my-module/index.js'` is served as
 `/my-module/index.js`. Any other (such as one under `app/`) is served from its copy under `public/_resources/`, which
 exists only once the root `composer.json` lists its folder in `extra.expose` and `composer vendor-expose` has run. A
@@ -119,9 +122,12 @@ exists only once the root `composer.json` lists its folder in `extra.expose` and
 The simplest route for an entry in the project itself: build it to a folder under `public/`, declare `js`, `css`
 and `imports` paths starting `public/` under the root package's name, and run `vendor/bin/sake flush`.
 
-A `vendor/package:path` value for `js`, `css` or an `imports` entry is served from its copy under
-`public/_resources/`, so its folder must be in `extra.expose` and `composer vendor-expose` must have run; a file with
-neither is left out with the same warning.
+A package file, whether a bare path or a `vendor/package:path` value for `js`, `css` or an `imports` entry, is served
+from its copy under `public/_resources/`, so its folder must be in `extra.expose` and `composer vendor-expose` must
+have run; a file with neither is left out with the same warning. The package must be one the framework's module
+loader knows, a `silverstripe-vendormodule` or `silverstripe-theme` type or a package with a `_config` folder; a
+plain `library` type is reported as a missing module. A module that names another package's file writes the
+`vendor/package:path` form; a project file is addressed by URL, or by its path under the root package's own key.
 
 A file's URL carries the framework's modification-time `?m=` query, so a rebuilt file gets a new URL; a link given
 as a URL is used as it is. A URL may name another origin (`https://host/...` or `//host/...`), as
@@ -197,14 +203,14 @@ SilverStripe\Admin\Client\ClientRegistry:
         '@acme/dates': 'acme/dates:client/dist/dates.js'
       entries:
         main:
-          js: 'acme/dates:client/dist/index.js'
+          js: 'client/dist/index.js'
           css: 'acme/dates:client/dist/dates.css'
     acme/calendar:
       requires:
         - '@acme/dates'
       entries:
         main:
-          js: 'acme/calendar:client/dist/index.js'
+          js: 'client/dist/index.js'
 ```
 
 - Each `imports` path gets a `js`'s forms and cache-busting query; a value that is not a string, a missing file, a
