@@ -111,14 +111,16 @@ class ClientRegistry
     }
 
     /**
-     * Resolves a link as a client entry's `link` is, logging a warning and returning null where it does not resolve
+     * Resolves a link as a client entry's `js` is, logging a warning and returning null where it does not resolve
      *
      * @param string $name What the warning calls the link's owner
+     * @param string $module The package a bare path is relative to
      * @internal
      */
-    public function resolveItemLink(string $name, mixed $link): ?string
+    public function resolveItemLink(string $name, string $module, mixed $link): ?string
     {
-        return $this->resolveLink(ClientEntryChecker::CLIENT_ENTRY, $name, $link, 'its script', 'the item was left out');
+        $type = ClientEntryChecker::CLIENT_ENTRY;
+        return $this->resolveLink($type, $name, $module, $link, 'its script', 'the item was left out');
     }
 
     /**

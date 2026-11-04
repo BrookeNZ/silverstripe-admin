@@ -142,7 +142,7 @@ project gives the logger a handler (see [IMPORT-MAP.md](IMPORT-MAP.md), *Warning
 
 `SilverStripe\Admin\Client\ComponentRegistry` attaches component files to PHP classes. Its config is keyed by class name; a
 leading backslash is ignored. Each class takes a `component` link and a `wrap` map of named links, in the forms a
-client entry's `link` takes:
+client entry's `js` takes, except that a bare path is the root package's file, since a class key names no module:
 
 ```yaml
 SilverStripe\Admin\Client\ComponentRegistry:

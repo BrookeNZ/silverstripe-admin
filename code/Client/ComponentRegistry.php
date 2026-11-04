@@ -13,7 +13,8 @@ use SilverStripe\Core\Injector\Injector;
  * YAML that attaches component files to PHP classes, compiled into client entries of the module that owns each file.
  * The config is keyed by class name; each class takes a `component` link and a `wrap` map of named links, and a null
  * item removes one an earlier config fragment set under the same class. Links take the forms a ClientRegistry entry's
- * `link` takes. client/loader/MODULES.md documents the shape; keep the two in step.
+ * `js` takes, except that a bare path is the root package's file, since a class key names no module.
+ * client/loader/MODULES.md documents the shape; keep the two in step.
  *
  * An item belongs to the package of a `vendor/package:path` link, otherwise to the project's root package, and is
  * named `<module>/component.<Class.With.Dots>` or `<module>/wrap.<Class.With.Dots>.<item>`. A module that
@@ -61,7 +62,7 @@ class ComponentRegistry
             return null;
         }
         $name = $module . '/' . $kind . '.' . $suffix;
-        $url = $registry->resolveItemLink($name, $link);
+        $url = $registry->resolveItemLink($name, $module, $link);
         if ($url === null) {
             return null;
         }
@@ -70,10 +71,8 @@ class ComponentRegistry
 
     private function moduleOf(mixed $link): string
     {
-        if (is_string($link) && preg_match('#^([^/:\s]+/[^/:\s]+):#', $link, $matches)) {
-            return $matches[1];
-        }
-        return InstalledVersions::getRootPackage()['name'];
+        $package = is_string($link) ? ClientEntryChecker::packageOf($link) : null;
+        return $package ?? InstalledVersions::getRootPackage()['name'];
     }
 
     /**
