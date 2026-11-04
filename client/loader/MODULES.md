@@ -215,8 +215,9 @@ SilverStripe\Admin\Client\ClientRegistry:
 - Any module may add bare specifiers, scoped or not. Choosing a scope for a library, such as `@acme/` for the
   `acme` packages, is a convention; nothing checks it.
 - Specifiers and `requires` values must be bare, since any other would remap a URL, a path or a whole
-  prefix in the map: no whitespace or control characters (a browser strips them from a map key), no URL scheme, `/`,
-  `./` or `../` prefix, and no trailing `/` on an `imports` specifier.
+  prefix in the map: no whitespace or control characters (a browser strips them from a map key), no byte that is
+  not UTF-8 (the page's JSON encoder would substitute it, so two keys could reach the browser as one), no URL scheme,
+  `/`, `./` or `../` prefix, and no trailing `/` on an `imports` specifier.
 - A **library package** (`acme/dayjs: { imports: { dayjs: 'acme/dayjs:dist/dayjs.js' } }`) is a module with
   `imports` and no entries: a Composer package giving one npm library to the map. It has no `setup` and nothing is
   listed for it.

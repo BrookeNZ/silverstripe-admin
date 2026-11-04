@@ -428,12 +428,14 @@ class ClientEntryChecker
     }
 
     /**
-     * Refuses whitespace and control characters anywhere, which a browser strips from a map key, and anything a
-     * browser reads as a URL or a path rather than a bare specifier
+     * Refuses whitespace and control characters anywhere, which a browser strips from a map key, bytes that are not
+     * UTF-8, which ChromePage::jsonForScriptBlock() substitutes so two keys could reach the browser as one name, and
+     * anything a browser reads as a URL or a path rather than a bare specifier
      */
     private static function isBareSpecifier(string $specifier): bool
     {
         return $specifier !== ''
+            && mb_check_encoding($specifier, 'UTF-8')
             && !preg_match('#[\x00-\x20\x7f]#', $specifier)
             && !preg_match('#^(\.{0,2}/|[A-Za-z][A-Za-z0-9+.-]*:)#', $specifier);
     }

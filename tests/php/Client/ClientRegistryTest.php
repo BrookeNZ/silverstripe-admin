@@ -357,6 +357,8 @@ class ClientRegistryTest extends SapphireTest
             'module takes a scope' => $this->refusedFor('@silverstripe/whatever', 'main'),
             'module ends with a slash' => $this->refusedFor('silverstripe/', 'main'),
             'module has two slashes' => $this->refusedFor('silverstripe/dates/extra', 'main'),
+            'module has a byte that is not UTF-8' => $this->refusedFor("acme/bad\xB1byte", 'main'),
+            'specifier has a byte that is not UTF-8' => $this->refusedFor('silverstripe/dates', 'main', "day\xB1js"),
             'entry key has a slash' => $this->refusedFor('silverstripe/dates', 'main/extra'),
             'entry key starts with a dot' => $this->refusedFor('silverstripe/dates', '.main'),
         ];

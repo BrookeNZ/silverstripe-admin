@@ -127,7 +127,7 @@ class ChromePageTest extends FunctionalTest
         }
     }
 
-    public function testInvalidUTF8IsSubstituted(): void
+    public function testInvalidUTF8IsSubstitutedInConfigAndRefusedInAModuleKey(): void
     {
         Config::modify()->set(LeftAndMain::class, 'client_debugging', "bad \xB1 byte</script>");
         Config::modify()->set(ClientRegistry::class, 'modules', ["acme/bad\xB1byte" => ['entries' => ['main' => ['link' => 'https://cdn.example.test/hello.js']]]]);
@@ -136,7 +136,7 @@ class ChromePageTest extends FunctionalTest
 
         $config = $this->jsonBlock($body, 'id="ss-admin-config"');
         $this->assertSame("bad \u{FFFD} byte</script>", $config['debugging'], 'Substituted, and unable to close its block');
-        $this->assertSame(["acme/bad\u{FFFD}byte/main"], array_column($this->jsonBlock($body, 'id="ss-admin-entries"'), 'name'));
+        $this->assertSame([], $this->jsonBlock($body, 'id="ss-admin-entries"'), 'A key the encoder would alter never reaches the page');
     }
 
     public function testADataRequestToASectionURLReachesItsLegacyAction(): void
