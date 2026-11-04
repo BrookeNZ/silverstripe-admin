@@ -398,7 +398,7 @@ class ClientRegistry
      */
     private static function packagePath(string $module, string $link): string
     {
-        $isResource = preg_match('#^ *[^/: ]+/[^/: ]+ *:#', $link) === 1;
+        $isResource = ClientEntryChecker::packageOf($link) !== null;
         return $isResource || ClientEntryChecker::isRootPackage($module) ? $link : $module . ':' . $link;
     }
 

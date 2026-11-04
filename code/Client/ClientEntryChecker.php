@@ -241,6 +241,15 @@ class ClientEntryChecker
     }
 
     /**
+     * The package a `vendor/package:path` link names, matched as ModuleResourceLoader::resolveResource() matches
+     * it, or null for a bare path or a URL
+     */
+    public static function packageOf(string $link): ?string
+    {
+        return preg_match('#^ *(?<package>[^/: ]+/[^/: ]+) *:#', $link, $matches) === 1 ? $matches['package'] : null;
+    }
+
+    /**
      * @return array<string, array{module: string, js?: string, css?: string}> By `<module>/<entry>`
      */
     private function checkedEntries(string $module, array $configured): array
