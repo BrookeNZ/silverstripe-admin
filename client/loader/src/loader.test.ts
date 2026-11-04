@@ -142,23 +142,6 @@ describe('readEntryList', () => {
     document.head.append(block);
   }
 
-  it('keeps the first item of a name listed twice, with a warning', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    entryBlock(JSON.stringify([
-      { name: 'files', module: 'first' },
-      { name: 'files', module: 'second' },
-    ]));
-    expect(readEntryList().map(({ module }) => module)).toEqual(['first']);
-    expect(warn).toHaveBeenCalledTimes(1);
-  });
-
-  it('skips an item without a module, with a warning', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    entryBlock(JSON.stringify([{ name: 'broken' }, listed('files')]));
-    expect(readEntryList()).toEqual([listed('files')]);
-    expect(warn).toHaveBeenCalledTimes(1);
-  });
-
   it('logs an error and lists nothing when the block is missing, not JSON or not a list', () => {
     expect(readEntryList()).toEqual([]);
     for (const json of ['[{"name"', '{"name":"files","module":"acme/files"}']) {

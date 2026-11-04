@@ -43,8 +43,8 @@ design. For writing a module and its entries, see [MODULES.md](MODULES.md).
    - the entry list as JSON in `#ss-admin-entries`, from `ClientRegistry::getEntries()`, and empty for a member the
      section's `canView()` refuses. Each item is `{name, module}`. The list travels in the page, there is no
      separate entry endpoint, and an item carries no version: a file's URL carries its modification time.
-     `getEntries()` leaves out, with a warning, a later item of a name already listed, and the loader
-     ignores a later item of a name listed twice ([MODULES.md](MODULES.md), *When something fails*);
+     `getEntries()` leaves out, with a warning, a later item of a name already listed, and the loader loads the
+     list as written ([MODULES.md](MODULES.md), *When something fails*);
    - the client config as JSON in `#ss-admin-config`;
    - the loader, `<script type="module">`, when `main.js` is built; in dev a missing one is logged.
 

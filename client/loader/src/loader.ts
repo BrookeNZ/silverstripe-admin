@@ -19,9 +19,9 @@ export type EntryImporter = (specifier: string) => Promise<EntryExports>;
 const importEntry: EntryImporter = (specifier) => import(/* webpackIgnore: true */ specifier);
 
 /**
- * The entry list from the page, minus duplicates and items with no name or module. Empty, with a console error, when
- * the block is missing or not a list. When a name appears twice the first item wins; keep that in step with
- * ClientRegistry::dropRefusedItems()
+ * The entry list from the page, minus any item with no name. Empty, with a console error, when the block is missing
+ * or not a list. The list is taken as written: ClientRegistry::dropRefusedItems() has already refused duplicates and
+ * items without a module before the page carries it
  */
 export function readEntryList(): Array<ClientEntry> {
   const items = readDataBlock(ENTRIES_BLOCK_ID);
@@ -29,24 +29,7 @@ export function readEntryList(): Array<ClientEntry> {
     console.error('The page entry list is missing or not a JSON list; no client entries were loaded');
     return [];
   }
-  const seen = new Set<string>();
-  const listed: Array<ClientEntry> = [];
-  for (const item of items) {
-    if (typeof item?.name !== 'string') {
-      continue;
-    }
-    if (seen.has(item.name)) {
-      console.warn(`The client entry "${item.name}" is listed more than once; only its first item is used`);
-      continue;
-    }
-    seen.add(item.name);
-    if (typeof item.module !== 'string') {
-      console.warn(`The client entry "${item.name}" is listed without a module; it is not loaded`);
-      continue;
-    }
-    listed.push(item as ClientEntry);
-  }
-  return listed;
+  return items.filter((item): item is ClientEntry => typeof item?.name === 'string');
 }
 
 /**

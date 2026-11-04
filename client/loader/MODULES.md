@@ -252,7 +252,8 @@ public; a module's server endpoints check permissions themselves.
   before it is still loading, so a stylesheet that never finishes loading holds back the loader and every entry.
 - A name listed twice (two items from `updateEntries` naming one entry) keeps its first item; the later one is left
   out with a logged warning, and the order `updateEntries` leaves decides which wins. An item that names no entry in
-  the import map is left out with a logged warning, and one without a module is skipped with a console warning.
+  the import map, or whose module is not a module name, is left out with a logged warning. The loader loads the list
+  as the page carries it, dropping only an item with no name, and checks none of this again.
 - A page without its client config logs `The admin could not start` and loads no entry. An entry list that is
   missing or not a JSON list logs `The page entry list is missing or not a JSON list` and loads no entry. A loader
   that is not built is logged on the server in dev.

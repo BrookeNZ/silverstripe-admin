@@ -111,8 +111,8 @@ class ClientRegistry
     }
 
     /**
-     * Drops an item whose name is not a mapped entry, and what readEntryList() in client/loader/src/loader.ts would
-     * skip without a word: a non-string module and a later item of a name
+     * Drops an item whose name is not a mapped entry, whose module is not a string, or whose name is already listed.
+     * The loader (client/loader/src/loader.ts) loads the list as written, so nothing refuses such an item after this
      */
     private function dropRefusedItems(array $items): array
     {
