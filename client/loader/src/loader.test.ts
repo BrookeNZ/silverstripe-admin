@@ -17,6 +17,7 @@ afterEach(() => {
   document.head.replaceChildren();
 });
 
+/** An importer that records each specifier asked for and resolves, or rejects, with what the map holds for it */
 function countingImporter(entries: Record<string, EntryExports | Error | Promise<EntryExports>>) {
   const imported: Array<string> = [];
   const importer: EntryImporter = (specifier) => {
@@ -27,8 +28,10 @@ function countingImporter(entries: Record<string, EntryExports | Error | Promise
   return { imported, importer };
 }
 
+// An entry list item for a name
 const listed = (name: string): ClientEntry => ({ name, module: 'acme/files' });
 
+// The entry name quoted in each console error, in order
 const failedNames = () => errors.mock.calls.map(([message]: Array<unknown>) => String(message).match(/"([\w-]+)"/)?.[1]);
 
 describe('bootEntries', () => {
@@ -131,6 +134,7 @@ describe('claimInternals', () => {
 });
 
 describe('readEntryList', () => {
+  /** Writes an entry list block into the page the way ChromePage.ss does */
   function entryBlock(json: string) {
     const block = document.createElement('script');
     block.id = ENTRIES_BLOCK_ID;

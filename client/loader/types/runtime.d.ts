@@ -1,12 +1,12 @@
 /**
- * `@silverstripe/admin` at runtime, served by the import map as `shared/admin.js`. The loader imports it by that bare
- * specifier, never a relative path, so the page holds one instance and entries read what the loader writes. It
- * has no runtime imports, so it is safe to import before the loader starts.
+ * The `@silverstripe/admin` package as the browser runs it, served by the import map as `shared/admin.js`. The
+ * loader and every entry import it by that name, never by a relative path, so the page has one copy of this file
+ * and entries read the config the loader wrote into it. It imports nothing at runtime, so it is safe to load first.
  *
- * `clientConfig()` is a function, not a `config` export, because an ES module cannot export a getter: a live `let`
- * binding reads `undefined`, though typed as present, until the loader sets it, and a copy taken by a bundler or a
- * test mock keeps that.
+ * `clientConfig()` is a function rather than an exported `config` variable because a module cannot export a
+ * getter: an exported variable would read `undefined` until the loader sets it, and a bundler or a test mock that
+ * copies the value would keep that `undefined`.
  */
 import type { ClientConfig } from './types';
-/** The client config the page carries, deep-frozen; throws before the loader has read it */
+/** The client config from the page, frozen so nothing can change it; throws if the loader has not read it yet */
 export declare function clientConfig(): Readonly<ClientConfig>;

@@ -21,8 +21,10 @@ import sharedConfigs, { baseConfig } from './webpack.shared.config.js';
 
 const releaseDir = path.resolve(import.meta.dirname, '../dist/loader');
 const watching = process.argv.includes('--watch');
+// The digest form ImportMap::getMap() checks for and shortens into each shared file's `?v=` query string
 const sha384 = (file) => `sha384-${crypto.createHash('sha384').update(fs.readFileSync(file)).digest('base64')}`;
 
+/** Writes manifest.json from the files on disk; throws when a shared file the map promises did not build */
 function writeManifest() {
   const shared = Object.fromEntries(sharedSpecifiers.map((name) => [name, `shared/${sharedFiles[name]}.js`]));
   const files = Object.fromEntries(
@@ -58,6 +60,10 @@ const watchTypes = {
 
 const configs = [loaderConfig, ...sharedConfigs];
 
+/**
+ * Handles a build's result, once for a run and once per watch rebuild: prints the summary, writes the manifest, and
+ * in watch mode reruns the package build
+ */
 function report(error, stats) {
   if (error) {
     throw error;
@@ -75,6 +81,7 @@ function report(error, stats) {
 
 export default configs;
 
+// Builds only when run as a script, so importing the file for its configs builds nothing
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   fs.rmSync(releaseDir, { recursive: true, force: true });
   const compiler = webpack(watching

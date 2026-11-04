@@ -21,6 +21,7 @@ export const sharedFiles = {
 
 export const sharedSpecifiers = Object.keys(sharedFiles);
 
+/** The npm package a specifier belongs to: its first segment, or two for a scoped package */
 function packageOf(specifier) {
   const segments = specifier.startsWith('@') ? 2 : 1;
   return specifier.split('/').slice(0, segments).join('/');

@@ -13,9 +13,11 @@ import { sharedFiles, sharedSpecifiers } from './shared.js';
 
 const sharedDir = path.resolve(import.meta.dirname, '../dist/loader/shared');
 
+// Every shared specifier except the file's own, each left to the import map at runtime
 const externalsFor = (fileName) =>
   Object.fromEntries(sharedSpecifiers.filter((name) => sharedFiles[name] !== fileName).map((name) => [name, name]));
 
+// Files built from somewhere other than src/shared/<name>.js
 const sources = { admin: './src/runtime.ts' };
 
 export const baseConfig = {
@@ -36,6 +38,7 @@ export const baseConfig = {
   performance: { hints: false },
 };
 
+/** One build per shared file, writing it to shared/<name>.js as an ES module */
 const configFor = (fileName) => ({
   ...baseConfig,
   name: fileName,

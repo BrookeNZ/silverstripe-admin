@@ -8,6 +8,7 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
+/** Writes a config block into the page the way ChromePage.ss does */
 function configBlock(json: string) {
   const block = document.createElement('script');
   block.type = 'application/json';

@@ -1,7 +1,8 @@
 /**
- * Loads the client entries ChromePage writes into `#ss-admin-entries`. Each is imported by its name, which is its
- * import map specifier, so the map is the only source of an entry's URL and an override of that URL cannot load a
- * second copy. client/loader/MODULES.md documents the failure behaviour for module authors; keep the two in step.
+ * Loads the client entries ChromePage writes into `#ss-admin-entries`. Each entry is imported by its name, and the
+ * import map turns that name into a URL, so the map is the only place an entry's URL comes from and nothing can load
+ * a second copy from elsewhere. client/loader/MODULES.md documents the failure behaviour for module authors; keep
+ * the two in step.
  */
 import type { AdminApi, ClientEntry, EntrySetup } from './types';
 import { ENTRIES_BLOCK_ID, deepFreeze, readDataBlock } from './clientConfig';
@@ -18,8 +19,9 @@ export type EntryImporter = (specifier: string) => Promise<EntryExports>;
 const importEntry: EntryImporter = (specifier) => import(/* webpackIgnore: true */ specifier);
 
 /**
- * The page's entry list with duplicates and malformed items removed; empty, with a console error, when the block
- * is missing or not a list. Keep the first-item-wins rule in step with ClientRegistry::dropRefusedItems()
+ * The entry list from the page, minus duplicates and items with no name or module. Empty, with a console error, when
+ * the block is missing or not a list. When a name appears twice the first item wins; keep that in step with
+ * ClientRegistry::dropRefusedItems()
  */
 export function readEntryList(): Array<ClientEntry> {
   const items = readDataBlock(ENTRIES_BLOCK_ID);
@@ -48,9 +50,9 @@ export function readEntryList(): Array<ClientEntry> {
 }
 
 /**
- * Starts every import at once, then runs each `setup` in list order once its own import arrives and the previous
- * `setup` has settled. A failure gets one console error and its stylesheet removed; one that never settles holds back
- * every item after it, since there is no timeout
+ * Starts every import at once, then runs each entry's `setup` in list order, each waiting for its own import and for
+ * the previous `setup` to finish. A failed entry gets one console error and its stylesheet removed. There is no
+ * timeout, so a `setup` that never finishes blocks every entry after it
  */
 export async function bootEntries(
   items: ReadonlyArray<ClientEntry>,
@@ -58,7 +60,7 @@ export async function bootEntries(
 ): Promise<void> {
   const imports = items.map((item) => {
     const imported = importer(item.name);
-    // A rejection is reported when its item's turn comes; until then it must not count as unhandled
+    // A failed import is reported when its turn comes; this stops the browser reporting it as unhandled first
     imported.catch(() => undefined);
     return imported;
   });
@@ -72,7 +74,10 @@ export async function bootEntries(
   }
 }
 
-/** A failed entry's stylesheet must not keep restyling the page; ChromePage writes the `data-entry` it is found by */
+/**
+ * Removes a failed entry's stylesheets so they stop styling the page; ChromePage writes the `data-entry` they are
+ * found by
+ */
 function removeStylesheets(name: string): void {
   for (const link of document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"][data-entry]')) {
     if (link.dataset.entry === name) {
@@ -82,9 +87,9 @@ function removeStylesheets(name: string): void {
 }
 
 /**
- * Throws for a rejected import, a missing `setup` and a `setup` that throws or rejects alike, so bootEntries()
- * reports all three the same way. The handle is built from a clone and frozen so one entry cannot change what the next
- * one sees
+ * Waits for the entry's import and runs its `setup`. A failed import, a missing `setup` and a `setup` that fails all
+ * throw, so bootEntries() reports them the same way. The `admin` object is a frozen copy, so one entry cannot change
+ * what the next one sees
  */
 async function setupEntry(item: ClientEntry, imported: Promise<EntryExports>): Promise<void> {
   const exported = await imported;

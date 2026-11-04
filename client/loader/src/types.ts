@@ -1,33 +1,34 @@
 /**
- * What a client entry imports from `@silverstripe/admin`: the types below and `clientConfig()`, provided at runtime.
- * `setup()` receives the frozen `admin` object; the client config comes from `clientConfig()`.
- * AdminApi and ClientEntry are interfaces, not aliases, so later code can augment them.
+ * What a client entry can import from `@silverstripe/admin`: the types below, and `clientConfig()` from runtime.ts.
+ * An entry's `setup()` receives the frozen `admin` object, and gets the client config by calling `clientConfig()`.
+ * AdminApi and ClientEntry are interfaces rather than type aliases so later code can add fields to them.
  */
 export { clientConfig } from './runtime';
 
 /**
- * A client entry's item in the page's entry list (`#ss-admin-entries`); every listed entry loads with the page.
- * An entry is a JavaScript file with a `setup` export, not a component: its setup may register several components or none
+ * One item in the page's entry list (`#ss-admin-entries`); every listed entry loads with the page. An entry is a
+ * JavaScript file with a `setup` export, not a component: its `setup` may register several components or none
  */
 export interface ClientEntry {
-  /** The entry's import map specifier, `<module>/<entry>`, which the loader imports it by */
+  /** The entry's name, `<module>/<entry>`; the loader imports the entry by this name through the import map */
   name: string;
   /** The Composer package the entry belongs to */
   module: string;
 }
 
-/** What `setup` receives: read-only, and still valid after an `await` */
+/** The object `setup` receives: read-only, and still usable after an `await` */
 export interface AdminApi {
   readonly entry: Readonly<ClientEntry>;
 }
 
 /**
- * What a client entry exports as `setup`. The admin object it receives is the entry's handle for the admin's
- * registration APIs, which are still to come, and `setup` may receive further arguments after it. The loader waits for
- * a returned promise before the next entry's setup runs
+ * The `setup` function a client entry exports. Its `admin` argument is where the admin's registration APIs will go
+ * once they exist, and more arguments may follow it later. When `setup` returns a promise, the loader waits for it
+ * before running the next entry's `setup`
  */
 export type EntrySetup = (admin: Readonly<AdminApi>) => void | Promise<void>;
 
+/** One admin section in the client config; the typed fields are the ones every section has, the rest are untyped */
 export interface Section {
   name: string;
   url: string;
@@ -37,8 +38,8 @@ export interface Section {
 }
 
 /**
- * The client config LeftAndMain::getCombinedClientConfig() builds for `#ss-admin-config`; keep both interfaces' fields
- * in step. The CSRF token sits under its configurable name, so it is not typed here
+ * The client config LeftAndMain::getCombinedClientConfig() writes into `#ss-admin-config`; a field added on one side
+ * must be added on the other. The CSRF token is not typed because its key is configurable
  */
 export interface ClientConfig {
   sections: Array<Section>;
