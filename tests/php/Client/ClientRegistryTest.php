@@ -55,17 +55,17 @@ class ClientRegistryTest extends SapphireTest
                 'enabled' => false,
                 'imports' => ['off-library' => ClientRegistryTest::FIXTURE],
                 'entries' => [
-                    'first' => ['link' => ClientRegistryTest::FIXTURE, 'css' => 'https://cdn.example.test/first.css'],
-                    'second' => ['link' => ClientRegistryTest::FIXTURE, 'css' => 'https://cdn.example.test/second.css'],
+                    'first' => ['js' => ClientRegistryTest::FIXTURE, 'css' => 'https://cdn.example.test/first.css'],
+                    'second' => ['js' => ClientRegistryTest::FIXTURE, 'css' => 'https://cdn.example.test/second.css'],
                 ],
             ],
             'acme/on' => [
                 'enabled' => true,
                 'imports' => ['on-library' => ClientRegistryTest::FIXTURE],
                 'entries' => [
-                    'off' => ['link' => ClientRegistryTest::FIXTURE, 'css' => 'https://cdn.example.test/off.css', 'enabled' => false],
-                    'main' => ['link' => ClientRegistryTest::FIXTURE, 'css' => 'https://cdn.example.test/main.css', 'enabled' => true],
-                    'default' => ['link' => ClientRegistryTest::FIXTURE],
+                    'off' => ['js' => ClientRegistryTest::FIXTURE, 'css' => 'https://cdn.example.test/off.css', 'enabled' => false],
+                    'main' => ['js' => ClientRegistryTest::FIXTURE, 'css' => 'https://cdn.example.test/main.css', 'enabled' => true],
+                    'default' => ['js' => ClientRegistryTest::FIXTURE],
                 ],
             ],
         ]);
@@ -85,7 +85,7 @@ class ClientRegistryTest extends SapphireTest
 
     public function testEntriesFollowTheOrderTheirModulesAndTheyWereFirstDeclared(): void
     {
-        $entry = fn (string $css) => ['link' => ClientRegistryTest::FIXTURE, 'css' => 'https://cdn.example.test/' . $css . '.css'];
+        $entry = fn (string $css) => ['js' => ClientRegistryTest::FIXTURE, 'css' => 'https://cdn.example.test/' . $css . '.css'];
         Config::modify()->set(ClientRegistry::class, 'modules', [
             'acme/first' => ['entries' => ['main' => $entry('first-main')]],
             'acme/second' => ['entries' => ['main' => $entry('second-main')]],
@@ -111,7 +111,7 @@ class ClientRegistryTest extends SapphireTest
         Config::modify()->set(ClientRegistry::class, 'modules', [
             // A project path, which is served only through the exposed copy of admin's client/dist
             'acme/hello' => ['entries' => ['main' => [
-                'link' => $path = ModuleResourceLoader::singleton()->resolvePath('silverstripe/admin:client/dist/js/bundle.js'),
+                'js' => $path = ModuleResourceLoader::singleton()->resolvePath('silverstripe/admin:client/dist/js/bundle.js'),
             ]]],
         ]);
         $directory = getcwd();
@@ -129,7 +129,7 @@ class ClientRegistryTest extends SapphireTest
     public function testAProjectFileOutsidePublicWithNoExposedCopyIsDropped(): void
     {
         Config::modify()->set(ClientRegistry::class, 'modules', [
-            'acme/root' => ['entries' => ['main' => ['link' => 'composer.json']]],
+            'acme/root' => ['entries' => ['main' => ['js' => 'composer.json']]],
         ]);
         $logged = $this->captureWarnings();
 
@@ -140,7 +140,7 @@ class ClientRegistryTest extends SapphireTest
     public function testAModuleFileOutsideTheModulesExposedFoldersIsDropped(): void
     {
         $link = 'silverstripe/admin:tests/php/Client/ClientRegistryTest/esm.js';
-        Config::modify()->set(ClientRegistry::class, 'modules', ['acme/hidden' => ['entries' => ['main' => ['link' => $link]]]]);
+        Config::modify()->set(ClientRegistry::class, 'modules', ['acme/hidden' => ['entries' => ['main' => ['js' => $link]]]]);
         $logged = $this->captureWarnings();
 
         $this->assertSame([], ClientRegistry::singleton()->getImports());
@@ -154,15 +154,15 @@ class ClientRegistryTest extends SapphireTest
         Config::modify()->set(ClientRegistry::class, 'modules', [
             'acme/missing' => [
                 'imports' => ['@acme/missing-helper' => ClientRegistryTest::FIXTURE],
-                'entries' => ['main' => ['link' => $missing]],
+                'entries' => ['main' => ['js' => $missing]],
             ],
             'acme/module-keys' => [
-                'entries' => ['main' => ['link' => ClientRegistryTest::FIXTURE, 'requires' => ['react']]],
+                'entries' => ['main' => ['js' => ClientRegistryTest::FIXTURE, 'requires' => ['react']]],
             ],
             'acme/missing-library' => ['imports' => ['missing-helper' => $missing]],
-            'acme/unknown-module' => ['entries' => ['main' => ['link' => 'nobody/nothing:client/dist/hello.js']]],
-            'acme/not-a-module-path' => ['entries' => ['main' => ['link' => 'app:client/dist/hello.js']]],
-            'acme/hello' => ['entries' => ['main' => ['link' => ClientRegistryTest::FIXTURE]]],
+            'acme/unknown-module' => ['entries' => ['main' => ['js' => 'nobody/nothing:client/dist/hello.js']]],
+            'acme/not-a-module-path' => ['entries' => ['main' => ['js' => 'app:client/dist/hello.js']]],
+            'acme/hello' => ['entries' => ['main' => ['js' => ClientRegistryTest::FIXTURE]]],
         ]);
         $logged = $this->captureWarnings();
 
@@ -189,7 +189,7 @@ class ClientRegistryTest extends SapphireTest
     public function testAnUpperCaseSchemeLinkStaysOffSite(): void
     {
         Config::modify()->set(ClientRegistry::class, 'modules', [
-            'acme/one' => ['entries' => ['main' => ['link' => 'HTTPS://cdn.example.test/one.js']]],
+            'acme/one' => ['entries' => ['main' => ['js' => 'HTTPS://cdn.example.test/one.js']]],
         ]);
 
         $this->assertSame(['acme/one/main' => 'https://cdn.example.test/one.js'], ClientRegistry::singleton()->getImports());
@@ -198,12 +198,12 @@ class ClientRegistryTest extends SapphireTest
     public function testLinksThatLeaveTheProjectAreDropped(): void
     {
         Config::modify()->set(ClientRegistry::class, 'modules', [
-            'acme/up' => ['entries' => ['main' => ['link' => '../../etc/hostname']]],
-            'acme/module-up' => ['entries' => ['main' => ['link' => 'silverstripe/admin:../../../.env']]],
+            'acme/up' => ['entries' => ['main' => ['js' => '../../etc/hostname']]],
+            'acme/module-up' => ['entries' => ['main' => ['js' => 'silverstripe/admin:../../../.env']]],
             'acme/hello' => [
                 'imports' => ['helper' => '../../etc/hostname'],
                 'entries' => ['main' => [
-                    'link' => ClientRegistryTest::FIXTURE,
+                    'js' => ClientRegistryTest::FIXTURE,
                     'css' => 'silverstripe/admin:../../../.env',
                 ]],
             ],
@@ -228,8 +228,8 @@ class ClientRegistryTest extends SapphireTest
     public function testALinkClearedByLaterConfigDropsTheWholeEntry(): void
     {
         Config::modify()->set(ClientRegistry::class, 'modules', [
-            'acme/dates' => ['entries' => ['main' => ['link' => null, 'css' => 'https://cdn.example.test/dates.css']]],
-            'acme/list' => ['entries' => ['main' => ['link' => ['not', 'a', 'link']]]],
+            'acme/dates' => ['entries' => ['main' => ['js' => null, 'css' => 'https://cdn.example.test/dates.css']]],
+            'acme/list' => ['entries' => ['main' => ['js' => ['not', 'a', 'link']]]],
         ]);
         $logged = $this->captureWarnings();
 
@@ -237,14 +237,14 @@ class ClientRegistryTest extends SapphireTest
 
         $this->assertSame([], $registry->getEntries());
         $this->assertSame([], $registry->getStylesheets());
-        $this->assertTrue($logged->hasWarningThatContains('Entry "acme/dates/main" has an empty link'), 'The dropped entry is logged');
-        $this->assertTrue($logged->hasWarningThatContains('Entry "acme/list/main" has an empty link'), 'A non-scalar link counts as none');
+        $this->assertTrue($logged->hasWarningThatContains('Entry "acme/dates/main" has an empty js'), 'The dropped entry is logged');
+        $this->assertTrue($logged->hasWarningThatContains('Entry "acme/list/main" has an empty js'), 'A non-scalar link counts as none');
     }
 
     public function testAnUpdateEntriesItemWithAnUnmappedOrListedNameOrNoModuleIsDropped(): void
     {
         Config::modify()->set(ClientRegistry::class, 'modules', [
-            'acme/hello' => ['entries' => ['main' => ['link' => ClientRegistryTest::FIXTURE]], 'imports' => ['dayjs' => ClientRegistryTest::FIXTURE]],
+            'acme/hello' => ['entries' => ['main' => ['js' => ClientRegistryTest::FIXTURE]], 'imports' => ['dayjs' => ClientRegistryTest::FIXTURE]],
         ]);
         ClientRegistry::add_extension(UpdateEntriesExtension::class);
         $logged = $this->captureWarnings();
@@ -301,7 +301,7 @@ class ClientRegistryTest extends SapphireTest
     {
         $module = [
             'imports' => ['@silverstripe/dayjs' => ClientRegistryTest::FIXTURE],
-            'entries' => ['main' => ['link' => ClientRegistryTest::FIXTURE]],
+            'entries' => ['main' => ['js' => ClientRegistryTest::FIXTURE]],
         ];
         Config::modify()->set(ClientRegistry::class, 'modules', [
             'silverstripe/dates' => $module,
@@ -314,7 +314,7 @@ class ClientRegistryTest extends SapphireTest
         Config::modify()->set(ClientRegistry::class, 'modules', [
             'silverstripe/dates' => [
                 'imports' => ['@silverstripe/admin' => ClientRegistryTest::FIXTURE, '@silverstripe/dayjs' => ClientRegistryTest::FIXTURE],
-                'entries' => ['main' => ['link' => ClientRegistryTest::FIXTURE]],
+                'entries' => ['main' => ['js' => ClientRegistryTest::FIXTURE]],
             ],
         ]);
 
@@ -337,7 +337,7 @@ class ClientRegistryTest extends SapphireTest
         $this->assertTrue($logged->hasErrorThatContains('module "silverstripe/dates" add "@silverstripe/admin"'));
 
         Config::modify()->set(ClientRegistry::class, 'modules', [
-            'acme/dates' => ['entries' => ['main' => ['link' => ClientRegistryTest::FIXTURE]]],
+            'acme/dates' => ['entries' => ['main' => ['js' => ClientRegistryTest::FIXTURE]]],
             'acme/lib' => ['imports' => ['acme/dates/main' => ClientRegistryTest::FIXTURE]],
         ]);
         $logged = $this->captureWarnings();
@@ -368,7 +368,7 @@ class ClientRegistryTest extends SapphireTest
         $this->assertSame([], array_keys(array_filter($refused, fn (bool $dropped) => !$dropped)));
         $this->assertFalse($this->refusedFor('acme/dates', 'main', 'dayjs'), 'Any module may add any bare specifier');
 
-        Config::modify()->set(ClientRegistry::class, 'modules', ['dates' => ['entries' => ['main' => ['link' => ClientRegistryTest::FIXTURE]]]]);
+        Config::modify()->set(ClientRegistry::class, 'modules', ['dates' => ['entries' => ['main' => ['js' => ClientRegistryTest::FIXTURE]]]]);
         [$items, $warnings] = $this->inDev(fn () => ClientRegistry::create()->getEntries());
         $this->assertSame(
             [[], ['Module "dates" is not vendor/name: a module is named after its Composer package, one vendor and one'
@@ -377,7 +377,7 @@ class ClientRegistryTest extends SapphireTest
         );
 
         Config::modify()->set(ClientRegistry::class, 'modules', [
-            ClientRegistryTest::INSTALLED => ['require' => ['x'], 'entries' => ['main' => ['link' => ClientRegistryTest::FIXTURE]]],
+            ClientRegistryTest::INSTALLED => ['require' => ['x'], 'entries' => ['main' => ['js' => ClientRegistryTest::FIXTURE]]],
         ]);
         [$items, $warnings] = $this->inDev(fn () => ClientRegistry::create()->getEntries());
         $this->assertSame(['silverstripe/admin/main'], array_column($items, 'name'), 'An unknown key is ignored');
@@ -388,7 +388,7 @@ class ClientRegistryTest extends SapphireTest
         );
 
         Config::modify()->set(ClientRegistry::class, 'modules', [
-            'acme/typo' => ['entries' => ['main' => ['link' => ClientRegistryTest::FIXTURE]]],
+            'acme/typo' => ['entries' => ['main' => ['js' => ClientRegistryTest::FIXTURE]]],
         ]);
         [$items, $warnings] = $this->inDev(fn () => ClientRegistry::create()->getEntries());
         $this->assertSame(['acme/typo/main'], array_column($items, 'name'), 'A module naming no package is still listed');
@@ -400,7 +400,7 @@ class ClientRegistryTest extends SapphireTest
         Config::modify()->set(ClientRegistry::class, 'modules', [
             'silverstripe/dates' => [
                 'imports' => ClientRegistryTest::FIXTURE,
-                'entries' => ['main' => ['link' => ClientRegistryTest::FIXTURE]],
+                'entries' => ['main' => ['js' => ClientRegistryTest::FIXTURE]],
             ],
             'silverstripe/dayjs' => ['imports' => ClientRegistryTest::FIXTURE],
         ]);
@@ -419,7 +419,7 @@ class ClientRegistryTest extends SapphireTest
         Config::modify()->set(ClientRegistry::class, 'modules', [
             'silverstripe/dates' => [
                 'requires' => 'react',
-                'entries' => ['main' => ['link' => ClientRegistryTest::FIXTURE]],
+                'entries' => ['main' => ['js' => ClientRegistryTest::FIXTURE]],
             ],
         ]);
         $logged = $this->captureWarnings();
@@ -435,7 +435,7 @@ class ClientRegistryTest extends SapphireTest
      */
     private function refusedFor(string $module, string $entryKey, ?string $specifier = null): bool
     {
-        $config = ['entries' => [$entryKey => ['link' => ClientRegistryTest::FIXTURE]]];
+        $config = ['entries' => [$entryKey => ['js' => ClientRegistryTest::FIXTURE]]];
         if ($specifier !== null) {
             $config['imports'] = [$specifier => ClientRegistryTest::FIXTURE];
         }
@@ -451,7 +451,7 @@ class ClientRegistryTest extends SapphireTest
     private function configureDevOverride(string $value): void
     {
         Config::modify()->set(ClientRegistry::class, 'modules', [
-            ClientRegistryTest::INSTALLED => ['entries' => ['hello' => ['link' => ClientRegistryTest::FIXTURE]]],
+            ClientRegistryTest::INSTALLED => ['entries' => ['hello' => ['js' => ClientRegistryTest::FIXTURE]]],
         ]);
         // GlobalsTestState restores the environment after each test
         Environment::setEnv(ClientRegistry::DEV_URLS_ENV, $value);

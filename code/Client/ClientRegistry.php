@@ -101,7 +101,7 @@ class ClientRegistry
         $this->stylesheets = [];
         foreach ($this->checked()['entries'] as $name => $entry) {
             $name = (string) $name;
-            $isEntry = ClientEntryChecker::hasLink($entry);
+            $isEntry = ClientEntryChecker::hasJs($entry);
             $url = $isEntry ? ($resolved[$name]['css'] ?? null) : $this->resolveStylesheet($name, $entry);
             if ($url !== null) {
                 $this->stylesheets[] = ['name' => $name, 'url' => $url, 'entry' => $isEntry];
@@ -175,7 +175,7 @@ class ClientRegistry
             return $this->resolvedEntries;
         }
         $checked = $this->checked();
-        $scripts = array_filter($checked['entries'], ClientEntryChecker::hasLink(...));
+        $scripts = array_filter($checked['entries'], ClientEntryChecker::hasJs(...));
         $devUrls = $this->resolveDevURLs(array_keys($scripts));
         $resolved = [];
         foreach ($scripts as $name => $entry) {
@@ -319,7 +319,7 @@ class ClientRegistry
     private function resolveScript(string $name, array $entry): ?string
     {
         $type = ClientEntryChecker::entryType($entry);
-        return $this->resolveLink($type, $name, $entry['link'] ?? null, 'its script', 'the client entry was skipped');
+        return $this->resolveLink($type, $name, $entry['js'] ?? null, 'its script', 'the client entry was skipped');
     }
 
     /**

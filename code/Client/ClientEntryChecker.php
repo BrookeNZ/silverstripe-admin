@@ -32,7 +32,7 @@ class ClientEntryChecker
 
     private const array MODULE_KEYS = ['enabled', 'imports', 'requires', 'entries'];
 
-    private const array ENTRY_KEYS = ['link', 'css', 'enabled'];
+    private const array ENTRY_KEYS = ['js', 'css', 'enabled'];
 
     /**
      * @var array<string, true>
@@ -54,10 +54,10 @@ class ClientEntryChecker
         $this->warn = $warn;
     }
 
-    public static function hasLink(array $entry): bool
+    public static function hasJs(array $entry): bool
     {
-        $link = $entry['link'] ?? '';
-        return is_scalar($link) && (string) $link !== '';
+        $js = $entry['js'] ?? '';
+        return is_scalar($js) && (string) $js !== '';
     }
 
     /**
@@ -65,7 +65,7 @@ class ClientEntryChecker
      */
     public static function entryType(array $entry): string
     {
-        return ClientEntryChecker::hasLink($entry) ? ClientEntryChecker::CLIENT_ENTRY : ClientEntryChecker::STYLESHEET_ENTRY;
+        return ClientEntryChecker::hasJs($entry) ? ClientEntryChecker::CLIENT_ENTRY : ClientEntryChecker::STYLESHEET_ENTRY;
     }
 
     /**
@@ -93,7 +93,7 @@ class ClientEntryChecker
      * @param array<array-key, mixed> $configured
      * @return array{
      *     modules: array<string, array{imports: array<string, string>, requires: list<string>, hasEntries: bool}>,
-     *     entries: array<string, array{module: string, link?: string, css?: string}>
+     *     entries: array<string, array{module: string, js?: string, css?: string}>
      * }
      * @throws RuntimeException in dev, on a specifier claimed twice
      */
@@ -233,7 +233,7 @@ class ClientEntryChecker
     }
 
     /**
-     * @return array<string, array{module: string, link?: string, css?: string}> By `<module>/<entry>`
+     * @return array<string, array{module: string, js?: string, css?: string}> By `<module>/<entry>`
      */
     private function checkedEntries(string $module, array $configured): array
     {
@@ -254,7 +254,7 @@ class ClientEntryChecker
             }
             $this->warnAboutUnknownEntryKeys($name, $entry);
             $checked = ['module' => $module];
-            foreach (['link', 'css'] as $field) {
+            foreach (['js', 'css'] as $field) {
                 if (array_key_exists($field, $entry)) {
                     $checked[$field] = $entry[$field];
                 }
@@ -299,14 +299,14 @@ class ClientEntryChecker
                 );
             }
         }
-        if (array_key_exists('link', $entry) && !ClientEntryChecker::hasLink($entry)) {
+        if (array_key_exists('js', $entry) && !ClientEntryChecker::hasJs($entry)) {
             return sprintf(
-                'Entry "%s" has an empty link; leave the key out of a stylesheet entry, and set enabled: false to turn an entry off',
+                'Entry "%s" has an empty js; leave the key out of a stylesheet entry, and set enabled: false to turn an entry off',
                 $name
             );
         }
-        if (!array_key_exists('link', $entry) && !array_key_exists('css', $entry)) {
-            return sprintf('Entry "%s" sets neither a link nor a css', $name);
+        if (!array_key_exists('js', $entry) && !array_key_exists('css', $entry)) {
+            return sprintf('Entry "%s" sets neither js nor css', $name);
         }
         return null;
     }
@@ -377,7 +377,7 @@ class ClientEntryChecker
             }
         }
         // A client entry's name is its specifier; a stylesheet entry claims none
-        $linked = array_filter($entries, ClientEntryChecker::hasLink(...));
+        $linked = array_filter($entries, ClientEntryChecker::hasJs(...));
         foreach (array_unique([...array_keys($linked), ...array_keys($importers)]) as $specifier) {
             $specifier = (string) $specifier;
             $labels = [];
