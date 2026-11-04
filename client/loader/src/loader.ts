@@ -1,8 +1,8 @@
 /**
  * Loads the client entries ChromePage writes into `#ss-admin-entries`. Each entry is imported by its name, and the
- * import map turns that name into a URL, so the map is the only place an entry's URL comes from and nothing can load
- * a second copy from elsewhere. client/loader/MODULES.md documents the failure behaviour for module authors; keep
- * the two in step.
+ * import map turns that name into a URL, so the map is the only place the loader takes an entry's URL from, and an
+ * override of that URL cannot make it load a second copy. client/loader/MODULES.md documents the failure behaviour
+ * for module authors; keep the two in step.
  */
 import type { AdminApi, ClientEntry, EntrySetup } from './types';
 import { ENTRIES_BLOCK_ID, deepFreeze, readDataBlock } from './clientConfig';
@@ -71,8 +71,8 @@ function removeStylesheets(name: string): void {
 
 /**
  * Waits for the entry's import and runs its `setup`. A failed import, a missing `setup` and a `setup` that fails all
- * throw, so bootEntries() reports them the same way. The `admin` object is a frozen copy, so one entry cannot change
- * what the next one sees
+ * throw, so bootEntries() reports them the same way. The `admin` object is a frozen copy, so an entry's own edits to
+ * it never reach the next one; entries share the page, so this is not a security boundary
  */
 async function setupEntry(item: ClientEntry, imported: Promise<EntryExports>): Promise<void> {
   const exported = await imported;

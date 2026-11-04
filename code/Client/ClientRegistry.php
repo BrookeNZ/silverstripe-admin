@@ -116,12 +116,12 @@ class ClientRegistry
      */
     private function dropRefusedItems(array $items): array
     {
-        $imports = $this->getImports();
+        $entries = $this->resolvedEntries();
         $mapped = [];
         $listed = [];
         foreach ($items as $item) {
             $name = is_array($item) ? ($item['name'] ?? null) : null;
-            if (!is_string($name) || !isset($imports[$name])) {
+            if (!is_string($name) || !isset($entries[$name])) {
                 $this->warn(sprintf(
                     'After updateEntries: an item names %s, which no client entry adds to the import map; the item was left out',
                     is_scalar($name) ? sprintf('"%s"', $name) : 'nothing'

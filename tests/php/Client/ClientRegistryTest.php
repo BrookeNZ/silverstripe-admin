@@ -244,7 +244,7 @@ class ClientRegistryTest extends SapphireTest
     public function testAnUpdateEntriesItemWithAnUnmappedOrListedNameOrNoModuleIsDropped(): void
     {
         Config::modify()->set(ClientRegistry::class, 'modules', [
-            'acme/hello' => ['entries' => ['main' => ['link' => ClientRegistryTest::FIXTURE]]],
+            'acme/hello' => ['entries' => ['main' => ['link' => ClientRegistryTest::FIXTURE]], 'imports' => ['dayjs' => ClientRegistryTest::FIXTURE]],
         ]);
         ClientRegistry::add_extension(UpdateEntriesExtension::class);
         $logged = $this->captureWarnings();
@@ -253,6 +253,7 @@ class ClientRegistryTest extends SapphireTest
 
         $this->assertSame([['name' => 'acme/hello/main', 'module' => 'acme/hello']], $items);
         $this->assertTrue($logged->hasWarningThatContains('an item names "acme/stray/main", which no client entry adds'));
+        $this->assertTrue($logged->hasWarningThatContains('an item names "dayjs", which no client entry adds'), 'A library is in the map but is not an entry');
         $this->assertTrue($logged->hasWarningThatContains('the item named "acme/hello/main" is listed more than once'));
         $this->assertTrue($logged->hasWarningThatContains('the item named "acme/hello/main" gives a value of type null for its module'));
     }
@@ -360,6 +361,7 @@ class ClientRegistryTest extends SapphireTest
             'module has a byte that is not UTF-8' => $this->refusedFor("acme/bad\xB1byte", 'main'),
             'specifier has a byte that is not UTF-8' => $this->refusedFor('silverstripe/dates', 'main', "day\xB1js"),
             'entry key has a slash' => $this->refusedFor('silverstripe/dates', 'main/extra'),
+            'entry key ends with a newline' => $this->refusedFor('silverstripe/dates', "main\n"),
             'entry key starts with a dot' => $this->refusedFor('silverstripe/dates', '.main'),
         ];
 

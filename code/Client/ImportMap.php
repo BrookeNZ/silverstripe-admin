@@ -53,8 +53,8 @@ class ImportMap
         $shared = is_array($manifest['shared'] ?? null) ? $manifest['shared'] : [];
         if (!$shared) {
             $this->warn(
-                "The loader build's manifest.json is missing or lists no shared files, so the import map is empty and "
-                . 'no module can load; run npm run build in client/loader'
+                "The loader build's manifest.json is missing or lists no shared files, so the import map carries none and "
+                . 'no entry can import React or the admin package; run npm run build in client/loader'
             );
             return $this->sharedImports = [];
         }

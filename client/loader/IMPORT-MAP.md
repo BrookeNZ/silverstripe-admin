@@ -54,7 +54,8 @@ design. For writing a module and its entries, see [MODULES.md](MODULES.md).
 4. **The loader** (`client/loader/src/index.ts`, built to `client/dist/loader/main.js`) reads the config and entry
    list, starts the import of every listed entry by its name at once, then in list order awaits each one's own
    import and calls its `setup(admin)` with a deep-frozen `admin` object holding the item as `admin.entry` (its `module` is the
-   Composer package), each in a try and catch, so a stalled import holds back only the items after it
+   Composer package), each in a try and catch, so one failure stops nothing else, while a stalled import or `setup`
+   holds back the items after it
    (failures: [MODULES.md](MODULES.md), *When something fails*), removing a failed entry's stylesheet link. Importing
    by name makes the map the one source of an entry's URL, so an override of the entry's map URL changes what loads
    rather than loading a second copy. The loader imports `@silverstripe/admin` through the map as entries do, so both
@@ -66,8 +67,8 @@ The element ids `ss-admin-entries` and `ss-admin-config`, and a client entry sty
 contract between the template and the loader: renaming one breaks the loader with no server error.
 
 `ClientRegistry` fires `updateEntries(array &$items)` on the entry list. It changes what the loader imports, not
-the import map, so an item it adds must name a client entry in the map and no earlier item names; any other item is
-dropped with a warning. `ChromePage` fires `updateChromeNonce(string &$nonce)` on the section
+the import map, so an item it adds must name a client entry in the map (not a library) that no earlier item names,
+and give its module as a string; any other item is dropped with a warning. `ChromePage` fires `updateChromeNonce(string &$nonce)` on the section
 controller once per page.
 
 The public surface is the `SilverStripe\Admin\Client\ClientRegistry.modules` YAML and its keys, the `updateEntries` and
@@ -89,7 +90,8 @@ The loader build writes five files to `client/dist/loader/shared/`, one per impo
 | `react-dom` | `shared/react-dom.js` |
 | `react-dom/client` | `shared/react-dom-client.js` |
 
-The list has one source, `client/loader/shared.js`, published as `@silverstripe/admin/shared`, which the shared-file
+The list's source is `client/loader/shared.js` (`LoaderAssets::SHARED_SPECIFIERS` holds a copy for the one-owner check
+while the loader is unbuilt, and `ImportMapTest` keeps the two in step), published as `@silverstripe/admin/shared`, which the shared-file
 build (`webpack.shared.config.js`), the loader build and every module build read, so a specifier is external
 everywhere or nowhere. Each shared file imports the others by bare name and contains none of their code, so the set
 holds one copy of each package. `admin.js` is the admin's own runtime file, built from `client/loader/src/runtime.ts`
@@ -101,7 +103,8 @@ preloads).
 (specifier to file) and `files` (every JavaScript file of the release to its `sha384-` digest). `LoaderAssets`
 reads it from `LoaderAssets.release_dir` (`silverstripe/admin:client/dist/loader/`). `ImportMap` takes only plain file
 names inside the build folder, and maps each specifier to `<release URL>shared/<file>.js?v=<first 8 hex of its
-digest>`, so a rebuilt file gets a new URL. A missing or empty manifest gives an empty map and a logged warning.
+digest>`, so a rebuilt file gets a new URL. A missing or empty manifest leaves the shared files out of the map, with
+a logged warning; the loader script is missing with it, so nothing loads.
 
 React is shared through the map because its hooks and context live in module-level state: a component rendered by
 one copy of React cannot use hooks or read context from another. One map gives the page and every entry the same
@@ -161,10 +164,11 @@ image from `url()` on another site needs `img-src` to allow that site.
 
 `ClientRegistry`, `ClientEntryChecker`, `ImportMap` and `ChromePage` log every warning (a skipped module or entry, a missing file,
 a link, project path or `vendor/package:path`, to a file outside `public/` with no exposed copy in
-`public/_resources/`, a dropped stylesheet, a bad dev override, an item `updateEntries` added for an
-unmapped name or one already listed, a missing or empty loader manifest, and in dev an unbuilt loader, a
-`requires` nothing in the map provides, a key the registry does not read or a module key naming no installed package). A warning never
-stops the page; only a specifier claimed twice does, and only in dev.
+`public/_resources/`, a dropped stylesheet, an `imports` specifier or `requires` value that is not bare, a bad dev
+override, an item `updateEntries` added for an unmapped name, one already listed or a module that is not a string, a
+missing or empty loader manifest, a shared file the manifest lists with no digest, and in dev an unbuilt loader, a
+`requires` nothing in the map provides, a key the registry does not read or a module key naming no installed package).
+A warning never stops the page; only a specifier claimed twice does, and only in dev.
 
 They log to `Psr\Log\LoggerInterface` when a navigation renders the chrome page, not on flush. The framework's
 `logging.yml` gives that logger no handler, so a stock site discards every warning until the project adds one, for
@@ -196,8 +200,8 @@ Why import maps and a small loader rather than a micro-frontend framework:
   workflow.
 - A client entry is a native ES module any bundler can write, and a hand-written file is valid, rather than a framework
   format built through the framework's CLI and bundler plugin.
-- The shared list and its versions have one source, where a framework resolves a shared bare name to whatever the
-  shell exports, unchecked.
+- The shared list and its versions come from one file, with a test-guarded copy in PHP, where a framework resolves a
+  shared bare name to whatever the shell exports, unchecked.
 - Module authors learn no vocabulary beyond Silverstripe's, and the admin depends on no framework for what is, at the
   loading layer, a few hundred lines.
 - Loading uses web platform features only: import maps, `import()`, modulepreload and CSP nonces. One failed module

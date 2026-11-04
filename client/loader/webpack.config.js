@@ -21,7 +21,7 @@ import sharedConfigs, { baseConfig } from './webpack.shared.config.js';
 
 const releaseDir = path.resolve(import.meta.dirname, '../dist/loader');
 const watching = process.argv.includes('--watch');
-// The digest form ImportMap::getMap() checks for and shortens into each shared file's `?v=` query string
+// The digest form ImportMap::getSharedImports() checks for and shortens into each shared file's `?v=` query string
 const sha384 = (file) => `sha384-${crypto.createHash('sha384').update(fs.readFileSync(file)).digest('base64')}`;
 
 /** Writes manifest.json from the files on disk; throws when a shared file the map promises did not build */

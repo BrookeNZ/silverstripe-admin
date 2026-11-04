@@ -24,7 +24,7 @@ export interface AdminApi {
  * before running the next entry's `setup`
  */
 export type EntrySetup = (admin: Readonly<AdminApi>) => void | Promise<void>;
-/** One admin section in the client config; the typed fields are the ones every section has, the rest are untyped */
+/** One admin section in the client config; `form` is set only for a section with forms, and extra fields are untyped */
 export interface Section {
     name: string;
     url: string;

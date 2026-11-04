@@ -10,6 +10,7 @@ class UpdateEntriesExtension extends Extension implements TestOnly
     protected function updateEntries(array &$items): void
     {
         $items[] = ['name' => 'acme/stray/main', 'module' => 'acme/stray'];
+        $items[] = ['name' => 'dayjs', 'module' => 'acme/hello'];
         $items[] = ['name' => 'acme/hello/main', 'module' => 'acme/hello'];
         $items[] = ['name' => 'acme/hello/main', 'module' => null];
     }

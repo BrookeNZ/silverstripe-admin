@@ -37,10 +37,9 @@ provide, needs a build.
   deep-frozen, and the same object for every entry. The loader reads it before importing any entry, so an entry
   may call it anywhere, its top level included. The CSRF token in it is the value at page load; a request helper
   that owns the live token is still to come. `adminUrl` is the admin's route relative to the base URL, `admin` by
-  default, with no leading or trailing slash, so an entry appends it to `baseUrl`, which always ends in `/`, or joins
-  it to `absoluteBaseUrl`, which ends in `/` only when `Controller.add_trailing_slash` is on. A site that turns off
-  `SSViewer.enable_base_tag` gets `adminUrl` with the base URL already in front, and `Controller.add_trailing_slash`
-  adds a trailing slash to it.
+  default, with no leading slash and a trailing slash only when `Controller.add_trailing_slash` is on, so an entry
+  appends it to `baseUrl`, which always ends in `/`, or joins it to `absoluteBaseUrl`, which ends in `/` under the
+  same setting. A site that turns off `SSViewer.enable_base_tag` gets `adminUrl` with the base URL already in front.
 
 `admin` is the entry's handle for the admin's registration APIs, which are still to come; it stays valid after an
 `await`, and `setup` may receive further arguments after it.
@@ -71,7 +70,7 @@ SilverStripe\Admin\Client\ClientRegistry:
           css: 'vendor-name/module-name:client/dist/main/main.css'
 ```
 
-**Names.** A module key is `vendor/name`: exactly one `/`, between a vendor and a name, no `@` scope, and bare as
+**Names.** A module key is `vendor/name`: exactly one `/`, between a vendor and a name, no `@` anywhere, and bare as
 *Shared libraries* describes, so single words and `@` scopes stay free for shared files and `imports` keys. An entry
 key is one segment of letters, digits, `.`, `_` and `-`, starting with a letter or digit. The entry's import map name,
 which the loader imports it by and the list item carries, is `<module>/<entry>`: `vendor-name/module-name/main` above.
@@ -229,7 +228,8 @@ SilverStripe\Admin\Client\ClientRegistry:
   drops the offending module, entry or specifier with a logged warning, and the rest of the admin runs.
 - A module whose entries import a library lists it under `requires`, keeps it external in its build, and requires the
   providing package in `composer.json`, whose docs say which library version each of its majors supplies. In dev, a
-  `requires` specifier nothing in the map provides is warned about while any of the module's entries is listed.
+  `requires` specifier nothing in the map provides is warned about whenever the module has an entry with a script,
+  listed for the member or not.
 - An external library has no types unless the module gives it some: a `.d.ts` file with
   `declare module '@acme/dates' { ... }`, or, when the module provides the library itself, a `compilerOptions.paths`
   entry mapping the specifier to its source, such as `"@acme/dates": ["./src/dates.ts"]`. A providing package may
@@ -253,7 +253,7 @@ public; a module's server endpoints check permissions themselves.
   before it is still loading, so a stylesheet that never finishes loading holds back the loader and every entry.
 - A name listed twice (two items from `updateEntries` naming one entry) keeps its first item; the later one is left
   out with a logged warning, and the order `updateEntries` leaves decides which wins. An item that names no entry in
-  the import map, or whose module is not a module name, is left out with a logged warning. The loader loads the list
+  the import map, or whose module is not a string, is left out with a logged warning. The loader loads the list
   as the page carries it, dropping only an item with no name, and checks none of this again.
 - A page without its client config logs `The admin could not start` and loads no entry. An entry list that is
   missing or not a JSON list logs `The page entry list is missing or not a JSON list` and loads no entry. A loader

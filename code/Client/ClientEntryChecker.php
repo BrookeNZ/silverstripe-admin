@@ -273,7 +273,7 @@ class ClientEntryChecker
                 get_debug_type($entry)
             );
         }
-        if (!preg_match('#^[A-Za-z0-9][A-Za-z0-9._-]*$#', $key)) {
+        if (!preg_match('#^[A-Za-z0-9][A-Za-z0-9._-]*\z#', $key)) {
             return sprintf(
                 'Entry key "%s" of module "%s" is not one segment of letters, digits, ., _ and -, starting with a letter or digit',
                 $key,

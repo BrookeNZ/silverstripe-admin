@@ -32,8 +32,9 @@ export function readClientConfig(): ClientConfig | null {
 }
 
 /**
- * Hands a frozen copy of the page's client config to the runtime, then runs `start`. With no config block, or a
- * `start` that throws, the admin logs one console error and does nothing else, so no entry can run without config
+ * Hands a frozen copy of the page's client config to the runtime, then runs `start`. With no usable config block
+ * (missing, empty, not JSON or not an object), or a `start` that throws, the admin logs one console error and does
+ * nothing else, so no entry can run without config
  */
 export function startChrome(start: () => unknown): void {
   try {

@@ -28,7 +28,6 @@ function countingImporter(entries: Record<string, EntryExports | Error | Promise
   return { imported, importer };
 }
 
-// An entry list item for a name
 const listed = (name: string): ClientEntry => ({ name, module: 'acme/files' });
 
 // The entry name quoted in each console error, in order

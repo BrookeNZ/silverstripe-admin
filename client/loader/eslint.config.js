@@ -7,7 +7,7 @@ import { defineConfig } from 'eslint/config';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
-// Matches .editorconfig in the admin root
+// The indent matches .editorconfig in the admin root; quotes and semicolons are this package's own choice
 const style = {
   indent: ['error', 2, { SwitchCase: 1 }],
   quotes: ['error', 'single', { avoidEscape: true }],
