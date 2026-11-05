@@ -28,7 +28,20 @@
 /.sass-lint.yml
 /.yarnrc.yml export-ignore
 /yarn.lock export-ignore
+/client/loader/src export-ignore
+/client/loader/tsconfig.json export-ignore
+/client/loader/tsconfig.types.json export-ignore
+/client/loader/eslint.config.js export-ignore
+/client/loader/vitest.config.mts export-ignore
+/client/loader/webpack.config.js export-ignore
+/client/loader/webpack.shared.config.js export-ignore
+/client/loader/build-package.js export-ignore
+/client/loader/package-lock.json export-ignore
+/client/loader/.npmrc export-ignore
+/client/loader/.nvmrc export-ignore
 
 # Hide diffs
 /client/dist/js -diff
 /client/dist/styles -diff
+/client/dist/loader/** -diff
+/client/dist/loader/manifest.json diff

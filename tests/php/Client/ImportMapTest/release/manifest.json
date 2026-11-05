@@ -1,0 +1,12 @@
+{
+  "shared": {
+    "present": "shared/present.js",
+    "@scope/also": "shared/also.js",
+    "escaping": "shared/%2e%2e/also.js",
+    "alias": "shared/present.js"
+  },
+  "files": {
+    "shared/also.js": "sha384-XevfnF2514LcxNfmu83x5Zfj88BB8uOn51wTq6YsEOtrQUGY1IW0dwcgtyXSvdg9",
+    "shared/present.js": "sha384-sI3ijjpOLvHj0oNP8y2aMYz7CvCBN5bwOSo9OfVuH4TakG69S6dkcePLczVuQ9t6"
+  }
+}

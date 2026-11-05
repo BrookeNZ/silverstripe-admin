@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "skipLibCheck": true,
+    "lib": ["dom", "dom.iterable", "es2022"],
+    "moduleResolution": "Bundler",
+    "module": "esnext",
+    "strict": true,
+    "rootDir": ".",
+    "paths": {
+      "@silverstripe/admin": ["./src/runtime.ts"]
+    }
+  },
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
