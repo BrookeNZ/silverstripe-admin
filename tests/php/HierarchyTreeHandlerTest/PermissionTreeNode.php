@@ -1,6 +1,6 @@
 <?php
 
-namespace SilverStripe\Admin\Tests\HierarchyTreeControllerTest;
+namespace SilverStripe\Admin\Tests\HierarchyTreeHandlerTest;
 
 use SilverStripe\Core\Injector\Injector;
 use SilverStripe\Dev\TestOnly;
@@ -14,7 +14,7 @@ use SilverStripe\Security\Security;
 
 class PermissionTreeNode extends DataObject implements TestOnly, PermissionCheckable
 {
-    private static $table_name = 'HierarchyTreeControllerTest_PermissionTreeNode';
+    private static $table_name = 'HierarchyTreeHandlerTest_PermissionTreeNode';
 
     private static $db = [
         'Title' => 'Varchar',

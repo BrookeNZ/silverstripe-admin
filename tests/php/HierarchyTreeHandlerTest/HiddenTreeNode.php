@@ -1,6 +1,6 @@
 <?php
 
-namespace SilverStripe\Admin\Tests\HierarchyTreeControllerTest;
+namespace SilverStripe\Admin\Tests\HierarchyTreeHandlerTest;
 
 use SilverStripe\Dev\TestOnly;
 

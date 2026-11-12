@@ -1,6 +1,6 @@
 <?php
 
-namespace SilverStripe\Admin\Tests\HierarchyTreeControllerTest;
+namespace SilverStripe\Admin\Tests\HierarchyTreeHandlerTest;
 
 use SilverStripe\Core\Convert;
 use SilverStripe\Dev\TestOnly;
@@ -9,7 +9,7 @@ use SilverStripe\ORM\Hierarchy\Hierarchy;
 
 class TreeNode extends DataObject implements TestOnly
 {
-    private static $table_name = 'HierarchyTreeControllerTest_TreeNode';
+    private static $table_name = 'HierarchyTreeHandlerTest_TreeNode';
 
     private static $db = [
         'Title' => 'Varchar',
