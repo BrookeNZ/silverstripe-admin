@@ -316,10 +316,11 @@ function withTooManyText(text, callback) {
   }
 }
 
-test('TreeView places the show as list link in a translation with a placeholder or without one', () => {
+test('TreeView places the show as list link in a translation with one placeholder, none or two', () => {
   [
     ['{link} first', 'show as list first'],
     ['Too many records', 'Too many records show as list'],
+    ['A {link} B {link} C', 'A show as list B  C'],
   ].forEach(([text, shown]) => {
     withTooManyText(text, () => {
       treeStores.clear();
@@ -390,7 +391,7 @@ test('TreeView calls the latest callbacks', async () => {
   expect(latest).toHaveBeenCalledTimes(1);
 
   const fetchChildren = jest.fn((parentId) => Promise.resolve(getChildren(parentId)));
-  rerender({ ...props, fetchChildren });
+  rerender({ ...props, onOpen: latest, fetchChildren });
   fireEvent.click(getToggle('About us'));
   await flush();
   expect(props.fetchChildren).not.toHaveBeenCalled();
@@ -729,6 +730,27 @@ test('TreeView makes one request per parent under StrictMode, and none on a remo
   expect(second.fetchChildren).not.toHaveBeenCalled();
   expect(second.fetchPath).not.toHaveBeenCalled();
   expect(getItem('Sam Smith')).not.toBeNull();
+});
+
+test('TreeView asks once for a list that fails at once under StrictMode', () => {
+  const fetchChildren = jest.fn(() => {
+    throw new Error('Server error');
+  });
+  render(<React.StrictMode><TreeView {...makeProps({ fetchChildren })} /></React.StrictMode>);
+
+  expect(fetchChildren).toHaveBeenCalledTimes(1);
+});
+
+test('A tree store stops calling a listener that has unsubscribed', () => {
+  const store = getTreeStore(TREE);
+  const listener = jest.fn();
+  const unsubscribe = store.subscribe(listener);
+
+  store.dispatch({ type: 'expandNode', id: 2 });
+  unsubscribe();
+  store.dispatch({ type: 'collapseNode', id: 2 });
+
+  expect(listener).toHaveBeenCalledTimes(1);
 });
 
 // Answers each request with a deferred response, resolved by parent id in the order asked

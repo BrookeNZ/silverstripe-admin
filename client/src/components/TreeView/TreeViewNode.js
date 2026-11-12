@@ -6,7 +6,6 @@ import { STATUS } from './TreeViewReducer';
 import { loadChildren } from './TreeViewActions';
 import { useTreeValue } from './treeStore';
 
-// Holds `store`, `currentId` and the `fetchChildren`, `onOpen` and `onShowAsList` callbacks for every row
 export const TreeViewContext = createContext(null);
 
 // A modified or middle click is left to the browser, so the real href can open in a new tab
@@ -55,7 +54,7 @@ const LimitedRow = ({ node, level, onShowAsList }) => {
   };
   const text = i18n._t('Admin.TREEVIEW_TOO_MANY', 'Too many records ({link})');
   // The link stands in for `{link}`, so a translation places it and the brackets around it
-  const [beforeLink, afterLink = ''] = text.includes('{link}') ? text.split('{link}') : [`${text} `];
+  const [beforeLink, ...afterLink] = text.includes('{link}') ? text.split('{link}') : [`${text} `];
 
   return (
     <li className="tree-view__item tree-view__item--limited" role="none">
@@ -72,7 +71,7 @@ const LimitedRow = ({ node, level, onShowAsList }) => {
       >
         {i18n._t('Admin.TREEVIEW_SHOW_AS_LIST', 'show as list')}
       </a>
-      {afterLink}
+      {afterLink.join('')}
     </li>
   );
 };
@@ -91,7 +90,9 @@ export const TreeViewItems = ({ parentId, parentNode = null, level }) => {
   const limited = Boolean(parentNode && parentNode.limited);
 
   useEffect(() => {
-    if (!list && !status) {
+    // Read again, as the list may have loaded or failed since this render
+    const tree = store.getState();
+    if (!tree.childIds[parentId] && !tree.status[parentId]) {
       loadChildren(store, parentId, fetchChildren);
     }
   }, [store, parentId, list, status, fetchChildren]);

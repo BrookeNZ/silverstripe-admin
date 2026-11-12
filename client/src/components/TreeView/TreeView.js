@@ -54,7 +54,8 @@ const TreeView = ({
     const wasShown = isShown(store.getState(), currentId, isRootOpen(store.getState(), rootTitle));
     reloadTree(store, reloadKey, fetchChildren).then(() => {
       const after = store.getState();
-      if (wasShown && after.revealedId === currentId && !storedAncestorIds(after, currentId)) {
+      const isLatest = after.reloadKey === reloadKey && after.revealedId === currentId;
+      if (wasShown && isLatest && !storedAncestorIds(after, currentId)) {
         revealNode(store, currentId, fetchPath);
       }
     });
