@@ -1,0 +1,202 @@
+import React, { createContext, memo, useContext, useEffect } from 'react';
+import PropTypes from 'prop-types';
+import classnames from 'classnames';
+import i18n from 'i18n';
+import { STATUS } from './TreeViewReducer';
+import { loadChildren } from './TreeViewActions';
+import { useTreeValue } from './treeStore';
+
+export const TreeViewContext = createContext(null);
+
+// A modified or middle click is left to the browser, so the real href can open in a new tab
+function isPlainClick(event) {
+  return event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey;
+}
+
+// A list loading again keeps its rows, so only a parent with no list yet is busy
+export function isBusy(list, status) {
+  return !list && status !== STATUS.FAILED;
+}
+
+const LoadingRow = () => (
+  <li className="tree-view__item tree-view__item--loading" role="none">
+    {i18n._t('Admin.TREEVIEW_LOADING', 'Loading...')}
+  </li>
+);
+
+const FailedRow = ({ level, onRetry }) => (
+  <li className="tree-view__item tree-view__item--failed" role="none">
+    <button
+      type="button"
+      className="tree-view__link"
+      role="treeitem"
+      aria-selected="false"
+      aria-level={level}
+      aria-setsize={1}
+      aria-posinset={1}
+      onClick={onRetry}
+    >
+      {i18n._t('Admin.TREEVIEW_FAILED', 'Failed to load')} {i18n._t('Admin.TREEVIEW_RETRY', 'Try again')}
+    </button>
+  </li>
+);
+
+FailedRow.propTypes = {
+  level: PropTypes.number.isRequired,
+  onRetry: PropTypes.func.isRequired,
+};
+
+const LimitedRow = ({ node, level, onShowAsList }) => {
+  const handleClick = (event) => {
+    if (isPlainClick(event)) {
+      onShowAsList(node, event);
+    }
+  };
+  const text = i18n._t('Admin.TREEVIEW_TOO_MANY', 'Too many records ({link})');
+  // The link stands in for `{link}`, so a translation places it and the brackets around it
+  const [beforeLink, ...afterLink] = text.includes('{link}') ? text.split('{link}') : [`${text} `];
+
+  return (
+    <li className="tree-view__item tree-view__item--limited" role="none">
+      {beforeLink}
+      <a
+        className="tree-view__link"
+        role="treeitem"
+        href={node.listViewUrl}
+        aria-selected="false"
+        aria-level={level}
+        aria-setsize={1}
+        aria-posinset={1}
+        onClick={handleClick}
+      >
+        {i18n._t('Admin.TREEVIEW_SHOW_AS_LIST', 'show as list')}
+      </a>
+      {afterLink.join('')}
+    </li>
+  );
+};
+
+LimitedRow.propTypes = {
+  node: PropTypes.object.isRequired,
+  level: PropTypes.number.isRequired,
+  onShowAsList: PropTypes.func.isRequired,
+};
+
+// The rows inside an open parent, at `level`; loads the parent's children when it has no list and no status
+export const TreeViewItems = ({ parentId, parentNode = null, level }) => {
+  const { store, fetchChildren, onShowAsList } = useContext(TreeViewContext);
+  const list = useTreeValue(store, (tree) => tree.childIds[parentId]);
+  const status = useTreeValue(store, (tree) => tree.status[parentId]);
+  const limited = Boolean(parentNode && parentNode.limited);
+
+  useEffect(() => {
+    // Read again, as the list may have loaded or failed since this render
+    const tree = store.getState();
+    if (!tree.childIds[parentId] && !tree.status[parentId]) {
+      loadChildren(store, parentId, fetchChildren);
+    }
+  }, [store, parentId, list, status, fetchChildren]);
+
+  if (limited) {
+    return <LimitedRow node={parentNode} level={level} onShowAsList={onShowAsList} />;
+  }
+  if (status === STATUS.FAILED) {
+    const handleRetry = () => loadChildren(store, parentId, fetchChildren);
+    return <FailedRow level={level} onRetry={handleRetry} />;
+  }
+  if (isBusy(list, status)) {
+    return <LoadingRow />;
+  }
+  return list.map((id, index) => (
+    // eslint-disable-next-line no-use-before-define
+    <MemoTreeViewNode key={id} id={id} level={level} posinset={index + 1} setsize={list.length} />
+  ));
+};
+
+TreeViewItems.propTypes = {
+  parentId: PropTypes.number.isRequired,
+  parentNode: PropTypes.object,
+  level: PropTypes.number.isRequired,
+};
+
+const TreeViewNode = ({ id, level, posinset, setsize }) => {
+  const { store, currentId, onOpen } = useContext(TreeViewContext);
+  const node = useTreeValue(store, (tree) => tree.nodes[id]);
+  const list = useTreeValue(store, (tree) => tree.childIds[id]);
+  const status = useTreeValue(store, (tree) => tree.status[id]);
+  const isExpanded = useTreeValue(store, (tree) => tree.expanded.includes(id));
+
+  if (!node) {
+    return null;
+  }
+
+  // A parent whose children loaded empty shows as a leaf
+  const isParent = Boolean(node.limited) || (list ? list.length > 0 : Boolean(node.hasChildren) || isExpanded);
+  const isOpen = isParent && isExpanded;
+  const disabled = node.canView === false;
+
+  const handleToggle = () => {
+    store.dispatch({ type: isExpanded ? 'collapseNode' : 'expandNode', id });
+  };
+
+  const handleClick = (event) => {
+    if (!isPlainClick(event)) {
+      return;
+    }
+    if (disabled) {
+      event.preventDefault();
+    } else {
+      onOpen(node, event);
+    }
+  };
+
+  return (
+    <li
+      className={classnames('tree-view__item', { 'tree-view__item--open': isOpen }, node.classes)}
+      role="none"
+      data-id={id}
+      data-recordtype={node.recordClass}
+    >
+      {isParent && (
+        <span className="tree-view__toggle" aria-hidden="true" onClick={handleToggle}>
+          <span className="font-icon-right-dir" />
+        </span>
+      )}
+      <a
+        className="tree-view__link"
+        role="treeitem"
+        href={node.editUrl}
+        title={node.tooltip}
+        aria-selected="false"
+        aria-level={level}
+        aria-setsize={setsize}
+        aria-posinset={posinset}
+        aria-expanded={isParent ? isOpen : undefined}
+        aria-current={id === currentId ? 'page' : undefined}
+        aria-disabled={disabled ? 'true' : undefined}
+        aria-busy={isOpen && !node.limited && isBusy(list, status) ? 'true' : undefined}
+        onClick={handleClick}
+      >
+        <span className={node.iconClasses} aria-hidden="true" />
+        <span className="tree-view__title">{node.treeTitle}</span>
+        {(node.statusFlags || []).map((flag) => (
+          <span key={flag.key} className={`badge status-${flag.key}`} title={flag.title}>{flag.text}</span>
+        ))}
+      </a>
+      {isOpen && (
+        <ul className="tree-view__group" role="group" aria-label={node.treeTitle}>
+          <TreeViewItems parentId={id} parentNode={node} level={level + 1} />
+        </ul>
+      )}
+    </li>
+  );
+};
+
+TreeViewNode.propTypes = {
+  id: PropTypes.number.isRequired,
+  level: PropTypes.number.isRequired,
+  posinset: PropTypes.number.isRequired,
+  setsize: PropTypes.number.isRequired,
+};
+
+const MemoTreeViewNode = memo(TreeViewNode);
