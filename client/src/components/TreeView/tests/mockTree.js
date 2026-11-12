@@ -1,4 +1,4 @@
-// The fields are those listed on the fetchChildren prop of TreeView
+// The fields are those SilverStripe\Admin\HierarchyTreeHandler documents
 function makePage(id, parentId, treeTitle, extra = {}) {
   return {
     id,
@@ -13,6 +13,9 @@ function makePage(id, parentId, treeTitle, extra = {}) {
     limited: false,
     listViewUrl: null,
     editUrl: `admin/pages/edit/show/${id}`,
+    canView: true,
+    canEdit: true,
+    canAddChildren: true,
     ...extra,
   };
 }
@@ -41,7 +44,7 @@ const children = {
   5: [
     makePage(7, 5, 'Jane Doe'),
     makePage(8, 5, 'Sam Smith'),
-    makePage(9, 5, 'Private profile', { classes: 'class-Page nochildren disabled' }),
+    makePage(9, 5, 'Private profile', { classes: 'class-Page nochildren disabled', canView: false }),
     makePage(10, 5, 'Staff intranet', {
       tooltip: '(Record type: Redirector Page) Staff intranet',
       recordClass: 'SilverStripe\\CMS\\Model\\RedirectorPage',

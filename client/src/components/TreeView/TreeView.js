@@ -148,10 +148,9 @@ TreeView.propTypes = {
   // Fixed for the life of a mounted tree
   treeId: PropTypes.string.isRequired,
   /**
-   * `(parentId) => Promise` of the parent's children as the server sends them: `{ id, parentId, treeTitle, tooltip,
-   * recordClass, classes, iconClasses, statusFlags: [{ key, text, title }], hasChildren, limited, listViewUrl,
-   * editUrl }`. The tree acts on `id`, the word `disabled` in `classes`, `hasChildren`, `limited`, `listViewUrl` and
-   * `editUrl`, files each node under the parent it asked for rather than `parentId`, and only displays the rest
+   * `(parentId) => Promise` of the parent's children, each a node as `SilverStripe\Admin\HierarchyTreeHandler`
+   * documents it. The tree acts on `id`, `canView`, `hasChildren`, `limited`, `listViewUrl` and `editUrl`, files each
+   * node under the parent it asked for rather than `parentId`, and only displays the rest
    */
   fetchChildren: PropTypes.func.isRequired,
   fetchPath: PropTypes.func,

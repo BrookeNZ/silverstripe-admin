@@ -11,9 +11,8 @@ function isPlainClick(event) {
   return event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey;
 }
 
-// The server adds the class `disabled` to a node the member can neither view, edit nor add children to
 function isDisabled(node) {
-  return node.classes.split(' ').includes('disabled');
+  return node.canView === false;
 }
 
 // A list loading again keeps its rows, so only a parent with no list yet is busy
