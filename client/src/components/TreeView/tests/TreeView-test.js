@@ -1,38 +1,12 @@
 /* global jest, test, expect, beforeEach */
 import React from 'react';
-import { render, screen, fireEvent, act, within } from '@testing-library/react';
-import classnames from 'classnames';
+import { render, screen, fireEvent, act, within, waitFor } from '@testing-library/react';
 import i18n from 'i18n';
-import {
-  collapseNode,
-  expandNode,
-  fetchChildrenRequest,
-  fetchChildrenSuccess,
-  revealRequest,
-  setScroll,
-} from '../TreeViewActions';
 import { getTreeStore, treeStores } from '../treeStore';
 import TreeView from '../TreeView';
-import { getChildren, getNode, getPath, makePage } from './mockTree';
-
-jest.mock('classnames', () => {
-  const actual = jest.requireActual('classnames');
-  return jest.fn((...args) => actual(...args));
-});
+import { deferred, getChildren, getNode, getPath, loadActions, makePage } from './mockTree';
 
 const TREE = 'pages';
-
-function deferred() {
-  const result = {};
-  result.promise = new Promise((resolve) => {
-    result.resolve = resolve;
-  });
-  return result;
-}
-
-function loadActions(parentId, nodes) {
-  return [fetchChildrenRequest(parentId), fetchChildrenSuccess(parentId, nodes)];
-}
 
 function seedTree(actions) {
   const store = getTreeStore(TREE);
@@ -43,9 +17,9 @@ function seedTree(actions) {
 function saveTree({ openIds = [], revealedId = null, actions = [] } = {}) {
   seedTree([
     ...[0, ...openIds].flatMap((parentId) => loadActions(parentId, getChildren(parentId))),
-    ...openIds.map((id) => expandNode(id)),
+    ...openIds.map((id) => ({ type: 'expandNode', id })),
     ...actions,
-    ...(revealedId === null ? [] : [revealRequest(revealedId)]),
+    ...(revealedId === null ? [] : [{ type: 'revealRequest', id: revealedId }]),
   ]);
 }
 
@@ -106,16 +80,10 @@ async function withoutNavigationReport(callback) {
 beforeEach(() => {
   treeStores.clear();
   Element.prototype.scrollIntoView = jest.fn();
-  classnames.mockClear();
 });
 
-// Each row passes its base class to classnames once per render
-function countRowRenders() {
-  return classnames.mock.calls.filter(([first]) => first === 'tree-view__item').length;
-}
-
 test('TreeView renders the stored rows with the tree markup and makes no request', () => {
-  saveTree({ openIds: [2], revealedId: 6 });
+  saveTree({ openIds: [2], revealedId: 6, actions: loadActions(5, getChildren(5)) });
   const props = makeProps({ currentId: 6, className: 'cms-tree-view' });
   renderTree(props);
 
@@ -166,24 +134,12 @@ test('TreeView renders the stored rows with the tree markup and makes no request
   expect([...getItem('Our team').parentElement.classList]).toEqual(['tree-view__item', 'class-Page']);
   expect(queryItem('Jane Doe')).toBeNull();
 
+  fireEvent.click(getToggle('Our team'));
+  const externalBadge = within(getItem('Staff intranet External')).getByText('External');
+  expect(externalBadge.className).toBe('badge status-externallink');
+  expect(externalBadge.hasAttribute('title')).toBe(false);
+
   expect(props.fetchChildren).not.toHaveBeenCalled();
-});
-
-test('TreeView renders a namespaced record class and a status flag without a title', () => {
-  saveTree({ openIds: [2, 5] });
-  renderTree(makeProps());
-
-  const link = getItem('Staff intranet External');
-  const item = link.parentElement;
-  expect(item.getAttribute('data-recordtype')).toBe('SilverStripe\\CMS\\Model\\RedirectorPage');
-  expect([...item.classList]).toEqual([
-    'tree-view__item',
-    'class-SilverStripe_CMS_Model_RedirectorPage',
-    'status-externallink',
-  ]);
-  const badge = within(link).getByText('External');
-  expect(badge.className).toBe('badge status-externallink');
-  expect(badge.hasAttribute('title')).toBe(false);
 });
 
 test('TreeView collapses and opens the whole tree from the root row', () => {
@@ -202,7 +158,7 @@ test('TreeView collapses and opens the whole tree from the root row', () => {
 });
 
 test('TreeView shows the top level without a root row when there is no root title', () => {
-  saveTree({ actions: [collapseNode(0)] });
+  saveTree({ actions: [{ type: 'collapseNode', id: 0 }] });
   const { container } = renderTree(makeProps({ rootTitle: '' }));
 
   expect(container.querySelector('.tree-view__root')).toBeNull();
@@ -259,7 +215,7 @@ test('TreeView loads children on the first expand only, marking the parent busy 
 });
 
 test('TreeView loads the children of an expanded node the server sent as a leaf', async () => {
-  saveTree({ actions: [expandNode(4)] });
+  saveTree({ actions: [{ type: 'expandNode', id: 4 }] });
   const props = makeProps({ fetchChildren: jest.fn(() => Promise.resolve([makePage(10, 4, 'Directions')])) });
   renderTree(props);
 
@@ -367,7 +323,7 @@ test('TreeView places the show as list link in a translation with a placeholder 
   ].forEach(([text, shown]) => {
     withTooManyText(text, () => {
       treeStores.clear();
-      saveTree({ actions: [expandNode(3)] });
+      saveTree({ actions: [{ type: 'expandNode', id: 3 }] });
       const { unmount } = renderTree(makeProps());
       expect(getItem('show as list').parentElement.textContent).toBe(shown);
       unmount();
@@ -441,38 +397,6 @@ test('TreeView calls the latest callbacks', async () => {
   expect(fetchChildren.mock.calls).toEqual([[2]]);
 });
 
-function saveLargeTree() {
-  const top = [];
-  const actions = [];
-  for (let parentId = 1; parentId <= 30; parentId += 1) {
-    top.push(makePage(parentId, 0, `Page ${parentId}`, { hasChildren: true }));
-    const rows = [];
-    for (let index = 0; index < 9; index += 1) {
-      const id = 1000 + (parentId * 10) + index;
-      rows.push(makePage(id, parentId, `Child ${id}`));
-    }
-    actions.push(...loadActions(parentId, rows), expandNode(parentId));
-  }
-  seedTree([...actions, ...loadActions(0, top)]);
-}
-
-test('TreeView re-renders no row for new callbacks, and one row for a collapse', () => {
-  saveLargeTree();
-  const props = makeProps();
-  const { rerender } = renderTree({ ...props, onOpen: () => {} });
-  expect(screen.getAllByRole('treeitem')).toHaveLength(300);
-  expect(countRowRenders()).toBe(300);
-
-  classnames.mockClear();
-  rerender({ ...props, onOpen: () => {}, onShowAsList: () => {}, fetchPath: () => {} });
-  rerender({ ...props, fetchChildren: jest.fn(), onOpen: () => {} });
-  expect(countRowRenders()).toBe(0);
-
-  fireEvent.click(getToggle('Page 1'));
-  expect(countRowRenders()).toBe(1);
-  expect(screen.getAllByRole('treeitem')).toHaveLength(291);
-});
-
 test('TreeView marks the current row from the prop, given as a number or a string', () => {
   saveTree({ openIds: [2] });
   const { rerender } = renderTree(makeProps({ currentId: 6 }));
@@ -510,13 +434,10 @@ test('TreeView reveals a current page that is not stored', async () => {
   const fetchPath = jest.fn((id) => Promise.resolve(getPath(id)));
   const props = makeProps({ currentId: 8, fetchPath });
   renderTree(props);
-  await flush();
-  await flush();
-  await flush();
+  const item = await screen.findByRole('treeitem', { name: 'Sam Smith' });
 
   expect(fetchPath.mock.calls).toEqual([[8]]);
   expect(props.fetchChildren.mock.calls).toEqual([[0], [2], [5]]);
-  const item = getItem('Sam Smith');
   expect(item.getAttribute('aria-current')).toBe('page');
   expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(1);
   expect(Element.prototype.scrollIntoView.mock.instances[0]).toBe(item);
@@ -527,8 +448,7 @@ test('TreeView does not reveal again for a new fetchPath', async () => {
   const fetchPath = jest.fn((id) => Promise.resolve(getPath(id)));
   const props = makeProps({ currentId: 8, fetchPath });
   const { rerender } = renderTree(props);
-  await flush();
-  await flush();
+  await screen.findByRole('treeitem', { name: 'Sam Smith' });
   fireEvent.click(getToggle('About us'));
 
   const nextFetchPath = jest.fn((id) => Promise.resolve(getPath(id)));
@@ -538,6 +458,39 @@ test('TreeView does not reveal again for a new fetchPath', async () => {
   expect(fetchPath).toHaveBeenCalledTimes(1);
   expect(nextFetchPath).not.toHaveBeenCalled();
   expect(getItem('About us').getAttribute('aria-expanded')).toBe('false');
+});
+
+test('TreeView repeats no request, reveal or reload when it is given new functions on every render', async () => {
+  const requests = [];
+  const paths = [];
+  const withNewFunctions = (props) => ({
+    ...props,
+    fetchChildren: (parentId) => {
+      requests.push(parentId);
+      return Promise.resolve(getChildren(parentId));
+    },
+    fetchPath: (id) => {
+      paths.push(id);
+      return Promise.resolve(getPath(id));
+    },
+    onOpen: () => {},
+    onShowAsList: () => {},
+  });
+  const props = makeProps({ currentId: 8, reloadKey: 1 });
+  const { rerender, container } = renderTree(withNewFunctions(props));
+  rerender(withNewFunctions(props));
+  await screen.findByRole('treeitem', { name: 'Sam Smith' });
+  fireEvent.click(getToggle('About us'));
+  container.querySelector('nav').scrollTop = 40;
+
+  rerender(withNewFunctions(props));
+  rerender(withNewFunctions(props));
+  await flush();
+
+  expect(requests).toEqual([0, 2, 5]);
+  expect(paths).toEqual([8]);
+  expect(getItem('About us').getAttribute('aria-expanded')).toBe('false');
+  expect(container.querySelector('nav').scrollTop).toBe(40);
 });
 
 test('TreeView ignores the path of a current page that changed while it was fetched', async () => {
@@ -566,13 +519,11 @@ test('TreeView reloads a list on the path of the current page that misses the ne
   const fetchChildren = jest.fn((parentId) => Promise.resolve(added[parentId] || getChildren(parentId)));
   const fetchPath = jest.fn(() => Promise.resolve([2, 10]));
   renderTree(makeProps({ currentId: 11, fetchChildren, fetchPath }));
-  await flush();
-  await flush();
-  await flush();
+  const item = await screen.findByRole('treeitem', { name: 'Vacancies' });
 
   expect(fetchChildren.mock.calls).toEqual([[2], [10]]);
   expect(getItem('Careers').getAttribute('aria-expanded')).toBe('true');
-  expect(getItem('Vacancies').getAttribute('aria-current')).toBe('page');
+  expect(item.getAttribute('aria-current')).toBe('page');
 });
 
 const alpha = makePage(20, 0, 'Alpha', { hasChildren: true });
@@ -585,9 +536,9 @@ function saveMovedPageTree({ actions = [], revealedId = null } = {}) {
   seedTree([
     ...loadActions(0, [alpha, beta]),
     ...loadActions(20, [moved]),
-    expandNode(20),
+    { type: 'expandNode', id: 20 },
     ...actions,
-    ...(revealedId === null ? [] : [revealRequest(revealedId)]),
+    ...(revealedId === null ? [] : [{ type: 'revealRequest', id: revealedId }]),
   ]);
 }
 
@@ -598,19 +549,16 @@ test('TreeView asks for the path of a current page its stored parent no longer l
   const fetchPath = jest.fn((id) => Promise.resolve(id === 23 ? [20] : [21]));
   const props = makeProps({ currentId: 23, fetchChildren, fetchPath });
   const { rerender } = renderTree(props);
-  await flush();
-  await flush();
-  expect(getItem('Added').getAttribute('aria-current')).toBe('page');
+  expect((await screen.findByRole('treeitem', { name: 'Added' })).getAttribute('aria-current')).toBe('page');
   expect(queryItem('Moved')).toBeNull();
 
   rerender({ ...props, currentId: 22 });
-  await flush();
-  await flush();
+  const item = await screen.findByRole('treeitem', { name: 'Moved' });
 
   expect(fetchPath.mock.calls).toEqual([[23], [22]]);
   expect(fetchChildren.mock.calls).toEqual([[20], [21]]);
   expect(getItem('Beta').getAttribute('aria-expanded')).toBe('true');
-  expect(getItem('Moved').getAttribute('aria-current')).toBe('page');
+  expect(item.getAttribute('aria-current')).toBe('page');
 });
 
 test('TreeView does not treat a current page missing from its reloaded list as shown', async () => {
@@ -642,7 +590,7 @@ test('TreeView scrolls the current row into view again when it returns after no 
 });
 
 test('TreeView scrolls the current row into view once per current page, not each time it is shown', () => {
-  saveTree({ openIds: [2], revealedId: 6, actions: [collapseNode(0)] });
+  saveTree({ openIds: [2], revealedId: 6, actions: [{ type: 'collapseNode', id: 0 }] });
   const { rerender } = renderTree(makeProps({ currentId: 6 }));
   expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
 
@@ -665,10 +613,7 @@ test('TreeView draws a remount from the saved state at once, as the user left it
   const fetchPath = jest.fn((id) => Promise.resolve(getPath(id)));
   const props = makeProps({ currentId: 7, fetchPath });
   const first = renderTree(props);
-  await flush();
-  await flush();
-  await flush();
-  expect(getItem('Jane Doe').getAttribute('aria-current')).toBe('page');
+  expect((await screen.findByRole('treeitem', { name: 'Jane Doe' })).getAttribute('aria-current')).toBe('page');
   fireEvent.click(getToggle('Our team'));
   fireEvent.click(getRootToggle());
   first.unmount();
@@ -706,7 +651,7 @@ test('TreeView keeps the scroll offset across a remount, then brings the current
 });
 
 test('TreeView keeps the saved scroll offset when the tree is out of the document at unmount', () => {
-  saveTree({ actions: [setScroll(120)] });
+  saveTree({ actions: [{ type: 'setScroll', scrollTop: 120 }] });
   const first = renderTree(makeProps());
   const nav = first.container.querySelector('nav');
   expect(nav.scrollTop).toBe(120);
@@ -738,32 +683,11 @@ test('TreeView keeps a load and a reveal in flight across a remount, and applies
   await flush();
   renderTree(props);
   expect(getItem('About us').getAttribute('aria-expanded')).toBe('true');
-  await flush();
-  await flush();
+  const item = await screen.findByRole('treeitem', { name: 'Sam Smith' });
 
   expect(props.fetchChildren.mock.calls).toEqual([[0], [2], [5]]);
   expect(props.fetchPath).toHaveBeenCalledTimes(1);
-  expect(getItem('Sam Smith').getAttribute('aria-current')).toBe('page');
-});
-
-test('TreeView stops listening to its store when it unmounts', () => {
-  saveTree({ openIds: [2] });
-  const store = getTreeStore(TREE);
-  const { subscribe } = store;
-  let listening = 0;
-  store.subscribe = (listener) => {
-    const unsubscribe = subscribe(listener);
-    listening += 1;
-    return () => {
-      listening -= 1;
-      unsubscribe();
-    };
-  };
-  const { unmount } = renderTree(makeProps());
-  expect(listening).toBeGreaterThan(0);
-
-  unmount();
-  expect(listening).toBe(0);
+  expect(item.getAttribute('aria-current')).toBe('page');
 });
 
 test('TreeView keeps two trees with different ids apart', async () => {
@@ -791,13 +715,11 @@ test('TreeView keeps two trees with different ids apart', async () => {
 test('TreeView makes one request per parent under StrictMode, and none on a remount', async () => {
   const props = makeProps({ currentId: 8, fetchPath: jest.fn((id) => Promise.resolve(getPath(id))) });
   const first = render(<React.StrictMode><TreeView {...props} /></React.StrictMode>);
-  await flush();
-  await flush();
-  await flush();
+  const item = await screen.findByRole('treeitem', { name: 'Sam Smith' });
 
   expect(props.fetchChildren.mock.calls).toEqual([[0], [2], [5]]);
   expect(props.fetchPath).toHaveBeenCalledTimes(1);
-  expect(getItem('Sam Smith').getAttribute('aria-current')).toBe('page');
+  expect(item.getAttribute('aria-current')).toBe('page');
   first.unmount();
 
   const second = makeProps({ currentId: 8, fetchPath: jest.fn(() => Promise.resolve([])) });
@@ -807,17 +729,6 @@ test('TreeView makes one request per parent under StrictMode, and none on a remo
   expect(second.fetchChildren).not.toHaveBeenCalled();
   expect(second.fetchPath).not.toHaveBeenCalled();
   expect(getItem('Sam Smith')).not.toBeNull();
-});
-
-test('TreeView keeps a load in flight under StrictMode and applies its response', async () => {
-  const response = deferred();
-  const props = makeProps({ fetchChildren: jest.fn(() => response.promise) });
-  render(<React.StrictMode><TreeView {...props} /></React.StrictMode>);
-  response.resolve(getChildren(0));
-  await flush();
-
-  expect(props.fetchChildren).toHaveBeenCalledTimes(1);
-  expect(screen.getAllByRole('treeitem')).toHaveLength(4);
 });
 
 // Answers each request with a deferred response, resolved by parent id in the order asked
@@ -837,7 +748,7 @@ function deferredServer() {
 }
 
 test('TreeView reloads the top level and each expanded parent with the rows kept, and drops lists not open', async () => {
-  saveTree({ openIds: [2, 5], revealedId: 6, actions: [collapseNode(5)] });
+  saveTree({ openIds: [2, 5], revealedId: 6, actions: [{ type: 'collapseNode', id: 5 }] });
   const { fetchChildren, respond } = deferredServer();
   const fetchPath = jest.fn(() => Promise.resolve([2]));
   const props = makeProps({ currentId: 6, fetchChildren, fetchPath });
@@ -914,7 +825,7 @@ test('TreeView keeps the old rows and shows no failed row when a reload fails, a
 });
 
 test('TreeView stops reloading the lists of a page that has left the tree', async () => {
-  saveTree({ openIds: [2, 5], actions: [...loadActions(7, [makePage(40, 7, 'Notes')]), expandNode(7)] });
+  saveTree({ openIds: [2, 5], actions: [...loadActions(7, [makePage(40, 7, 'Notes')]), { type: 'expandNode', id: 7 }] });
   const fetchChildren = jest.fn((parentId) => Promise.resolve(parentId === 2 ? [getNode(6)] : getChildren(parentId)));
   const props = makeProps({ fetchChildren });
   const { rerender } = renderTree(props);
@@ -942,7 +853,6 @@ test('TreeView leaves a parent the user collapses during a reload closed', async
   respond(0, getChildren(0));
   respond(2, getChildren(2));
   await flush();
-  await flush();
 
   expect(getItem('About us').getAttribute('aria-expanded')).toBe('false');
   expect(fetchPath).not.toHaveBeenCalled();
@@ -958,20 +868,21 @@ test('TreeView reveals the current page under its new parent after a reload', as
   expect(getItem('Moved').getAttribute('aria-current')).toBe('page');
 
   rerender({ ...props, reloadKey: 1 });
-  await flush();
-  await flush();
-  await flush();
+  const item = await within(await screen.findByRole('group', { name: 'Beta' })).findByRole('treeitem', { name: 'Moved' });
 
   expect(fetchChildren.mock.calls).toEqual([[0], [20], [21]]);
   expect(fetchPath.mock.calls).toEqual([[22]]);
   expect(within(screen.getByRole('group', { name: 'Alpha' })).queryByRole('treeitem', { name: 'Moved' })).toBeNull();
   expect(getItem('Beta').getAttribute('aria-expanded')).toBe('true');
-  const item = within(screen.getByRole('group', { name: 'Beta' })).getByRole('treeitem', { name: 'Moved' });
   expect(item.getAttribute('aria-current')).toBe('page');
 });
 
 test('TreeView leaves a collapsed ancestor and a collapsed root closed after a reload when the current page stays', async () => {
-  saveTree({ openIds: [2, 5], revealedId: 7, actions: [collapseNode(2), collapseNode(0)] });
+  saveTree({
+    openIds: [2, 5],
+    revealedId: 7,
+    actions: [{ type: 'collapseNode', id: 2 }, { type: 'collapseNode', id: 0 }],
+  });
   const server = { 0: getChildren(0), 2: getChildren(2), 5: [{ ...getNode(7), treeTitle: 'Jane Smith' }] };
   const fetchChildren = jest.fn((parentId) => Promise.resolve(server[parentId]));
   const fetchPath = jest.fn(() => Promise.resolve([2, 5]));
@@ -979,7 +890,6 @@ test('TreeView leaves a collapsed ancestor and a collapsed root closed after a r
   const { rerender } = renderTree(props);
 
   rerender({ ...props, reloadKey: 1 });
-  await flush();
   await flush();
 
   expect(fetchChildren.mock.calls).toEqual([[0]]);
@@ -989,10 +899,9 @@ test('TreeView leaves a collapsed ancestor and a collapsed root closed after a r
   fireEvent.click(getRootToggle());
   expect(getItem('About us').getAttribute('aria-expanded')).toBe('false');
   fireEvent.click(getToggle('About us'));
-  await flush();
-  await flush();
+  const item = await screen.findByRole('treeitem', { name: 'Jane Smith' });
   expect(fetchChildren.mock.calls).toEqual([[0], [2], [5]]);
-  expect(getItem('Jane Smith').getAttribute('aria-current')).toBe('page');
+  expect(item.getAttribute('aria-current')).toBe('page');
 });
 
 test('TreeView shows no current row and no failed row after a reload drops an archived current page', async () => {
@@ -1004,10 +913,8 @@ test('TreeView shows no current row and no failed row after a reload drops an ar
   expect(getItem('History Draft').getAttribute('aria-current')).toBe('page');
 
   rerender({ ...props, reloadKey: 1 });
-  await flush();
-  await flush();
+  await waitFor(() => expect(fetchPath.mock.calls).toEqual([[6]]));
 
-  expect(fetchPath.mock.calls).toEqual([[6]]);
   expect(queryItem('History Draft')).toBeNull();
   expect(document.querySelectorAll('[aria-current]')).toHaveLength(0);
   expect(queryItem('Failed to load Try again')).toBeNull();

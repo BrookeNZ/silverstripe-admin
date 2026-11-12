@@ -1,5 +1,4 @@
 import deepFreeze from 'deep-freeze-strict';
-import ACTION_TYPES from './TreeViewActionTypes';
 
 export const STATUS = {
   LOADING: 'loading',
@@ -126,46 +125,47 @@ function reload(tree, reloadKey) {
   });
 }
 
-function reduceTree(tree, type, payload) {
-  switch (type) {
-    case ACTION_TYPES.TREEVIEW_FETCH_CHILDREN_REQUEST:
-      return isLoading(tree, payload.parentId)
+function reduceTree(tree, action) {
+  switch (action.type) {
+    case 'fetchChildrenRequest':
+      return isLoading(tree, action.parentId)
         ? tree
-        : { ...tree, status: { ...tree.status, [payload.parentId]: STATUS.LOADING } };
+        : { ...tree, status: { ...tree.status, [action.parentId]: STATUS.LOADING } };
 
-    case ACTION_TYPES.TREEVIEW_FETCH_CHILDREN_SUCCESS:
-      return isLoading(tree, payload.parentId) ? receiveChildren(tree, payload.parentId, payload.nodes) : tree;
+    case 'fetchChildrenSuccess':
+      return isLoading(tree, action.parentId) ? receiveChildren(tree, action.parentId, action.nodes) : tree;
 
-    case ACTION_TYPES.TREEVIEW_FETCH_CHILDREN_FAILURE:
-      if (!isLoading(tree, payload.parentId)) {
+    case 'fetchChildrenFailure':
+      if (!isLoading(tree, action.parentId)) {
         return tree;
       }
       // A list that fails to load again keeps its rows
-      return tree.childIds[payload.parentId]
-        ? { ...tree, status: omitKeys(tree.status, [payload.parentId]) }
-        : { ...tree, status: { ...tree.status, [payload.parentId]: STATUS.FAILED } };
+      return tree.childIds[action.parentId]
+        ? { ...tree, status: omitKeys(tree.status, [action.parentId]) }
+        : { ...tree, status: { ...tree.status, [action.parentId]: STATUS.FAILED } };
 
-    case ACTION_TYPES.TREEVIEW_EXPAND_NODE:
-      return payload.id === ROOT_ID
+    case 'expandNode':
+      return action.id === ROOT_ID
         ? updateTree(tree, { rootCollapsed: false })
-        : updateTree(tree, { expanded: addOnce(tree.expanded, [payload.id]) });
+        : updateTree(tree, { expanded: addOnce(tree.expanded, [action.id]) });
 
-    case ACTION_TYPES.TREEVIEW_COLLAPSE_NODE:
-      return payload.id === ROOT_ID
+    case 'collapseNode':
+      return action.id === ROOT_ID
         ? updateTree(tree, { rootCollapsed: true })
-        : updateTree(tree, { expanded: withoutId(tree.expanded, payload.id) });
+        : updateTree(tree, { expanded: withoutId(tree.expanded, action.id) });
 
-    case ACTION_TYPES.TREEVIEW_SET_SCROLL:
-      return updateTree(tree, { scrollTop: payload.scrollTop });
+    case 'setScroll':
+      return updateTree(tree, { scrollTop: action.scrollTop });
 
-    case ACTION_TYPES.TREEVIEW_REVEAL_REQUEST:
-      return updateTree(tree, { revealedId: payload.id, revealing: payload.id !== null });
+    case 'revealRequest':
+      return updateTree(tree, { revealedId: action.id, revealing: action.id !== null });
 
-    case ACTION_TYPES.TREEVIEW_REVEAL_SUCCESS:
-      return tree.revealing && tree.revealedId === payload.id ? receivePath(tree, payload.id, payload.ids) : tree;
+    // `ids` are the ancestors of the node `id`, top level first
+    case 'revealSuccess':
+      return tree.revealing && tree.revealedId === action.id ? receivePath(tree, action.id, action.ids) : tree;
 
-    case ACTION_TYPES.TREEVIEW_RELOAD:
-      return reload(tree, payload.reloadKey);
+    case 'reloadRequest':
+      return reload(tree, action.reloadKey);
 
     default:
       return tree;
@@ -173,6 +173,6 @@ function reduceTree(tree, type, payload) {
 }
 
 export default function treeViewReducer(tree = initialTreeState, action = {}) {
-  const next = reduceTree(tree, action.type, action.payload || {});
+  const next = reduceTree(tree, action);
   return next === tree ? tree : deepFreeze(next);
 }

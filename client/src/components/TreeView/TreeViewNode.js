@@ -1,18 +1,17 @@
-import React, { memo, useEffect } from 'react';
+import React, { createContext, memo, useContext, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import classnames from 'classnames';
 import i18n from 'i18n';
 import { STATUS } from './TreeViewReducer';
-import { collapseNode, expandNode, loadChildren } from './TreeViewActions';
+import { loadChildren } from './TreeViewActions';
 import { useTreeValue } from './treeStore';
+
+// Holds `store`, `currentId` and the `fetchChildren`, `onOpen` and `onShowAsList` callbacks for every row
+export const TreeViewContext = createContext(null);
 
 // A modified or middle click is left to the browser, so the real href can open in a new tab
 function isPlainClick(event) {
   return event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey;
-}
-
-function isDisabled(node) {
-  return node.canView === false;
 }
 
 // A list loading again keeps its rows, so only a parent with no list yet is busy
@@ -48,22 +47,15 @@ FailedRow.propTypes = {
   onRetry: PropTypes.func.isRequired,
 };
 
-// The link stands in for the first `{link}`, so a translation places it and the brackets around it
-function splitAtLink(text) {
-  const index = text.indexOf('{link}');
-  if (index === -1) {
-    return [`${text} `, ''];
-  }
-  return [text.slice(0, index), text.slice(index + '{link}'.length).split('{link}').join('')];
-}
-
 const LimitedRow = ({ node, level, onShowAsList }) => {
   const handleClick = (event) => {
     if (isPlainClick(event)) {
       onShowAsList(node, event);
     }
   };
-  const [beforeLink, afterLink] = splitAtLink(i18n._t('Admin.TREEVIEW_TOO_MANY', 'Too many records ({link})'));
+  const text = i18n._t('Admin.TREEVIEW_TOO_MANY', 'Too many records ({link})');
+  // The link stands in for `{link}`, so a translation places it and the brackets around it
+  const [beforeLink, afterLink = ''] = text.includes('{link}') ? text.split('{link}') : [`${text} `];
 
   return (
     <li className="tree-view__item tree-view__item--limited" role="none">
@@ -92,22 +84,15 @@ LimitedRow.propTypes = {
 };
 
 // The rows inside an open parent, at `level`; loads the parent's children when it has no list and no status
-export const TreeViewItems = ({
-  store,
-  parentId,
-  parentNode = null,
-  level,
-  fetchChildren,
-  onShowAsList,
-  renderNode,
-}) => {
+export const TreeViewItems = ({ parentId, parentNode = null, level }) => {
+  const { store, fetchChildren, onShowAsList } = useContext(TreeViewContext);
   const list = useTreeValue(store, (tree) => tree.childIds[parentId]);
   const status = useTreeValue(store, (tree) => tree.status[parentId]);
   const limited = Boolean(parentNode && parentNode.limited);
 
   useEffect(() => {
     if (!list && !status) {
-      loadChildren(store.dispatch, store.getState, parentId, fetchChildren);
+      loadChildren(store, parentId, fetchChildren);
     }
   }, [store, parentId, list, status, fetchChildren]);
 
@@ -115,37 +100,26 @@ export const TreeViewItems = ({
     return <LimitedRow node={parentNode} level={level} onShowAsList={onShowAsList} />;
   }
   if (status === STATUS.FAILED) {
-    const handleRetry = () => loadChildren(store.dispatch, store.getState, parentId, fetchChildren, { force: true });
+    const handleRetry = () => loadChildren(store, parentId, fetchChildren);
     return <FailedRow level={level} onRetry={handleRetry} />;
   }
   if (isBusy(list, status)) {
     return <LoadingRow />;
   }
-  return list.map((id, index) => renderNode(id, level, index + 1, list.length));
+  return list.map((id, index) => (
+    // eslint-disable-next-line no-use-before-define
+    <MemoTreeViewNode key={id} id={id} level={level} posinset={index + 1} setsize={list.length} />
+  ));
 };
 
 TreeViewItems.propTypes = {
-  store: PropTypes.object.isRequired,
   parentId: PropTypes.number.isRequired,
   parentNode: PropTypes.object,
   level: PropTypes.number.isRequired,
-  fetchChildren: PropTypes.func.isRequired,
-  onShowAsList: PropTypes.func.isRequired,
-  renderNode: PropTypes.func.isRequired,
 };
 
-const TreeViewNode = ({
-  store,
-  id,
-  level,
-  posinset,
-  setsize,
-  currentId,
-  fetchChildren,
-  onOpen,
-  onShowAsList,
-  renderNode,
-}) => {
+const TreeViewNode = ({ id, level, posinset, setsize }) => {
+  const { store, currentId, onOpen } = useContext(TreeViewContext);
   const node = useTreeValue(store, (tree) => tree.nodes[id]);
   const list = useTreeValue(store, (tree) => tree.childIds[id]);
   const status = useTreeValue(store, (tree) => tree.status[id]);
@@ -158,10 +132,10 @@ const TreeViewNode = ({
   // A parent whose children loaded empty shows as a leaf
   const isParent = Boolean(node.limited) || (list ? list.length > 0 : Boolean(node.hasChildren) || isExpanded);
   const isOpen = isParent && isExpanded;
-  const disabled = isDisabled(node);
+  const disabled = node.canView === false;
 
   const handleToggle = () => {
-    store.dispatch(isExpanded ? collapseNode(id) : expandNode(id));
+    store.dispatch({ type: isExpanded ? 'collapseNode' : 'expandNode', id });
   };
 
   const handleClick = (event) => {
@@ -210,15 +184,7 @@ const TreeViewNode = ({
       </a>
       {isOpen && (
         <ul className="tree-view__group" role="group" aria-label={node.treeTitle}>
-          <TreeViewItems
-            store={store}
-            parentId={id}
-            parentNode={node}
-            level={level + 1}
-            fetchChildren={fetchChildren}
-            onShowAsList={onShowAsList}
-            renderNode={renderNode}
-          />
+          <TreeViewItems parentId={id} parentNode={node} level={level + 1} />
         </ul>
       )}
     </li>
@@ -226,16 +192,10 @@ const TreeViewNode = ({
 };
 
 TreeViewNode.propTypes = {
-  store: PropTypes.object.isRequired,
   id: PropTypes.number.isRequired,
   level: PropTypes.number.isRequired,
   posinset: PropTypes.number.isRequired,
   setsize: PropTypes.number.isRequired,
-  currentId: PropTypes.number,
-  fetchChildren: PropTypes.func.isRequired,
-  onOpen: PropTypes.func.isRequired,
-  onShowAsList: PropTypes.func.isRequired,
-  renderNode: PropTypes.func.isRequired,
 };
 
-export default memo(TreeViewNode);
+const MemoTreeViewNode = memo(TreeViewNode);

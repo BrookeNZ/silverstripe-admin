@@ -78,4 +78,20 @@ export function getPath(id) {
   return ancestorIds;
 }
 
+// The actions of a request for the parent's children and its response
+export function loadActions(parentId, nodes) {
+  return [
+    { type: 'fetchChildrenRequest', parentId },
+    { type: 'fetchChildrenSuccess', parentId, nodes },
+  ];
+}
+
+export function deferred() {
+  const result = {};
+  result.promise = new Promise((resolve) => {
+    result.resolve = resolve;
+  });
+  return result;
+}
+
 export { makePage };
