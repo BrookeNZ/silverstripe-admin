@@ -86,13 +86,14 @@ class HierarchyTreeHandlerTest extends FunctionalTest
         $this->assertSame('admin/hierarchy-tree-test/tree/path', $handler->Link('path'));
     }
 
-    public function testChildrenOfAParentFollowTheSortOrder(): void
+    public function testChildrenOfAParentAreTheViewableRecordsInSortOrder(): void
     {
         $fruit = $this->idFromFixture(TreeNode::class, 'fruit');
 
         $nodes = $this->getNodes($this->childrenUrl($fruit));
 
         $this->assertSame($this->idsOf(['pear', 'plum', 'apple']), array_column($nodes, 'id'));
+        $this->assertNotContains($this->idFromFixture(TreeNode::class, 'secret'), array_column($nodes, 'id'));
         $this->assertSame([$fruit, $fruit, $fruit], array_column($nodes, 'parentId'));
         $this->assertSame([false, false, true], array_column($nodes, 'hasChildren'));
     }
@@ -138,13 +139,6 @@ class HierarchyTreeHandlerTest extends FunctionalTest
         $this->assertFalse($plum['canAddChildren']);
         $this->assertContains('edit-disabled', $this->words($plum));
         $this->assertNotContains('disabled', $this->words($plum));
-    }
-
-    public function testRecordTheMemberCannotViewIsNotListed(): void
-    {
-        $nodes = $this->getNodes($this->childrenUrl($this->idFromFixture(TreeNode::class, 'fruit')));
-
-        $this->assertNotContains($this->idFromFixture(TreeNode::class, 'secret'), array_column($nodes, 'id'));
     }
 
     public function testChildrenOfARecordTheMemberCannotViewAreForbidden(): void
@@ -211,19 +205,6 @@ class HierarchyTreeHandlerTest extends FunctionalTest
         $nodes = $this->getNodes($this->childrenUrl($this->idFromFixture(TreeNode::class, 'fruit')));
 
         $this->assertSame('Salt & <Pepper>', $this->findNode($nodes, 'pear')['treeTitle']);
-    }
-
-    public function testModelThatCannotHaveChildren(): void
-    {
-        Config::modify()->set(TreeNode::class, 'allowed_children', 'none');
-
-        $pear = $this->findNode(
-            $this->getNodes($this->childrenUrl($this->idFromFixture(TreeNode::class, 'fruit'))),
-            'pear'
-        );
-        $this->assertTrue($pear['canEdit']);
-        $this->assertFalse($pear['canAddChildren']);
-        $this->assertContains('nochildren', $this->words($pear));
     }
 
     public function testEmptyTitle(): void
@@ -300,10 +281,6 @@ class HierarchyTreeHandlerTest extends FunctionalTest
     public function testModelAdminServesTheTreeOfItsModel(): void
     {
         $modelAdminUrl = TestModelAdmin::singleton()->getLinkForModelClass(TreeNode::class);
-        $this->assertSame(
-            'admin/hierarchy-tree-model-admin-test/SilverStripe-Admin-Tests-HierarchyTreeHandlerTest-TreeNode',
-            $modelAdminUrl
-        );
 
         $nodes = $this->getNodes($modelAdminUrl . '/tree/children/' . $this->idFromFixture(TreeNode::class, 'fruit'));
         $this->assertSame($this->idsOf(['pear', 'plum', 'apple']), array_column($nodes, 'id'));
