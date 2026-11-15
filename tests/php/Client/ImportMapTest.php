@@ -7,6 +7,7 @@ use Monolog\Logger;
 use Psr\Log\LoggerInterface;
 use SilverStripe\Admin\Client\ImportMap;
 use SilverStripe\Admin\Client\LoaderAssets;
+use SilverStripe\Admin\Client\ClientRegistry;
 use SilverStripe\Core\Config\Config;
 use SilverStripe\Core\Injector\Injector;
 use SilverStripe\Dev\SapphireTest;
@@ -37,6 +38,26 @@ class ImportMapTest extends SapphireTest
         $this->assertMatchesRegularExpression('#^' . $shared . 'also\.js\?v=5debdf9c$#', $map['imports']['@scope/also']);
         $this->assertSame($map['imports']['present'], $map['imports']['alias']);
         $this->assertFalse($this->warnings->hasWarningRecords());
+    }
+
+    public function testAnEntrysNameAndAModulesImportsAreMapEntriesWithACacheKey(): void
+    {
+        Config::modify()->set(ClientRegistry::class, 'modules', [
+            'silverstripe/dates' => [
+                'imports' => ['@silverstripe/dayjs' => 'silverstripe/admin:client/dist/js/i18n.js'],
+                'entries' => ['main' => ['js' => 'silverstripe/admin:client/dist/js/i18n.js']],
+            ],
+            'silverstripe/dayjs' => ['imports' => ['dayjs' => 'silverstripe/admin:client/dist/js/i18n.js']],
+        ]);
+        $registry = ClientRegistry::singleton();
+
+        $map = ImportMap::singleton()->getMap($registry->getImports());
+
+        $cacheKeyed = '#^https?://.*/client/dist/js/i18n\.js\?m=\d+$#';
+        $this->assertMatchesRegularExpression($cacheKeyed, $map['imports']['silverstripe/dates/main']);
+        $this->assertMatchesRegularExpression($cacheKeyed, $map['imports']['@silverstripe/dayjs']);
+        $this->assertMatchesRegularExpression($cacheKeyed, $map['imports']['dayjs']);
+        $this->assertSame(['silverstripe/dates/main'], array_column($registry->getEntries(), 'name'), 'A library package lists no entry');
     }
 
     public function testTheFixedSharedSpecifiersMatchTheLoadersSharedList(): void

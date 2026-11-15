@@ -20,8 +20,8 @@ const importEntry: EntryImporter = (specifier) => import(/* webpackIgnore: true 
 
 /**
  * The entry list from the page, minus any item with no name. Empty, with a console error, when the block is missing
- * or not a list. The list is taken as written: the server must refuse duplicates and items without a module before
- * it writes the list to the page
+ * or not a list. The list is taken as written: ClientRegistry::dropRefusedItems() has already refused duplicates and
+ * items without a module before the page carries it
  */
 export function readEntryList(): Array<ClientEntry> {
   const items = readDataBlock(ENTRIES_BLOCK_ID);
