@@ -446,8 +446,8 @@ class ClientEntryChecker
 
     /**
      * Refuses whitespace and control characters anywhere, which a browser strips from a map key, bytes that are not
-     * UTF-8, which the page must substitute when it writes the map as JSON, so two keys could reach the browser as
-     * one name, and anything a browser reads as a URL or a path rather than a bare specifier
+     * UTF-8, which ChromePage::jsonForScriptBlock() substitutes so two keys could reach the browser as one name, and
+     * anything a browser reads as a URL or a path rather than a bare specifier
      */
     private static function isBareSpecifier(string $specifier): bool
     {
