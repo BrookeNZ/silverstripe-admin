@@ -1,0 +1,224 @@
+<?php
+
+namespace SilverStripe\Admin\Tests\Client;
+
+use ReflectionMethod;
+use SilverStripe\Admin\Client\LoaderAssets;
+use SilverStripe\Admin\Client\ClientRegistry;
+use SilverStripe\Admin\LeftAndMain;
+use SilverStripe\Admin\Tests\Client\ChromePageTest\NonceExtension;
+use SilverStripe\Admin\Tests\Client\ChromePageTest\SectionController;
+use SilverStripe\Admin\Tests\Client\ChromePageTest\UngatedSectionController;
+use SilverStripe\Control\HTTPRequest;
+use SilverStripe\Core\Config\Config;
+use SilverStripe\Core\Injector\Injector;
+use SilverStripe\Dev\FunctionalTest;
+use SilverStripe\Security\SudoMode\SudoModeServiceInterface;
+
+class ChromePageTest extends FunctionalTest
+{
+    // One slash, as the name rule requires; the tags still prove nothing can close a script block
+    private const string MODULE = 'acme/<script>alert(1)<!--';
+
+    private const string NAME = ChromePageTest::MODULE . '/main';
+
+    private const string SECTION = 'admin/chrome-test-section/';
+
+    protected static $required_extensions = [
+        LeftAndMain::class => [NonceExtension::class],
+    ];
+
+    protected static $extra_controllers = [
+        SectionController::class,
+        UngatedSectionController::class,
+    ];
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Config::modify()->set(ClientRegistry::class, 'modules', [
+            ChromePageTest::MODULE => ['entries' => ['main' => ['js' => 'https://cdn.example.test/hello.js']]],
+        ]);
+        $this->logInWithPermission('ADMIN');
+    }
+
+    public function testANavigationGetsTheChromePageWithTheMapEntriesAndConfig(): void
+    {
+        $body = $this->sectionNavigation();
+
+        $this->assertMatchesRegularExpression(
+            '#<html lang="[a-z]{2}-[A-Z]{2}">.*<title>[^<]*' . SectionController::MENU_TITLE . '</title>#s',
+            $body,
+            'The section is the failover'
+        );
+        $nonce = 'nonce="' . NonceExtension::NONCE . '"';
+        $this->assertStringContainsString('<script type="importmap" ' . $nonce . '>', $body);
+        $map = $this->jsonBlock($body, 'type="importmap"');
+        $this->assertArrayHasKey('react', $map['imports']);
+        $this->assertSame('https://cdn.example.test/hello.js', $map['imports'][ChromePageTest::NAME]);
+        $preloads = $this->entryPreloads($body);
+        $this->assertStringContainsString('client/dist/loader/main.js', $preloads[0]);
+        $shared = array_map(fn (string $specifier) => $map['imports'][$specifier], LoaderAssets::SHARED_SPECIFIERS);
+        $this->assertSame([$preloads[0], ...$shared, 'https://cdn.example.test/hello.js'], $preloads, 'The loader, the shared files, then the client entry');
+        $this->assertStringContainsString('?v=', $preloads[1]);
+        $this->assertStringContainsString('<script type="module" ' . $nonce . ' src="' . $preloads[0] . '"></script>', $body);
+
+        $entries = $this->jsonBlock($body, 'id="ss-admin-entries"');
+        $this->assertSame(
+            [['name' => ChromePageTest::NAME, 'module' => ChromePageTest::MODULE]],
+            $entries,
+            'A value cannot close its block'
+        );
+        $config = $this->jsonBlock($body, 'id="ss-admin-config"');
+        $this->assertArrayHasKey('sections', $config);
+
+        $this->assertStringNotContainsString('window.ss.config', $body);
+        $this->assertStringNotContainsString('<script type="text/javascript"', $body);
+
+        Config::modify()->set(ClientRegistry::class, 'modules', []);
+        $this->assertSame(
+            [$preloads[0], $map['imports'][LoaderAssets::ADMIN_SPECIFIER]],
+            $this->entryPreloads($this->sectionNavigation()),
+            'With no client entry, only the loader and the file it imports'
+        );
+    }
+
+    public function testClientEntryStylesheetsAreLinkedInConfigOrderBeforeTheLoader(): void
+    {
+        Config::modify()->set(ClientRegistry::class, 'modules', [
+            ChromePageTest::MODULE => ['entries' => [
+                'main' => ['js' => 'https://cdn.example.test/hello.js', 'css' => 'https://cdn.example.test/hello.css'],
+            ]],
+            'acme/theme' => ['entries' => ['styles' => ['css' => 'https://cdn.example.test/theme.css']]],
+        ]);
+
+        $body = $this->sectionNavigation();
+
+        $nonce = 'nonce="' . NonceExtension::NONCE . '"';
+        preg_match_all('#<link rel="stylesheet"[^>]*>|<script type="module"#', $body, $tags);
+        $this->assertSame(
+            [
+                '<link rel="stylesheet" ' . $nonce . ' href="https://cdn.example.test/hello.css" data-entry="'
+                    . htmlspecialchars(ChromePageTest::NAME) . '" />',
+                '<link rel="stylesheet" ' . $nonce . ' href="https://cdn.example.test/theme.css" />',
+                '<script type="module"',
+            ],
+            $tags[0],
+            'In config order, then the loader; only a client entry link names an entry'
+        );
+        $map = $this->jsonBlock($body, 'type="importmap"');
+        $this->assertArrayNotHasKey('acme/theme/styles', $map['imports']);
+        $entries = $this->jsonBlock($body, 'id="ss-admin-entries"');
+        $this->assertSame([ChromePageTest::NAME], array_column($entries, 'name'));
+    }
+
+    public function testAHeaderSetDuringInitStaysOnTheChromePage(): void
+    {
+        $response = $this->get(ChromePageTest::SECTION, null, ['Accept' => 'text/html']);
+
+        $this->assertStringContainsString('type="importmap"', $response->getBody());
+        $this->assertSame(NonceExtension::POLICY, $response->getHeader('Content-Security-Policy'));
+    }
+
+    public function testAClientRouteNamedLikeAnActionTheFrameworkRefusesGetsTheChromePage(): void
+    {
+        foreach ([ChromePageTest::SECTION . 'run', ChromePageTest::SECTION . 'doinit'] as $url) {
+            $response = $this->get($url, null, ['Accept' => 'text/html']);
+            $this->assertSame(200, $response->getStatusCode(), $url);
+            $this->assertStringContainsString('type="importmap"', $response->getBody(), $url);
+        }
+    }
+
+    public function testInvalidUTF8IsSubstitutedInConfigAndRefusedInAModuleKey(): void
+    {
+        Config::modify()->set(LeftAndMain::class, 'client_debugging', "bad \xB1 byte</script>");
+        Config::modify()->set(ClientRegistry::class, 'modules', ["acme/bad\xB1byte" => ['entries' => ['main' => ['js' => 'https://cdn.example.test/hello.js']]]]);
+
+        $body = $this->sectionNavigation();
+
+        $config = $this->jsonBlock($body, 'id="ss-admin-config"');
+        $this->assertSame("bad \u{FFFD} byte</script>", $config['debugging'], 'Substituted, and unable to close its block');
+        $this->assertSame([], $this->jsonBlock($body, 'id="ss-admin-entries"'), 'A key the encoder would alter never reaches the page');
+    }
+
+    public function testADataRequestToASectionURLReachesItsLegacyAction(): void
+    {
+        $legacy = $this->get(ChromePageTest::SECTION, null, ['Accept' => '*/*']);
+        $page = $legacy->getBody();
+        $chrome = $this->get(ChromePageTest::SECTION, null, ['Accept' => 'text/html']);
+        $vary = 'X-Requested-With, Accept, Sec-Fetch-Dest, Sec-Fetch-Mode, X-Pjax, X-Formschema-Request';
+        $this->assertSame([true, true], array_map(fn ($response) => str_contains((string) $response->getHeader('Vary'), $vary), [$legacy, $chrome]));
+        $this->assertStringNotContainsString('type="importmap"', $page);
+        $this->assertStringContainsString('window.ss.config', $page);
+
+        $pjax = $this->get(ChromePageTest::SECTION, null, ['X-Requested-With' => 'XMLHttpRequest', 'X-Pjax' => 'CurrentForm']);
+        $this->assertArrayHasKey('CurrentForm', json_decode($pjax->getBody(), true, 512, JSON_THROW_ON_ERROR));
+
+        $json = $this->get(ChromePageTest::SECTION, null, ['Accept' => 'application/json, text/html;q=0.1']);
+        $this->assertStringNotContainsString('type="importmap"', $json->getBody());
+    }
+
+    public function testAPrintViewOrAnExportNavigationReachesItsServerAction(): void
+    {
+        // Without sudo mode the grid is read-only and has no print or export button
+        Injector::inst()->get(SudoModeServiceInterface::class)->activate($this->session());
+        $grid = 'admin/security/users/EditForm/field/users/';
+        $print = $this->get($grid . 'print', null, ['Accept' => 'text/html']);
+        $export = $this->get($grid . 'export', null, ['Accept' => 'text/html']);
+
+        $this->assertStringNotContainsString('type="importmap"', $print->getBody());
+        $this->assertStringContainsString('<table', $print->getBody());
+        $this->assertStringContainsString('text/csv', (string) $export->getHeader('Content-Type'));
+        // Not a request: LeftAndMain::printable() fails in core, as Form::setActions() does not take null
+        $isNavigation = new ReflectionMethod(LeftAndMain::class, 'decideChromeNavigation');
+        $navigation = function (string $url) use ($isNavigation): bool {
+            $request = new HTTPRequest('GET', $url);
+            $request->addHeader('Accept', 'text/html');
+            return $isNavigation->invoke(SectionController::singleton(), $request);
+        };
+        $this->assertFalse($navigation(ChromePageTest::SECTION . 'printable/5'), 'A trailing record ID is skipped');
+        $this->assertTrue($navigation(ChromePageTest::SECTION . 'edit/show/5'));
+    }
+
+    public function testAServerSegmentActionThatFailsKeepsTheLegacyErrorPageRequirements(): void
+    {
+        $response = $this->get(ChromePageTest::SECTION . 'export', null, ['Accept' => 'text/html']);
+
+        $this->assertSame(500, $response->getStatusCode());
+        $this->assertStringContainsString('window.ss.config', $response->getBody());
+    }
+
+    public function testASectionWhoseInitSkipsTheGateStillRefusesAMemberItCannotView(): void
+    {
+        $this->autoFollowRedirection = false;
+
+        $response = $this->get('admin/chrome-ungated-section/', null, ['Accept' => 'text/html']);
+
+        $this->assertSame(403, $response->getStatusCode(), 'The permission failure, not a page');
+        $this->assertStringNotContainsString('ss-admin-config', (string) $response->getBody());
+        $this->assertStringNotContainsString('type="importmap"', (string) $response->getBody());
+    }
+
+    private function sectionNavigation(): string
+    {
+        $response = $this->get(ChromePageTest::SECTION, null, ['Accept' => 'text/html']);
+        $this->assertSame(200, $response->getStatusCode());
+        return $response->getBody();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function entryPreloads(string $body): array
+    {
+        $nonce = 'nonce="' . NonceExtension::NONCE . '"';
+        preg_match_all('#<link rel="modulepreload" ' . preg_quote($nonce, '#') . ' href="([^"]*)"#', $body, $preloads);
+        return $preloads[1];
+    }
+
+    private function jsonBlock(string $body, string $attribute): array
+    {
+        $this->assertSame(1, preg_match('#<script[^>]*' . preg_quote($attribute, '#') . '[^>]*>(.*?)</script>#s', $body, $matches), $attribute);
+        return json_decode($matches[1], true, 512, JSON_THROW_ON_ERROR);
+    }
+}

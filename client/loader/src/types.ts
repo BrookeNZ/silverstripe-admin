@@ -38,8 +38,8 @@ export interface Section {
 }
 
 /**
- * The client config the loader reads from `#ss-admin-config`; the server must write these fields there, and a field
- * added on one side must be added on the other. The CSRF token is not typed because its key is configurable
+ * The client config LeftAndMain::getCombinedClientConfig() writes into `#ss-admin-config`; a field added on one side
+ * must be added on the other. The CSRF token is not typed because its key is configurable
  */
 export interface ClientConfig {
   sections: Array<Section>;
