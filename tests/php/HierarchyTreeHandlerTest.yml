@@ -1,0 +1,37 @@
+SilverStripe\Admin\Tests\HierarchyTreeHandlerTest\TreeNode:
+  fruit:
+    Title: Fruit
+    Sort: 1
+  vegetables:
+    Title: Vegetables
+    Sort: 2
+  apple:
+    Title: Apple
+    Parent: =>SilverStripe\Admin\Tests\HierarchyTreeHandlerTest\TreeNode.fruit
+    Sort: 3
+  pear:
+    Title: Pear
+    Parent: =>SilverStripe\Admin\Tests\HierarchyTreeHandlerTest\TreeNode.fruit
+    Sort: 1
+  plum:
+    Title: Plum
+    Parent: =>SilverStripe\Admin\Tests\HierarchyTreeHandlerTest\TreeNode.fruit
+    Sort: 2
+    Access: View
+  secret:
+    Title: Secret
+    Parent: =>SilverStripe\Admin\Tests\HierarchyTreeHandlerTest\TreeNode.fruit
+    Sort: 4
+    Access: None
+  seed:
+    Title: Seed
+    Parent: =>SilverStripe\Admin\Tests\HierarchyTreeHandlerTest\TreeNode.secret
+    Sort: 1
+  core:
+    Title: Core
+    Parent: =>SilverStripe\Admin\Tests\HierarchyTreeHandlerTest\TreeNode.apple
+    Sort: 1
+  untitled:
+    Title: ''
+    Parent: =>SilverStripe\Admin\Tests\HierarchyTreeHandlerTest\TreeNode.vegetables
+    Sort: 1

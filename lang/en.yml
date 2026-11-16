@@ -40,6 +40,8 @@ en:
     ResultCreated: 'Created {count} groups'
     ResultDeleted: 'Deleted {count} groups'
     ResultUpdated: 'Updated {count} groups'
+  SilverStripe\Admin\HierarchyTreeHandler:
+    TREE_NO_TITLE: '(no title)'
   SilverStripe\Admin\LeftAndMain:
     ACCESS: "Access to '{title}' section"
     ACCESSALLINTERFACES: 'Access to all CMS sections'
