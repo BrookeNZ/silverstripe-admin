@@ -29,6 +29,7 @@ import FormAction from 'components/FormAction/FormAction';
 import FieldGroup from 'components/FieldGroup/FieldGroup';
 import TreeDropdownField from 'components/TreeDropdownField/TreeDropdownField';
 import TreeView from 'components/TreeView/TreeView';
+import ContextMenu from 'components/ContextMenu/ContextMenu';
 import FormBuilderModal from 'components/FormBuilderModal/FormBuilderModal';
 import NotFoundComponent from 'components/NotFoundComponent/NotFoundComponent';
 import Form from 'components/Form/Form';
@@ -88,6 +89,7 @@ export default () => {
     LabelField,
     TreeDropdownField,
     TreeView,
+    ContextMenu,
     Preview,
     ReduxForm,
     ReduxFormField,
