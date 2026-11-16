@@ -1,0 +1,37 @@
+SilverStripe\Admin\Tests\HierarchyTreeControllerTest\TreeNode:
+  parent:
+    Title: Parent
+    Sort: 1
+  secondParent:
+    Title: Second parent
+    Sort: 2
+  withChild:
+    Title: With child
+    Parent: =>SilverStripe\Admin\Tests\HierarchyTreeControllerTest\TreeNode.parent
+    Sort: 3
+  editable:
+    Title: Editable
+    Parent: =>SilverStripe\Admin\Tests\HierarchyTreeControllerTest\TreeNode.parent
+    Sort: 1
+  viewOnly:
+    Title: View only
+    Parent: =>SilverStripe\Admin\Tests\HierarchyTreeControllerTest\TreeNode.parent
+    Sort: 2
+    Access: View
+  hidden:
+    Title: Hidden
+    Parent: =>SilverStripe\Admin\Tests\HierarchyTreeControllerTest\TreeNode.parent
+    Sort: 4
+    Access: None
+  childOfHidden:
+    Title: Child of hidden
+    Parent: =>SilverStripe\Admin\Tests\HierarchyTreeControllerTest\TreeNode.hidden
+    Sort: 1
+  grandchild:
+    Title: Grandchild
+    Parent: =>SilverStripe\Admin\Tests\HierarchyTreeControllerTest\TreeNode.withChild
+    Sort: 1
+  untitled:
+    Title: ''
+    Parent: =>SilverStripe\Admin\Tests\HierarchyTreeControllerTest\TreeNode.secondParent
+    Sort: 1
