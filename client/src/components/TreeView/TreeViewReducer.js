@@ -10,6 +10,9 @@
  * - shown node: a node whose row renders.
  * - revealing a node: expanding the ancestors of the node to show the node.
  * - opening a node: loading the node as the current node through the `onOpen` prop of `TreeView`.
+ * - open request: a call of `onOpen` from a click on a row, when the call does not return `false`.
+ * - pending row: the row just clicked. The pending row stays highlighted until the current node changes or the open
+ *   request of the row fails.
  *
  * The state has these fields:
  * - `nodes`: the node data by id, with the fields that the `fetchChildren` prop of `TreeView` lists. The
@@ -23,6 +26,8 @@
  *   true when the ancestor ids cannot be fetched.
  * - `reloadKey`: the `reloadKey` prop of the last reload.
  * - `scrollTop`: the scroll offset of the tree. `TreeView` restores the offset when the tree mounts again.
+ * - `pendingId`: the id of the pending row, or null.
+ * - `openCount`: the number of open requests started.
  *
  * An action that changes nothing returns the same state object. `createStore()` in treeStore.js then notifies no
  * listener.
@@ -48,6 +53,8 @@ export const initialTreeState = deepFreeze({
   revealedId: null,
   revealing: false,
   reloadKey: null,
+  pendingId: null,
+  openCount: 0,
 });
 
 function omitKeys(object, keys) {
@@ -236,8 +243,14 @@ function reduceTree(tree, action) {
     case 'setScroll':
       return updateTree(tree, { scrollTop: action.scrollTop });
 
+    // Revealing a different node clears the pending row. Revealing the same node again keeps the pending row, for
+    // example after a reload.
     case 'revealRequest':
-      return updateTree(tree, { revealedId: action.id, revealing: action.id !== null });
+      return updateTree(tree, {
+        revealedId: action.id,
+        revealing: action.id !== null,
+        pendingId: action.id === tree.revealedId ? tree.pendingId : null,
+      });
 
     // `action.ids` holds the ancestor ids of the node `action.id`, top level first.
     case 'revealSuccess':
@@ -245,6 +258,16 @@ function reduceTree(tree, action) {
 
     case 'reloadRequest':
       return reload(tree, action.reloadKey);
+
+    // The reducer numbers each open request. A failed open request can then tell whether a later open request replaced
+    // the failed open request.
+    case 'openRequest':
+      return { ...tree, pendingId: action.id, openCount: tree.openCount + 1 };
+
+    // Only a failure of the latest open request clears the pending row. An earlier open request no longer owns the
+    // pending row.
+    case 'openFailure':
+      return action.openCount === tree.openCount ? updateTree(tree, { pendingId: null }) : tree;
 
     default:
       return tree;

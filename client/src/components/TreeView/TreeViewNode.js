@@ -1,6 +1,9 @@
 /**
  * The components in this file render the rows of a tree view. The `fetchChildren` prop of `TreeView` lists the
  * fields of a node. `TreeView` builds the value of `TreeViewContext`.
+ *
+ * `node.classes`, `node.iconClasses` and the `status-*` class of each badge are global class names. Rules outside
+ * TreeView.scss style those classes. The header of TreeView.scss lists those rules.
  */
 import React, { createContext, memo, useContext, useEffect } from 'react';
 import PropTypes from 'prop-types';
@@ -129,7 +132,7 @@ TreeViewItems.propTypes = {
 };
 
 const TreeViewNode = ({ id, level, posinset, setsize }) => {
-  const { store, currentId, onOpen } = useContext(TreeViewContext);
+  const { store, currentId, highlightedId, onOpen } = useContext(TreeViewContext);
   const node = useTreeValue(store, (tree) => tree.nodes[id]);
   const childIds = useTreeValue(store, (tree) => tree.childIds[id]);
   const status = useTreeValue(store, (tree) => tree.status[id]);
@@ -144,6 +147,7 @@ const TreeViewNode = ({ id, level, posinset, setsize }) => {
   const isParent = Boolean(node.limited) || (childIds ? childIds.length > 0 : Boolean(node.hasChildren) || isExpanded);
   const isOpen = isParent && isExpanded;
   const disabled = node.canView === false;
+  const statusFlags = node.statusFlags || [];
 
   const handleToggle = () => {
     store.dispatch({ type: isExpanded ? 'collapseNode' : 'expandNode', id });
@@ -173,7 +177,15 @@ const TreeViewNode = ({ id, level, posinset, setsize }) => {
         </span>
       )}
       <a
-        className="tree-view__link"
+        className={classnames(
+          'tree-view__link',
+          statusFlags.map((flag) => `tree-view__link--status-${flag.key}`),
+          {
+            'tree-view__link--current': id === highlightedId,
+            // A node that the member can view but not edit looks the same as a node that the member cannot open.
+            'tree-view__link--disabled': disabled || node.canEdit === false,
+          },
+        )}
         role="treeitem"
         href={node.editUrl}
         title={node.tooltip}
@@ -187,10 +199,18 @@ const TreeViewNode = ({ id, level, posinset, setsize }) => {
         aria-busy={isOpen && !node.limited && isAwaitingChildren(childIds, status) ? 'true' : undefined}
         onClick={handleClick}
       >
-        <span className={node.iconClasses} aria-hidden="true" />
+        <span className={classnames('tree-view__icon', node.iconClasses)} aria-hidden="true" />
         <span className="tree-view__title">{node.treeTitle}</span>
-        {(node.statusFlags || []).map((flag) => (
-          <span key={flag.key} className={`badge status-${flag.key}`} title={flag.title}>{flag.text}</span>
+        {statusFlags.map((flag, index) => (
+          <span
+            key={flag.key}
+            className={classnames('badge', `status-${flag.key}`, 'tree-view__badge', {
+              'tree-view__badge--extra': index > 0,
+            })}
+            title={flag.title}
+          >
+            {flag.text}
+          </span>
         ))}
       </a>
       {isOpen && (

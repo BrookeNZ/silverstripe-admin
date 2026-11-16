@@ -1,6 +1,6 @@
 /* global jest, test, expect */
 import reducer, { STATUS, initialTreeState } from '../TreeViewReducer';
-import { loadChildren, reloadTree, revealNode } from '../TreeViewActions';
+import { loadChildren, reloadTree, revealNode, trackOpen } from '../TreeViewActions';
 import { deferred, loadActions } from './mockTree';
 
 function makeStore(actions = []) {
@@ -67,4 +67,44 @@ test('revealNode changes nothing on a failed fetch or a malformed path', async (
     await expect(done).resolves.toBeUndefined();
     expect(store.getState()).toBe(requested);
   }));
+});
+
+// Make a thenable like the return of a jQuery request. The thenable has `then()` but is not a `Promise`.
+function thenable(settle) {
+  return { then: (resolve, reject) => settle(resolve, reject) };
+}
+
+test('trackOpen gives the pending row up when a request that is not a Promise fails, as a jQuery request does', async () => {
+  const store = loadedStore();
+
+  await trackOpen(store, 5, thenable((resolve, reject) => reject(new Error('abort'))));
+  expect(store.getState().pendingId).toBeNull();
+
+  await trackOpen(store, 5, thenable((resolve) => resolve(false)));
+  expect(store.getState().pendingId).toBeNull();
+});
+
+test('trackOpen keeps the row pending for a request that resolves with anything but false, and for no request', async () => {
+  const store = loadedStore();
+
+  await trackOpen(store, 5, thenable((resolve) => resolve('')));
+  expect(store.getState().pendingId).toBe(5);
+
+  await trackOpen(store, 6, Promise.resolve(undefined));
+  expect(store.getState().pendingId).toBe(6);
+
+  await trackOpen(store, 7, true);
+  expect(store.getState().pendingId).toBe(7);
+
+  await trackOpen(store, 5, undefined);
+  expect(store.getState().pendingId).toBe(5);
+});
+
+test('trackOpen marks no row pending when onOpen returned false', async () => {
+  const store = loadedStore();
+
+  await trackOpen(store, 5, false);
+
+  expect(store.getState().pendingId).toBeNull();
+  expect(store.getState().openCount).toBe(0);
 });

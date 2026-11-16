@@ -75,3 +75,26 @@ export async function revealNode(store, id, fetchPath) {
     // A node whose ancestor ids fail to load stays unrevealed.
   }
 }
+
+// Track the open request for the node `id` from `request`, the return of `onOpen`. The `onOpen` prop in TreeView.js
+// documents each kind of return.
+export async function trackOpen(store, id, request) {
+  if (request === false) {
+    return;
+  }
+  store.dispatch({ type: 'openRequest', id });
+  // The function reads `openCount` straight after the dispatch. The value is then the number of this open request.
+  const { openCount } = store.getState();
+  if (!request || typeof request.then !== 'function') {
+    return;
+  }
+  let opened = null;
+  try {
+    opened = await request;
+  } catch (error) {
+    opened = false;
+  }
+  if (opened === false) {
+    store.dispatch({ type: 'openFailure', openCount });
+  }
+}

@@ -30,6 +30,21 @@ function makeLoadedState() {
   ]);
 }
 
+test('TreeViewReducer clears the pending row on a failure of the latest open request or a new current node only', () => {
+  const pending = reduce([
+    { type: 'revealRequest', id: 1 },
+    { type: 'openRequest', id: 3 },
+    { type: 'openRequest', id: 4 },
+  ], makeLoadedState());
+  expect(pending.pendingId).toBe(4);
+  expect(reducer(pending, { type: 'openFailure', openCount: pending.openCount - 1 })).toBe(pending);
+  expect(reducer(pending, { type: 'revealRequest', id: 1 }).pendingId).toBe(4);
+
+  expect(reducer(pending, { type: 'openFailure', openCount: pending.openCount }).pendingId).toBeNull();
+  expect(reducer(pending, { type: 'revealRequest', id: 2 }).pendingId).toBeNull();
+  expect(reducer(pending, { type: 'revealRequest', id: null }).pendingId).toBeNull();
+});
+
 test('TreeViewReducer ignores a response for a parent that is no longer loading', () => {
   const loaded = makeLoadedState();
   expect(reducer(loaded, { type: 'fetchChildrenSuccess', parentId: 4, nodes: [makeNode(8, 4)] })).toBe(loaded);

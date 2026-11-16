@@ -105,7 +105,7 @@ test('TreeView renders the stored rows with the tree markup and makes no request
   expect(item.getAttribute('data-recordtype')).toBe('Page');
   expect([...item.classList]).toEqual(['tree-view__item', 'class-Page', 'status-modified']);
   expect(item.querySelector('.tree-view__toggle')).toBeNull();
-  expect(leaf.className).toBe('tree-view__link');
+  expect(leaf.className).toBe('tree-view__link tree-view__link--status-modified');
   expect(leaf.getAttribute('href')).toBe('admin/pages/edit/show/4');
   expect(leaf.getAttribute('title')).toBe('(Record type: Page) Contact us');
   expect(leaf.getAttribute('aria-selected')).toBe('false');
@@ -115,11 +115,11 @@ test('TreeView renders the stored rows with the tree markup and makes no request
   expect(leaf.hasAttribute('aria-expanded')).toBe(false);
   expect(leaf.hasAttribute('aria-current')).toBe(false);
   const [icon, title, badge] = leaf.children;
-  expect(icon.className).toBe('jstree-recordicon record-icon font-icon-page class-Page');
+  expect(icon.className).toBe('tree-view__icon jstree-recordicon record-icon font-icon-page class-Page');
   expect(icon.getAttribute('aria-hidden')).toBe('true');
   expect(title.className).toBe('tree-view__title');
   expect(title.textContent).toBe('Contact us');
-  expect(badge.className).toBe('badge status-modified');
+  expect(badge.className).toBe('badge status-modified tree-view__badge');
   expect(badge.getAttribute('title')).toBe('Item has unpublished changes');
 
   const parent = getItem('About us');
@@ -137,10 +137,43 @@ test('TreeView renders the stored rows with the tree markup and makes no request
 
   fireEvent.click(getToggle('Our team'));
   const externalBadge = within(getItem('Staff intranet External')).getByText('External');
-  expect(externalBadge.className).toBe('badge status-externallink');
+  expect(externalBadge.className).toBe('badge status-externallink tree-view__badge');
   expect(externalBadge.hasAttribute('title')).toBe(false);
 
   expect(props.fetchChildren).not.toHaveBeenCalled();
+});
+
+test('TreeView marks the extra badges and the links of status flags and of pages the member cannot view or edit', () => {
+  seedTree(loadActions(0, [
+    makePage(1, 0, 'Both', {
+      classes: 'class-Page status-modified status-externallink',
+      statusFlags: [
+        { key: 'modified', text: 'Modified', title: null },
+        { key: 'externallink', text: 'External', title: null },
+      ],
+    }),
+    makePage(2, 0, 'Read only', { classes: 'class-Page edit-disabled', canEdit: false }),
+    makePage(3, 0, 'Hidden', { classes: 'class-Page disabled', canView: false, canEdit: false }),
+    // The `disabled` and `edit-disabled` class names disable nothing. Only `canView` and `canEdit` do.
+    makePage(4, 0, 'Plain', { classes: 'class-Page disabled edit-disabled' }),
+  ]));
+  renderTree(makeProps());
+
+  const both = getItem('Both Modified External');
+  expect([...both.classList]).toEqual([
+    'tree-view__link',
+    'tree-view__link--status-modified',
+    'tree-view__link--status-externallink',
+  ]);
+  expect(within(both).getByText('Modified').classList.contains('tree-view__badge--extra')).toBe(false);
+  expect(within(both).getByText('External').classList.contains('tree-view__badge--extra')).toBe(true);
+
+  expect([...getItem('Read only').classList]).toEqual(['tree-view__link', 'tree-view__link--disabled']);
+  expect(getItem('Read only').hasAttribute('aria-disabled')).toBe(false);
+  expect([...getItem('Hidden').classList]).toEqual(['tree-view__link', 'tree-view__link--disabled']);
+  expect(getItem('Hidden').getAttribute('aria-disabled')).toBe('true');
+  expect([...getItem('Plain').classList]).toEqual(['tree-view__link']);
+  expect(getItem('Plain').hasAttribute('aria-disabled')).toBe(false);
 });
 
 test('TreeView collapses and opens the whole tree from the root row', () => {
@@ -377,6 +410,99 @@ test('TreeView stops a plain click on a disabled node and does nothing else', as
 
   rerender(makeProps());
   expect(fireEvent.click(getItem('Private profile'))).toBe(false);
+});
+
+function highlighted() {
+  return [...document.querySelectorAll('.tree-view__link--current')].map((link) => link.querySelector('.tree-view__title').textContent);
+}
+
+function current() {
+  return [...document.querySelectorAll('[aria-current=page]')].map((link) => link.querySelector('.tree-view__title').textContent);
+}
+
+test('TreeView highlights one row, moving it to the clicked row until the current page changes', async () => {
+  saveTree();
+  const props = makeProps({ onOpen: jest.fn(), currentId: 1 });
+  const { rerender } = renderTree(props);
+  expect(highlighted()).toEqual(['Home']);
+
+  fireEvent.click(getItem('Contact us Modified'));
+  expect(highlighted()).toEqual(['Contact us']);
+  expect(current()).toEqual(['Home']);
+  // The `tree-view__link--status-modified` modifier colours the highlight.
+  expect(getItem('Contact us Modified').classList.contains('tree-view__link--status-modified')).toBe(true);
+
+  fireEvent.click(getItem('About us'));
+  expect(highlighted()).toEqual(['About us']);
+
+  rerender({ ...props, onOpen: jest.fn() });
+  expect(highlighted()).toEqual(['About us']);
+
+  rerender({ ...props, currentId: 2 });
+  expect(highlighted()).toEqual(['About us']);
+  expect(current()).toEqual(['About us']);
+
+  // A return to the earlier current node does not bring back the old pending row.
+  rerender({ ...props, currentId: 1 });
+  expect(highlighted()).toEqual(['Home']);
+
+  await withoutNavigationReport(() => {
+    fireEvent.click(getItem('Contact us Modified'), { ctrlKey: true });
+  });
+  expect(highlighted()).toEqual(['Home']);
+});
+
+test('TreeView leaves the highlight on the current page when onOpen returns false or is absent', async () => {
+  saveTree();
+  const props = makeProps({ onOpen: jest.fn(() => false), currentId: 1 });
+  const { rerender } = renderTree(props);
+
+  fireEvent.click(getItem('Contact us Modified'));
+  expect(highlighted()).toEqual(['Home']);
+
+  rerender({ ...props, onOpen: null });
+  await withoutNavigationReport(() => {
+    fireEvent.click(getItem('Contact us Modified'));
+  });
+  expect(highlighted()).toEqual(['Home']);
+});
+
+test('TreeView clears the pending row when the latest open request fails, and not for an earlier one', async () => {
+  saveTree();
+  const opens = [];
+  const onOpen = jest.fn(() => new Promise((resolve, reject) => {
+    opens.push({ resolve, reject });
+  }));
+  renderTree(makeProps({ onOpen, currentId: 1 }));
+
+  fireEvent.click(getItem('Contact us Modified'));
+  expect(highlighted()).toEqual(['Contact us']);
+  await act(async () => opens[0].reject(new Error('Internal Server Error')));
+  expect(highlighted()).toEqual(['Home']);
+
+  fireEvent.click(getItem('Contact us Modified'));
+  await act(async () => opens[1].resolve(false));
+  expect(highlighted()).toEqual(['Home']);
+
+  // The second click aborts the first open request. The rejection of the first open request arrives after the click.
+  fireEvent.click(getItem('Contact us Modified'));
+  fireEvent.click(getItem('About us'));
+  await act(async () => opens[2].reject(new Error('abort')));
+  expect(highlighted()).toEqual(['About us']);
+  await act(async () => opens[3].resolve({}));
+  expect(highlighted()).toEqual(['About us']);
+});
+
+test('TreeView keeps the pending row across a remount on the same current page', () => {
+  saveTree();
+  const props = makeProps({ onOpen: jest.fn(), currentId: 1 });
+  const { unmount } = renderTree(props);
+  fireEvent.click(getItem('About us'));
+  unmount();
+
+  renderTree(props);
+  expect(highlighted()).toEqual(['About us']);
+  expect(current()).toEqual(['Home']);
 });
 
 test('TreeView calls the latest callbacks', async () => {

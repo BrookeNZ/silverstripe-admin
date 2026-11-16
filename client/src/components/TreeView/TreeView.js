@@ -7,7 +7,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 
 import PropTypes from 'prop-types';
 import classnames from 'classnames';
 import { ROOT_ID, areStoredAncestorsExpanded, isMissingFromLoadedPath, isShown } from './TreeViewReducer';
-import { reloadTree, revealNode } from './TreeViewActions';
+import { reloadTree, revealNode, trackOpen } from './TreeViewActions';
 import { getTreeStore, useTreeValue } from './treeStore';
 import { TreeViewContext, TreeViewItems, isAwaitingChildren } from './TreeViewNode';
 
@@ -35,12 +35,15 @@ const TreeView = ({
   const isRootOpen = isRootOpenIn(tree, rootTitle);
   const currentId = toNodeId(givenCurrentId);
 
+  // When there is a pending row, the tree highlights the pending row in place of the row of the current node.
+  const highlightedId = tree.pendingId === null ? currentId : tree.pendingId;
+
   const openNode = useCallback((node, event) => {
     if (typeof onOpen === 'function') {
       event.preventDefault();
-      onOpen(node, event);
+      trackOpen(store, node.id, onOpen(node, event));
     }
-  }, [onOpen]);
+  }, [store, onOpen]);
   const showAsList = useCallback((node, event) => {
     if (typeof onShowAsList === 'function') {
       event.preventDefault();
@@ -112,10 +115,11 @@ const TreeView = ({
   const context = useMemo(() => ({
     store,
     currentId,
+    highlightedId,
     fetchChildren,
     onOpen: openNode,
     onShowAsList: showAsList,
-  }), [store, currentId, fetchChildren, openNode, showAsList]);
+  }), [store, currentId, highlightedId, fetchChildren, openNode, showAsList]);
 
   const handleRootToggle = () => {
     store.dispatch({ type: isRootOpen ? 'collapseNode' : 'expandNode', id: ROOT_ID });
@@ -161,8 +165,8 @@ TreeView.propTypes = {
    *
    * The tree reads these fields of a child:
    * - `id`, `treeTitle`, `hasChildren`, `limited`, `listViewUrl`, `editUrl` and `canView` on every node.
-   * - `classes`, `iconClasses`, `recordClass`, `tooltip` and `statusFlags`, a list of `{key, text, title}`, when they
-   *   are set.
+   * - `canEdit`, `classes`, `iconClasses`, `recordClass`, `tooltip` and `statusFlags`, a list of
+   *   `{key, text, title}`, when they are set.
    */
   fetchChildren: PropTypes.func.isRequired,
   /**
@@ -173,6 +177,10 @@ TreeView.propTypes = {
   currentId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
   /** A value whose change reloads the tree. `reload()` in TreeViewReducer.js chooses the lists that load again. */
   reloadKey: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+  /**
+   * The function `(node, event)` that opens a node. A return of `false` starts no open request. A thenable that
+   * rejects or resolves to `false` is a failed open request.
+   */
   onOpen: PropTypes.func,
   onShowAsList: PropTypes.func,
   label: PropTypes.string.isRequired,
