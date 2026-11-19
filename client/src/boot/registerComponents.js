@@ -30,6 +30,7 @@ import FieldGroup from 'components/FieldGroup/FieldGroup';
 import TreeDropdownField from 'components/TreeDropdownField/TreeDropdownField';
 import TreeView from 'components/TreeView/TreeView';
 import StatusBadge from 'components/StatusBadge/StatusBadge';
+import ContextMenu from 'components/ContextMenu/ContextMenu';
 import FormBuilderModal from 'components/FormBuilderModal/FormBuilderModal';
 import NotFoundComponent from 'components/NotFoundComponent/NotFoundComponent';
 import Form from 'components/Form/Form';
@@ -90,6 +91,7 @@ export default () => {
     TreeDropdownField,
     TreeView,
     StatusBadge,
+    ContextMenu,
     Preview,
     ReduxForm,
     ReduxFormField,
