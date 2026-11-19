@@ -1,0 +1,96 @@
+/**
+ * Context menu
+ *
+ * The context menu is a menu of actions on the body above the page. The menu uses the palette and the measurements of
+ * the legacy tree menu. Popper sets the position and the offset of each menu inline. This file declares no position or
+ * offset. A submenu is the same block inside the `li` of the parent item.
+ *
+ * The item under the pointer or the keyboard holds focus. The focused item is the highlighted item. A parent item stays
+ * highlighted while the submenu of that item is open.
+ *
+ * White on the top of the highlight gradient has a contrast of 4.47:1. The legacy menu has the same contrast. The
+ * highlight is the focus indicator of an enabled item, as in the legacy menu. A disabled item has no highlight, so a
+ * disabled item shows the focus ring. The minimum width is the legacy 180px plus the border.
+ *
+ * `SUBMENU_SKIDDING` in ContextMenu.js equals the border plus the padding of `.context-menu`.
+ */
+
+.context-menu {
+  --context-menu-bg-color: var(--bs-white);
+  --context-menu-border: 0.0769rem solid #c0c0c0;
+  --context-menu-color: #000;
+  --context-menu-gap: 0.0769rem;
+  --context-menu-item-bg-color: transparent;
+  --context-menu-item-bg-image: none;
+  --context-menu-item-color: var(--context-menu-color);
+  --context-menu-item-disabled-color: var(--bs-gray-600);
+  --context-menu-item-disabled-focus-bg-color: #{$dropdown-link-hover-bg};
+  --context-menu-item-focus-bg-color: #3875d7;
+  --context-menu-item-focus-bg-image: linear-gradient(to bottom, #3875d7 20%, #2a62bc 90%);
+  --context-menu-item-focus-color: var(--bs-white);
+  --context-menu-item-focus-outline: 0;
+  --context-menu-item-focus-outline-offset: calc(var(--focus-outline-width) * -1);
+  --context-menu-item-gap: 0.3846rem;
+  --context-menu-item-line-height: 1.7692;
+  --context-menu-item-padding: 0.0769rem 0.7692rem;
+  --context-menu-item-parent-marker: "»";
+  --context-menu-min-width: 14rem;
+  --context-menu-padding: 0.0769rem;
+  --context-menu-shadow: 0 0 0.7692rem #ccc;
+  --context-menu-z-index: #{$zindex-popover};
+
+  background-color: var(--context-menu-bg-color);
+  border: var(--context-menu-border);
+  box-shadow: var(--context-menu-shadow);
+  color: var(--context-menu-color);
+  display: grid;
+  gap: var(--context-menu-gap);
+  list-style: none;
+  margin: 0;
+  min-inline-size: var(--context-menu-min-width);
+  padding: var(--context-menu-padding);
+  z-index: var(--context-menu-z-index);
+}
+
+.context-menu__item {
+  align-items: center;
+  background-color: var(--context-menu-item-bg-color);
+  background-image: var(--context-menu-item-bg-image);
+  border: 0;
+  color: var(--context-menu-item-color);
+  display: flex;
+  font: inherit;
+  gap: var(--context-menu-item-gap);
+  inline-size: 100%;
+  line-height: var(--context-menu-item-line-height);
+  padding: var(--context-menu-item-padding);
+  text-align: start;
+  white-space: nowrap;
+
+  &:focus,
+  &[aria-expanded="true"] {
+    --context-menu-item-bg-color: var(--context-menu-item-focus-bg-color);
+    --context-menu-item-bg-image: var(--context-menu-item-focus-bg-image);
+    --context-menu-item-color: var(--context-menu-item-focus-color);
+  }
+
+  &:focus-visible {
+    outline: var(--context-menu-item-focus-outline);
+    outline-offset: var(--context-menu-item-focus-outline-offset);
+  }
+}
+
+.context-menu__item--disabled {
+  --context-menu-item-color: var(--context-menu-item-disabled-color);
+  --context-menu-item-focus-bg-color: var(--context-menu-item-disabled-focus-bg-color);
+  --context-menu-item-focus-bg-image: none;
+  --context-menu-item-focus-color: var(--context-menu-item-disabled-color);
+  --context-menu-item-focus-outline: var(--focus-outline-width) var(--focus-outline-style) var(--focus-outline-color);
+}
+
+.context-menu__item--parent {
+  &:after {
+    content: var(--context-menu-item-parent-marker) / "";
+    margin-inline-start: auto;
+  }
+}
