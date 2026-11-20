@@ -25,6 +25,10 @@ const props = {
  * `items` (array, required): The items of the menu. Each item has an `id` (string or number) and a `label`, and can
    have `onSelect`, `disabled` and `iconClassName`. The menu calls `onSelect(subject, event)` before it closes, never
    for a disabled item. An item with `items` opens a submenu and has no `onSelect`. A submenu cannot nest further.
+   An item with `loadItems` in place of `items` opens a submenu of the items that the promise from `loadItems()`
+   resolves to. The menu calls `loadItems` once, when it mounts. While the items load, after a failed load and for an
+   empty list, the submenu shows one disabled item. For an empty list that item has the text of `emptyLabel`, or "No
+   items" without one.
  * `anchor` (object or element, required): A point `{ x, y }` in viewport coordinates, such as the `clientX` and
    `clientY` of a pointer event, or an element to open below.
  * `onClose` (function, required): Called with the reason the menu closes: `select`, `escape`, `tab`, `outside` (a

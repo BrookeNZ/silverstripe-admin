@@ -2,8 +2,22 @@ import React, { useRef, useState } from 'react';
 import { action } from '@storybook/addon-actions';
 import ContextMenu from '../ContextMenu';
 
+const ICON_CLASSES = ['font-icon-page', 'font-icon-p-redirect', 'font-icon-p-virtual', 'font-icon-p-error'];
+
+const pageTypes = Array.from({ length: 12 }, (value, index) => ({
+  id: `type-${index + 1}`,
+  label: `Page type ${index + 1}`,
+  iconClassName: ICON_CLASSES[index % ICON_CLASSES.length],
+  onSelect: action(`Page type ${index + 1}`),
+}));
+
+const loadPageTypes = () => new Promise((resolve) => {
+  setTimeout(() => resolve(pageTypes), 1500);
+});
+
 const items = [
   { id: 'edit', label: 'Edit', onSelect: action('Edit') },
+  { id: 'add', label: 'Add page here', loadItems: loadPageTypes, emptyLabel: 'No page types allowed' },
   {
     id: 'duplicate',
     label: 'Duplicate',
@@ -61,7 +75,8 @@ export default {
       description: {
         component: `A menu of actions opened at a pointer or below an element. It is open while mounted: the parent
         unmounts it when \`onClose\` is called with the reason, and moves focus back itself. "Archive" is disabled: it
-        takes focus but does nothing.`,
+        takes focus but does nothing. "Add page here" loads its 12 items when the menu opens, after a 1.5 second delay,
+        and shows them in two columns.`,
       },
       canvas: {
         sourceState: 'hide',

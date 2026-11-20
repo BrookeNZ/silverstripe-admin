@@ -4,14 +4,15 @@
  * The menu is open while the menu is mounted. The parent unmounts the menu after the menu calls `onClose`. The menu
  * does not return focus. The parent decides where focus goes next.
  *
- * A top-level item with `items` opens a submenu beside the item. A submenu renders inside the `li` of the parent item.
- * The top-level menu element then contains every level.
+ * A top-level item with `items` or `loadItems` opens a submenu beside the item. A submenu renders inside the `li` of
+ * the parent item. The top-level menu element then contains every level.
  */
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 import PropTypes from 'prop-types';
 import classnames from 'classnames';
 import { createPopper } from '@popperjs/core';
+import i18n from 'i18n';
 
 export const CLOSE_REASON = {
   SELECT: 'select',
@@ -55,8 +56,40 @@ const positionMenu = (reference, menu, { placement, fallbackPlacements, strategy
 // the parent item.
 const SUBMENU_SKIDDING = -2;
 
-const ContextMenuSubmenu = ({ label, children }) => {
+const hasSubmenu = (item) => Array.isArray(item.items) || typeof item.loadItems === 'function';
+
+const isLoadedOnMount = (item) => !Array.isArray(item.items) && typeof item.loadItems === 'function';
+
+const isSubmenuLoading = (item, loadResult) => isLoadedOnMount(item) && !loadResult;
+
+const getSubmenuItems = (item, loadResult) => {
+  if (!isLoadedOnMount(item)) {
+    return item.items;
+  }
+  if (!loadResult) {
+    return [{ id: 'loading', label: i18n._t('Admin.TREEVIEW_LOADING', 'Loading...'), disabled: true }];
+  }
+  if (loadResult.isFailed) {
+    return [{ id: 'failed', label: i18n._t('Admin.TREEVIEW_FAILED', 'Failed to load'), disabled: true }];
+  }
+  if (!loadResult.items.length) {
+    return [{ id: 'empty', label: item.emptyLabel || i18n._t('Admin.CONTEXTMENU_NO_ITEMS', 'No items'), disabled: true }];
+  }
+  return loadResult.items;
+};
+
+// The promise also resolves to a failed load when `loadItems` throws.
+const loadSubmenuItems = (item) => (
+  new Promise((resolve) => resolve(item.loadItems()))
+    .then(
+      (items) => (Array.isArray(items) ? { items } : { isFailed: true }),
+      () => ({ isFailed: true }),
+    )
+);
+
+const ContextMenuSubmenu = ({ label, itemCount, isBusy, children }) => {
   const menuRef = useRef(null);
+  const popperRef = useRef(null);
 
   useLayoutEffect(() => {
     const menu = menuRef.current;
@@ -68,26 +101,49 @@ const ContextMenuSubmenu = ({ label, children }) => {
       strategy: 'absolute',
       skidding: SUBMENU_SKIDDING,
     });
+    popperRef.current = popper;
     return () => popper.destroy();
   }, []);
 
-  return <ul ref={menuRef} className="context-menu" role="menu" aria-label={label}>{children}</ul>;
+  // The Popper listeners are off. A submenu that changes size after its items load then needs a new position.
+  useLayoutEffect(() => {
+    popperRef.current.forceUpdate();
+  }, [itemCount]);
+
+  return (
+    <ul
+      ref={menuRef}
+      // The legacy tree menu in `CMSMain.Tree.js` of silverstripe/cms uses the same column thresholds.
+      className={classnames('context-menu', {
+        'context-menu--two-columns': itemCount > 10 && itemCount <= 20,
+        'context-menu--three-columns': itemCount > 20,
+      })}
+      role="menu"
+      aria-label={label}
+      aria-busy={isBusy ? 'true' : undefined}
+    >
+      {children}
+    </ul>
+  );
 };
 
 ContextMenuSubmenu.propTypes = {
   label: PropTypes.string.isRequired,
+  itemCount: PropTypes.number.isRequired,
+  isBusy: PropTypes.bool.isRequired,
   children: PropTypes.node,
 };
 
 const ContextMenu = ({ items, anchor, onClose, label, subject = null }) => {
   const menuRef = useRef(null);
   const [expandedId, setExpandedId] = useState(null);
+  const [loadResults, setLoadResults] = useState({});
 
   // Listeners that an effect adds once read the latest callback from `latestRef`. A new `onClose` on each render then
   // rebinds no listener.
-  const latestRef = useRef({ items, onClose });
+  const latestRef = useRef({ items, onClose, expandedId });
   useLayoutEffect(() => {
-    latestRef.current = { items, onClose };
+    latestRef.current = { items, onClose, expandedId };
   });
 
   const anchorElement = anchor instanceof Element ? anchor : null;
@@ -107,6 +163,29 @@ const ContextMenu = ({ items, anchor, onClose, label, subject = null }) => {
   // The menu takes focus on mount only. A later change to `items` must not move the focus.
   useLayoutEffect(() => {
     focusFirstEnabledItem(menuRef.current, latestRef.current.items);
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    const receiveLoadResult = (item, loadResult) => {
+      const menu = menuRef.current;
+      // While the items load, the submenu holds only the loading item.
+      const activeMenu = document.activeElement && document.activeElement.closest('[role="menu"]');
+      const isFocusOnLoadingItem = latestRef.current.expandedId === item.id
+        && activeMenu !== menu
+        && menu.contains(activeMenu);
+      // `flushSync()` replaces the loading item at once. The first new item can then take focus from it.
+      flushSync(() => setLoadResults((results) => ({ ...results, [item.id]: loadResult })));
+      if (isFocusOnLoadingItem) {
+        focusFirstEnabledItem(activeMenu, getSubmenuItems(item, loadResult));
+      }
+    };
+    latestRef.current.items.filter(isLoadedOnMount).forEach((item) => {
+      loadSubmenuItems(item).then((loadResult) => isMounted && receiveLoadResult(item, loadResult));
+    });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -137,13 +216,15 @@ const ContextMenu = ({ items, anchor, onClose, label, subject = null }) => {
   }, []);
 
   // Check whether `item` can open a submenu. Only a top-level item opens a submenu.
-  const canExpandSubmenu = (item) => items.includes(item) && Array.isArray(item.items) && !item.disabled;
+  const canExpandSubmenu = (item) => items.includes(item) && hasSubmenu(item) && !item.disabled;
+
+  const getRenderedSubmenuItems = (item) => getSubmenuItems(item, loadResults[item.id]);
 
   // Open the submenu of `item`. `flushSync()` renders the submenu at once. The first item of the submenu can then take
   // focus in the same event.
   const expandSubmenu = (item, button) => {
     flushSync(() => setExpandedId(item.id));
-    focusFirstEnabledItem(button.nextElementSibling, item.items);
+    focusFirstEnabledItem(button.nextElementSibling, getRenderedSubmenuItems(item));
   };
 
   const collapseSubmenu = (submenu) => {
@@ -177,7 +258,7 @@ const ContextMenu = ({ items, anchor, onClose, label, subject = null }) => {
     }
     const menu = event.target.closest('[role="menu"]');
     const isInSubmenu = menu !== menuRef.current;
-    const levelItems = isInSubmenu ? items.find((item) => item.id === expandedId).items : items;
+    const levelItems = isInSubmenu ? getRenderedSubmenuItems(items.find((item) => item.id === expandedId)) : items;
     const elements = getItemElements(menu);
     const last = elements.length - 1;
     const index = elements.indexOf(event.target);
@@ -264,8 +345,9 @@ const ContextMenu = ({ items, anchor, onClose, label, subject = null }) => {
   };
 
   const renderItems = (levelItems, isTopLevel) => levelItems.map((item) => {
-    const isItemParent = isTopLevel && Array.isArray(item.items);
+    const isItemParent = isTopLevel && hasSubmenu(item);
     const isExpanded = isItemParent && item.id === expandedId;
+    const submenuItems = isExpanded ? getRenderedSubmenuItems(item) : [];
     return (
       <li key={item.id} role="none">
         <button
@@ -282,10 +364,20 @@ const ContextMenu = ({ items, anchor, onClose, label, subject = null }) => {
           onClick={(event) => activateItem(item, event)}
           onMouseEnter={(event) => handleItemMouseEnter(item, isTopLevel, event)}
         >
-          {item.iconClassName && <span className={item.iconClassName} aria-hidden="true" />}
-          {item.label}
+          {item.iconClassName && (
+            <span className={classnames('context-menu__icon', item.iconClassName)} aria-hidden="true" />
+          )}
+          <span className="context-menu__label">{item.label}</span>
         </button>
-        {isExpanded && <ContextMenuSubmenu label={item.label}>{renderItems(item.items, false)}</ContextMenuSubmenu>}
+        {isExpanded && (
+          <ContextMenuSubmenu
+            label={item.label}
+            itemCount={submenuItems.length}
+            isBusy={isSubmenuLoading(item, loadResults[item.id])}
+          >
+            {renderItems(submenuItems, false)}
+          </ContextMenuSubmenu>
+        )}
       </li>
     );
   });
@@ -323,10 +415,21 @@ ContextMenu.propTypes = {
   /**
    * The items of the menu. The menu calls `onSelect(subject, event)` before the menu closes, never for a disabled item.
    * An item with `items` opens a submenu and calls no `onSelect`. The items of a submenu cannot nest further.
+   *
+   * An item with `loadItems` in place of `items` opens a submenu of the items that `loadItems()` resolves to. The menu
+   * calls `loadItems` once, when the menu mounts, so the items are usually ready before the user opens the submenu.
+   * The consumer caches the items if it wants. The menu does not load an item with `loadItems` that arrives in `items`
+   * after the mount.
+   *
+   * The menu renders a disabled item in place of the items while they load, after a failed load and for an empty list.
+   * A rejected promise or a value that is not an array is a failed load. The disabled item of an empty list has the
+   * text of `emptyLabel`, or "No items" without one.
    */
   items: PropTypes.arrayOf(PropTypes.shape({
     ...itemFields,
     items: PropTypes.arrayOf(PropTypes.shape(itemFields)),
+    loadItems: PropTypes.func,
+    emptyLabel: PropTypes.string,
   })).isRequired,
   /**
    * A point in viewport coordinates, such as the `clientX` and `clientY` of a pointer event, or an element to open

@@ -507,3 +507,108 @@ test('ContextMenu removes the menu and every listener it added when unmounted', 
     calls.forEach((args) => expect(removed[index]).toHaveBeenCalledWith(...args));
   });
 });
+
+function makeDeferred() {
+  const deferred = {};
+  deferred.promise = new Promise((resolve, reject) => Object.assign(deferred, { resolve, reject }));
+  return deferred;
+}
+
+function makeLazyItems(loadItems, fields = {}) {
+  return [
+    { id: 'edit', label: 'Edit', onSelect: jest.fn() },
+    { id: 'add', label: 'Add page here', loadItems, ...fields },
+  ];
+}
+
+function makeSubmenuItems(count) {
+  return Array.from({ length: count }, (value, index) => ({
+    id: `item-${index + 1}`,
+    label: `Item ${index + 1}`,
+    onSelect: jest.fn(),
+  }));
+}
+
+// Run every promise callback that is waiting.
+const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+
+test('ContextMenu loads the items of a submenu once when the menu mounts, and shows them in the submenu', async () => {
+  const types = makeSubmenuItems(2);
+  const loadItems = jest.fn(() => Promise.resolve(types));
+  const props = makeProps({ items: makeLazyItems(loadItems) });
+  render(<ContextMenu {...props} />);
+  expect(loadItems).toHaveBeenCalledTimes(1);
+  await settle();
+
+  fireEvent.keyDown(getItem('Add page here'), { key: 'ArrowRight' });
+  expect(document.activeElement).toBe(getItem('Item 1'));
+  fireEvent.keyDown(document.activeElement, { key: 'ArrowLeft' });
+  fireEvent.keyDown(getItem('Add page here'), { key: 'ArrowRight' });
+  fireEvent.keyDown(document.activeElement, { key: 'ArrowDown' });
+  fireEvent.keyDown(document.activeElement, { key: 'Enter' });
+
+  expect(loadItems).toHaveBeenCalledTimes(1);
+  expect(types[1].onSelect).toHaveBeenCalledWith(TREE_ITEM, expect.objectContaining({ key: 'Enter' }));
+  expect(props.onClose.mock.calls).toEqual([['select']]);
+});
+
+test('ContextMenu shows a busy submenu with a disabled loading item, then moves focus from it to the first loaded item', async () => {
+  const load = makeDeferred();
+  render(<ContextMenu {...makeProps({ items: makeLazyItems(() => load.promise) })} />);
+  fireEvent.keyDown(getItem('Add page here'), { key: 'ArrowRight' });
+
+  const submenu = screen.getByRole('menu', { name: 'Add page here' });
+  const loading = getItem('Loading...');
+  expect(submenu.getAttribute('aria-busy')).toBe('true');
+  expect(loading.getAttribute('aria-disabled')).toBe('true');
+  expect(document.activeElement).toBe(loading);
+
+  load.resolve(makeSubmenuItems(2));
+  await settle();
+  expect(submenu.hasAttribute('aria-busy')).toBe(false);
+  expect(document.activeElement).toBe(getItem('Item 1'));
+});
+
+test('ContextMenu leaves focus on the parent item when the items arrive in a submenu opened by hover', async () => {
+  const load = makeDeferred();
+  render(<ContextMenu {...makeProps({ items: makeLazyItems(() => load.promise) })} />);
+  fireEvent.mouseEnter(getItem('Add page here'));
+
+  load.resolve(makeSubmenuItems(2));
+  await settle();
+  expect(getItem('Item 1')).toBeTruthy();
+  expect(document.activeElement).toBe(getItem('Add page here'));
+});
+
+test.each([
+  ['a failed load', () => Promise.reject(new Error('Server error')), {}, 'Failed to load'],
+  ['a value that is not a list', () => Promise.resolve({}), {}, 'Failed to load'],
+  ['an empty list', () => Promise.resolve([]), { emptyLabel: 'No page types allowed' }, 'No page types allowed'],
+  ['an empty list with no empty label', () => Promise.resolve([]), {}, 'No items'],
+])('ContextMenu shows one disabled item in the submenu after %s', async (description, loadItems, fields, label) => {
+  const props = makeProps({ items: makeLazyItems(loadItems, fields) });
+  render(<ContextMenu {...props} />);
+  fireEvent.keyDown(getItem('Add page here'), { key: 'ArrowRight' });
+  await settle();
+
+  const submenu = screen.getByRole('menu', { name: 'Add page here' });
+  expect(Array.from(submenu.querySelectorAll('[role="menuitem"]'), (item) => item.textContent)).toEqual([label]);
+  expect(document.activeElement).toBe(getItem(label));
+  expect(getItem(label).getAttribute('aria-disabled')).toBe('true');
+  fireEvent.keyDown(getItem(label), { key: 'Enter' });
+  expect(props.onClose).not.toHaveBeenCalled();
+});
+
+test.each([
+  ['one column', 10, []],
+  ['two columns', 11, ['context-menu--two-columns']],
+  ['two columns', 20, ['context-menu--two-columns']],
+  ['three columns', 21, ['context-menu--three-columns']],
+])('ContextMenu lays out a submenu in %s for %i items', (description, count, columnClasses) => {
+  const items = [{ id: 'add', label: 'Add page here', items: makeSubmenuItems(count) }];
+  render(<ContextMenu {...makeProps({ items })} />);
+  fireEvent.keyDown(getItem('Add page here'), { key: 'ArrowRight' });
+
+  const submenu = screen.getByRole('menu', { name: 'Add page here' });
+  expect(Array.from(submenu.classList).filter((name) => name.includes('column'))).toEqual(columnClasses);
+});

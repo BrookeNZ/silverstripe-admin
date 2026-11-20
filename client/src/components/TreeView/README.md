@@ -47,7 +47,8 @@ const props = {
  * `getMenuItems` (function): Called with an item and `{ open }` when the user asks for the context menu of the item
    with a right-click, the context menu key or Shift+F10 on its link. Returns the `items` of a `ContextMenu`, whose
    `onSelect` gets the item. `open(item, event)` opens the item as a plain click on it does, with the event the menu
-   passes to `onSelect`. With no function, or no items, the browser shows its own menu. Focus goes back to the link
+   passes to `onSelect`. The tree view mounts a new menu each time it shows one, so an item with `loadItems` loads its
+   submenu items each time. With no function, or no items, the browser shows its own menu. Focus goes back to the link
    after Escape, Tab, an action that does not move focus, or a dismiss while focus is in the menu. The menu closes
    when the tree no longer shows the item, for example after a reload removes the item.
  * `label` (string, required): The accessible name of the tree.

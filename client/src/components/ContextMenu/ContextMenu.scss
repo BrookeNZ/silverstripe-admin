@@ -10,7 +10,11 @@
  *
  * White on the top of the highlight gradient has a contrast of 4.47:1. The legacy menu has the same contrast. The
  * highlight is the focus indicator of an enabled item, as in the legacy menu. A disabled item has no highlight, so a
- * disabled item shows the focus ring. The minimum width is the legacy 180px plus the border.
+ * disabled item shows the focus ring. The minimum width is the legacy 180px plus the border, for each column.
+ *
+ * A submenu with many items has two or three columns, as in the legacy tree menu. ContextMenu.js sets the modifier from
+ * the item count. The columns fill from the top down, so the arrow keys follow the order on screen. A label that is
+ * too long ends with an ellipsis, as in the legacy tree menu.
  *
  * `SUBMENU_SKIDDING` in ContextMenu.js equals the border plus the padding of `.context-menu`.
  */
@@ -19,6 +23,8 @@
   --context-menu-bg-color: var(--bs-white);
   --context-menu-border: 0.0769rem solid #c0c0c0;
   --context-menu-color: #000;
+  --context-menu-column-count: 1;
+  --context-menu-display: grid;
   --context-menu-gap: 0.0769rem;
   --context-menu-item-bg-color: transparent;
   --context-menu-item-bg-image: none;
@@ -31,6 +37,7 @@
   --context-menu-item-focus-outline: 0;
   --context-menu-item-focus-outline-offset: calc(var(--focus-outline-width) * -1);
   --context-menu-item-gap: 0.3846rem;
+  --context-menu-item-icon-color: var(--bs-gray-500);
   --context-menu-item-line-height: 1.7692;
   --context-menu-item-padding: 0.0769rem 0.7692rem;
   --context-menu-item-parent-marker: "»";
@@ -43,13 +50,24 @@
   border: var(--context-menu-border);
   box-shadow: var(--context-menu-shadow);
   color: var(--context-menu-color);
-  display: grid;
+  column-count: var(--context-menu-column-count);
+  display: var(--context-menu-display);
   gap: var(--context-menu-gap);
   list-style: none;
   margin: 0;
-  min-inline-size: var(--context-menu-min-width);
+  min-inline-size: calc(var(--context-menu-min-width) * var(--context-menu-column-count));
   padding: var(--context-menu-padding);
   z-index: var(--context-menu-z-index);
+}
+
+.context-menu--two-columns {
+  --context-menu-column-count: 2;
+  --context-menu-display: block;
+}
+
+.context-menu--three-columns {
+  --context-menu-column-count: 3;
+  --context-menu-display: block;
 }
 
 .context-menu__item {
@@ -57,6 +75,7 @@
   background-color: var(--context-menu-item-bg-color);
   background-image: var(--context-menu-item-bg-image);
   border: 0;
+  break-inside: avoid;
   color: var(--context-menu-item-color);
   display: flex;
   font: inherit;
@@ -72,12 +91,24 @@
     --context-menu-item-bg-color: var(--context-menu-item-focus-bg-color);
     --context-menu-item-bg-image: var(--context-menu-item-focus-bg-image);
     --context-menu-item-color: var(--context-menu-item-focus-color);
+    --context-menu-item-icon-color: var(--context-menu-item-focus-color);
   }
 
   &:focus-visible {
     outline: var(--context-menu-item-focus-outline);
     outline-offset: var(--context-menu-item-focus-outline-offset);
   }
+}
+
+.context-menu__icon {
+  color: var(--context-menu-item-icon-color);
+  flex-shrink: 0;
+}
+
+.context-menu__label {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .context-menu__item--disabled {
