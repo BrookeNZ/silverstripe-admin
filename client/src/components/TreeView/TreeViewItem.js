@@ -18,7 +18,7 @@ import TreeViewToggle from './TreeViewToggle';
 import TreeViewTooManyItem from './TreeViewTooManyItem';
 import { useLoadChildren } from './treeViewHooks';
 import { useTreeValue } from './treeViewStore';
-import { isPlainClick, itemPropType } from './treeViewUtils';
+import { getContextMenuAnchor, isContextMenuKey, isPlainClick, itemPropType } from './treeViewUtils';
 
 // The `StatusBadge` status for each status flag key that cms sends. A flag from an extension has no entry and renders a
 // badge with no status.
@@ -64,7 +64,7 @@ TreeViewItems.propTypes = {
 };
 
 const TreeViewItem = ({ id }) => {
-  const { store, onOpen } = useContext(TreeViewContext);
+  const { store, onOpen, onShowContextMenu } = useContext(TreeViewContext);
   const item = useTreeValue(store, (tree) => tree.items[id]);
   const childIds = useTreeValue(store, (tree) => tree.childIds[id]);
   const isItemExpanded = useTreeValue(store, (tree) => tree.expanded.includes(id));
@@ -99,6 +99,14 @@ const TreeViewItem = ({ id }) => {
     }
   };
 
+  const handleContextMenu = (event) => onShowContextMenu(item, event, getContextMenuAnchor(event));
+
+  const handleKeyDown = (event) => {
+    if (isContextMenuKey(event)) {
+      onShowContextMenu(item, event, event.currentTarget);
+    }
+  };
+
   // `useScrollToCurrentItem` finds the link by `data-id` and `tree-view__link`. Keep both the same there.
   return (
     <li
@@ -120,6 +128,8 @@ const TreeViewItem = ({ id }) => {
         title={item.tooltip}
         aria-current={isItemCurrent ? 'page' : undefined}
         onClick={handleClick}
+        onContextMenu={handleContextMenu}
+        onKeyDown={handleKeyDown}
       >
         <span className={classnames('tree-view__icon', item.iconClasses)} aria-hidden="true" />
         <span className="tree-view__title">{item.treeTitle}</span>

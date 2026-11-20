@@ -1,5 +1,8 @@
-import { useEffect, useLayoutEffect, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
+import { CLOSE_REASON } from 'components/ContextMenu/ContextMenu';
 import { loadChildren, reloadTree, revealItem, setScroll } from './TreeViewActions';
+import { isItemShown, isTitleRowExpandedIn } from './TreeViewSelectors';
+import { useTreeValue } from './treeViewStore';
 import { getScrollContainer } from './treeViewUtils';
 
 // Reveal the current item only when `currentId` changes. A remount then shows the items as the user left them.
@@ -80,4 +83,74 @@ export function useLoadChildren(store, parentId, fetchChildren, areChildrenNeede
       loadChildren(store, parentId, fetchChildren);
     }
   }, [store, parentId, fetchChildren, areChildrenNeeded]);
+}
+
+// Check whether closing a menu for `reason` returns focus to the link of the item. A dismiss returns focus only while
+// focus is in the menu, because the menu takes that focus away when the menu unmounts.
+function shouldReturnFocus(reason) {
+  const active = document.activeElement;
+  const isFocusInMenu = Boolean(active && active.closest('[role="menu"]'));
+  const hasActionMovedFocus = Boolean(active) && active !== document.body && !isFocusInMenu;
+  return reason === CLOSE_REASON.ESCAPE
+    || reason === CLOSE_REASON.TAB
+    || (reason === CLOSE_REASON.SELECT && !hasActionMovedFocus)
+    || (reason === CLOSE_REASON.DISMISS && isFocusInMenu);
+}
+
+// Hold the context menu of one item at a time. `showContextMenu(item, event, anchor)` opens the context menu of
+// `item` at `anchor`. It prevents the browser menu only when the item has menu items. The menu closes when the tree
+// no longer shows the item, for example after a reload removes the item.
+export function useItemContextMenu(store, { getMenuItems, openItem, titleRowText }) {
+  const [contextMenu, setContextMenu] = useState(null);
+  // `TreeView` uses this count as the key of the `ContextMenu`, so each show mounts a new menu that takes focus.
+  const showCountRef = useRef(0);
+  // A second event before the next render must see the open menu, so the menu is also in a ref.
+  const contextMenuRef = useRef(null);
+
+  const showContextMenu = useCallback((item, event, anchor) => {
+    if (!getMenuItems) {
+      return;
+    }
+    // Some browsers send a `contextmenu` event after Shift+F10. That event must not open the menu again.
+    if (contextMenuRef.current && contextMenuRef.current.item.id === item.id) {
+      event.preventDefault();
+      return;
+    }
+    const menuItems = getMenuItems(item, { open: openItem }) || [];
+    if (!menuItems.length) {
+      return;
+    }
+    event.preventDefault();
+    showCountRef.current += 1;
+    contextMenuRef.current = {
+      showCount: showCountRef.current,
+      item,
+      menuItems,
+      anchor,
+      link: event.currentTarget,
+    };
+    setContextMenu(contextMenuRef.current);
+  }, [getMenuItems, openItem]);
+
+  const closeContextMenu = useCallback((closingContextMenu, reason) => {
+    if (contextMenuRef.current !== closingContextMenu) {
+      return;
+    }
+    contextMenuRef.current = null;
+    setContextMenu(null);
+    if (shouldReturnFocus(reason) && closingContextMenu.link.isConnected) {
+      closingContextMenu.link.focus({ preventScroll: true });
+    }
+  }, []);
+
+  const isItemStillShown = useTreeValue(store, (tree) => (
+    !contextMenu || isItemShown(tree, contextMenu.item.id, isTitleRowExpandedIn(tree, titleRowText))
+  ));
+  useEffect(() => {
+    if (contextMenu && !isItemStillShown) {
+      closeContextMenu(contextMenu, CLOSE_REASON.DISMISS);
+    }
+  }, [contextMenu, isItemStillShown, closeContextMenu]);
+
+  return { contextMenu, showContextMenu, closeContextMenu };
 }

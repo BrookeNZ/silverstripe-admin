@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useRef } from 'react';
 import PropTypes from 'prop-types';
 import classnames from 'classnames';
+import ContextMenu from 'components/ContextMenu/ContextMenu';
 import { TOP_LEVEL_ID } from './TreeViewConstants';
 import { isItemShown, isTitleRowExpandedIn } from './TreeViewSelectors';
 import { collapseItem, expandItem, trackOpenRequest } from './TreeViewActions';
@@ -8,6 +9,7 @@ import TreeViewContext from './TreeViewContext';
 import { TreeViewItems } from './TreeViewItem';
 import TreeViewToggle from './TreeViewToggle';
 import {
+  useItemContextMenu,
   useReloadOnKeyChange,
   useRestoreScroll,
   useRevealCurrentItem,
@@ -24,6 +26,7 @@ const TreeView = ({
   reloadKey = null,
   onOpen = null,
   onShowAsList = null,
+  getMenuItems = null,
   label,
   titleRowText = '',
   isSidePanel = false,
@@ -57,6 +60,11 @@ const TreeView = ({
       onShowAsList(item, event);
     }
   }, [onShowAsList]);
+  const { contextMenu, showContextMenu, closeContextMenu } = useItemContextMenu(store, {
+    getMenuItems,
+    openItem,
+    titleRowText,
+  });
 
   // Each `TreeViewItem` reads the current item and the highlighted item from the store, not from `TreeViewContext`. A
   // new current or pending item then re-renders only the items whose state changes.
@@ -65,7 +73,8 @@ const TreeView = ({
     fetchChildren,
     onOpen: openItem,
     onShowAsList: showAsList,
-  }), [store, fetchChildren, openItem, showAsList]);
+    onShowContextMenu: showContextMenu,
+  }), [store, fetchChildren, openItem, showAsList, showContextMenu]);
 
   const handleTitleRowToggle = () => (
     isTitleRowExpanded ? collapseItem(store, TOP_LEVEL_ID) : expandItem(store, TOP_LEVEL_ID)
@@ -86,6 +95,16 @@ const TreeView = ({
           </TreeViewContext.Provider>
         </ul>
       )}
+      {contextMenu && (
+        <ContextMenu
+          key={contextMenu.showCount}
+          items={contextMenu.menuItems}
+          anchor={contextMenu.anchor}
+          onClose={(reason) => closeContextMenu(contextMenu, reason)}
+          label={contextMenu.item.treeTitle}
+          subject={contextMenu.item}
+        />
+      )}
     </nav>
   );
 };
@@ -98,6 +117,7 @@ TreeView.propTypes = {
   reloadKey: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
   onOpen: PropTypes.func,
   onShowAsList: PropTypes.func,
+  getMenuItems: PropTypes.func,
   label: PropTypes.string.isRequired,
   titleRowText: PropTypes.string,
   isSidePanel: PropTypes.bool,

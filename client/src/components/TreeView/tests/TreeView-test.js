@@ -1339,3 +1339,171 @@ test('TreeView loads an expanded parent again when it stops being limited while 
   expect(await findLink('Our team')).toBeTruthy();
   expect(isItemExpanded(getLink('About us'))).toBe(true);
 });
+
+function makeMenuProps(overrides = {}) {
+  return makeProps({
+    getMenuItems: jest.fn(() => [
+      { id: 'edit', label: 'Edit', onSelect: jest.fn() },
+      { id: 'duplicate', label: 'Duplicate', onSelect: jest.fn() },
+    ]),
+    ...overrides,
+  });
+}
+
+function getMenu(name) {
+  return screen.getByRole('menu', { name });
+}
+
+function queryMenu() {
+  return screen.queryByRole('menu');
+}
+
+function getMenuItem(name) {
+  return screen.getByRole('menuitem', { name });
+}
+
+function pressShiftF10(element) {
+  return fireEvent.keyDown(element, { key: 'F10', shiftKey: true });
+}
+
+test('TreeView opens the menu of an item on a right-click, prevents the browser menu and passes the item to an action', () => {
+  saveTree();
+  const props = makeMenuProps();
+  renderTree(props);
+
+  expect(fireEvent.contextMenu(getLink('Contact us Modified'))).toBe(false);
+
+  const menu = getMenu('Contact us');
+  expect(props.getMenuItems.mock.calls).toEqual([[getItem(4), { open: expect.any(Function) }]]);
+  expect(within(menu).getAllByRole('menuitem').map((menuItem) => menuItem.textContent)).toEqual(['Edit', 'Duplicate']);
+  expect(document.activeElement).toBe(getMenuItem('Edit'));
+
+  fireEvent.click(getMenuItem('Duplicate'));
+  const [, duplicate] = props.getMenuItems.mock.results[0].value;
+  expect(duplicate.onSelect.mock.calls[0][0]).toEqual(getItem(4));
+  expect(queryMenu()).toBeNull();
+});
+
+test('TreeView opens the menu with Shift+F10 on a focused link, and opens no second menu for a contextmenu event after it', () => {
+  saveTree();
+  const props = makeMenuProps();
+  renderTree(props);
+  const link = getLink('About us');
+  link.focus();
+
+  expect(pressShiftF10(link)).toBe(false);
+  const edit = getMenuItem('Edit');
+  expect(document.activeElement).toBe(edit);
+
+  expect(fireEvent.contextMenu(link)).toBe(false);
+  expect(screen.getAllByRole('menu')).toEqual([getMenu('About us')]);
+  expect(getMenuItem('Edit')).toBe(edit);
+  expect(document.activeElement).toBe(edit);
+  expect(props.getMenuItems).toHaveBeenCalledTimes(1);
+});
+
+test('TreeView leaves the browser menu to an item when there is no getMenuItems or it returns no items', () => {
+  saveTree();
+  const { rerender } = renderTree(makeProps());
+
+  expect(fireEvent.contextMenu(getLink('About us'))).toBe(true);
+  expect(pressShiftF10(getLink('About us'))).toBe(true);
+  expect(queryMenu()).toBeNull();
+
+  const getMenuItems = jest.fn(() => []);
+  rerender(makeProps({ getMenuItems }));
+  expect(fireEvent.contextMenu(getLink('About us'))).toBe(true);
+  expect(getMenuItems).toHaveBeenCalledTimes(1);
+  expect(queryMenu()).toBeNull();
+});
+
+test('TreeView gives no menu to the title row, a loading item, a failed item or a too-many item', async () => {
+  const topLevel = deferred();
+  const fetchChildren = jest.fn((parentId) => (
+    parentId === 0 ? topLevel.promise : Promise.reject(new Error('Server error'))
+  ));
+  const props = makeMenuProps({ fetchChildren });
+  renderTree(props);
+
+  expect(fireEvent.contextMenu(screen.getByText('Loading...'))).toBe(true);
+  expect(fireEvent.contextMenu(screen.getByText('My site'))).toBe(true);
+
+  topLevel.resolve(getChildren(0));
+  await flush();
+  fireEvent.click(getToggle('News'));
+  fireEvent.click(getToggle('About us'));
+  await flush();
+
+  const failed = screen.getByRole('button', { name: 'Failed to load. Try again' });
+  const tooMany = getLink('show as list');
+  [failed, tooMany].forEach((element) => {
+    expect(fireEvent.contextMenu(element)).toBe(true);
+    expect(pressShiftF10(element)).toBe(true);
+  });
+  expect(queryMenu()).toBeNull();
+  expect(props.getMenuItems).not.toHaveBeenCalled();
+});
+
+test('TreeView opens an item through the open that it passes to getMenuItems, highlighting the item as a click does', () => {
+  saveTree();
+  const onOpen = jest.fn();
+  const getMenuItems = (item, { open }) => [{ id: 'edit', label: 'Edit', onSelect: open }];
+  renderTree(makeProps({ onOpen, getMenuItems, currentId: 1 }));
+
+  fireEvent.contextMenu(getLink('Contact us Modified'));
+  fireEvent.click(getMenuItem('Edit'));
+
+  expect(onOpen.mock.calls.map(([item]) => item)).toEqual([getItem(4)]);
+  expect(getHighlightedTitles()).toEqual(['Contact us']);
+  expect(getCurrentTitles()).toEqual(['Home']);
+});
+
+test('TreeView returns focus to the link on Escape, and leaves focus where an action moved it', () => {
+  saveTree();
+  const getMenuItems = () => [
+    { id: 'outside', label: 'Go outside', onSelect: () => screen.getByRole('button', { name: 'Outside' }).focus() },
+    { id: 'edit', label: 'Edit' },
+  ];
+  renderTree(makeProps({ getMenuItems }));
+  render(<button type="button">Outside</button>);
+  const link = getLink('About us');
+
+  fireEvent.contextMenu(link);
+  fireEvent.keyDown(document.activeElement, { key: 'Escape' });
+  expect(queryMenu()).toBeNull();
+  expect(document.activeElement).toBe(link);
+
+  pressShiftF10(link);
+  fireEvent.keyDown(document.activeElement, { key: 'Enter' });
+  expect(queryMenu()).toBeNull();
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Outside' }));
+});
+
+test('TreeView focuses a new menu when the menu of an item closes and opens again in one render', () => {
+  saveTree();
+  renderTree(makeMenuProps());
+  const link = getLink('About us');
+  fireEvent.contextMenu(link);
+  link.focus();
+
+  act(() => {
+    fireEvent.pointerDown(link);
+    fireEvent.contextMenu(link);
+  });
+
+  expect(document.activeElement).toBe(getMenuItem('Edit'));
+});
+
+test('TreeView closes the menu of an item that the tree stops showing in a reload', async () => {
+  saveMovedItemTree({ revealedId: 22 });
+  const fetchChildren = jest.fn((parentId) => Promise.resolve(movedServer[parentId]));
+  const props = makeMenuProps({ currentId: 22, fetchChildren, fetchPath: () => new Promise(() => {}) });
+  const { rerender } = renderTree(props);
+  fireEvent.contextMenu(getLink('Moved'));
+  expect(getMenu('Moved')).toBeTruthy();
+
+  rerender({ ...props, reloadKey: 1 });
+
+  await waitFor(() => expect(queryLink('Moved')).toBeNull());
+  expect(queryMenu()).toBeNull();
+});

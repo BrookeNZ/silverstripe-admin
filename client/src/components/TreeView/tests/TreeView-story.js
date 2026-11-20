@@ -30,6 +30,21 @@ function fetchChildrenFailingOnce(parentId) {
   });
 }
 
+function getMenuItems(item, { open }) {
+  return [
+    { id: 'edit', label: 'Edit', onSelect: open },
+    { id: 'duplicate', label: 'Duplicate', disabled: true },
+    {
+      id: 'add',
+      label: 'Add page',
+      items: [
+        { id: 'add-page', label: 'Page', onSelect: action('add page') },
+        { id: 'add-redirector', label: 'Redirector page', onSelect: action('add redirector page') },
+      ],
+    },
+  ];
+}
+
 export default {
   title: 'Admin/TreeView',
   component: TreeView,
@@ -41,7 +56,8 @@ export default {
         parent at a time through \`fetchChildren\`, and reports a click through \`onOpen\` rather than navigating.
         A tree that mounts again with the same \`treeId\` renders as the user left it, with no request. The current item is revealed only
         when \`currentId\` changes. Page 3, "News", is limited: it has too many children to show, and offers to show them as a
-        list. Page 9, "Private profile", is disabled: a click on it does nothing.`,
+        list. Page 9, "Private profile", is disabled: a click on it does nothing. A right-click, the context menu key or
+        Shift+F10 on an item opens the menu from \`getMenuItems\`.`,
       },
       canvas: {
         sourceState: 'hide',
@@ -66,6 +82,7 @@ Default.args = {
   fetchPath,
   onOpen: action('onOpen'),
   onShowAsList: action('onShowAsList'),
+  getMenuItems,
 };
 
 export const DeepLink = (args) => <TreeView {...args} />;

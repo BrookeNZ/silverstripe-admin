@@ -40,3 +40,21 @@ export function getScrollContainer(element) {
   }
   return document.scrollingElement || element;
 }
+
+// Check whether `event` is a press of the context menu key or of Shift+F10.
+export function isContextMenuKey(event) {
+  if (event.altKey || event.ctrlKey || event.metaKey) {
+    return false;
+  }
+  return event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10');
+}
+
+// Get the anchor of the context menu for a `contextmenu` event on a link. The anchor is the point of the event, or the
+// link when the point is off the link. A `contextmenu` event from the keyboard can carry a point off the link.
+export function getContextMenuAnchor(event) {
+  const link = event.currentTarget;
+  const box = link.getBoundingClientRect();
+  const { clientX: x, clientY: y } = event;
+  const isOnLink = x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
+  return isOnLink ? { x, y } : link;
+}

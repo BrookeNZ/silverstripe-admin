@@ -44,6 +44,12 @@ const props = {
  * `onShowAsList` (function): Called with the item and the event on a plain click on the "show as list" link of an item
    with too many children to show. The tree stops the click from following `listViewUrl`. Without `onShowAsList`, the
    click follows `listViewUrl`.
+ * `getMenuItems` (function): Called with an item and `{ open }` when the user asks for the context menu of the item
+   with a right-click, the context menu key or Shift+F10 on its link. Returns the `items` of a `ContextMenu`, whose
+   `onSelect` gets the item. `open(item, event)` opens the item as a plain click on it does, with the event the menu
+   passes to `onSelect`. With no function, or no items, the browser shows its own menu. Focus goes back to the link
+   after Escape, Tab, an action that does not move focus, or a dismiss while focus is in the menu. The menu closes
+   when the tree no longer shows the item, for example after a reload removes the item.
  * `label` (string, required): The accessible name of the tree.
  * `titleRowText` (string): The text of the title row. A tree without a title has no title row.
  * `isSidePanel` (boolean): Whether the tree has the narrow layout of a side panel.
