@@ -3,16 +3,19 @@
  *
  * `item.classes` and `item.iconClasses` are global class names, styled outside TreeView.scss: `.record-icon` sizes the
  * icon and the generated `.class-*` rules draw image icons.
+ *
+ * The rows render in the order that `getVisibleRows()` in TreeViewFocus.js returns. Keep the two the same.
  */
 import React, { memo, useContext } from 'react';
 import PropTypes from 'prop-types';
 import classnames from 'classnames';
 import StatusBadge from 'components/StatusBadge/StatusBadge';
 import { STATUS } from './TreeViewConstants';
-import { getHighlightedId } from './TreeViewSelectors';
+import { getHighlightedId, isParentItem } from './TreeViewSelectors';
 import { collapseItem, expandItem, loadChildren } from './TreeViewActions';
 import TreeViewContext from './TreeViewContext';
 import TreeViewFailedItem from './TreeViewFailedItem';
+import { getListKey, getTabStopKey } from './TreeViewFocus';
 import TreeViewLoadingItem from './TreeViewLoadingItem';
 import TreeViewToggle from './TreeViewToggle';
 import TreeViewTooManyItem from './TreeViewTooManyItem';
@@ -30,10 +33,12 @@ const BADGE_STATUS_BY_FLAG_KEY = {
   removedfromdraft: 'archived',
 };
 
-export const TreeViewItems = ({ parentId, parentItem = null }) => {
+export const TreeViewItems = ({ parentId, parentItem = null, level }) => {
   const { store, fetchChildren, onShowAsList } = useContext(TreeViewContext);
   const childIds = useTreeValue(store, (tree) => tree.childIds[parentId]);
   const childrenStatus = useTreeValue(store, (tree) => tree.status[parentId]);
+  const listKey = getListKey(parentId);
+  const isListRowTabStop = useTreeValue(store, (tree) => getTabStopKey(tree) === listKey);
   const isParentLimited = Boolean(parentItem && parentItem.limited);
   const haveChildrenFailed = childrenStatus === STATUS.FAILED;
   const areChildrenAwaited = !childIds && !haveChildrenFailed;
@@ -43,42 +48,50 @@ export const TreeViewItems = ({ parentId, parentItem = null }) => {
   useLoadChildren(store, parentId, fetchChildren, areChildrenNeeded);
 
   if (isParentLimited) {
-    return <TreeViewTooManyItem item={parentItem} onShowAsList={onShowAsList} />;
+    return (
+      <TreeViewTooManyItem
+        item={parentItem}
+        focusKey={listKey}
+        level={level}
+        isTabStop={isListRowTabStop}
+        onShowAsList={onShowAsList}
+      />
+    );
   }
   if (haveChildrenFailed) {
     const handleRetry = () => loadChildren(store, parentId, fetchChildren);
-    return <TreeViewFailedItem onRetry={handleRetry} />;
+    return <TreeViewFailedItem focusKey={listKey} level={level} isTabStop={isListRowTabStop} onRetry={handleRetry} />;
   }
   if (areChildrenAwaited) {
     return <TreeViewLoadingItem />;
   }
-  return childIds.map((id) => (
+  return childIds.map((id, index) => (
     // eslint-disable-next-line no-use-before-define
-    <MemoTreeViewItem key={id} id={id} />
+    <MemoTreeViewItem key={id} id={id} level={level} posInSet={index + 1} setSize={childIds.length} />
   ));
 };
 
 TreeViewItems.propTypes = {
   parentId: PropTypes.number.isRequired,
   parentItem: itemPropType,
+  level: PropTypes.number.isRequired,
 };
 
-const TreeViewItem = ({ id }) => {
+const TreeViewItem = ({ id, level, posInSet, setSize }) => {
   const { store, onOpen, onShowContextMenu } = useContext(TreeViewContext);
   const item = useTreeValue(store, (tree) => tree.items[id]);
   const childIds = useTreeValue(store, (tree) => tree.childIds[id]);
   const isItemExpanded = useTreeValue(store, (tree) => tree.expanded.includes(id));
   const isItemCurrent = useTreeValue(store, (tree) => tree.currentId === id);
   const isItemHighlighted = useTreeValue(store, (tree) => getHighlightedId(tree) === id);
+  const isItemTabStop = useTreeValue(store, (tree) => getTabStopKey(tree) === id);
+  const areChildrenAwaited = useTreeValue(store, (tree) => !tree.childIds[id] && tree.status[id] !== STATUS.FAILED);
 
   if (!item) {
     return null;
   }
 
-  // An expanded item stays a parent until its children load empty. A child added after the server sent `hasChildren:
-  // false` then still shows.
-  const hasChildren = childIds ? childIds.length > 0 : Boolean(item.hasChildren) || isItemExpanded;
-  const isItemParent = Boolean(item.limited) || hasChildren;
+  const isItemParent = isParentItem(item, childIds, isItemExpanded);
   const isExpandedParent = isItemParent && isItemExpanded;
   const canViewItem = item.canView !== false;
   const canEditItem = item.canEdit !== false;
@@ -111,10 +124,13 @@ const TreeViewItem = ({ id }) => {
   return (
     <li
       className={classnames('tree-view__item', { 'tree-view__item--expanded': isExpandedParent }, item.classes)}
+      role="none"
       data-id={id}
       data-recordtype={item.recordClass}
     >
-      {isItemParent && <TreeViewToggle title={item.treeTitle} isExpanded={isExpandedParent} onClick={handleToggle} />}
+      {isItemParent && (
+        <TreeViewToggle title={item.treeTitle} isExpanded={isExpandedParent} isMouseOnly onClick={handleToggle} />
+      )}
       <a
         className={classnames(
           'tree-view__link',
@@ -124,9 +140,18 @@ const TreeViewItem = ({ id }) => {
             'tree-view__link--disabled': isItemDisabled,
           },
         )}
+        role="treeitem"
         href={item.editUrl}
         title={item.tooltip}
+        tabIndex={isItemTabStop ? 0 : -1}
+        data-focus-key={id}
+        aria-selected="false"
+        aria-level={level}
+        aria-setsize={setSize}
+        aria-posinset={posInSet}
+        aria-expanded={isItemParent ? isExpandedParent : undefined}
         aria-current={isItemCurrent ? 'page' : undefined}
+        aria-disabled={canViewItem ? undefined : 'true'}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
         onKeyDown={handleKeyDown}
@@ -142,8 +167,13 @@ const TreeViewItem = ({ id }) => {
         ))}
       </a>
       {isExpandedParent && (
-        <ul className="tree-view__group">
-          <TreeViewItems parentId={id} parentItem={item} />
+        <ul
+          className="tree-view__group"
+          role="group"
+          aria-label={item.treeTitle}
+          aria-busy={!item.limited && areChildrenAwaited ? 'true' : undefined}
+        >
+          <TreeViewItems parentId={id} parentItem={item} level={level + 1} />
         </ul>
       )}
     </li>
@@ -152,6 +182,9 @@ const TreeViewItem = ({ id }) => {
 
 TreeViewItem.propTypes = {
   id: PropTypes.number.isRequired,
+  level: PropTypes.number.isRequired,
+  posInSet: PropTypes.number.isRequired,
+  setSize: PropTypes.number.isRequired,
 };
 
 const MemoTreeViewItem = memo(TreeViewItem);

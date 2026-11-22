@@ -71,6 +71,7 @@
     "Admin.TREEDROPDOWN_LOADING": "Loading...",
     "Admin.TREEDROPDOWN_NO_CHILDREN": "No children",
     "Admin.TREEVIEW_FAILED": "Failed to load",
+    "Admin.TREEVIEW_FAILED_NAMED": "Failed to load {title}",
     "Admin.TREEVIEW_FAILED_RETRY": "Failed to load. Try again",
     "Admin.TREEVIEW_LOADING": "Loading...",
     "Admin.TREEVIEW_SHOW_AS_LIST": "show as list",

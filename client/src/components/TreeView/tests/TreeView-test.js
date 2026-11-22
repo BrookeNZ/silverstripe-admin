@@ -5,7 +5,7 @@ import i18n from 'i18n';
 import ACTION_TYPES from '../TreeViewActionTypes';
 import { getTreeStore, treeStores } from '../treeViewStore';
 import TreeView from '../TreeView';
-import { deferred, getChildren, getItem, getPath, loadActions, makePage } from './mockTree';
+import { deferred, getChildren, getKeyboardChildren, getItem, getPath, loadActions, makePage } from './mockTree';
 
 const TREE_ID = 'pages';
 
@@ -47,16 +47,16 @@ function flush() {
   return act(() => new Promise((resolve) => setTimeout(resolve, 0)));
 }
 
-function getLink(name) {
-  return screen.getByRole('link', { name });
+function getRow(name) {
+  return screen.getByRole('treeitem', { name });
 }
 
-function queryLink(name) {
-  return screen.queryByRole('link', { name });
+function queryRow(name) {
+  return screen.queryByRole('treeitem', { name });
 }
 
-function findLink(name) {
-  return screen.findByRole('link', { name });
+function findRow(name) {
+  return screen.findByRole('treeitem', { name });
 }
 
 function getTopList() {
@@ -65,7 +65,7 @@ function getTopList() {
 
 // Get the group below the item whose link is named `name`, or null when the item is not expanded.
 function getGroup(name) {
-  return getLink(name).parentElement.querySelector(':scope > .tree-view__group');
+  return getRow(name).parentElement.querySelector(':scope > .tree-view__group');
 }
 
 function isItemExpanded(link) {
@@ -77,7 +77,7 @@ function hasItemToggle(link) {
 }
 
 function getToggle(name) {
-  return getLink(name).parentElement.querySelector('.tree-view__toggle');
+  return getRow(name).parentElement.querySelector('.tree-view__toggle');
 }
 
 function getTitleRowToggle() {
@@ -187,7 +187,7 @@ test('TreeView renders the stored items with the tree markup and makes no reques
   expect(topList.parentElement).toBe(nav);
   expect([...topList.classList]).toEqual(['tree-view__list']);
 
-  const leaf = getLink('Contact us Modified');
+  const leaf = getRow('Contact us Modified');
   const item = leaf.parentElement;
   expect(item.tagName).toBe('LI');
   expect(item.getAttribute('data-id')).toBe('4');
@@ -207,22 +207,22 @@ test('TreeView renders the stored items with the tree markup and makes no reques
   expect(badge.className).toBe('status-badge status-badge--modified');
   expect(badge.textContent).toBe('Modified');
 
-  const parent = getLink('About us');
+  const parent = getRow('About us');
   expect(isItemExpanded(parent)).toBe(true);
   expect([...parent.parentElement.classList]).toEqual(['tree-view__item', 'tree-view__item--expanded', 'class-Page']);
   expect(getToggle('About us').firstChild.getAttribute('aria-hidden')).toBe('true');
   const group = getGroup('About us');
   expect(group.parentElement).toBe(parent.parentElement);
   expect([...group.classList]).toEqual(['tree-view__group']);
-  expect(getLink('History Draft').getAttribute('aria-current')).toBe('page');
-  expect(isItemExpanded(getLink('Our team'))).toBe(false);
-  expect([...getLink('Our team').parentElement.classList]).toEqual(['tree-view__item', 'class-Page']);
-  expect(queryLink('Jane Doe')).toBeNull();
+  expect(getRow('History Draft').getAttribute('aria-current')).toBe('page');
+  expect(isItemExpanded(getRow('Our team'))).toBe(false);
+  expect([...getRow('Our team').parentElement.classList]).toEqual(['tree-view__item', 'class-Page']);
+  expect(queryRow('Jane Doe')).toBeNull();
 
   fireEvent.click(getToggle('Our team'));
-  const externalBadge = within(getLink('Staff intranet External')).getByText('External');
+  const externalBadge = within(getRow('Staff intranet External')).getByText('External');
   expect(externalBadge.className).toBe('status-badge');
-  expect(within(getLink('History Draft')).getByText('Draft').className).toBe('status-badge status-badge--draft');
+  expect(within(getRow('History Draft')).getByText('Draft').className).toBe('status-badge status-badge--draft');
 
   expect(props.fetchChildren).not.toHaveBeenCalled();
 });
@@ -243,16 +243,16 @@ test('TreeView marks the links of status flags and of items the member cannot vi
   ]));
   renderTree(makeProps());
 
-  const both = getLink('Both Modified External');
+  const both = getRow('Both Modified External');
   expect([...both.classList]).toEqual([
     'tree-view__link',
     'tree-view__link--status-modified',
     'tree-view__link--status-externallink',
   ]);
 
-  expect([...getLink('Read only').classList]).toEqual(['tree-view__link', 'tree-view__link--disabled']);
-  expect([...getLink('Hidden').classList]).toEqual(['tree-view__link', 'tree-view__link--disabled']);
-  expect([...getLink('Plain').classList]).toEqual(['tree-view__link']);
+  expect([...getRow('Read only').classList]).toEqual(['tree-view__link', 'tree-view__link--disabled']);
+  expect([...getRow('Hidden').classList]).toEqual(['tree-view__link', 'tree-view__link--disabled']);
+  expect([...getRow('Plain').classList]).toEqual(['tree-view__link']);
 });
 
 test('TreeView renders an item whose status flags are not an array with no status flag and a prop type warning', () => {
@@ -265,8 +265,8 @@ test('TreeView renders an item whose status flags are not an array with no statu
   const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
   renderTree(makeProps());
 
-  expect([...getLink('Keyed flags').classList]).toEqual(['tree-view__link']);
-  expect(getLink('Child')).toBeTruthy();
+  expect([...getRow('Keyed flags').classList]).toEqual(['tree-view__link']);
+  expect(getRow('Child')).toBeTruthy();
   expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('Failed %s type'), expect.anything(), expect.stringContaining('statusFlags'), expect.anything());
   consoleError.mockRestore();
 });
@@ -286,7 +286,7 @@ test('TreeView collapses and expands the whole tree from the title row', () => {
 
   fireEvent.click(getTitleRowToggle());
   expect([...titleRow.classList]).toEqual(['tree-view__title-row', 'tree-view__title-row--expanded']);
-  expect(screen.getAllByRole('link')).toHaveLength(4);
+  expect(screen.getAllByRole('treeitem')).toHaveLength(4);
 });
 
 test('TreeView shows the top level without a title row when there is no `titleRowText`', () => {
@@ -294,7 +294,7 @@ test('TreeView shows the top level without a title row when there is no `titleRo
   const { container } = renderTree(makeProps({ titleRowText: '' }));
 
   expect(container.querySelector('.tree-view__title-row')).toBeNull();
-  expect(screen.getAllByRole('link')).toHaveLength(4);
+  expect(screen.getAllByRole('treeitem')).toHaveLength(4);
 });
 
 test('TreeView loads the top level on its first mount and shows a loading item meanwhile', async () => {
@@ -305,12 +305,12 @@ test('TreeView loads the top level on its first mount and shows a loading item m
   expect(fetchChildren.mock.calls).toEqual([[0]]);
   const loading = container.querySelector('.tree-view__item--loading');
   expect(loading.textContent).toBe('Loading...');
-  expect(screen.queryAllByRole('link')).toEqual([]);
+  expect(screen.queryAllByRole('treeitem')).toEqual([]);
 
   response.resolve(getChildren(0));
   await flush();
   expect(container.querySelector('.tree-view__item--loading')).toBeNull();
-  expect(screen.getAllByRole('link')).toHaveLength(4);
+  expect(screen.getAllByRole('treeitem')).toHaveLength(4);
 });
 
 test('TreeView loads children on the first expand only, showing a loading item meanwhile', async () => {
@@ -321,22 +321,22 @@ test('TreeView loads children on the first expand only, showing a loading item m
 
   fireEvent.click(getToggle('About us'));
   expect(props.fetchChildren.mock.calls).toEqual([[2]]);
-  expect(isItemExpanded(getLink('About us'))).toBe(true);
+  expect(isItemExpanded(getRow('About us'))).toBe(true);
   const group = getGroup('About us');
   expect(group.querySelector('.tree-view__item--loading').textContent).toBe('Loading...');
 
   response.resolve(getChildren(2));
   await flush();
-  expect(getLink('Our team')).not.toBeNull();
+  expect(getRow('Our team')).not.toBeNull();
 
   fireEvent.click(getToggle('About us'));
-  expect(isItemExpanded(getLink('About us'))).toBe(false);
-  expect(queryLink('Our team')).toBeNull();
+  expect(isItemExpanded(getRow('About us'))).toBe(false);
+  expect(queryRow('Our team')).toBeNull();
   fireEvent.click(getToggle('About us'));
   await flush();
 
   expect(props.fetchChildren).toHaveBeenCalledTimes(1);
-  expect(getLink('Our team')).not.toBeNull();
+  expect(getRow('Our team')).not.toBeNull();
 });
 
 test('TreeView loads the children of an expanded item the server sent as a leaf', async () => {
@@ -344,10 +344,10 @@ test('TreeView loads the children of an expanded item the server sent as a leaf'
   const props = makeProps({ fetchChildren: jest.fn(() => Promise.resolve([makePage(10, 4, 'Directions')])) });
   renderTree(props);
 
-  expect(isItemExpanded(getLink('Contact us Modified'))).toBe(true);
+  expect(isItemExpanded(getRow('Contact us Modified'))).toBe(true);
   expect(props.fetchChildren.mock.calls).toEqual([[4]]);
   await flush();
-  expect(getLink('Directions')).not.toBeNull();
+  expect(getRow('Directions')).not.toBeNull();
 });
 
 test('TreeView shows a parent whose children turn out empty as a leaf', async () => {
@@ -357,7 +357,7 @@ test('TreeView shows a parent whose children turn out empty as a leaf', async ()
   fireEvent.click(getToggle('About us'));
   await flush();
 
-  const parent = getLink('About us');
+  const parent = getRow('About us');
   expect(hasItemToggle(parent)).toBe(false);
   expect(getToggle('About us')).toBeNull();
   expect(parent.parentElement.classList.contains('tree-view__item--expanded')).toBe(false);
@@ -374,7 +374,7 @@ test('TreeView shows a failed item that retries only when activated', async () =
   fireEvent.click(getToggle('About us'));
   await flush();
 
-  const failed = screen.getByRole('button', { name: 'Failed to load. Try again' });
+  const failed = screen.getByRole('treeitem', { name: 'Failed to load. Try again' });
   expect(failed.tagName).toBe('BUTTON');
   expect(failed.parentElement.className).toBe('tree-view__item tree-view__item--failed');
 
@@ -383,12 +383,12 @@ test('TreeView shows a failed item that retries only when activated', async () =
   await flush();
   expect(fetchChildren).toHaveBeenCalledTimes(1);
 
-  fireEvent.click(screen.getByRole('button', { name: 'Failed to load. Try again' }));
+  fireEvent.click(screen.getByRole('treeitem', { name: 'Failed to load. Try again' }));
   await flush();
 
   expect(fetchChildren.mock.calls).toEqual([[2], [2]]);
-  expect(getLink('Our team')).not.toBeNull();
-  expect(screen.queryByRole('button', { name: 'Failed to load. Try again' })).toBeNull();
+  expect(getRow('Our team')).not.toBeNull();
+  expect(screen.queryByRole('treeitem', { name: 'Failed to load. Try again' })).toBeNull();
 });
 
 test('TreeView shows a too-many item under a limited parent, which calls onShowAsList and loads no children', async () => {
@@ -400,9 +400,9 @@ test('TreeView shows a too-many item under a limited parent, which calls onShowA
   fireEvent.click(getToggle('News'));
 
   expect(props.fetchChildren).not.toHaveBeenCalled();
-  const parent = getLink('News');
+  const parent = getRow('News');
   expect(isItemExpanded(parent)).toBe(true);
-  const link = getLink('show as list');
+  const link = screen.getByText('show as list');
   expect(link.parentElement.className).toBe('tree-view__item tree-view__item--too-many');
   expect(link.parentElement.textContent).toBe('Too many records (show as list)');
   expect(link.getAttribute('href')).toBe('admin/pages?ParentID=3');
@@ -419,7 +419,7 @@ test('TreeView shows a too-many item under a limited parent, which calls onShowA
 
   rerender({ ...props, onShowAsList: null });
   await withoutNavigationReport(() => {
-    expect(fireEvent.click(getLink('show as list'))).toBe(true);
+    expect(fireEvent.click(screen.getByText('show as list'))).toBe(true);
   });
 });
 
@@ -433,7 +433,7 @@ test('TreeView places the show as list link in a translation with one placeholde
       treeStores.clear();
       saveTree({ actions: [{ type: ACTION_TYPES.EXPAND_ITEM, id: 3 }] });
       const { unmount } = renderTree(makeProps());
-      expect(getLink('show as list').parentElement.textContent).toBe(shown);
+      expect(screen.getByText('show as list').parentElement.textContent).toBe(shown);
       unmount();
     });
   });
@@ -444,7 +444,7 @@ test('TreeView calls onOpen on a plain click only, and leaves other clicks to th
   const onOpen = jest.fn();
   const props = makeProps({ onOpen });
   const { rerender } = renderTree(props);
-  const link = getLink('Contact us Modified');
+  const link = getRow('Contact us Modified');
 
   fireEvent.keyDown(link, { key: 'Enter' });
   fireEvent.click(getToggle('About us'));
@@ -462,7 +462,7 @@ test('TreeView calls onOpen on a plain click only, and leaves other clicks to th
 
   rerender({ ...props, onOpen: null });
   await withoutNavigationReport(() => {
-    expect(fireEvent.click(getLink('Contact us Modified'))).toBe(true);
+    expect(fireEvent.click(getRow('Contact us Modified'))).toBe(true);
   });
 });
 
@@ -470,7 +470,7 @@ test('TreeView stops a plain click on a disabled item and does nothing else', as
   saveTree({ expandedIds: [2, 5] });
   const onOpen = jest.fn();
   const { rerender } = renderTree(makeProps({ onOpen }));
-  const link = getLink('Private profile');
+  const link = getRow('Private profile');
   expect(link.getAttribute('href')).toBe('admin/pages/edit/show/9');
   expect(link.classList.contains('tree-view__link--disabled')).toBe(true);
 
@@ -481,7 +481,7 @@ test('TreeView stops a plain click on a disabled item and does nothing else', as
   expect(onOpen).not.toHaveBeenCalled();
 
   rerender(makeProps());
-  expect(fireEvent.click(getLink('Private profile'))).toBe(false);
+  expect(fireEvent.click(getRow('Private profile'))).toBe(false);
 });
 
 test('TreeView highlights one item, moving it to the clicked item until the current item changes', async () => {
@@ -490,13 +490,13 @@ test('TreeView highlights one item, moving it to the clicked item until the curr
   const { rerender } = renderTree(props);
   expect(getHighlightedTitles()).toEqual(['Home']);
 
-  fireEvent.click(getLink('Contact us Modified'));
+  fireEvent.click(getRow('Contact us Modified'));
   expect(getHighlightedTitles()).toEqual(['Contact us']);
   expect(getCurrentTitles()).toEqual(['Home']);
   // The `tree-view__link--status-modified` modifier colours the highlight.
-  expect(getLink('Contact us Modified').classList.contains('tree-view__link--status-modified')).toBe(true);
+  expect(getRow('Contact us Modified').classList.contains('tree-view__link--status-modified')).toBe(true);
 
-  fireEvent.click(getLink('About us'));
+  fireEvent.click(getRow('About us'));
   expect(getHighlightedTitles()).toEqual(['About us']);
 
   rerender({ ...props, onOpen: jest.fn() });
@@ -511,7 +511,7 @@ test('TreeView highlights one item, moving it to the clicked item until the curr
   expect(getHighlightedTitles()).toEqual(['Home']);
 
   await withoutNavigationReport(() => {
-    fireEvent.click(getLink('Contact us Modified'), { ctrlKey: true });
+    fireEvent.click(getRow('Contact us Modified'), { ctrlKey: true });
   });
   expect(getHighlightedTitles()).toEqual(['Home']);
 });
@@ -521,12 +521,12 @@ test('TreeView leaves the highlight on the current item when onOpen returns fals
   const props = makeProps({ onOpen: jest.fn(() => false), currentId: 1 });
   const { rerender } = renderTree(props);
 
-  fireEvent.click(getLink('Contact us Modified'));
+  fireEvent.click(getRow('Contact us Modified'));
   expect(getHighlightedTitles()).toEqual(['Home']);
 
   rerender({ ...props, onOpen: null });
   await withoutNavigationReport(() => {
-    fireEvent.click(getLink('Contact us Modified'));
+    fireEvent.click(getRow('Contact us Modified'));
   });
   expect(getHighlightedTitles()).toEqual(['Home']);
 });
@@ -539,18 +539,18 @@ test('TreeView clears the pending item when the latest open request fails, and n
   }));
   renderTree(makeProps({ onOpen, currentId: 1 }));
 
-  fireEvent.click(getLink('Contact us Modified'));
+  fireEvent.click(getRow('Contact us Modified'));
   expect(getHighlightedTitles()).toEqual(['Contact us']);
   await act(async () => opens[0].reject(new Error('Internal Server Error')));
   expect(getHighlightedTitles()).toEqual(['Home']);
 
-  fireEvent.click(getLink('Contact us Modified'));
+  fireEvent.click(getRow('Contact us Modified'));
   await act(async () => opens[1].resolve(false));
   expect(getHighlightedTitles()).toEqual(['Home']);
 
   // The second click aborts the first open request. The rejection of the first open request arrives after the click.
-  fireEvent.click(getLink('Contact us Modified'));
-  fireEvent.click(getLink('About us'));
+  fireEvent.click(getRow('Contact us Modified'));
+  fireEvent.click(getRow('About us'));
   await act(async () => opens[2].reject(new Error('abort')));
   expect(getHighlightedTitles()).toEqual(['About us']);
   await act(async () => opens[3].resolve({}));
@@ -561,7 +561,7 @@ test('TreeView keeps the pending item across a remount on the same current item'
   saveTree();
   const props = makeProps({ onOpen: jest.fn(), currentId: 1 });
   const { unmount } = renderTree(props);
-  fireEvent.click(getLink('About us'));
+  fireEvent.click(getRow('About us'));
   unmount();
 
   renderTree(props);
@@ -577,7 +577,7 @@ test('TreeView calls the latest callbacks', async () => {
   const { rerender } = renderTree(props);
 
   rerender({ ...props, onOpen: latest });
-  fireEvent.click(getLink('Contact us Modified'));
+  fireEvent.click(getRow('Contact us Modified'));
   expect(firstOnOpen).not.toHaveBeenCalled();
   expect(latest).toHaveBeenCalledTimes(1);
 
@@ -592,11 +592,11 @@ test('TreeView calls the latest callbacks', async () => {
 test('TreeView marks the current item from the prop, given as a number or a string', () => {
   saveTree({ expandedIds: [2] });
   const { rerender } = renderTree(makeProps({ currentId: 6 }));
-  expect(getLink('History Draft').getAttribute('aria-current')).toBe('page');
+  expect(getRow('History Draft').getAttribute('aria-current')).toBe('page');
   expect(document.querySelectorAll('[aria-current]')).toHaveLength(1);
 
   rerender(makeProps({ currentId: '4' }));
-  expect(getLink('Contact us Modified').getAttribute('aria-current')).toBe('page');
+  expect(getRow('Contact us Modified').getAttribute('aria-current')).toBe('page');
   expect(document.querySelectorAll('[aria-current]')).toHaveLength(1);
 
   rerender(makeProps({ currentId: null }));
@@ -618,7 +618,7 @@ test('TreeView expands the collapsed ancestors of a stored current item without 
 
   rerender(makeProps({ currentId: 7, fetchPath }));
 
-  expect(getLink('Jane Doe').getAttribute('aria-current')).toBe('page');
+  expect(getRow('Jane Doe').getAttribute('aria-current')).toBe('page');
   expect(fetchPath).not.toHaveBeenCalled();
 });
 
@@ -626,7 +626,7 @@ test('TreeView reveals a current item that is not stored', async () => {
   const fetchPath = jest.fn((id) => Promise.resolve(getPath(id)));
   const props = makeProps({ currentId: 8, fetchPath });
   renderTree(props);
-  const link = await findLink('Sam Smith');
+  const link = await findRow('Sam Smith');
 
   expect(fetchPath.mock.calls).toEqual([[8]]);
   expect(props.fetchChildren.mock.calls).toEqual([[0], [2], [5]]);
@@ -660,7 +660,7 @@ test('TreeView does not reveal again for a new fetchPath', async () => {
   const fetchPath = jest.fn((id) => Promise.resolve(getPath(id)));
   const props = makeProps({ currentId: 8, fetchPath });
   const { rerender } = renderTree(props);
-  await findLink('Sam Smith');
+  await findRow('Sam Smith');
   fireEvent.click(getToggle('About us'));
 
   const nextFetchPath = jest.fn((id) => Promise.resolve(getPath(id)));
@@ -669,7 +669,7 @@ test('TreeView does not reveal again for a new fetchPath', async () => {
 
   expect(fetchPath).toHaveBeenCalledTimes(1);
   expect(nextFetchPath).not.toHaveBeenCalled();
-  expect(isItemExpanded(getLink('About us'))).toBe(false);
+  expect(isItemExpanded(getRow('About us'))).toBe(false);
 });
 
 test('TreeView repeats no request, reveal or reload when it is given new functions on every render', async () => {
@@ -691,7 +691,7 @@ test('TreeView repeats no request, reveal or reload when it is given new functio
   const props = makeProps({ currentId: 8, reloadKey: 1 });
   const { rerender, container } = renderTree(withNewFunctions(props));
   rerender(withNewFunctions(props));
-  await findLink('Sam Smith');
+  await findRow('Sam Smith');
   fireEvent.click(getToggle('About us'));
   container.querySelector('.scroll-container').scrollTop = 40;
 
@@ -701,7 +701,7 @@ test('TreeView repeats no request, reveal or reload when it is given new functio
 
   expect(requestedParentIds).toEqual([0, 2, 5]);
   expect(requestedPathIds).toEqual([8]);
-  expect(isItemExpanded(getLink('About us'))).toBe(false);
+  expect(isItemExpanded(getRow('About us'))).toBe(false);
   expect(container.querySelector('.scroll-container').scrollTop).toBe(40);
 });
 
@@ -717,9 +717,9 @@ test('TreeView ignores the path of a current item that changed while it was fetc
   path.resolve([2, 5]);
   await flush();
 
-  expect(isItemExpanded(getLink('About us'))).toBe(false);
+  expect(isItemExpanded(getRow('About us'))).toBe(false);
   expect(props.fetchChildren.mock.calls).toEqual([[0]]);
-  expect(getLink('Contact us Modified').getAttribute('aria-current')).toBe('page');
+  expect(getRow('Contact us Modified').getAttribute('aria-current')).toBe('page');
 });
 
 test('TreeView reloads the children on the chain of the current item that lack the next item down', async () => {
@@ -731,10 +731,10 @@ test('TreeView reloads the children on the chain of the current item that lack t
   const fetchChildren = jest.fn((parentId) => Promise.resolve(server[parentId] || getChildren(parentId)));
   const fetchPath = jest.fn(() => Promise.resolve([2, 10]));
   renderTree(makeProps({ currentId: 11, fetchChildren, fetchPath }));
-  const link = await findLink('Vacancies');
+  const link = await findRow('Vacancies');
 
   expect(fetchChildren.mock.calls).toEqual([[2], [10]]);
-  expect(isItemExpanded(getLink('Careers'))).toBe(true);
+  expect(isItemExpanded(getRow('Careers'))).toBe(true);
   expect(link.getAttribute('aria-current')).toBe('page');
 });
 
@@ -744,15 +744,15 @@ test('TreeView asks for the path of a current item its stored parent no longer h
   const fetchPath = jest.fn((id) => Promise.resolve(id === 23 ? [20] : [21]));
   const props = makeProps({ currentId: 23, fetchChildren, fetchPath });
   const { rerender } = renderTree(props);
-  expect((await findLink('Added')).getAttribute('aria-current')).toBe('page');
-  expect(queryLink('Moved')).toBeNull();
+  expect((await findRow('Added')).getAttribute('aria-current')).toBe('page');
+  expect(queryRow('Moved')).toBeNull();
 
   rerender({ ...props, currentId: 22 });
-  const link = await findLink('Moved');
+  const link = await findRow('Moved');
 
   expect(fetchPath.mock.calls).toEqual([[23], [22]]);
   expect(fetchChildren.mock.calls).toEqual([[20], [21]]);
-  expect(isItemExpanded(getLink('Beta'))).toBe(true);
+  expect(isItemExpanded(getRow('Beta'))).toBe(true);
   expect(link.getAttribute('aria-current')).toBe('page');
 });
 
@@ -765,12 +765,12 @@ test('TreeView keeps the children that a reveal loads again until the response i
   await flush();
 
   expect(fetchChildren.mock.calls).toEqual([[20]]);
-  expect(queryLink('Moved')).not.toBeNull();
-  expect(queryLink('Added')).toBeNull();
+  expect(queryRow('Moved')).not.toBeNull();
+  expect(queryRow('Added')).toBeNull();
 
   await act(async () => response.resolve([added]));
-  expect(getLink('Added').getAttribute('aria-current')).toBe('page');
-  expect(queryLink('Moved')).toBeNull();
+  expect(getRow('Added').getAttribute('aria-current')).toBe('page');
+  expect(queryRow('Moved')).toBeNull();
 });
 
 test('TreeView does not treat a current item missing from the reloaded children of its parent as shown', async () => {
@@ -784,9 +784,9 @@ test('TreeView does not treat a current item missing from the reloaded children 
   fireEvent.click(getToggle('Beta'));
   await flush();
 
-  expect(getLink('Moved').getAttribute('aria-current')).toBe('page');
+  expect(getRow('Moved').getAttribute('aria-current')).toBe('page');
   expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(1);
-  expect(Element.prototype.scrollIntoView.mock.instances[0]).toBe(getLink('Moved'));
+  expect(Element.prototype.scrollIntoView.mock.instances[0]).toBe(getRow('Moved'));
 });
 
 test('TreeView scrolls the current item into view again when it returns after no item was current', () => {
@@ -798,7 +798,7 @@ test('TreeView scrolls the current item into view again when it returns after no
   rerender(makeProps({ currentId: 6 }));
 
   expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(2);
-  expect(Element.prototype.scrollIntoView.mock.instances[1]).toBe(getLink('History Draft'));
+  expect(Element.prototype.scrollIntoView.mock.instances[1]).toBe(getRow('History Draft'));
 });
 
 test('TreeView scrolls the current item into view once per current item, not each time it is shown', () => {
@@ -808,7 +808,7 @@ test('TreeView scrolls the current item into view once per current item, not eac
 
   fireEvent.click(getTitleRowToggle());
   expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(1);
-  expect(Element.prototype.scrollIntoView.mock.instances[0]).toBe(getLink('History Draft'));
+  expect(Element.prototype.scrollIntoView.mock.instances[0]).toBe(getRow('History Draft'));
 
   fireEvent.click(getToggle('About us'));
   fireEvent.click(getToggle('About us'));
@@ -818,14 +818,14 @@ test('TreeView scrolls the current item into view once per current item, not eac
 
   rerender(makeProps({ currentId: 4 }));
   expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(2);
-  expect(Element.prototype.scrollIntoView.mock.instances[1]).toBe(getLink('Contact us Modified'));
+  expect(Element.prototype.scrollIntoView.mock.instances[1]).toBe(getRow('Contact us Modified'));
 });
 
 test('TreeView renders a remount from the saved state at once, as the user left it, with no request', async () => {
   const fetchPath = jest.fn((id) => Promise.resolve(getPath(id)));
   const props = makeProps({ currentId: 7, fetchPath });
   const first = renderTree(props);
-  expect((await findLink('Jane Doe')).getAttribute('aria-current')).toBe('page');
+  expect((await findRow('Jane Doe')).getAttribute('aria-current')).toBe('page');
   fireEvent.click(getToggle('Our team'));
   fireEvent.click(getTitleRowToggle());
   first.unmount();
@@ -834,10 +834,10 @@ test('TreeView renders a remount from the saved state at once, as the user left 
   const secondProps = makeProps({ currentId: '7', fetchPath: jest.fn(() => Promise.resolve([])) });
   renderTree(secondProps);
 
-  expect(screen.queryAllByRole('link')).toEqual([]);
+  expect(screen.queryAllByRole('treeitem')).toEqual([]);
   fireEvent.click(getTitleRowToggle());
-  expect(screen.getAllByRole('link')).toHaveLength(6);
-  expect(isItemExpanded(getLink('Our team'))).toBe(false);
+  expect(screen.getAllByRole('treeitem')).toHaveLength(6);
+  expect(isItemExpanded(getRow('Our team'))).toBe(false);
   await flush();
   expect(secondProps.fetchPath).not.toHaveBeenCalled();
   expect(secondProps.fetchChildren).not.toHaveBeenCalled();
@@ -858,7 +858,7 @@ test('TreeView keeps the scroll offset across a remount, then brings the current
 
   expect(container.querySelector('.scroll-container').scrollTop).toBe(120);
   expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(1);
-  expect(Element.prototype.scrollIntoView.mock.instances[0]).toBe(getLink('History Draft'));
+  expect(Element.prototype.scrollIntoView.mock.instances[0]).toBe(getRow('History Draft'));
   expect(offsetWhenScrolled).toBe(120);
 });
 
@@ -912,8 +912,8 @@ test('TreeView keeps a load and a reveal in flight across a remount, and applies
   path.resolve([2, 5]);
   await flush();
   renderTree(props);
-  expect(isItemExpanded(getLink('About us'))).toBe(true);
-  const link = await findLink('Sam Smith');
+  expect(isItemExpanded(getRow('About us'))).toBe(true);
+  const link = await findRow('Sam Smith');
 
   expect(props.fetchChildren.mock.calls).toEqual([[0], [2], [5]]);
   expect(props.fetchPath).toHaveBeenCalledTimes(1);
@@ -938,14 +938,14 @@ test('TreeView keeps two trees with different ids apart', async () => {
 
   expect(pages.fetchChildren.mock.calls).toEqual([[0], [2]]);
   expect(files.fetchChildren.mock.calls).toEqual([[0]]);
-  expect(within(screen.getByRole('navigation', { name: 'Site pages' })).getAllByRole('link')).toHaveLength(6);
-  expect(within(filesNav).queryAllByRole('link')).toEqual([]);
+  expect(within(screen.getByRole('navigation', { name: 'Site pages' })).getAllByRole('treeitem')).toHaveLength(6);
+  expect(within(filesNav).queryAllByRole('treeitem')).toEqual([]);
 });
 
 test('TreeView makes one request per parent under StrictMode, and none on a remount', async () => {
   const props = makeProps({ currentId: 8, fetchPath: jest.fn((id) => Promise.resolve(getPath(id))) });
   const first = render(<React.StrictMode><TreeView {...props} /></React.StrictMode>);
-  const link = await findLink('Sam Smith');
+  const link = await findRow('Sam Smith');
 
   expect(props.fetchChildren.mock.calls).toEqual([[0], [2], [5]]);
   expect(props.fetchPath).toHaveBeenCalledTimes(1);
@@ -958,7 +958,7 @@ test('TreeView makes one request per parent under StrictMode, and none on a remo
 
   expect(secondProps.fetchChildren).not.toHaveBeenCalled();
   expect(secondProps.fetchPath).not.toHaveBeenCalled();
-  expect(getLink('Sam Smith')).not.toBeNull();
+  expect(getRow('Sam Smith')).not.toBeNull();
 });
 
 test('TreeView asks once for children that fail at once under StrictMode', () => {
@@ -981,7 +981,7 @@ test('TreeView reloads the top level and each expanded parent with the items kep
   rerender({ ...props, reloadKey: 1 });
 
   expect(fetchChildren.mock.calls).toEqual([[0], [2]]);
-  expect(screen.getAllByRole('link')).toHaveLength(6);
+  expect(screen.getAllByRole('treeitem')).toHaveLength(6);
   expect(container.querySelector('.tree-view__item--loading')).toBeNull();
 
   respond(0, [
@@ -991,14 +991,14 @@ test('TreeView reloads the top level and each expanded parent with the items kep
     makePage(11, 0, 'Events'),
   ]);
   await flush();
-  expect(queryLink('Home')).toBeNull();
-  expect(getLink('Contact')).not.toBeNull();
-  expect(getLink('Events')).not.toBeNull();
-  expect(getLink('History Draft')).not.toBeNull();
+  expect(queryRow('Home')).toBeNull();
+  expect(getRow('Contact')).not.toBeNull();
+  expect(getRow('Events')).not.toBeNull();
+  expect(getRow('History Draft')).not.toBeNull();
 
   respond(2, [getItem(5), { ...getItem(6), treeTitle: 'Our history', statusFlags: [] }]);
   await flush();
-  expect(getLink('Our history').getAttribute('aria-current')).toBe('page');
+  expect(getRow('Our history').getAttribute('aria-current')).toBe('page');
   expect(fetchPath).not.toHaveBeenCalled();
 
   fireEvent.click(getToggle('Our team'));
@@ -1021,7 +1021,7 @@ test('TreeView reloads on a mount after the value changed while unmounted, and n
 
   const changed = makeProps({ reloadKey: 2 });
   renderTree(changed);
-  expect(screen.getAllByRole('link')).toHaveLength(4);
+  expect(screen.getAllByRole('treeitem')).toHaveLength(4);
   await flush();
   expect(changed.fetchChildren.mock.calls).toEqual([[0]]);
 });
@@ -1036,13 +1036,13 @@ test('TreeView keeps the old items and shows no failed item when a reload fails,
 
   rerender({ ...props, reloadKey: 1 });
   await flush();
-  expect(getLink('Our team')).not.toBeNull();
-  expect(screen.queryByRole('button', { name: 'Failed to load. Try again' })).toBeNull();
+  expect(getRow('Our team')).not.toBeNull();
+  expect(screen.queryByRole('treeitem', { name: 'Failed to load. Try again' })).toBeNull();
 
   rerender({ ...props, reloadKey: 2 });
   await flush();
   expect(fetchChildren.mock.calls).toEqual([[0], [2], [0], [2]]);
-  expect(getLink('Our team')).not.toBeNull();
+  expect(getRow('Our team')).not.toBeNull();
 });
 
 test('TreeView stops reloading the children of an item that has left the tree', async () => {
@@ -1054,7 +1054,7 @@ test('TreeView stops reloading the children of an item that has left the tree', 
   rerender({ ...props, reloadKey: 1 });
   await flush();
   expect(fetchChildren.mock.calls).toEqual([[0], [2], [5], [7]]);
-  expect(queryLink('Our team')).toBeNull();
+  expect(queryRow('Our team')).toBeNull();
 
   rerender({ ...props, reloadKey: 2 });
   await flush();
@@ -1067,7 +1067,7 @@ test('TreeView leaves a parent the user collapses during a reload collapsed', as
   const fetchPath = jest.fn(() => Promise.resolve([2]));
   const props = makeProps({ currentId: 6, fetchChildren, fetchPath });
   const { rerender } = renderTree(props);
-  expect(getLink('History Draft').getAttribute('aria-current')).toBe('page');
+  expect(getRow('History Draft').getAttribute('aria-current')).toBe('page');
 
   rerender({ ...props, reloadKey: 1 });
   fireEvent.click(getToggle('About us'));
@@ -1075,7 +1075,7 @@ test('TreeView leaves a parent the user collapses during a reload collapsed', as
   respond(2, getChildren(2));
   await flush();
 
-  expect(isItemExpanded(getLink('About us'))).toBe(false);
+  expect(isItemExpanded(getRow('About us'))).toBe(false);
   expect(fetchPath).not.toHaveBeenCalled();
 });
 
@@ -1096,7 +1096,7 @@ test.each([
   await flush();
 
   expect(fetchPath).not.toHaveBeenCalled();
-  expect(queryLink('Moved')).toBeNull();
+  expect(queryRow('Moved')).toBeNull();
 });
 
 test('TreeView reveals an item selected during a reload that then takes it out of the children of a parent above it', async () => {
@@ -1108,14 +1108,14 @@ test('TreeView reveals an item selected during a reload that then takes it out o
 
   rerender({ ...props, reloadKey: 1 });
   rerender({ ...props, reloadKey: 1, currentId: 22 });
-  expect(getLink('Moved').getAttribute('aria-current')).toBe('page');
+  expect(getRow('Moved').getAttribute('aria-current')).toBe('page');
   respond(0, [alpha, beta]);
   respond(20, [added]);
   await flush();
   expect(fetchPath.mock.calls).toEqual([[22]]);
 
   respond(21, [movedUnderBeta]);
-  const link = await waitFor(() => within(getGroup('Beta')).getByRole('link', { name: 'Moved' }));
+  const link = await waitFor(() => within(getGroup('Beta')).getByRole('treeitem', { name: 'Moved' }));
   expect(link.getAttribute('aria-current')).toBe('page');
 });
 
@@ -1132,13 +1132,13 @@ test('TreeView loads an expanded parent again after it was limited for one reloa
   const { rerender } = renderTree(props);
 
   rerender({ ...props, reloadKey: 1 });
-  expect(await findLink('show as list')).toBeTruthy();
+  expect(await findRow('Too many records (show as list)')).toBeTruthy();
 
   limited = false;
   rerender({ ...props, reloadKey: 2 });
-  expect(await findLink('Our team')).toBeTruthy();
-  expect(isItemExpanded(getLink('About us'))).toBe(true);
-  expect(queryLink('show as list')).toBeNull();
+  expect(await findRow('Our team')).toBeTruthy();
+  expect(isItemExpanded(getRow('About us'))).toBe(true);
+  expect(queryRow('Too many records (show as list)')).toBeNull();
 });
 
 test('TreeView reveals the current item under its new parent after a reload', async () => {
@@ -1147,15 +1147,15 @@ test('TreeView reveals the current item under its new parent after a reload', as
   const fetchPath = jest.fn(() => Promise.resolve([21]));
   const props = makeProps({ currentId: 22, fetchChildren, fetchPath });
   const { rerender } = renderTree(props);
-  expect(getLink('Moved').getAttribute('aria-current')).toBe('page');
+  expect(getRow('Moved').getAttribute('aria-current')).toBe('page');
 
   rerender({ ...props, reloadKey: 1 });
-  const link = await waitFor(() => within(getGroup('Beta')).getByRole('link', { name: 'Moved' }));
+  const link = await waitFor(() => within(getGroup('Beta')).getByRole('treeitem', { name: 'Moved' }));
 
   expect(fetchChildren.mock.calls).toEqual([[0], [20], [21]]);
   expect(fetchPath.mock.calls).toEqual([[22]]);
-  expect(within(getGroup('Alpha')).queryByRole('link', { name: 'Moved' })).toBeNull();
-  expect(isItemExpanded(getLink('Beta'))).toBe(true);
+  expect(within(getGroup('Alpha')).queryByRole('treeitem', { name: 'Moved' })).toBeNull();
+  expect(isItemExpanded(getRow('Beta'))).toBe(true);
   expect(link.getAttribute('aria-current')).toBe('page');
 });
 
@@ -1177,7 +1177,7 @@ test('TreeView reveals a moved current item when a second reload starts before t
     firstResponses[0].resolve(movedServer[0]);
     firstResponses[20].resolve(movedServer[20]);
   });
-  const link = await waitFor(() => within(getGroup('Beta')).getByRole('link', { name: 'Moved' }));
+  const link = await waitFor(() => within(getGroup('Beta')).getByRole('treeitem', { name: 'Moved' }));
 
   expect(fetchChildren.mock.calls).toEqual([[0], [20], [0], [20], [21]]);
   expect(fetchPath.mock.calls).toEqual([[22]]);
@@ -1193,12 +1193,12 @@ test('TreeView loads the children of an expanded parent that a reload shows is n
   const props = makeProps({ fetchChildren });
   const { rerender } = renderTree(props);
   fireEvent.click(getToggle('News'));
-  expect(getLink('show as list')).toBeTruthy();
+  expect(screen.getByText('show as list')).toBeTruthy();
 
   rerender({ ...props, reloadKey: 1 });
 
-  expect(await findLink('Story')).toBeTruthy();
-  expect(queryLink('show as list')).toBeNull();
+  expect(await findRow('Story')).toBeTruthy();
+  expect(queryRow('Too many records (show as list)')).toBeNull();
   expect(fetchChildren.mock.calls).toEqual([[0], [3]]);
 });
 
@@ -1222,9 +1222,9 @@ test('TreeView leaves a collapsed ancestor and a collapsed title row collapsed a
   expect(getTopList()).toBeNull();
 
   fireEvent.click(getTitleRowToggle());
-  expect(isItemExpanded(getLink('About us'))).toBe(false);
+  expect(isItemExpanded(getRow('About us'))).toBe(false);
   fireEvent.click(getToggle('About us'));
-  const link = await findLink('Jane Smith');
+  const link = await findRow('Jane Smith');
   expect(fetchChildren.mock.calls).toEqual([[0], [2], [5]]);
   expect(link.getAttribute('aria-current')).toBe('page');
 });
@@ -1235,22 +1235,22 @@ test('TreeView shows no current item and no failed item after a reload drops an 
   const fetchPath = jest.fn(() => Promise.reject(new Error('Not Found')));
   const props = makeProps({ currentId: 6, fetchChildren, fetchPath });
   const { rerender } = renderTree(props);
-  expect(getLink('History Draft').getAttribute('aria-current')).toBe('page');
+  expect(getRow('History Draft').getAttribute('aria-current')).toBe('page');
 
   rerender({ ...props, reloadKey: 1 });
   await waitFor(() => expect(fetchPath.mock.calls).toEqual([[6]]));
 
-  expect(queryLink('History Draft')).toBeNull();
+  expect(queryRow('History Draft')).toBeNull();
   expect(document.querySelectorAll('[aria-current]')).toHaveLength(0);
-  expect(screen.queryByRole('button', { name: 'Failed to load. Try again' })).toBeNull();
-  expect(isItemExpanded(getLink('About us'))).toBe(true);
+  expect(screen.queryByRole('treeitem', { name: 'Failed to load. Try again' })).toBeNull();
+  expect(isItemExpanded(getRow('About us'))).toBe(true);
 
   rerender({ ...props, reloadKey: 2 });
   await flush();
   rerender({ ...props, reloadKey: 3 });
   await flush();
   expect(fetchPath.mock.calls).toEqual([[6], [6], [6]]);
-  expect(screen.queryByRole('button', { name: 'Failed to load. Try again' })).toBeNull();
+  expect(screen.queryByRole('treeitem', { name: 'Failed to load. Try again' })).toBeNull();
 });
 
 test('TreeView asks once for the path of an item selected during a reload while the children of its parent are still loading', async () => {
@@ -1270,7 +1270,7 @@ test('TreeView asks once for the path of an item selected during a reload while 
   expect(fetchPath.mock.calls).toEqual([[7]]);
 
   respond(5, getChildren(5));
-  expect((await findLink('Jane Doe')).getAttribute('aria-current')).toBe('page');
+  expect((await findRow('Jane Doe')).getAttribute('aria-current')).toBe('page');
   expect(fetchPath.mock.calls).toEqual([[7]]);
 });
 
@@ -1291,7 +1291,7 @@ test('TreeView asks once for the path of an item it is remounted on during a rel
   expect(fetchPath.mock.calls).toEqual([[7]]);
 
   respond(5, getChildren(5));
-  expect((await findLink('Jane Doe')).getAttribute('aria-current')).toBe('page');
+  expect((await findRow('Jane Doe')).getAttribute('aria-current')).toBe('page');
   expect(fetchPath.mock.calls).toEqual([[7]]);
 });
 
@@ -1304,7 +1304,7 @@ test('TreeView reveals a current item moved under a limited parent once, and lea
   const { rerender } = renderTree(props);
 
   rerender({ ...props, reloadKey: 1 });
-  await waitFor(() => expect(isItemExpanded(getLink('Beta'))).toBe(true));
+  await waitFor(() => expect(isItemExpanded(getRow('Beta'))).toBe(true));
   expect(fetchPath.mock.calls).toEqual([[22]]);
 
   fireEvent.click(getToggle('Beta'));
@@ -1314,7 +1314,7 @@ test('TreeView reveals a current item moved under a limited parent once, and lea
   await flush();
 
   expect(fetchPath.mock.calls).toEqual([[22]]);
-  expect(isItemExpanded(getLink('Beta'))).toBe(false);
+  expect(isItemExpanded(getRow('Beta'))).toBe(false);
 });
 
 test('TreeView loads an expanded parent again when it stops being limited while a request for its children is in flight', async () => {
@@ -1326,7 +1326,7 @@ test('TreeView loads an expanded parent again when it stops being limited while 
 
   rerender({ ...props, reloadKey: 1 });
   respond(0, topLevel(true));
-  expect(await findLink('show as list')).toBeTruthy();
+  expect(await findRow('Too many records (show as list)')).toBeTruthy();
 
   rerender({ ...props, reloadKey: 2 });
   respond(0, topLevel(false));
@@ -1336,8 +1336,8 @@ test('TreeView loads an expanded parent again when it stops being limited while 
   expect(fetchChildren.mock.calls).toEqual([[0], [2], [0], [2]]);
 
   respond(2, getChildren(2));
-  expect(await findLink('Our team')).toBeTruthy();
-  expect(isItemExpanded(getLink('About us'))).toBe(true);
+  expect(await findRow('Our team')).toBeTruthy();
+  expect(isItemExpanded(getRow('About us'))).toBe(true);
 });
 
 function makeMenuProps(overrides = {}) {
@@ -1371,7 +1371,7 @@ test('TreeView opens the menu of an item on a right-click, prevents the browser 
   const props = makeMenuProps();
   renderTree(props);
 
-  expect(fireEvent.contextMenu(getLink('Contact us Modified'))).toBe(false);
+  expect(fireEvent.contextMenu(getRow('Contact us Modified'))).toBe(false);
 
   const menu = getMenu('Contact us');
   expect(props.getMenuItems.mock.calls).toEqual([[getItem(4), { open: expect.any(Function) }]]);
@@ -1388,8 +1388,8 @@ test('TreeView opens the menu with Shift+F10 on a focused link, and opens no sec
   saveTree();
   const props = makeMenuProps();
   renderTree(props);
-  const link = getLink('About us');
-  link.focus();
+  const link = getRow('About us');
+  act(() => link.focus());
 
   expect(pressShiftF10(link)).toBe(false);
   const edit = getMenuItem('Edit');
@@ -1406,13 +1406,13 @@ test('TreeView leaves the browser menu to an item when there is no getMenuItems 
   saveTree();
   const { rerender } = renderTree(makeProps());
 
-  expect(fireEvent.contextMenu(getLink('About us'))).toBe(true);
-  expect(pressShiftF10(getLink('About us'))).toBe(true);
+  expect(fireEvent.contextMenu(getRow('About us'))).toBe(true);
+  expect(pressShiftF10(getRow('About us'))).toBe(true);
   expect(queryMenu()).toBeNull();
 
   const getMenuItems = jest.fn(() => []);
   rerender(makeProps({ getMenuItems }));
-  expect(fireEvent.contextMenu(getLink('About us'))).toBe(true);
+  expect(fireEvent.contextMenu(getRow('About us'))).toBe(true);
   expect(getMenuItems).toHaveBeenCalledTimes(1);
   expect(queryMenu()).toBeNull();
 });
@@ -1434,8 +1434,8 @@ test('TreeView gives no menu to the title row, a loading item, a failed item or 
   fireEvent.click(getToggle('About us'));
   await flush();
 
-  const failed = screen.getByRole('button', { name: 'Failed to load. Try again' });
-  const tooMany = getLink('show as list');
+  const failed = screen.getByRole('treeitem', { name: 'Failed to load. Try again' });
+  const tooMany = screen.getByText('show as list');
   [failed, tooMany].forEach((element) => {
     expect(fireEvent.contextMenu(element)).toBe(true);
     expect(pressShiftF10(element)).toBe(true);
@@ -1450,7 +1450,7 @@ test('TreeView opens an item through the open that it passes to getMenuItems, hi
   const getMenuItems = (item, { open }) => [{ id: 'edit', label: 'Edit', onSelect: open }];
   renderTree(makeProps({ onOpen, getMenuItems, currentId: 1 }));
 
-  fireEvent.contextMenu(getLink('Contact us Modified'));
+  fireEvent.contextMenu(getRow('Contact us Modified'));
   fireEvent.click(getMenuItem('Edit'));
 
   expect(onOpen.mock.calls.map(([item]) => item)).toEqual([getItem(4)]);
@@ -1466,7 +1466,7 @@ test('TreeView returns focus to the link on Escape, and leaves focus where an ac
   ];
   renderTree(makeProps({ getMenuItems }));
   render(<button type="button">Outside</button>);
-  const link = getLink('About us');
+  const link = getRow('About us');
 
   fireEvent.contextMenu(link);
   fireEvent.keyDown(document.activeElement, { key: 'Escape' });
@@ -1482,9 +1482,9 @@ test('TreeView returns focus to the link on Escape, and leaves focus where an ac
 test('TreeView focuses a new menu when the menu of an item closes and opens again in one render', () => {
   saveTree();
   renderTree(makeMenuProps());
-  const link = getLink('About us');
+  const link = getRow('About us');
   fireEvent.contextMenu(link);
-  link.focus();
+  act(() => link.focus());
 
   act(() => {
     fireEvent.pointerDown(link);
@@ -1499,11 +1499,141 @@ test('TreeView closes the menu of an item that the tree stops showing in a reloa
   const fetchChildren = jest.fn((parentId) => Promise.resolve(movedServer[parentId]));
   const props = makeMenuProps({ currentId: 22, fetchChildren, fetchPath: () => new Promise(() => {}) });
   const { rerender } = renderTree(props);
-  fireEvent.contextMenu(getLink('Moved'));
+  fireEvent.contextMenu(getRow('Moved'));
   expect(getMenu('Moved')).toBeTruthy();
 
   rerender({ ...props, reloadKey: 1 });
 
-  await waitFor(() => expect(queryLink('Moved')).toBeNull());
+  await waitFor(() => expect(queryRow('Moved')).toBeNull());
   expect(queryMenu()).toBeNull();
+});
+
+function getFocusedTitle() {
+  const title = document.activeElement.querySelector('.tree-view__title');
+  return title ? title.textContent : null;
+}
+
+function getTabStopTitles() {
+  return screen.getAllByRole('treeitem')
+    .filter((row) => row.getAttribute('tabindex') === '0')
+    .map((row) => row.querySelector('.tree-view__title').textContent);
+}
+
+function focusRow(name) {
+  const link = getRow(name);
+  act(() => link.focus());
+}
+
+// Press `key` on the focused element. Return false when the tree prevented the default action.
+function press(key, options = {}) {
+  return fireEvent.keyDown(document.activeElement, { key, ...options });
+}
+
+// Return the title of the focused row after each key in `keys`.
+function walk(keys) {
+  return keys.map((key) => {
+    press(key);
+    return getFocusedTitle();
+  });
+}
+
+function makeKeyboardProps(overrides = {}) {
+  return makeProps({ fetchChildren: jest.fn((parentId) => Promise.resolve(getKeyboardChildren(parentId))), ...overrides });
+}
+
+// This test follows the scenario "Site tree keyboard navigation" in `tests/behat/features/accessibility.feature`.
+test('TreeView walks, expands and collapses a nested tree with the arrow keys, Home and End, keeping one Tab stop', async () => {
+  renderTree(makeKeyboardProps());
+  await flush();
+
+  expect(getTabStopTitles()).toEqual(['Page 1']);
+  focusRow('Page 1');
+
+  expect(walk(['ArrowDown', 'ArrowDown', 'ArrowUp', 'ArrowUp', 'ArrowDown'])).toEqual([
+    'Page 2',
+    'Page 3',
+    'Page 2',
+    'Page 1',
+    'Page 2',
+  ]);
+
+  press('ArrowRight');
+  await flush();
+  expect(queryRow('Page 2a')).not.toBeNull();
+  expect(getFocusedTitle()).toBe('Page 2');
+
+  press('ArrowLeft');
+  expect(queryRow('Page 2a')).toBeNull();
+  expect(getFocusedTitle()).toBe('Page 2');
+
+  expect(walk(['ArrowRight', 'ArrowRight', 'ArrowDown'])).toEqual(['Page 2', 'Page 2a', 'Page 2b']);
+  press('ArrowRight');
+  await flush();
+  expect(queryRow('Page 2bi')).not.toBeNull();
+
+  expect(walk(['ArrowRight', 'ArrowLeft'])).toEqual(['Page 2bi', 'Page 2b']);
+  expect(walk(['ArrowUp', 'ArrowUp', 'ArrowUp'])).toEqual(['Page 2a', 'Page 2', 'Page 1']);
+  expect(walk(Array(8).fill('ArrowDown'))).toEqual([
+    'Page 2',
+    'Page 2a',
+    'Page 2b',
+    'Page 2bi',
+    'Page 2bii',
+    'Page 2biii',
+    'Page 2c',
+    'Page 3',
+  ]);
+  expect(walk(['ArrowUp', 'Home', 'ArrowDown', 'ArrowDown', 'End'])).toEqual([
+    'Page 2c',
+    'Page 1',
+    'Page 2',
+    'Page 2a',
+    'Page 3',
+  ]);
+
+  expect(press('Tab', { shiftKey: true })).toBe(true);
+  expect(getTabStopTitles()).toEqual(['Page 3']);
+});
+
+// This test follows the scenario "Roving tabindex updates after breadcrumb navigation" in
+// `tests/behat/features/accessibility.feature`.
+test('TreeView gives the Tab stop to an item opened from the tree, then to one opened from outside it, across remounts', async () => {
+  const props = makeKeyboardProps();
+  const first = renderTree(props);
+  await flush();
+  focusRow('Page 1');
+
+  press('ArrowDown');
+  press('ArrowRight');
+  await flush();
+  press('ArrowRight');
+  expect(getFocusedTitle()).toBe('Page 2a');
+
+  // The tree leaves Enter to the link, which opens the item. The CMS then mounts a new tree for that item.
+  expect(press('Enter')).toBe(true);
+  first.unmount();
+  const second = renderTree({ ...props, currentId: '3' });
+  expect(getCurrentTitles()).toEqual(['Page 2a']);
+  expect(getTabStopTitles()).toEqual(['Page 2a']);
+
+  render(<button type="button">Back</button>);
+  const back = screen.getByRole('button', { name: 'Back' });
+  act(() => back.focus());
+  second.unmount();
+  renderTree({ ...props, currentId: '2' });
+
+  expect(getCurrentTitles()).toEqual(['Page 2']);
+  expect(getTabStopTitles()).toEqual(['Page 2']);
+  expect(document.activeElement).toBe(back);
+  await flush();
+});
+
+test('TreeView keeps focus where it is when a pointer presses the toggle of an item', () => {
+  saveTree({ expandedIds: [2] });
+  renderTree(makeProps());
+  focusRow('History Draft');
+
+  expect(fireEvent.mouseDown(getToggle('About us'))).toBe(false);
+  fireEvent.click(getToggle('About us'));
+  expect(getFocusedTitle()).toBe('About us');
 });

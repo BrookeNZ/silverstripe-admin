@@ -62,6 +62,13 @@ export function isItemShown(tree, id, isTitleRowExpanded = true) {
     && ancestorIds.every((ancestorId) => tree.expanded.includes(ancestorId));
 }
 
+// Check whether the item shows as a parent. An expanded item stays a parent until its children load empty. A child
+// added after the server sent `hasChildren: false` then still shows.
+export function isParentItem(item, childIds, isItemExpanded) {
+  const hasChildren = childIds ? childIds.length > 0 : Boolean(item.hasChildren) || isItemExpanded;
+  return Boolean(item.limited) || hasChildren;
+}
+
 // Return the id of the highlighted item: the pending item, or else the current item.
 export function getHighlightedId(tree) {
   return tree.pendingId === null ? tree.currentId : tree.pendingId;

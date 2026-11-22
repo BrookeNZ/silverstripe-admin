@@ -23,6 +23,10 @@ export function setScroll(store, scrollTop) {
   store.dispatch({ type: ACTION_TYPES.SET_SCROLL, scrollTop });
 }
 
+export function setFocus(store, key) {
+  store.dispatch({ type: ACTION_TYPES.SET_FOCUS, key });
+}
+
 // Active requests by store, then by parent id, so a caller can wait for a request another call started.
 const activeRequests = new WeakMap();
 

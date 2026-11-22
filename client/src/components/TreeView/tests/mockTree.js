@@ -95,3 +95,15 @@ export function deferred() {
   });
   return result;
 }
+
+// The pages of the site tree keyboard scenarios in `tests/behat/features/accessibility.feature`, numbered in tree
+// order.
+const keyboardServer = {
+  0: [makePage(1, 0, 'Page 1'), makePage(2, 0, 'Page 2', { hasChildren: true }), makePage(9, 0, 'Page 3')],
+  2: [makePage(3, 2, 'Page 2a'), makePage(4, 2, 'Page 2b', { hasChildren: true }), makePage(8, 2, 'Page 2c')],
+  4: [makePage(5, 4, 'Page 2bi'), makePage(6, 4, 'Page 2bii'), makePage(7, 4, 'Page 2biii')],
+};
+
+export function getKeyboardChildren(parentId) {
+  return keyboardServer[parentId] || [];
+}

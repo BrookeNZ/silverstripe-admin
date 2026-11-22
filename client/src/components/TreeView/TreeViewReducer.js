@@ -14,12 +14,14 @@
  * - `status`: `STATUS.LOADING` or `STATUS.FAILED` by parent id.
  * - `currentId`: the `currentId` prop of `TreeView`.
  * - `isRevealFailed`: whether `fetchPath` failed for `currentId`. The next mount or reload tries again.
+ * - `focusedKey`: the focus key of the row the member last focused, as `TreeViewFocus.js` describes, or null.
  *
  * An action that changes nothing returns the same state object, so the store notifies no listener.
  */
 import deepFreeze from 'deep-freeze-strict';
 import ACTION_TYPES from './TreeViewActionTypes';
 import { STATUS, TOP_LEVEL_ID } from './TreeViewConstants';
+import { getFocusKeyItemId } from './TreeViewFocus';
 import {
   areChildrenLoading,
   dropTopLevel,
@@ -41,6 +43,7 @@ export const initialTreeState = deepFreeze({
   reloadKey: null,
   pendingId: null,
   openCount: 0,
+  focusedKey: null,
 });
 
 function dropKeys(object, keys) {
@@ -68,8 +71,9 @@ function addOnce(ids, newIds) {
   return newIds.reduce((result, id) => (result.includes(id) ? result : [...result, id]), ids);
 }
 
-// Return the ids of the items that their parent no longer lists, and every item below them. The current item's chain
-// (`keptIds`) stays, so `reloadTree()` can tell that the item moved. An item that comes back is still expanded.
+// Return the ids of the items that their parent no longer lists, and every item below them. `keptIds` holds the chains
+// of the current item and the focused item, which `reloadTree()` and `getTabStopKey()` read. An item that comes back is
+// still expanded.
 function getRemovedIds(items, childIds, keptIds) {
   const removedIds = new Set();
   const queue = Object.keys(items).map(Number).filter((id) => {
@@ -105,7 +109,9 @@ function receiveChildren(tree, parentId, received) {
   });
   childIds[parentId] = received.map((item) => item.id);
 
-  const removedIds = getRemovedIds(items, childIds, getStoredChain({ items }, tree.currentId) || []);
+  const keptIds = [tree.currentId, getFocusKeyItemId(tree.focusedKey)]
+    .flatMap((id) => getStoredChain({ items }, id) || []);
+  const removedIds = getRemovedIds(items, childIds, keptIds);
   removedIds.forEach((id) => {
     delete items[id];
     delete childIds[id];
@@ -198,6 +204,9 @@ function reduceTree(tree, action) {
     // Only a failure of the latest open request clears the pending item.
     case ACTION_TYPES.OPEN_FAILURE:
       return action.openCount === tree.openCount ? updateTree(tree, { pendingId: null }) : tree;
+
+    case ACTION_TYPES.SET_FOCUS:
+      return updateTree(tree, { focusedKey: action.key });
 
     default:
       return tree;

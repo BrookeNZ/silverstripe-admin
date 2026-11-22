@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 import { CLOSE_REASON } from 'components/ContextMenu/ContextMenu';
-import { loadChildren, reloadTree, revealItem, setScroll } from './TreeViewActions';
+import { STATUS } from './TreeViewConstants';
+import { loadChildren, reloadTree, revealItem, setFocus, setScroll } from './TreeViewActions';
+import { getTabStopKey } from './TreeViewFocus';
 import { isItemShown, isTitleRowExpandedIn } from './TreeViewSelectors';
 import { useTreeValue } from './treeViewStore';
 import { getScrollContainer } from './treeViewUtils';
 
-// Reveal the current item only when `currentId` changes. A remount then shows the items as the user left them.
-export function useRevealCurrentItem(store, { currentId, fetchChildren, fetchPath }) {
+// Reveal the current item only when `currentId` changes. A remount then shows the items as the user left them. A new
+// current item opened from outside the tree also takes the Tab stop. The stored `currentId` tells a new current item
+// from a remount on the same item.
+export function useRevealCurrentItem(store, { currentId, fetchChildren, fetchPath, navRef }) {
   const hasMountedRef = useRef(false);
   const [, renderAgain] = useReducer((count) => count + 1, 0);
   useLayoutEffect(() => {
@@ -16,6 +20,9 @@ export function useRevealCurrentItem(store, { currentId, fetchChildren, fetchPat
     // This effect runs again each time the host passes new functions. Only a mount retries a failed reveal, so those
     // runs do not call `fetchPath` again.
     const isRetryDue = tree.isRevealFailed && isMount;
+    if (tree.currentId !== currentId && currentId !== null && !navRef.current.contains(document.activeElement)) {
+      setFocus(store, null);
+    }
     if (tree.currentId !== currentId || isRetryDue) {
       revealItem(store, currentId, fetchChildren, fetchPath);
       // On a mount, `revealItem()` changes the store before the new items subscribe to it. The items subscribe in a
@@ -24,7 +31,7 @@ export function useRevealCurrentItem(store, { currentId, fetchChildren, fetchPat
         renderAgain();
       }
     }
-  }, [store, currentId, fetchChildren, fetchPath]);
+  }, [store, currentId, fetchChildren, fetchPath, navRef]);
 }
 
 // Reload the tree when `reloadKey` changes. A layout effect runs before the passive effect in `useLoadChildren`. On a
@@ -153,4 +160,63 @@ export function useItemContextMenu(store, { getMenuItems, openItem, titleRowText
   }, [contextMenu, isItemStillShown, closeContextMenu]);
 
   return { contextMenu, showContextMenu, closeContextMenu };
+}
+
+// Move focus to the row that holds the Tab stop when focus is on another row, or when the focused element has left
+// the document. Focus outside the tree stays where it is, so a mount moves no focus. With no row to focus, focus goes
+// to the title row toggle. Return the ref of the last element focused in the tree, which the focus handler of the
+// tree sets.
+export function useFocusTabStop(store, { listRef, titleRowToggleRef }) {
+  const lastFocusedRef = useRef(null);
+  const tabStopKey = useTreeValue(store, getTabStopKey);
+  // A change to any of these values can remove or move the focused element.
+  const childIds = useTreeValue(store, (tree) => tree.childIds);
+  const status = useTreeValue(store, (tree) => tree.status);
+  const expanded = useTreeValue(store, (tree) => tree.expanded);
+  const isTitleRowCollapsed = useTreeValue(store, (tree) => tree.isTitleRowCollapsed);
+
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    const tabStop = list && list.querySelector('[data-focus-key][tabindex="0"]');
+    const active = document.activeElement;
+    const lastFocused = lastFocusedRef.current;
+    const isFocusLost = active === document.body && lastFocused !== null && !lastFocused.isConnected;
+    if (!tabStop) {
+      if (isFocusLost && titleRowToggleRef.current) {
+        titleRowToggleRef.current.focus();
+      }
+      return;
+    }
+    const isOnOtherRow = active !== tabStop && list.contains(active) && active.hasAttribute('data-focus-key');
+    if (isOnOtherRow || isFocusLost) {
+      tabStop.focus({ preventScroll: true });
+      tabStop.scrollIntoView({ block: 'nearest' });
+    }
+  }, [listRef, titleRowToggleRef, tabStopKey, childIds, status, expanded, isTitleRowCollapsed]);
+
+  return lastFocusedRef;
+}
+
+// Return the ids of the parents whose children failed most recently while the tree is mounted. A remount announces
+// nothing. A parent leaves the result when its children load again, so the next failure of that parent is announced
+// again.
+export function useNewlyFailedParentIds(store) {
+  const status = useTreeValue(store, (tree) => tree.status);
+  const [failedIds, setFailedIds] = useState([]);
+  const previousStatusRef = useRef(status);
+  useEffect(() => {
+    const previousStatus = previousStatusRef.current;
+    previousStatusRef.current = status;
+    const newIds = Object.keys(status)
+      .map(Number)
+      .filter((id) => status[id] === STATUS.FAILED && previousStatus[id] !== STATUS.FAILED);
+    setFailedIds((ids) => {
+      if (newIds.length) {
+        return newIds;
+      }
+      const stillFailedIds = ids.filter((id) => status[id] === STATUS.FAILED);
+      return stillFailedIds.length === ids.length ? ids : stillFailedIds;
+    });
+  }, [status]);
+  return failedIds;
 }

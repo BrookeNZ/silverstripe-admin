@@ -54,6 +54,8 @@
   --tree-view-link-padding-x: 0.4615rem;
   --tree-view-link-padding-y: 0.2308rem;
   --tree-view-link-removed-bg-color: #f1f3f6;
+  // `scrollIntoView()` keeps the focus ring of a row clear of the edge of the scroll container.
+  --tree-view-link-scroll-margin: calc(var(--focus-outline-width) + var(--focus-outline-offset));
   --tree-view-link-text-shadow: 0.0769rem 0.0769rem 0.0769rem var(--bs-white);
   --tree-view-list-margin-end: 0;
   --tree-view-list-padding-start: 0.2308rem;
@@ -65,6 +67,8 @@
   --tree-view-title-overflow: visible;
   --tree-view-title-text-decoration: none;
   --tree-view-toggle-expanded-transform: rotate(90deg);
+  // The title row toggle sits at the edge of the scroll container, so its focus ring draws inside it.
+  --tree-view-toggle-focus-outline-offset: calc(-1 * var(--focus-outline-width));
   --tree-view-toggle-font-size: 1.5385rem;
   --tree-view-toggle-margin-top: 0.1538rem;
   --tree-view-toggle-size: 1.3846rem;
@@ -135,7 +139,7 @@
 
   &:focus-visible {
     outline: var(--focus-outline-width) var(--focus-outline-style) var(--focus-outline-color);
-    outline-offset: var(--focus-outline-offset);
+    outline-offset: var(--tree-view-toggle-focus-outline-offset);
   }
 }
 
@@ -201,6 +205,7 @@
   overflow: var(--tree-view-link-overflow);
   padding-block: var(--tree-view-link-padding-y);
   padding-inline: var(--tree-view-link-padding-x) var(--tree-view-link-padding-end, var(--tree-view-link-padding-x));
+  scroll-margin-block: var(--tree-view-link-scroll-margin);
   text-align: start;
   text-decoration: none;
   text-shadow: var(--tree-view-link-text-shadow);
