@@ -3,7 +3,7 @@ import React from 'react';
 import { render, screen, fireEvent, act, within, waitFor } from '@testing-library/react';
 import i18n from 'i18n';
 import ACTION_TYPES from '../TreeViewActionTypes';
-import { getTreeStore, treeStores } from '../treeViewStore';
+import { clearTreeStores, getTreeStore } from '../treeViewStore';
 import TreeView from '../TreeView';
 import { deferred, getChildren, getKeyboardChildren, getItem, getPath, loadActions, makePage } from './mockTree';
 
@@ -159,7 +159,7 @@ function deferredServer() {
 }
 
 beforeEach(() => {
-  treeStores.clear();
+  clearTreeStores();
   Element.prototype.scrollIntoView = jest.fn();
 });
 
@@ -253,6 +253,18 @@ test('TreeView marks the links of status flags and of items the member cannot vi
   expect([...getRow('Read only').classList]).toEqual(['tree-view__link', 'tree-view__link--disabled']);
   expect([...getRow('Hidden').classList]).toEqual(['tree-view__link', 'tree-view__link--disabled']);
   expect([...getRow('Plain').classList]).toEqual(['tree-view__link']);
+});
+
+test('TreeView renders the title of each status flag on its badge, and no title for a null title', () => {
+  seedTree(loadActions(0, [
+    makePage(1, 0, 'Titled', { statusFlags: [{ key: 'modified', text: 'Modified', title: 'Item has unpublished changes' }] }),
+    makePage(2, 0, 'Untitled', { statusFlags: [{ key: 'externallink', text: 'External', title: null }] }),
+  ]));
+  renderTree(makeProps());
+
+  expect(within(getRow('Titled Modified')).getByText('Modified').getAttribute('title'))
+    .toBe('Item has unpublished changes');
+  expect(within(getRow('Untitled External')).getByText('External').hasAttribute('title')).toBe(false);
 });
 
 test('TreeView renders an item whose status flags are not an array with no status flag and a prop type warning', () => {
@@ -430,7 +442,7 @@ test('TreeView places the show as list link in a translation with one placeholde
     ['A {link} B {link} C', 'A show as list B  C'],
   ].forEach(([text, shown]) => {
     withTooManyText(text, () => {
-      treeStores.clear();
+      clearTreeStores();
       saveTree({ actions: [{ type: ACTION_TYPES.EXPAND_ITEM, id: 3 }] });
       const { unmount } = renderTree(makeProps());
       expect(screen.getByText('show as list').parentElement.textContent).toBe(shown);

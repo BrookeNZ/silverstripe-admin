@@ -9,6 +9,9 @@ tree with no scrolling element around it keeps no scroll offset, but still scrol
 The tree does not use the Redux store of the admin. The store, the reducer, the selectors and the actions of the tree
 are in this folder, not in `client/src/state`.
 
+The public API of the tree is the `TreeView` properties, the fields of an item and the signature of `getMenuItems`.
+Every other file in this folder is internal and can change.
+
 ## Example
 ```js
 const props = {
@@ -52,7 +55,10 @@ const props = {
    after Escape, Tab, an action that does not move focus, or a dismiss while focus is in the menu. The menu closes
    when the tree no longer shows the item, for example after a reload removes the item.
  * `label` (string, required): The accessible name of the tree.
- * `titleRowText` (string): The text of the title row. A tree without a title has no title row.
+ * `titleRowText` (string): The text of the title row. A tree without a title has no title row. Trees that share a
+   `treeId` must all have a title row or all have none. Otherwise, while the title row is collapsed, the tree without a
+   title row does not scroll to the current item, closes its context menu at once, and loses the children of its
+   expanded items on a reload.
  * `isSidePanel` (boolean): Whether the tree has the narrow layout of a side panel.
 
 Keep the same `fetchChildren`, `onOpen` and `onShowAsList` functions across renders. A new function in any of them
@@ -70,8 +76,8 @@ sent as a string as a number. The tree reads these fields:
  * `recordClass` (string): The class of the record, rendered as `data-recordtype`.
  * `classes` (string): Extra class names for the item.
  * `iconClasses` (string): The class names of the icon.
- * `statusFlags` (array): The status flags of the record, each with a `key` and a `text`. Each flag renders as a
-   `StatusBadge`.
+ * `statusFlags` (array): The status flags of the record, each with a `key`, a `text` and a `title`, which can be
+   null. Each flag renders as a `StatusBadge`, with the `title` as its tooltip.
  * `hasChildren` (boolean): Whether the item has children to load.
  * `limited` (boolean): Whether the item has too many children to show. The tree shows a "show as list" link in
    place of the children.

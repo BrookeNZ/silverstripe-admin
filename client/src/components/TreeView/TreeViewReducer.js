@@ -24,7 +24,6 @@ import { STATUS, TOP_LEVEL_ID } from './TreeViewConstants';
 import { getFocusKeyItemId } from './TreeViewFocus';
 import {
   areChildrenLoading,
-  dropTopLevel,
   getStoredChain,
   isItemShown,
 } from './TreeViewSelectors';
@@ -33,8 +32,7 @@ export const initialTreeState = deepFreeze({
   items: {},
   childIds: {},
   status: {},
-  expanded: [],
-  isTitleRowCollapsed: false,
+  expanded: [TOP_LEVEL_ID],
   scrollTop: 0,
   currentId: null,
   isRevealing: false,
@@ -127,8 +125,7 @@ function receiveChildren(tree, parentId, received) {
 
 function receivePath(tree, ancestorIds) {
   return updateTree(tree, {
-    isTitleRowCollapsed: false,
-    expanded: addOnce(tree.expanded, dropTopLevel(ancestorIds)),
+    expanded: addOnce(tree.expanded, [TOP_LEVEL_ID, ...ancestorIds]),
     isRevealing: false,
   });
 }
@@ -165,14 +162,10 @@ function reduceTree(tree, action) {
         : { ...tree, status: { ...tree.status, [action.parentId]: STATUS.FAILED } };
 
     case ACTION_TYPES.EXPAND_ITEM:
-      return action.id === TOP_LEVEL_ID
-        ? updateTree(tree, { isTitleRowCollapsed: false })
-        : updateTree(tree, { expanded: addOnce(tree.expanded, [action.id]) });
+      return updateTree(tree, { expanded: addOnce(tree.expanded, [action.id]) });
 
     case ACTION_TYPES.COLLAPSE_ITEM:
-      return action.id === TOP_LEVEL_ID
-        ? updateTree(tree, { isTitleRowCollapsed: true })
-        : updateTree(tree, { expanded: dropId(tree.expanded, action.id) });
+      return updateTree(tree, { expanded: dropId(tree.expanded, action.id) });
 
     case ACTION_TYPES.SET_SCROLL:
       return updateTree(tree, { scrollTop: action.scrollTop });

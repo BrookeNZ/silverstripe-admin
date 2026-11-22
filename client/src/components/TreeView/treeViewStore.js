@@ -5,8 +5,7 @@
 import { useSyncExternalStore } from 'react';
 import treeViewReducer, { initialTreeState } from './TreeViewReducer';
 
-// The store of each tree view by `treeId`, exported for tests to clear.
-export const treeStores = new Map();
+const treeStores = new Map();
 
 function createStore() {
   let state = initialTreeState;
@@ -25,6 +24,11 @@ function createStore() {
       return () => listeners.delete(listener);
     },
   };
+}
+
+// Remove the state of every tree. Only the tests call this function.
+export function clearTreeStores() {
+  treeStores.clear();
 }
 
 export function getTreeStore(treeId) {

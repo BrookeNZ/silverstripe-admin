@@ -6,7 +6,7 @@
  */
 import { STATUS, TOP_LEVEL_ID } from './TreeViewConstants';
 
-export function dropTopLevel(ancestorIds) {
+function dropTopLevel(ancestorIds) {
   return ancestorIds.filter((ancestorId) => ancestorId !== TOP_LEVEL_ID);
 }
 
@@ -51,15 +51,9 @@ export function getStoredAncestorIds(tree, id) {
   return isChainComplete ? chain.slice(1, -1) : null;
 }
 
-// Check whether the title row is expanded. A tree without a `titleRowText` has no title row to collapse.
-export function isTitleRowExpandedIn(tree, titleRowText) {
-  return !titleRowText || !tree.isTitleRowCollapsed;
-}
-
-export function isItemShown(tree, id, isTitleRowExpanded = true) {
+export function isItemShown(tree, id) {
   const ancestorIds = getStoredAncestorIds(tree, id);
-  return Boolean(ancestorIds) && isTitleRowExpanded
-    && ancestorIds.every((ancestorId) => tree.expanded.includes(ancestorId));
+  return Boolean(ancestorIds) && [TOP_LEVEL_ID, ...ancestorIds].every((ancestorId) => tree.expanded.includes(ancestorId));
 }
 
 // Check whether the item shows as a parent. An expanded item stays a parent until its children load empty. A child
@@ -75,10 +69,9 @@ export function getHighlightedId(tree) {
 }
 
 // Check whether the title row and every stored ancestor of the item `id` are expanded.
-export function areStoredAncestorsExpanded(tree, id, isTitleRowExpanded = true) {
+export function areStoredAncestorsExpanded(tree, id) {
   const chain = getStoredChain(tree, id);
-  return Boolean(chain) && isTitleRowExpanded
-    && chain.slice(1, -1).every((ancestorId) => tree.expanded.includes(ancestorId));
+  return Boolean(chain) && chain.slice(0, -1).every((ancestorId) => tree.expanded.includes(ancestorId));
 }
 
 // Check whether the item `id` has moved or gone. The children of every parent above the item are loaded, and the

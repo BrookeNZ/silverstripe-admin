@@ -1,9 +1,9 @@
 /* global jest, test, expect, beforeEach */
 import ACTION_TYPES from '../TreeViewActionTypes';
-import { getTreeStore, treeStores } from '../treeViewStore';
+import { clearTreeStores, getTreeStore } from '../treeViewStore';
 
 beforeEach(() => {
-  treeStores.clear();
+  clearTreeStores();
 });
 
 test('A tree store stops calling a listener that has unsubscribed', () => {

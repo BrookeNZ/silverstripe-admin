@@ -1,7 +1,7 @@
 /* global jest, test, expect */
 import ACTION_TYPES from '../TreeViewActionTypes';
 import reducer, { initialTreeState } from '../TreeViewReducer';
-import { STATUS } from '../TreeViewConstants';
+import { STATUS, TOP_LEVEL_ID } from '../TreeViewConstants';
 import { loadChildren, reloadTree, revealItem, trackOpenRequest } from '../TreeViewActions';
 import { deferred, loadActions } from './mockTree';
 
@@ -76,7 +76,7 @@ test('revealItem fetches once the children of each parent above the item that ar
 
   expect(fetchChildren.mock.calls).toEqual([[2], [8]]);
   expect(store.getState().childIds[2]).toEqual([5, 8]);
-  expect(store.getState().expanded).toEqual([2, 8]);
+  expect(store.getState().expanded).toEqual([TOP_LEVEL_ID, 2, 8]);
 });
 
 test('revealItem marks the reveal failed on a failed fetch or a malformed path', async () => {
@@ -116,7 +116,7 @@ test('revealItem lets a late failure of an earlier reveal of the same item leave
   requests[1].resolve([0, 2]);
   await revealOf6;
   expect(store.getState().isRevealFailed).toBe(false);
-  expect(store.getState().expanded).toEqual([2, 5]);
+  expect(store.getState().expanded).toEqual([TOP_LEVEL_ID, 2, 5]);
 });
 
 test('revealItem fetches no children for the path of an earlier reveal of the same item that responds late', async () => {

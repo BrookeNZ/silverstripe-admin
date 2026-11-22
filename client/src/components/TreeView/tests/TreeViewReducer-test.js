@@ -1,7 +1,7 @@
 /* global test, expect */
 import ACTION_TYPES from '../TreeViewActionTypes';
 import reducer, { initialTreeState } from '../TreeViewReducer';
-import { STATUS } from '../TreeViewConstants';
+import { STATUS, TOP_LEVEL_ID } from '../TreeViewConstants';
 import {
   areStoredAncestorsExpanded,
   getStoredAncestorIds,
@@ -113,7 +113,7 @@ test('getStoredAncestorIds walks the stored ancestors to the top level, and isIt
   expect(getStoredAncestorIds(tree, 1)).toEqual([]);
   expect(getStoredAncestorIds(tree, 9)).toBeNull();
   expect(isItemShown(tree, 5)).toBe(true);
-  expect(isItemShown(tree, 5, false)).toBe(false);
+  expect(isItemShown(reducer(tree, { type: ACTION_TYPES.COLLAPSE_ITEM, id: TOP_LEVEL_ID }), 5)).toBe(false);
   expect(isItemShown(reducer(tree, { type: ACTION_TYPES.COLLAPSE_ITEM, id: 1 }), 5)).toBe(false);
 
   const moved = reduce(loadActions(1, [makeItem(4, 1)]), tree);
@@ -127,7 +127,7 @@ test('getStoredAncestorIds walks the stored ancestors to the top level, and isIt
 test('areStoredAncestorsExpanded needs the title row expanded and each stored ancestor expanded, whether or not their children hold the item', () => {
   const tree = makeLoadedState();
   expect(areStoredAncestorsExpanded(tree, 1)).toBe(true);
-  expect(areStoredAncestorsExpanded(tree, 1, false)).toBe(false);
+  expect(areStoredAncestorsExpanded(reducer(tree, { type: ACTION_TYPES.COLLAPSE_ITEM, id: TOP_LEVEL_ID }), 1)).toBe(false);
   expect(areStoredAncestorsExpanded(tree, 5)).toBe(true);
   const revealed = reducer(tree, { type: ACTION_TYPES.REVEAL_REQUEST, id: 5 });
   expect(areStoredAncestorsExpanded(reduce(loadActions(3, []), revealed), 5)).toBe(true);
@@ -208,7 +208,7 @@ test('TreeViewReducer removes an item that loaded children no longer hold and th
   const tree = reduce(reloadActions, makeLoadedState());
   expect(Object.keys(tree.items)).toEqual(['1', '2', '4', '7']);
   expect(Object.keys(tree.childIds)).toEqual(['0', '1', '2']);
-  expect(tree.expanded).toEqual([1, 3, 2]);
+  expect(tree.expanded).toEqual([TOP_LEVEL_ID, 1, 3, 2]);
 
   const revealed = reduce([{ type: ACTION_TYPES.REVEAL_REQUEST, id: 5 }, ...reloadActions], makeLoadedState());
   expect(Object.keys(revealed.items)).toEqual(['1', '2', '3', '4', '5', '7']);

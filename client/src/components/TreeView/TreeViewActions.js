@@ -7,7 +7,6 @@ import {
   getUnloadedChainParentIds,
   isItemShown,
   isMissingFromLoadedChain,
-  isTitleRowExpandedIn,
 } from './TreeViewSelectors';
 import { parseItemId } from './treeViewUtils';
 
@@ -117,29 +116,29 @@ export async function revealItem(store, id, fetchChildren, fetchPath) {
 }
 
 // Check whether the current item needs a new reveal after a reload, because it moved or its reveal failed.
-function shouldRevealAfterReload(tree, { reloadKey, titleRowText, currentIdBefore, wasCurrentItemShown }) {
+function shouldRevealAfterReload(tree, { reloadKey, currentIdBefore, wasCurrentItemShown }) {
   const isLatestReload = tree.reloadKey === reloadKey;
   // An item that became current during the reload counts as shown.
   const wasItemShown = tree.currentId === currentIdBefore ? wasCurrentItemShown : tree.currentId !== null;
-  const areAncestorsStillExpanded = areStoredAncestorsExpanded(tree, tree.currentId, isTitleRowExpandedIn(tree, titleRowText));
+  const areAncestorsStillExpanded = areStoredAncestorsExpanded(tree, tree.currentId);
   const hasItemMoved = isMissingFromLoadedChain(tree, tree.currentId);
   return isLatestReload && (tree.isRevealFailed || (wasItemShown && areAncestorsStillExpanded && hasItemMoved));
 }
 
 // Fetch again all the children that `reload()` in `TreeViewReducer.js` keeps. After every response arrives, reveal
 // the current item again if it moved or its reveal failed.
-export async function reloadTree(store, reloadKey, { titleRowText, fetchChildren, fetchPath }) {
+export async function reloadTree(store, reloadKey, { fetchChildren, fetchPath }) {
   // The reload can remove the current item from the children of its parent, so `reloadTree()` reads the state before
   // the reload.
   const treeBefore = store.getState();
   const currentIdBefore = treeBefore.currentId;
-  const wasCurrentItemShown = isItemShown(treeBefore, currentIdBefore, isTitleRowExpandedIn(treeBefore, titleRowText));
+  const wasCurrentItemShown = isItemShown(treeBefore, currentIdBefore);
   store.dispatch({ type: ACTION_TYPES.RELOAD_REQUEST, reloadKey });
   const keptParentIds = Object.keys(store.getState().childIds).map(Number);
   await Promise.all(keptParentIds.map((id) => loadChildren(store, id, fetchChildren)));
 
   const treeAfter = store.getState();
-  if (shouldRevealAfterReload(treeAfter, { reloadKey, titleRowText, currentIdBefore, wasCurrentItemShown })) {
+  if (shouldRevealAfterReload(treeAfter, { reloadKey, currentIdBefore, wasCurrentItemShown })) {
     await revealItem(store, treeAfter.currentId, fetchChildren, fetchPath);
   }
 }

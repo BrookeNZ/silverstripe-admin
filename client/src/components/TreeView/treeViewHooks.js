@@ -3,7 +3,7 @@ import { CLOSE_REASON } from 'components/ContextMenu/ContextMenu';
 import { STATUS } from './TreeViewConstants';
 import { loadChildren, reloadTree, revealItem, setFocus, setScroll } from './TreeViewActions';
 import { getTabStopKey } from './TreeViewFocus';
-import { isItemShown, isTitleRowExpandedIn } from './TreeViewSelectors';
+import { isItemShown } from './TreeViewSelectors';
 import { useTreeValue } from './treeViewStore';
 import { getScrollContainer } from './treeViewUtils';
 
@@ -36,12 +36,12 @@ export function useRevealCurrentItem(store, { currentId, fetchChildren, fetchPat
 
 // Reload the tree when `reloadKey` changes. A layout effect runs before the passive effect in `useLoadChildren`. On a
 // first mount, `useLoadChildren` then finds the top level already loading and does not fetch it again.
-export function useReloadOnKeyChange(store, { reloadKey, titleRowText, fetchChildren, fetchPath }) {
+export function useReloadOnKeyChange(store, { reloadKey, fetchChildren, fetchPath }) {
   useLayoutEffect(() => {
     if (store.getState().reloadKey !== reloadKey) {
-      reloadTree(store, reloadKey, { titleRowText, fetchChildren, fetchPath });
+      reloadTree(store, reloadKey, { fetchChildren, fetchPath });
     }
-  }, [store, reloadKey, titleRowText, fetchChildren, fetchPath]);
+  }, [store, reloadKey, fetchChildren, fetchPath]);
 }
 
 // Restore the scroll offset of the element that scrolls the tree before paint. The cleanup saves the offset before
@@ -107,7 +107,7 @@ function shouldReturnFocus(reason) {
 // Hold the context menu of one item at a time. `showContextMenu(item, event, anchor)` opens the context menu of
 // `item` at `anchor`. It prevents the browser menu only when the item has menu items. The menu closes when the tree
 // no longer shows the item, for example after a reload removes the item.
-export function useItemContextMenu(store, { getMenuItems, openItem, titleRowText }) {
+export function useItemContextMenu(store, { getMenuItems, openItem }) {
   const [contextMenu, setContextMenu] = useState(null);
   // `TreeView` uses this count as the key of the `ContextMenu`, so each show mounts a new menu that takes focus.
   const showCountRef = useRef(0);
@@ -151,7 +151,7 @@ export function useItemContextMenu(store, { getMenuItems, openItem, titleRowText
   }, []);
 
   const isItemStillShown = useTreeValue(store, (tree) => (
-    !contextMenu || isItemShown(tree, contextMenu.item.id, isTitleRowExpandedIn(tree, titleRowText))
+    !contextMenu || isItemShown(tree, contextMenu.item.id)
   ));
   useEffect(() => {
     if (contextMenu && !isItemStillShown) {
@@ -173,7 +173,6 @@ export function useFocusTabStop(store, { listRef, titleRowToggleRef }) {
   const childIds = useTreeValue(store, (tree) => tree.childIds);
   const status = useTreeValue(store, (tree) => tree.status);
   const expanded = useTreeValue(store, (tree) => tree.expanded);
-  const isTitleRowCollapsed = useTreeValue(store, (tree) => tree.isTitleRowCollapsed);
 
   useLayoutEffect(() => {
     const list = listRef.current;
@@ -192,7 +191,7 @@ export function useFocusTabStop(store, { listRef, titleRowToggleRef }) {
       tabStop.focus({ preventScroll: true });
       tabStop.scrollIntoView({ block: 'nearest' });
     }
-  }, [listRef, titleRowToggleRef, tabStopKey, childIds, status, expanded, isTitleRowCollapsed]);
+  }, [listRef, titleRowToggleRef, tabStopKey, childIds, status, expanded]);
 
   return lastFocusedRef;
 }

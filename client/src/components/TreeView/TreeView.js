@@ -4,11 +4,11 @@ import classnames from 'classnames';
 import i18n from 'i18n';
 import ContextMenu from 'components/ContextMenu/ContextMenu';
 import { STATUS, TOP_LEVEL_ID } from './TreeViewConstants';
-import { isItemShown, isTitleRowExpandedIn } from './TreeViewSelectors';
+import { isItemShown } from './TreeViewSelectors';
 import { collapseItem, expandItem, setFocus, trackOpenRequest } from './TreeViewActions';
 import TreeViewContext from './TreeViewContext';
 import { getKeyAction, readFocusKey } from './TreeViewFocus';
-import { TreeViewItems } from './TreeViewItem';
+import { TreeViewItems } from './TreeViewItems';
 import TreeViewToggle from './TreeViewToggle';
 import {
   useFocusTabStop,
@@ -41,16 +41,13 @@ const TreeView = ({
   const titleRowToggleRef = useRef(null);
   const hasTitleRow = Boolean(titleRowText);
   const currentId = parseItemId(givenCurrentId);
-  const isTitleRowExpanded = useTreeValue(store, (tree) => isTitleRowExpandedIn(tree, titleRowText));
-  const isCurrentItemShown = useTreeValue(
-    store,
-    (tree) => isItemShown(tree, currentId, isTitleRowExpandedIn(tree, titleRowText)),
-  );
+  const isTitleRowExpanded = useTreeValue(store, (tree) => tree.expanded.includes(TOP_LEVEL_ID));
+  const isCurrentItemShown = useTreeValue(store, (tree) => isItemShown(tree, currentId));
 
   // Call `useRevealCurrentItem` before `useReloadOnKeyChange`, for a render that changes both `currentId` and `reloadKey`.
   // The reveal then finds the ancestors in the loaded children, before the reload drops the children of collapsed items.
   useRevealCurrentItem(store, { currentId, fetchChildren, fetchPath, navRef });
-  useReloadOnKeyChange(store, { reloadKey, titleRowText, fetchChildren, fetchPath });
+  useReloadOnKeyChange(store, { reloadKey, fetchChildren, fetchPath });
   useRestoreScroll(store, navRef);
   useScrollToCurrentItem(navRef, currentId, isCurrentItemShown);
   const lastFocusedRef = useFocusTabStop(store, { listRef, titleRowToggleRef });
@@ -75,7 +72,6 @@ const TreeView = ({
   const { contextMenu, showContextMenu, closeContextMenu } = useItemContextMenu(store, {
     getMenuItems,
     openItem,
-    titleRowText,
   });
 
   // Each `TreeViewItem` reads the current item and the highlighted item from the store, not from `TreeViewContext`. A
@@ -150,7 +146,7 @@ const TreeView = ({
           <span className="tree-view__title-row-text">{titleRowText}</span>
         </div>
       )}
-      {isTitleRowExpanded && (
+      {(!hasTitleRow || isTitleRowExpanded) && (
         <ul
           ref={listRef}
           className="tree-view__list"

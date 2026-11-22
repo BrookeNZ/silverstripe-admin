@@ -163,6 +163,7 @@ const TreeViewItem = ({ id, level, posInSet, setSize }) => {
             key={flag.key}
             status={BADGE_STATUS_BY_FLAG_KEY[flag.key]}
             text={flag.text}
+            title={flag.title}
           />
         ))}
       </a>
