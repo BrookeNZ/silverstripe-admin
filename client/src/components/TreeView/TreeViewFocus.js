@@ -65,7 +65,7 @@ function addRows(tree, parentId, rows) {
 }
 
 // Return the focusable rows of a shown tree list, top to bottom, as `{ key, parentId }`.
-function getVisibleRows(tree) {
+export function getVisibleRows(tree) {
   const rows = [];
   addRows(tree, TOP_LEVEL_ID, rows);
   return rows;

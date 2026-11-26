@@ -1,12 +1,13 @@
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import classnames from 'classnames';
 import i18n from 'i18n';
-import ContextMenu from 'components/ContextMenu/ContextMenu';
+import ContextMenu, { CLOSE_REASON } from 'components/ContextMenu/ContextMenu';
 import { STATUS, TOP_LEVEL_ID } from './TreeViewConstants';
 import { isItemShown } from './TreeViewSelectors';
 import { collapseItem, expandItem, setFocus, trackOpenRequest } from './TreeViewActions';
 import TreeViewContext from './TreeViewContext';
+import { TreeViewDragArea } from './TreeViewDrag';
 import { getKeyAction, readFocusKey } from './TreeViewFocus';
 import { TreeViewItems } from './TreeViewItems';
 import TreeViewToggle from './TreeViewToggle';
@@ -31,6 +32,8 @@ const TreeView = ({
   onOpen = null,
   onShowAsList = null,
   getMenuItems = null,
+  onMove = null,
+  canDrop = null,
   label,
   titleRowText = '',
   isSidePanel = false,
@@ -39,6 +42,11 @@ const TreeView = ({
   const navRef = useRef(null);
   const listRef = useRef(null);
   const titleRowToggleRef = useRef(null);
+  const keyboardMoveRef = useRef(null);
+  // Whether the last press in the tree was a touch. A press of a mouse button or a key in the tree clears it.
+  const isTouchPressRef = useRef(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [moveAnnouncement, setMoveAnnouncement] = useState('');
   const hasTitleRow = Boolean(titleRowText);
   const currentId = parseItemId(givenCurrentId);
   const isTitleRowExpanded = useTreeValue(store, (tree) => tree.expanded.includes(TOP_LEVEL_ID));
@@ -69,10 +77,25 @@ const TreeView = ({
       onShowAsList(item, event);
     }
   }, [onShowAsList]);
+  const startKeyboardMove = useMemo(
+    () => (onMove ? (item) => keyboardMoveRef.current && keyboardMoveRef.current.start(item) : null),
+    [onMove],
+  );
   const { contextMenu, showContextMenu, closeContextMenu } = useItemContextMenu(store, {
     getMenuItems,
     openItem,
+    startKeyboardMove,
   });
+
+  // A long press on touch starts a drag. Android also sends a `contextmenu` event for a long press, which must open
+  // neither the menu of the tree nor the menu of the browser.
+  const showItemContextMenu = useCallback((item, event, anchor) => {
+    if (onMove && isTouchPressRef.current) {
+      event.preventDefault();
+      return;
+    }
+    showContextMenu(item, event, anchor);
+  }, [onMove, showContextMenu]);
 
   // Each `TreeViewItem` reads the current item and the highlighted item from the store, not from `TreeViewContext`. A
   // new current or pending item then re-renders only the items whose state changes.
@@ -81,14 +104,32 @@ const TreeView = ({
     fetchChildren,
     onOpen: openItem,
     onShowAsList: showAsList,
-    onShowContextMenu: showContextMenu,
-  }), [store, fetchChildren, openItem, showAsList, showContextMenu]);
+    onShowContextMenu: showItemContextMenu,
+    isDragEnabled: Boolean(onMove),
+  }), [store, fetchChildren, openItem, showAsList, showItemContextMenu, onMove]);
 
   const handleTitleRowToggle = () => (
     isTitleRowExpanded ? collapseItem(store, TOP_LEVEL_ID) : expandItem(store, TOP_LEVEL_ID)
   );
 
+  // The press that starts a drag leaves focus where it is. When focus is outside the tree, `useFocusTabStop` must not
+  // take a reload that removes the last focused row as lost focus.
+  const handleDragStart = () => {
+    if (!navRef.current.contains(document.activeElement)) {
+      lastFocusedRef.current = null;
+    }
+    setIsDragging(true);
+    if (contextMenu) {
+      closeContextMenu(contextMenu, CLOSE_REASON.DISMISS);
+    }
+  };
+
+  const handleDragEnd = useCallback(() => setIsDragging(false), []);
+
   const handleKeyDown = (event) => {
+    if (isDragging) {
+      return;
+    }
     const row = event.target.closest('[data-focus-key]');
     if (!row || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
       return;
@@ -134,6 +175,9 @@ const TreeView = ({
       className={classnames('tree-view', { 'tree-view--side-panel': isSidePanel })}
       aria-label={label}
       onFocus={handleFocus}
+      onTouchStartCapture={() => { isTouchPressRef.current = true; }}
+      onMouseDownCapture={() => { isTouchPressRef.current = false; }}
+      onKeyDownCapture={() => { isTouchPressRef.current = false; }}
     >
       {hasTitleRow && (
         <div className={classnames('tree-view__title-row', { 'tree-view__title-row--expanded': isTitleRowExpanded })}>
@@ -147,18 +191,29 @@ const TreeView = ({
         </div>
       )}
       {(!hasTitleRow || isTitleRowExpanded) && (
-        <ul
-          ref={listRef}
-          className="tree-view__list"
-          role="tree"
-          aria-label={label}
-          aria-busy={isTopLevelAwaited ? 'true' : undefined}
-          onKeyDown={handleKeyDown}
+        <TreeViewDragArea
+          store={store}
+          navRef={navRef}
+          onMove={onMove}
+          canDrop={canDrop}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onAnnounce={setMoveAnnouncement}
+          keyboardMoveRef={keyboardMoveRef}
         >
-          <TreeViewContext.Provider value={context}>
-            <TreeViewItems parentId={TOP_LEVEL_ID} level={1} />
-          </TreeViewContext.Provider>
-        </ul>
+          <ul
+            ref={listRef}
+            className="tree-view__list"
+            role="tree"
+            aria-label={label}
+            aria-busy={isTopLevelAwaited ? 'true' : undefined}
+            onKeyDown={handleKeyDown}
+          >
+            <TreeViewContext.Provider value={context}>
+              <TreeViewItems parentId={TOP_LEVEL_ID} level={1} />
+            </TreeViewContext.Provider>
+          </ul>
+        </TreeViewDragArea>
       )}
       <div className="visually-hidden" role="status">
         {failedParentIds.map((parentId) => (
@@ -168,6 +223,10 @@ const TreeView = ({
             })}
           </div>
         ))}
+      </div>
+      {/* The drag area unmounts while the title row is collapsed. This region outlives it. */}
+      <div className="visually-hidden" role="status" aria-live="assertive" aria-atomic="true">
+        {moveAnnouncement}
       </div>
       {contextMenu && (
         <ContextMenu
@@ -192,6 +251,8 @@ TreeView.propTypes = {
   onOpen: PropTypes.func,
   onShowAsList: PropTypes.func,
   getMenuItems: PropTypes.func,
+  onMove: PropTypes.func,
+  canDrop: PropTypes.func,
   label: PropTypes.string.isRequired,
   titleRowText: PropTypes.string,
   isSidePanel: PropTypes.bool,

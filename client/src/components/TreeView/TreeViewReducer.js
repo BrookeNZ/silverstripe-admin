@@ -15,6 +15,9 @@
  * - `currentId`: the `currentId` prop of `TreeView`.
  * - `isRevealFailed`: whether `fetchPath` failed for `currentId`. The next mount or reload tries again.
  * - `focusedKey`: the focus key of the row the member last focused, as `TreeViewFocus.js` describes, or null.
+ * - `move`: the latest move that the tree asked `onMove` for, until the first reload after the move completes.
+ *   `isSettled` is whether the promise of `onMove` has settled. `isReloadStarted` is whether a reload has started
+ *   since the move. The host can start that reload before the promise settles or after it.
  *
  * An action that changes nothing returns the same state object, so the store notifies no listener.
  */
@@ -42,6 +45,7 @@ export const initialTreeState = deepFreeze({
   pendingId: null,
   openCount: 0,
   focusedKey: null,
+  move: null,
 });
 
 function dropKeys(object, keys) {
@@ -142,6 +146,21 @@ function reload(tree, reloadKey) {
   });
 }
 
+// Give the stored focus to the moved item when the latest reload completes, if the tree shows the item. A move that the
+// server refused leaves the item in its old place, so the item takes the stored focus there. An item that the tree does
+// not show leaves the stored focus as it is. A reload that completes before the move settles is not the reload of the
+// move, so the move stays and still blocks a new drag.
+function completeReload(tree, reloadKey) {
+  const { move } = tree;
+  if (tree.reloadKey !== reloadKey || !move || !move.isSettled || !move.isReloadStarted) {
+    return tree;
+  }
+  return updateTree(tree, {
+    move: null,
+    focusedKey: isItemShown(tree, move.id) ? move.id : tree.focusedKey,
+  });
+}
+
 function reduceTree(tree, action) {
   switch (action.type) {
     case ACTION_TYPES.FETCH_CHILDREN_REQUEST:
@@ -188,8 +207,15 @@ function reduceTree(tree, action) {
         ? updateTree(tree, { isRevealing: false, isRevealFailed: true })
         : tree;
 
-    case ACTION_TYPES.RELOAD_REQUEST:
-      return reload(tree, action.reloadKey);
+    case ACTION_TYPES.RELOAD_REQUEST: {
+      const reloaded = reload(tree, action.reloadKey);
+      return tree.move && !tree.move.isReloadStarted
+        ? { ...reloaded, move: { ...tree.move, isReloadStarted: true } }
+        : reloaded;
+    }
+
+    case ACTION_TYPES.RELOAD_COMPLETE:
+      return completeReload(tree, action.reloadKey);
 
     case ACTION_TYPES.OPEN_REQUEST:
       return { ...tree, pendingId: action.id, openCount: tree.openCount + 1 };
@@ -200,6 +226,16 @@ function reduceTree(tree, action) {
 
     case ACTION_TYPES.SET_FOCUS:
       return updateTree(tree, { focusedKey: action.key });
+
+    case ACTION_TYPES.MOVE_REQUEST:
+      return { ...tree, move: { id: action.id, isSettled: false, isReloadStarted: false } };
+
+    // A cancelled move changed nothing, so no reload gives the item the stored focus.
+    case ACTION_TYPES.MOVE_SETTLE:
+      if (!tree.move || tree.move.id !== action.id || tree.move.isSettled) {
+        return tree;
+      }
+      return { ...tree, move: action.isCancelled ? null : { ...tree.move, isSettled: true } };
 
     default:
       return tree;

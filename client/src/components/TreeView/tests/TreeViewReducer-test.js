@@ -214,6 +214,38 @@ test('TreeViewReducer removes an item that loaded children no longer hold and th
   expect(Object.keys(revealed.items)).toEqual(['1', '2', '3', '4', '5', '7']);
 });
 
+test('TreeViewReducer gives the stored focus to a moved item that is shown when the latest reload after the move completes', () => {
+  const requested = reduce([
+    { type: ACTION_TYPES.SET_FOCUS, key: 3 },
+    { type: ACTION_TYPES.MOVE_REQUEST, id: 4 },
+  ], makeLoadedState());
+  const settle = { type: ACTION_TYPES.MOVE_SETTLE, id: 4, isCancelled: false };
+  const moved = reducer(requested, settle);
+  expect(reducer(moved, { type: ACTION_TYPES.RELOAD_COMPLETE, reloadKey: null })).toBe(moved);
+  expect(reducer(requested, { ...settle, isCancelled: true }).move).toBeNull();
+
+  // A reload that completes before the move settles leaves the move pending.
+  const reloadingUnsettled = reducer(requested, { type: ACTION_TYPES.RELOAD_REQUEST, reloadKey: 1 });
+  expect(reducer(reloadingUnsettled, { type: ACTION_TYPES.RELOAD_COMPLETE, reloadKey: 1 })).toBe(reloadingUnsettled);
+
+  const reloading = reduce([
+    settle,
+    { type: ACTION_TYPES.RELOAD_REQUEST, reloadKey: 2 },
+  ], reloadingUnsettled);
+  expect(reducer(reloading, { type: ACTION_TYPES.RELOAD_COMPLETE, reloadKey: 1 })).toBe(reloading);
+  const completed = reducer(reloading, { type: ACTION_TYPES.RELOAD_COMPLETE, reloadKey: 2 });
+  expect(completed.focusedKey).toBe(4);
+  expect(completed.move).toBeNull();
+
+  const hidden = reduce([
+    { type: ACTION_TYPES.COLLAPSE_ITEM, id: 1 },
+    { type: ACTION_TYPES.RELOAD_REQUEST, reloadKey: 1 },
+    { type: ACTION_TYPES.RELOAD_COMPLETE, reloadKey: 1 },
+  ], moved);
+  expect(hidden.focusedKey).toBe(3);
+  expect(hidden.move).toBeNull();
+});
+
 test('TreeViewReducer returns frozen state and leaves the given items alone', () => {
   const item = makeItem(3, 1);
   const tree = reduce(loadActions(1, [item]));

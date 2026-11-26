@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 import { CLOSE_REASON } from 'components/ContextMenu/ContextMenu';
+import i18n from 'i18n';
 import { STATUS } from './TreeViewConstants';
 import { loadChildren, reloadTree, revealItem, setFocus, setScroll } from './TreeViewActions';
 import { getTabStopKey } from './TreeViewFocus';
-import { isItemShown } from './TreeViewSelectors';
+import { isItemDisabled, isItemShown, isMovePending } from './TreeViewSelectors';
 import { useTreeValue } from './treeViewStore';
 import { getScrollContainer } from './treeViewUtils';
 
@@ -104,10 +105,25 @@ function shouldReturnFocus(reason) {
     || (reason === CLOSE_REASON.DISMISS && isFocusInMenu);
 }
 
+// Get the menu items of the host for `item`, with a Move item last when the tree can move `item`. A row with no host
+// items gets no Move item, so the browser shows its own menu there.
+function getItemMenuItems(store, item, { getMenuItems, openItem, startKeyboardMove }) {
+  const menuItems = getMenuItems(item, { open: openItem }) || [];
+  if (!menuItems.length || !startKeyboardMove || isItemDisabled(item)) {
+    return menuItems;
+  }
+  return [...menuItems, {
+    id: 'tree-view-move',
+    label: i18n._t('Admin.TREEVIEW_MOVE', 'Move'),
+    disabled: isMovePending(store.getState()),
+    onSelect: () => startKeyboardMove(item),
+  }];
+}
+
 // Hold the context menu of one item at a time. `showContextMenu(item, event, anchor)` opens the context menu of
 // `item` at `anchor`. It prevents the browser menu only when the item has menu items. The menu closes when the tree
 // no longer shows the item, for example after a reload removes the item.
-export function useItemContextMenu(store, { getMenuItems, openItem }) {
+export function useItemContextMenu(store, { getMenuItems, openItem, startKeyboardMove }) {
   const [contextMenu, setContextMenu] = useState(null);
   // `TreeView` uses this count as the key of the `ContextMenu`, so each show mounts a new menu that takes focus.
   const showCountRef = useRef(0);
@@ -123,7 +139,7 @@ export function useItemContextMenu(store, { getMenuItems, openItem }) {
       event.preventDefault();
       return;
     }
-    const menuItems = getMenuItems(item, { open: openItem }) || [];
+    const menuItems = getItemMenuItems(store, item, { getMenuItems, openItem, startKeyboardMove });
     if (!menuItems.length) {
       return;
     }
@@ -137,7 +153,7 @@ export function useItemContextMenu(store, { getMenuItems, openItem }) {
       link: event.currentTarget,
     };
     setContextMenu(contextMenuRef.current);
-  }, [getMenuItems, openItem]);
+  }, [store, getMenuItems, openItem, startKeyboardMove]);
 
   const closeContextMenu = useCallback((closingContextMenu, reason) => {
     if (contextMenuRef.current !== closingContextMenu) {

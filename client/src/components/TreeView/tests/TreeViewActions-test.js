@@ -66,6 +66,23 @@ test('reloadTree fetches the children on screen, and fetches again children that
   expect(store.getState().childIds).toEqual({ 0: [2], 2: [8] });
 });
 
+test('reloadTree fetches again the children of a shown, expanded parent that were loading for the first time before the reload', async () => {
+  const store = makeStore(loadActions(0, [{ id: 2, parentId: 0, hasChildren: true }]));
+  store.dispatch({ type: ACTION_TYPES.EXPAND_ITEM, id: 2 });
+  const beforeReload = deferred();
+  const server = { 0: [{ id: 2, parentId: 0, hasChildren: true }], 2: [{ id: 8, parentId: 2 }] };
+  const fetchChildren = jest.fn((parentId) => (
+    fetchChildren.mock.calls.length === 1 ? beforeReload.promise : Promise.resolve(server[parentId])
+  ));
+  loadChildren(store, 2, fetchChildren);
+
+  const reloaded = reloadTree(store, 1, { fetchChildren });
+  beforeReload.resolve([]);
+  await reloaded;
+  expect(fetchChildren.mock.calls).toEqual([[2], [0], [2]]);
+  expect(store.getState().childIds).toEqual({ 0: [2], 2: [8] });
+});
+
 test('revealItem fetches once the children of each parent above the item that are not loaded or lack the next item down', async () => {
   const store = makeLoadedStore();
   const fetchChildren = jest.fn((parentId) => Promise.resolve(

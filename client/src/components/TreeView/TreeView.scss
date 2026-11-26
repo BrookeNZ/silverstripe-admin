@@ -12,6 +12,36 @@
  */
 
 .tree-view {
+  --tree-view-drag-handle-active-cursor: grabbing;
+  --tree-view-drag-handle-cursor: grab;
+  --tree-view-drag-handle-display: none;
+  --tree-view-drag-handle-font-size: 1.2308rem;
+  --tree-view-drag-handle-glyph-margin-start: -0.0769rem;
+  --tree-view-drag-handle-height: 1.2308rem;
+  --tree-view-drag-handle-width: 0.9231rem;
+  --tree-view-drag-overlay-line-height: 1.2308rem;
+  --tree-view-drag-overlay-padding: 0.3077rem;
+  --tree-view-drag-overlay-padding-start: 1.8462rem;
+  --tree-view-drop-marker-arrow-height: 0.9231rem;
+  // The arrow of the legacy jstree apple theme, at the same place in a copy of its sprite.
+  --tree-view-drop-marker-arrow-image: url('../../images/tree-view-drag-sprite.png');
+  --tree-view-drop-marker-arrow-image-position: -3.1538rem -4.3846rem;
+  --tree-view-drop-marker-arrow-inside-left: 1.0769rem;
+  --tree-view-drop-marker-arrow-inside-top: -0.3846rem;
+  --tree-view-drop-marker-arrow-left: 0.7692rem;
+  --tree-view-drop-marker-arrow-top: -0.4615rem;
+  --tree-view-drop-marker-arrow-width: 0.6154rem;
+  --tree-view-drop-marker-line-bg-color: #456c43;
+  --tree-view-drop-marker-line-border: 0.0769rem solid #eee;
+  --tree-view-drop-marker-line-border-radius: 0.0769rem;
+  --tree-view-drop-marker-line-display: block;
+  --tree-view-drop-marker-line-height: 0.2308rem;
+  --tree-view-drop-marker-line-left: 1.3846rem;
+  --tree-view-drop-marker-line-shadow: 0 0 0.1538rem #666;
+  --tree-view-drop-marker-line-top: -0.0769rem;
+  --tree-view-drop-marker-line-width: 7.6923rem;
+  --tree-view-drop-marker-row-offset: 0;
+  --tree-view-drop-marker-z-index: 2;
   --tree-view-focus-outline-offset: calc(var(--focus-outline-offset) * 7.5 + var(--focus-outline-width));
   --tree-view-focus-outline-style: dashed;
   --tree-view-group-padding-start: 1.5385rem;
@@ -43,6 +73,7 @@
   --tree-view-link-current-bg-color: #e8f5ff;
   --tree-view-link-cursor: pointer;
   --tree-view-link-display: flex;
+  --tree-view-link-draggable-padding-start: 0.9231rem;
   --tree-view-link-font-style: normal;
   --tree-view-link-hover-bg-color: #e8f5ff;
   --tree-view-link-justify-self: start;
@@ -76,6 +107,7 @@
 
   flex-grow: 1;
   padding-block-end: var(--tree-view-padding-bottom);
+  position: relative;
   white-space: nowrap;
 
   @media (prefers-reduced-motion: reduce) {
@@ -204,7 +236,9 @@
   min-inline-size: 0;
   overflow: var(--tree-view-link-overflow);
   padding-block: var(--tree-view-link-padding-y);
-  padding-inline: var(--tree-view-link-padding-x) var(--tree-view-link-padding-end, var(--tree-view-link-padding-x));
+  padding-inline:
+    var(--tree-view-link-padding-start, var(--tree-view-link-padding-x))
+    var(--tree-view-link-padding-end, var(--tree-view-link-padding-x));
   scroll-margin-block: var(--tree-view-link-scroll-margin);
   text-align: start;
   text-decoration: none;
@@ -212,10 +246,17 @@
 
   // The global `a:hover` rule outranks `.tree-view__link`, so the hover state removes its underline again.
   &:hover {
+    --tree-view-drag-handle-display: block;
     --tree-view-link-bg-color: var(--tree-view-link-hover-bg-color);
+    --tree-view-link-draggable-padding-start: 0;
     --tree-view-link-text-shadow: none;
 
     text-decoration: none;
+  }
+
+  &:focus {
+    --tree-view-drag-handle-display: block;
+    --tree-view-link-draggable-padding-start: 0;
   }
 
   &:focus-visible {
@@ -227,7 +268,9 @@
 }
 
 .tree-view__link--current {
+  --tree-view-drag-handle-display: block;
   --tree-view-link-bg-color: var(--tree-view-link-current-bg-color);
+  --tree-view-link-draggable-padding-start: 0;
 }
 
 .tree-view__link--status-addedtodraft {
@@ -279,6 +322,33 @@
   --tree-view-link-hover-bg-color: transparent;
 }
 
+// The handle shows on hover, on focus and on the current row, and takes the place of the start padding of the link.
+.tree-view__link--draggable {
+  --tree-view-link-padding-start: var(--tree-view-link-draggable-padding-start);
+
+  // A touch held on the link drags it, with no iOS link callout or text selection. A swipe still scrolls.
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.tree-view__drag-handle {
+  block-size: var(--tree-view-drag-handle-height);
+  cursor: var(--tree-view-drag-handle-cursor);
+  display: var(--tree-view-drag-handle-display);
+  flex-shrink: 0;
+  font-size: var(--tree-view-drag-handle-font-size);
+  inline-size: var(--tree-view-drag-handle-width);
+
+  &:before {
+    margin-inline-start: var(--tree-view-drag-handle-glyph-margin-start);
+  }
+
+  &:active {
+    --tree-view-drag-handle-cursor: var(--tree-view-drag-handle-active-cursor);
+  }
+}
+
 .tree-view__icon {
   flex-shrink: 0;
   margin-inline-end: var(--tree-view-icon-margin-end);
@@ -316,4 +386,54 @@
   margin: 0;
   padding-block: 0;
   padding-inline: var(--tree-view-group-padding-start) 0;
+}
+
+// `TreeViewDrag.js` places the marker at the top left of the row of the target. The offsets are those of `dnd_show()`
+// in the legacy jstree.
+.tree-view__drop-marker {
+  pointer-events: none;
+  position: absolute;
+  z-index: var(--tree-view-drop-marker-z-index);
+
+  &:before {
+    background: var(--tree-view-drop-marker-arrow-image) var(--tree-view-drop-marker-arrow-image-position) no-repeat;
+    block-size: var(--tree-view-drop-marker-arrow-height);
+    content: '';
+    inline-size: var(--tree-view-drop-marker-arrow-width);
+    inset-block-start: calc(var(--tree-view-drop-marker-row-offset) + var(--tree-view-drop-marker-arrow-top));
+    inset-inline-start: var(--tree-view-drop-marker-arrow-left);
+    position: absolute;
+  }
+
+  &:after {
+    background-color: var(--tree-view-drop-marker-line-bg-color);
+    block-size: var(--tree-view-drop-marker-line-height);
+    border: var(--tree-view-drop-marker-line-border);
+    border-inline-start: 0;
+    border-radius: var(--tree-view-drop-marker-line-border-radius);
+    box-shadow: var(--tree-view-drop-marker-line-shadow);
+    content: '';
+    display: var(--tree-view-drop-marker-line-display);
+    inline-size: var(--tree-view-drop-marker-line-width);
+    inset-block-start: calc(var(--tree-view-drop-marker-row-offset) + var(--tree-view-drop-marker-line-top));
+    inset-inline-start: var(--tree-view-drop-marker-line-left);
+    position: absolute;
+  }
+}
+
+.tree-view__drop-marker--inside {
+  --tree-view-drop-marker-arrow-left: var(--tree-view-drop-marker-arrow-inside-left);
+  --tree-view-drop-marker-arrow-top: var(--tree-view-drop-marker-arrow-inside-top);
+  --tree-view-drop-marker-line-display: none;
+  --tree-view-drop-marker-row-offset: calc(var(--tree-view-item-row-height) / 2);
+}
+
+.tree-view__drop-marker--after {
+  --tree-view-drop-marker-row-offset: var(--tree-view-item-row-height);
+}
+
+.tree-view__drag-overlay {
+  line-height: var(--tree-view-drag-overlay-line-height);
+  padding-block: var(--tree-view-drag-overlay-padding);
+  padding-inline: var(--tree-view-drag-overlay-padding-start) var(--tree-view-drag-overlay-padding);
 }

@@ -125,8 +125,9 @@ function shouldRevealAfterReload(tree, { reloadKey, currentIdBefore, wasCurrentI
   return isLatestReload && (tree.isRevealFailed || (wasItemShown && areAncestorsStillExpanded && hasItemMoved));
 }
 
-// Fetch again all the children that `reload()` in `TreeViewReducer.js` keeps. After every response arrives, reveal
-// the current item again if it moved or its reveal failed.
+// Fetch again the children that `reload()` in `TreeViewReducer.js` keeps. Also fetch the children of each shown,
+// expanded parent whose children were loading. After every response arrives, reveal the current item again if it moved
+// or its reveal failed. Then complete the reload.
 export async function reloadTree(store, reloadKey, { fetchChildren, fetchPath }) {
   // The reload can remove the current item from the children of its parent, so `reloadTree()` reads the state before
   // the reload.
@@ -134,13 +135,27 @@ export async function reloadTree(store, reloadKey, { fetchChildren, fetchPath })
   const currentIdBefore = treeBefore.currentId;
   const wasCurrentItemShown = isItemShown(treeBefore, currentIdBefore);
   store.dispatch({ type: ACTION_TYPES.RELOAD_REQUEST, reloadKey });
-  const keptParentIds = Object.keys(store.getState().childIds).map(Number);
-  await Promise.all(keptParentIds.map((id) => loadChildren(store, id, fetchChildren)));
+  const tree = store.getState();
+  const loadingParentIds = tree.expanded.filter((id) => !tree.childIds[id] && isItemShown(tree, id));
+  const reloadedParentIds = [...Object.keys(tree.childIds).map(Number), ...loadingParentIds];
+  await Promise.all(reloadedParentIds.map((id) => loadChildren(store, id, fetchChildren)));
 
   const treeAfter = store.getState();
   if (shouldRevealAfterReload(treeAfter, { reloadKey, currentIdBefore, wasCurrentItemShown })) {
     await revealItem(store, treeAfter.currentId, fetchChildren, fetchPath);
   }
+  store.dispatch({ type: ACTION_TYPES.RELOAD_COMPLETE, reloadKey });
+}
+
+// Track the move of the item `id`. `requestMove` calls `onMove` and returns its promise. A promise that resolves to
+// `false` cancels the move. The move is stored before `onMove` runs, so a reload that the host starts inside `onMove`
+// counts as the reload of the move.
+export function trackMoveRequest(store, id, requestMove) {
+  store.dispatch({ type: ACTION_TYPES.MOVE_REQUEST, id });
+  requestMove().then(
+    (outcome) => store.dispatch({ type: ACTION_TYPES.MOVE_SETTLE, id, isCancelled: outcome === false }),
+    () => store.dispatch({ type: ACTION_TYPES.MOVE_SETTLE, id, isCancelled: false }),
+  );
 }
 
 // Track the open request for the item `id`. `request` is what `onOpen` returned: `false` starts no open request, and a

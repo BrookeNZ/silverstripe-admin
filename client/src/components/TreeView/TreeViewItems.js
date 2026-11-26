@@ -9,29 +9,20 @@
 import React, { memo, useContext } from 'react';
 import PropTypes from 'prop-types';
 import classnames from 'classnames';
-import StatusBadge from 'components/StatusBadge/StatusBadge';
 import { STATUS } from './TreeViewConstants';
-import { getHighlightedId, isParentItem } from './TreeViewSelectors';
+import { getHighlightedId, isItemDisabled, isParentItem } from './TreeViewSelectors';
 import { collapseItem, expandItem, loadChildren } from './TreeViewActions';
 import TreeViewContext from './TreeViewContext';
+import { useItemDrag } from './TreeViewDrag';
 import TreeViewFailedItem from './TreeViewFailedItem';
 import { getListKey, getTabStopKey } from './TreeViewFocus';
 import TreeViewLoadingItem from './TreeViewLoadingItem';
+import TreeViewStatusBadges from './TreeViewStatusBadges';
 import TreeViewToggle from './TreeViewToggle';
 import TreeViewTooManyItem from './TreeViewTooManyItem';
 import { useLoadChildren } from './treeViewHooks';
 import { useTreeValue } from './treeViewStore';
 import { getContextMenuAnchor, isContextMenuKey, isPlainClick, itemPropType } from './treeViewUtils';
-
-// The `StatusBadge` status for each status flag key that cms sends. A flag from an extension has no entry and renders a
-// badge with no status.
-const BADGE_STATUS_BY_FLAG_KEY = {
-  addedtodraft: 'draft',
-  archived: 'archived',
-  deletedonlive: 'archived',
-  modified: 'modified',
-  removedfromdraft: 'archived',
-};
 
 export const TreeViewItems = ({ parentId, parentItem = null, level }) => {
   const { store, fetchChildren, onShowAsList } = useContext(TreeViewContext);
@@ -78,7 +69,7 @@ TreeViewItems.propTypes = {
 };
 
 const TreeViewItem = ({ id, level, posInSet, setSize }) => {
-  const { store, onOpen, onShowContextMenu } = useContext(TreeViewContext);
+  const { store, onOpen, onShowContextMenu, isDragEnabled } = useContext(TreeViewContext);
   const item = useTreeValue(store, (tree) => tree.items[id]);
   const childIds = useTreeValue(store, (tree) => tree.childIds[id]);
   const isItemExpanded = useTreeValue(store, (tree) => tree.expanded.includes(id));
@@ -86,6 +77,7 @@ const TreeViewItem = ({ id, level, posInSet, setSize }) => {
   const isItemHighlighted = useTreeValue(store, (tree) => getHighlightedId(tree) === id);
   const isItemTabStop = useTreeValue(store, (tree) => getTabStopKey(tree) === id);
   const areChildrenAwaited = useTreeValue(store, (tree) => !tree.childIds[id] && tree.status[id] !== STATUS.FAILED);
+  const { setLinkRef, listeners, instructionsId } = useItemDrag(id, isDragEnabled);
 
   if (!item) {
     return null;
@@ -94,9 +86,6 @@ const TreeViewItem = ({ id, level, posInSet, setSize }) => {
   const isItemParent = isParentItem(item, childIds, isItemExpanded);
   const isExpandedParent = isItemParent && isItemExpanded;
   const canViewItem = item.canView !== false;
-  const canEditItem = item.canEdit !== false;
-  // An item the member can view but not edit looks the same as one the member cannot view.
-  const isItemDisabled = !canViewItem || !canEditItem;
   const statusFlags = Array.isArray(item.statusFlags) ? item.statusFlags : [];
 
   const handleToggle = () => (isItemExpanded ? collapseItem(store, id) : expandItem(store, id));
@@ -132,12 +121,14 @@ const TreeViewItem = ({ id, level, posInSet, setSize }) => {
         <TreeViewToggle title={item.treeTitle} isExpanded={isExpandedParent} isMouseOnly onClick={handleToggle} />
       )}
       <a
+        ref={setLinkRef}
         className={classnames(
           'tree-view__link',
           statusFlags.map((flag) => `tree-view__link--status-${flag.key}`),
           {
             'tree-view__link--current': isItemHighlighted,
-            'tree-view__link--disabled': isItemDisabled,
+            'tree-view__link--disabled': isItemDisabled(item),
+            'tree-view__link--draggable': isDragEnabled,
           },
         )}
         role="treeitem"
@@ -152,20 +143,18 @@ const TreeViewItem = ({ id, level, posInSet, setSize }) => {
         aria-expanded={isItemParent ? isExpandedParent : undefined}
         aria-current={isItemCurrent ? 'page' : undefined}
         aria-disabled={canViewItem ? undefined : 'true'}
+        aria-describedby={instructionsId}
+        // The browser drags a link as a URL. That drag would replace the drag of the item.
+        draggable={isDragEnabled ? 'false' : undefined}
+        {...listeners}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
         onKeyDown={handleKeyDown}
       >
+        {isDragEnabled && <span className="tree-view__drag-handle font-icon-drag-handle" aria-hidden="true" />}
         <span className={classnames('tree-view__icon', item.iconClasses)} aria-hidden="true" />
         <span className="tree-view__title">{item.treeTitle}</span>
-        {statusFlags.map((flag) => (
-          <StatusBadge
-            key={flag.key}
-            status={BADGE_STATUS_BY_FLAG_KEY[flag.key]}
-            text={flag.text}
-            title={flag.title}
-          />
-        ))}
+        <TreeViewStatusBadges statusFlags={statusFlags} />
       </a>
       {isExpandedParent && (
         <ul

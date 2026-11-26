@@ -90,3 +90,14 @@ export function getUnloadedChainParentIds(tree, id, ancestorIds) {
     .filter((link) => !isChildLinked(tree, link))
     .map(([parentId]) => parentId);
 }
+
+// Check whether the item shows as disabled. An item the member can view but not edit looks the same as one the member
+// cannot view.
+export function isItemDisabled(item) {
+  return item.canView === false || item.canEdit === false;
+}
+
+// Check whether the tree waits for the promise of `onMove`.
+export function isMovePending(tree) {
+  return Boolean(tree.move) && !tree.move.isSettled;
+}
