@@ -5,6 +5,7 @@ import { flushSync } from 'react-dom';
 import i18n from 'i18n';
 import ACTION_TYPES from '../TreeViewActionTypes';
 import { clearTreeStores, getTreeStore } from '../treeViewStore';
+import { isItemDisabled } from '../TreeViewSelectors';
 import TreeView from '../TreeView';
 import { deferred, getChildren, loadActions, makePage } from './mockTree';
 import {
@@ -22,6 +23,13 @@ import {
   startDrag,
   tap,
 } from './mockDrag';
+
+// Each render of `TreeViewItem` calls `isItemDisabled()` once with its item. During a pointer drag no other code
+// calls it, so the calls count the renders.
+jest.mock('../TreeViewSelectors', () => {
+  const selectors = jest.requireActual('../TreeViewSelectors');
+  return { ...selectors, isItemDisabled: jest.fn(selectors.isItemDisabled) };
+});
 
 const TREE_ID = 'pages';
 
@@ -706,6 +714,20 @@ test('The marker follows its target row when the rows are measured again in anot
   expect(getMarkerTop()).toBe('33px');
   pressEscape();
   release();
+});
+
+test('A drag renders no `TreeViewItem` from its start to its drop', () => {
+  saveTree({ expandedIds: [2, 5] });
+  const { onMove } = renderTree();
+  isItemDisabled.mockClear();
+
+  startDrag(getRow('Home'));
+  moveTo(getRow('Our team'));
+  moveTo(getRow('Contact us'), 0.9);
+  release();
+
+  expect(onMove).toHaveBeenCalledTimes(1);
+  expect(isItemDisabled.mock.calls.map(([item]) => item.id)).toEqual([]);
 });
 
 // Render a tree that `reload()` reloads with a new `reloadKey`, as a host does after a move. Each request for children

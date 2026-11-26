@@ -58,7 +58,7 @@ export const TreeViewItems = ({ parentId, parentItem = null, level }) => {
   }
   return childIds.map((id, index) => (
     // eslint-disable-next-line no-use-before-define
-    <MemoTreeViewItem key={id} id={id} level={level} posInSet={index + 1} setSize={childIds.length} />
+    <MemoTreeViewDraggableItem key={id} id={id} level={level} posInSet={index + 1} setSize={childIds.length} />
   ));
 };
 
@@ -68,7 +68,15 @@ TreeViewItems.propTypes = {
   level: PropTypes.number.isRequired,
 };
 
-const TreeViewItem = ({ id, level, posInSet, setSize }) => {
+const TreeViewItem = ({
+  id,
+  level,
+  posInSet,
+  setSize,
+  setLinkRef,
+  listeners = null,
+  instructionsId = null,
+}) => {
   const { store, onOpen, onShowContextMenu, isDragEnabled } = useContext(TreeViewContext);
   const item = useTreeValue(store, (tree) => tree.items[id]);
   const childIds = useTreeValue(store, (tree) => tree.childIds[id]);
@@ -77,7 +85,6 @@ const TreeViewItem = ({ id, level, posInSet, setSize }) => {
   const isItemHighlighted = useTreeValue(store, (tree) => getHighlightedId(tree) === id);
   const isItemTabStop = useTreeValue(store, (tree) => getTabStopKey(tree) === id);
   const areChildrenAwaited = useTreeValue(store, (tree) => !tree.childIds[id] && tree.status[id] !== STATUS.FAILED);
-  const { setLinkRef, listeners, instructionsId } = useItemDrag(id, isDragEnabled);
 
   if (!item) {
     return null;
@@ -175,6 +182,36 @@ TreeViewItem.propTypes = {
   level: PropTypes.number.isRequired,
   posInSet: PropTypes.number.isRequired,
   setSize: PropTypes.number.isRequired,
+  setLinkRef: PropTypes.func.isRequired,
+  listeners: PropTypes.objectOf(PropTypes.func),
+  instructionsId: PropTypes.string,
 };
 
 const MemoTreeViewItem = memo(TreeViewItem);
+
+// Keep the drag hooks out of `TreeViewItem`. They read the hovered row from the context of dnd-kit, and `memo` does
+// not stop a render from a change of context.
+const TreeViewDraggableItem = ({ id, level, posInSet, setSize }) => {
+  const { isDragEnabled } = useContext(TreeViewContext);
+  const { setLinkRef, listeners, instructionsId } = useItemDrag(id, isDragEnabled);
+  return (
+    <MemoTreeViewItem
+      id={id}
+      level={level}
+      posInSet={posInSet}
+      setSize={setSize}
+      setLinkRef={setLinkRef}
+      listeners={listeners}
+      instructionsId={instructionsId}
+    />
+  );
+};
+
+TreeViewDraggableItem.propTypes = {
+  id: PropTypes.number.isRequired,
+  level: PropTypes.number.isRequired,
+  posInSet: PropTypes.number.isRequired,
+  setSize: PropTypes.number.isRequired,
+};
+
+const MemoTreeViewDraggableItem = memo(TreeViewDraggableItem);
